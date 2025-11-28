@@ -16,7 +16,7 @@ type HighTempMetrics = {
   overThresholdCount: number;
 };
 
-async function evaluateOfflineAlerts(now: Date): Promise<OfflineMetrics> {
+export async function evaluateOfflineAlerts(now: Date): Promise<OfflineMetrics> {
   const offline = await query<{
     id: string;
     site_id: string;
@@ -67,7 +67,7 @@ async function evaluateOfflineAlerts(now: Date): Promise<OfflineMetrics> {
   return { offlineCount: offline.rows.length, clearedCount: online.rows.length };
 }
 
-async function evaluateHighTempAlerts(now: Date): Promise<HighTempMetrics> {
+export async function evaluateHighTempAlerts(now: Date): Promise<HighTempMetrics> {
   const res = await query<{
     id: string;
     site_id: string;
@@ -122,8 +122,7 @@ async function evaluateHighTempAlerts(now: Date): Promise<HighTempMetrics> {
   return { evaluatedCount: res.rows.length, overThresholdCount };
 }
 
-async function runOnce() {
-  const now = new Date();
+export async function runOnce(now: Date = new Date()) {
   console.log(`[alertsWorker] cycle start at ${now.toISOString()}`);
 
   try {
@@ -138,7 +137,7 @@ async function runOnce() {
   }
 }
 
-function start() {
+export function start() {
   const intervalSec = Number(process.env.ALERT_WORKER_INTERVAL_SEC || 60);
   console.log(
     `[alertsWorker] starting (env=${process.env.NODE_ENV || 'development'}) offlineThreshold=${OFFLINE_MINUTES}min highTemp=${HIGH_TEMP_THRESHOLD}C interval=${intervalSec}s`
@@ -148,4 +147,6 @@ function start() {
   setInterval(runOnce, intervalSec * 1000);
 }
 
-start();
+if (require.main === module) {
+  start();
+}
