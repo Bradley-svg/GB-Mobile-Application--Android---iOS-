@@ -1,6 +1,9 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const queryMock = vi.fn();
+const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
 vi.mock('../src/db/pool', () => ({
   query: (...args: unknown[]) => queryMock(...(args as [string, unknown[]?])),
@@ -15,6 +18,15 @@ beforeAll(async () => {
 
 beforeEach(() => {
   queryMock.mockReset();
+  consoleWarnSpy.mockClear();
+  consoleErrorSpy.mockClear();
+  consoleLogSpy.mockClear();
+});
+
+afterAll(() => {
+  consoleWarnSpy.mockRestore();
+  consoleErrorSpy.mockRestore();
+  consoleLogSpy.mockRestore();
 });
 
 describe('handleTelemetryMessage', () => {

@@ -1,10 +1,11 @@
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import type { Express } from 'express';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const queryMock = vi.fn();
 const sendAlertNotificationMock = vi.fn();
+const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
 vi.mock('../src/db/pool', () => ({
   query: (...args: unknown[]) => queryMock(...(args as [string, unknown[]?])),
@@ -36,6 +37,7 @@ beforeEach(() => {
   queryMock.mockReset();
   sendAlertNotificationMock.mockReset();
   alertsTable = [];
+  consoleLogSpy.mockClear();
 
   queryMock.mockImplementation(async (text: string, params?: any[]) => {
     if (text.includes("s.data->'raw'->'sensor'->>'supply_temperature_c'")) {
@@ -139,4 +141,8 @@ describe('high temp alerts API', () => {
       }),
     ]);
   });
+});
+
+afterAll(() => {
+  consoleLogSpy.mockRestore();
 });

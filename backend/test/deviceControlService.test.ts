@@ -5,6 +5,8 @@ const getDeviceByIdMock = vi.fn();
 const publishMock = vi.fn();
 const connectMock = vi.fn();
 const onMock = vi.fn();
+const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
 vi.mock('../src/db/pool', () => ({
   query: (...args: unknown[]) => queryMock(...(args as [string, unknown[]?])),
@@ -45,10 +47,14 @@ beforeEach(() => {
   connectMock.mockClear();
   onMock.mockReset();
   process.env.MQTT_URL = 'mqtt://test-broker';
+  consoleLogSpy.mockClear();
+  consoleErrorSpy.mockClear();
 });
 
 afterAll(() => {
   process.env.MQTT_URL = originalMqttUrl;
+  consoleLogSpy.mockRestore();
+  consoleErrorSpy.mockRestore();
 });
 
 describe('deviceControlService', () => {

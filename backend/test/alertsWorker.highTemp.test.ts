@@ -1,9 +1,10 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const queryMock = vi.fn();
 const upsertActiveAlertMock = vi.fn();
 const clearAlertIfExistsMock = vi.fn();
 const sendAlertNotificationMock = vi.fn();
+const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
 vi.mock('../src/db/pool', () => ({
   query: (...args: unknown[]) => queryMock(...(args as [string, unknown[]?])),
@@ -34,6 +35,7 @@ beforeEach(() => {
   upsertActiveAlertMock.mockReset();
   clearAlertIfExistsMock.mockReset();
   sendAlertNotificationMock.mockReset();
+  consoleLogSpy.mockClear();
 });
 
 describe('evaluateHighTempAlerts', () => {
@@ -100,4 +102,8 @@ describe('evaluateHighTempAlerts', () => {
     expect(clearAlertIfExistsMock).toHaveBeenCalledWith('device-2', 'high_temp', now);
     expect(sendAlertNotificationMock).not.toHaveBeenCalled();
   });
+});
+
+afterAll(() => {
+  consoleLogSpy.mockRestore();
 });

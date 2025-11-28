@@ -1,8 +1,9 @@
 import request from 'supertest';
 import type { Express } from 'express';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const queryMock = vi.fn();
+const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
 vi.mock('../src/db/pool', () => ({
   query: (...args: unknown[]) => queryMock(...(args as [string, unknown[]?])),
@@ -19,6 +20,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   queryMock.mockReset();
+  consoleErrorSpy.mockClear();
 });
 
 describe('GET /health-plus', () => {
@@ -42,6 +44,7 @@ describe('GET /health-plus', () => {
     const res = await request(app).get('/health-plus').expect(500);
 
     expect(queryMock).toHaveBeenCalledTimes(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith('health-plus error', expect.any(Error));
     expect(res.body).toEqual({
       ok: false,
       env: process.env.NODE_ENV,
@@ -49,4 +52,8 @@ describe('GET /health-plus', () => {
       version: 'test-version',
     });
   });
+});
+
+afterAll(() => {
+  consoleErrorSpy.mockRestore();
 });
