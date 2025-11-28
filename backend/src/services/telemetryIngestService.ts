@@ -5,6 +5,14 @@ type ParsedTopic = {
   deviceExternalId: string;
 };
 
+type SnapshotMetrics = {
+  supply_temp: number | null;
+  return_temp: number | null;
+  power_kw: number | null;
+  flow_rate: number | null;
+  cop: number | null;
+};
+
 function parseTopic(topic: string): ParsedTopic | null {
   const parts = topic.split('/');
   if (parts.length !== 4) return null;
@@ -63,27 +71,22 @@ export async function handleTelemetryMessage(topic: string, payload: Buffer) {
   const tsMs = typeof rawTimestamp === 'number' ? rawTimestamp : Date.now();
   const ts = new Date(tsMs);
 
-  // Expected payload shape: { timestamp, sensor: { supply_temperature_c, return_temperature_c, power_w, flow_lps, cop } }
-  const metrics: Record<string, number | undefined> = {
-    supply_temp:
-      typeof (sensor as any).supply_temperature_c === 'number'
-        ? (sensor as any).supply_temperature_c
-        : undefined,
-    return_temp:
-      typeof (sensor as any).return_temperature_c === 'number'
-        ? (sensor as any).return_temperature_c
-        : undefined,
-    power_kw:
-      typeof (sensor as any).power_w === 'number'
-        ? (sensor as any).power_w / 1000
-        : undefined,
-    flow_rate:
-      typeof (sensor as any).flow_lps === 'number' ? (sensor as any).flow_lps : undefined,
-    cop: typeof (sensor as any).cop === 'number' ? (sensor as any).cop : undefined,
+  const toNumber = (value: unknown): number | null =>
+    typeof value === 'number' && !Number.isNaN(value) ? value : null;
+
+  const metrics: SnapshotMetrics = {
+    supply_temp: toNumber((sensor as any).supply_temperature_c),
+    return_temp: toNumber((sensor as any).return_temperature_c),
+    power_kw: (() => {
+      const watts = toNumber((sensor as any).power_w);
+      return watts === null ? null : watts / 1000;
+    })(),
+    flow_rate: toNumber((sensor as any).flow_lps),
+    cop: toNumber((sensor as any).cop),
   };
 
   const entries = Object.entries(metrics).filter(
-    ([, value]) => typeof value === 'number' && !Number.isNaN(value)
+    (entry): entry is [string, number] => entry[1] !== null
   );
 
   if (entries.length === 0) {
@@ -110,11 +113,9 @@ export async function handleTelemetryMessage(topic: string, payload: Buffer) {
 
   await query(insertSql, params);
 
-  const numericMetrics = Object.fromEntries(entries) as Record<string, number>;
-
   const snapshotData = {
-    timestamp: ts.toISOString(),
-    metrics: numericMetrics,
+    metrics,
+    raw: data,
   };
 
   await query(
