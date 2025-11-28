@@ -79,6 +79,12 @@ export const DeviceDetailScreen: React.FC = () => {
   const powerData = powerPoints.map((p, idx) => ({ x: idx, y: p.value }));
   const flowData = flowPoints.map((p, idx) => ({ x: idx, y: p.value }));
   const copData = copPoints.map((p, idx) => ({ x: idx, y: p.value }));
+  const hasSupplyData = supplyData.length > 0;
+  const hasReturnData = returnData.length > 0;
+  const hasPowerData = powerData.length > 0;
+  const hasFlowData = flowData.length > 0;
+  const hasCopData = copData.length > 0;
+  const emptyMetricPlaceholder = 'No data for this metric in the selected range.';
 
   const onSetpointSave = async () => {
     const value = Number(setpointInput);
@@ -158,7 +164,7 @@ export const DeviceDetailScreen: React.FC = () => {
       {!telemetryLoading && !telemetryError && (
         <View>
           <Text style={{ marginBottom: 8, fontWeight: '600' }}>Flow temperatures (C)</Text>
-          {supplyData.length > 0 || returnData.length > 0 ? (
+          {hasSupplyData || hasReturnData ? (
             <VictoryChart>
               <VictoryAxis tickFormat={() => ''} />
               <VictoryAxis dependentAxis />
@@ -176,46 +182,46 @@ export const DeviceDetailScreen: React.FC = () => {
               <VictoryLine data={returnData} style={{ data: { stroke: 'steelblue' } }} />
             </VictoryChart>
           ) : (
-            <Text>No temperature telemetry for this range.</Text>
+            <Text>{emptyMetricPlaceholder}</Text>
           )}
 
           <View style={{ height: 24 }} />
 
           <Text style={{ marginBottom: 8, fontWeight: '600' }}>Power (kW)</Text>
-          {powerData.length > 0 ? (
+          {hasPowerData ? (
             <VictoryChart>
               <VictoryAxis tickFormat={() => ''} />
               <VictoryAxis dependentAxis />
               <VictoryLine data={powerData} style={{ data: { stroke: 'green' } }} />
             </VictoryChart>
           ) : (
-            <Text>No power telemetry for this range.</Text>
+            <Text>{emptyMetricPlaceholder}</Text>
           )}
 
           <View style={{ height: 24 }} />
 
           <Text style={{ marginBottom: 8, fontWeight: '600' }}>Flow rate (L/s)</Text>
-          {flowData.length > 0 ? (
+          {hasFlowData ? (
             <VictoryChart>
               <VictoryAxis tickFormat={() => ''} />
               <VictoryAxis dependentAxis />
               <VictoryLine data={flowData} style={{ data: { stroke: '#0ea5e9' } }} />
             </VictoryChart>
           ) : (
-            <Text>No flow telemetry for this range.</Text>
+            <Text>{emptyMetricPlaceholder}</Text>
           )}
 
           <View style={{ height: 24 }} />
 
           <Text style={{ marginBottom: 8, fontWeight: '600' }}>COP</Text>
-          {copData.length > 0 ? (
+          {hasCopData ? (
             <VictoryChart>
               <VictoryAxis tickFormat={() => ''} />
               <VictoryAxis dependentAxis />
               <VictoryLine data={copData} style={{ data: { stroke: '#f59e0b' } }} />
             </VictoryChart>
           ) : (
-            <Text>No COP telemetry for this range.</Text>
+            <Text>{emptyMetricPlaceholder}</Text>
           )}
         </View>
       )}

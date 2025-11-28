@@ -41,5 +41,12 @@ export async function getDeviceTelemetry(
     metrics[row.metric].push({ ts: row.ts.toISOString(), value: row.value });
   }
 
+  const metricKeys = ['supply_temp', 'return_temp', 'power_kw', 'flow_rate', 'cop'] as const;
+  for (const key of metricKeys) {
+    if (!metrics[key]) {
+      metrics[key] = [];
+    }
+  }
+
   return { range, metrics };
 }
