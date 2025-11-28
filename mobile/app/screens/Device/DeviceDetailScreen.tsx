@@ -1,18 +1,25 @@
-import React, { useMemo } from 'react';
-import { View, Text, ActivityIndicator } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, ActivityIndicator, Button, ScrollView } from 'react-native';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { AppStackParamList } from '../../navigation/RootNavigator';
-import { useDevice, useSite } from '../../api/hooks';
+import { useDevice, useDeviceTelemetry, useSite } from '../../api/hooks';
+import { VictoryAxis, VictoryChart, VictoryLegend, VictoryLine } from 'victory-native';
 
 type Route = RouteProp<AppStackParamList, 'DeviceDetail'>;
 
 export const DeviceDetailScreen: React.FC = () => {
   const route = useRoute<Route>();
   const { deviceId } = route.params;
+  const [range, setRange] = useState<'24h' | '7d'>('24h');
 
   const { data: device, isLoading, isError } = useDevice(deviceId);
   const siteId = device?.site_id;
   const { data: site } = useSite(siteId || '');
+  const {
+    data: telemetry,
+    isLoading: telemetryLoading,
+    isError: telemetryError,
+  } = useDeviceTelemetry(deviceId, range);
 
   const siteName = useMemo(() => site?.name || 'Unknown site', [site]);
 
@@ -34,8 +41,16 @@ export const DeviceDetailScreen: React.FC = () => {
     );
   }
 
+  const supplyPoints = telemetry?.metrics['supply_temp'] || [];
+  const returnPoints = telemetry?.metrics['return_temp'] || [];
+  const powerPoints = telemetry?.metrics['power_kw'] || [];
+
+  const supplyData = supplyPoints.map((p, idx) => ({ x: idx, y: p.value }));
+  const returnData = returnPoints.map((p, idx) => ({ x: idx, y: p.value }));
+  const powerData = powerPoints.map((p, idx) => ({ x: idx, y: p.value }));
+
   return (
-    <View style={{ flex: 1, padding: 16 }}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
       <Text style={{ fontSize: 20, fontWeight: '700' }}>{device.name}</Text>
       <Text>Type: {device.type}</Text>
       <Text>Status: {device.status}</Text>
@@ -45,6 +60,70 @@ export const DeviceDetailScreen: React.FC = () => {
         <Text>{siteName}</Text>
         {site?.city ? <Text>{site.city}</Text> : null}
       </View>
-    </View>
+
+      <View style={{ flexDirection: 'row', marginVertical: 16 }}>
+        <Button
+          title="24h"
+          onPress={() => setRange('24h')}
+          color={range === '24h' ? '#007aff' : undefined}
+        />
+        <View style={{ width: 8 }} />
+        <Button
+          title="7d"
+          onPress={() => setRange('7d')}
+          color={range === '7d' ? '#007aff' : undefined}
+        />
+      </View>
+
+      {telemetryLoading && (
+        <View style={{ alignItems: 'center', marginVertical: 8 }}>
+          <ActivityIndicator />
+          <Text style={{ marginTop: 4 }}>Loading telemetry...</Text>
+        </View>
+      )}
+
+      {telemetryError && !telemetryLoading ? (
+        <Text style={{ color: 'red' }}>Failed to load telemetry.</Text>
+      ) : null}
+
+      {!telemetryLoading && !telemetryError && (
+        <View>
+          <Text style={{ marginBottom: 8, fontWeight: '600' }}>Flow temperatures (°C)</Text>
+          {supplyData.length > 0 || returnData.length > 0 ? (
+            <VictoryChart>
+              <VictoryAxis tickFormat={() => ''} />
+              <VictoryAxis dependentAxis />
+              <VictoryLegend
+                x={40}
+                y={0}
+                orientation="horizontal"
+                gutter={20}
+                data={[
+                  { name: 'Supply', symbol: { fill: 'tomato' } },
+                  { name: 'Return', symbol: { fill: 'steelblue' } },
+                ]}
+              />
+              <VictoryLine data={supplyData} style={{ data: { stroke: 'tomato' } }} />
+              <VictoryLine data={returnData} style={{ data: { stroke: 'steelblue' } }} />
+            </VictoryChart>
+          ) : (
+            <Text>No temperature telemetry for this range.</Text>
+          )}
+
+          <View style={{ height: 24 }} />
+
+          <Text style={{ marginBottom: 8, fontWeight: '600' }}>Power (kW)</Text>
+          {powerData.length > 0 ? (
+            <VictoryChart>
+              <VictoryAxis tickFormat={() => ''} />
+              <VictoryAxis dependentAxis />
+              <VictoryLine data={powerData} style={{ data: { stroke: 'green' } }} />
+            </VictoryChart>
+          ) : (
+            <Text>No power telemetry for this range.</Text>
+          )}
+        </View>
+      )}
+    </ScrollView>
   );
 };

@@ -18,6 +18,11 @@ export type ApiDevice = {
   last_seen_at?: string;
 };
 
+export type DeviceTelemetry = {
+  range: '24h' | '7d';
+  metrics: Record<string, { ts: string; value: number }[]>;
+};
+
 export function useSites() {
   return useQuery<ApiSite[]>({
     queryKey: ['sites'],
@@ -55,6 +60,19 @@ export function useDevice(deviceId: string) {
     queryKey: ['devices', deviceId],
     queryFn: async () => {
       const res = await api.get(`/devices/${deviceId}`);
+      return res.data;
+    },
+    enabled: !!deviceId,
+  });
+}
+
+export function useDeviceTelemetry(deviceId: string, range: '24h' | '7d') {
+  return useQuery<DeviceTelemetry>({
+    queryKey: ['devices', deviceId, 'telemetry', range],
+    queryFn: async () => {
+      const res = await api.get(`/devices/${deviceId}/telemetry`, {
+        params: { range },
+      });
       return res.data;
     },
     enabled: !!deviceId,
