@@ -19,11 +19,10 @@ export const DashboardScreen: React.FC = () => {
 
   const metrics = useMemo(() => {
     const totalSites = data?.length ?? 0;
-    const onlineDevices = (data || []).reduce(
-      (acc, site: unknown) =>
-        acc + (typeof site === 'object' && site ? (site as any).online_devices ?? (site as any).device_count_online ?? 0 : 0),
-      0
-    );
+    const onlineDevices = (data || []).reduce((acc, site) => {
+      const onlineCount = site.online_devices ?? site.device_count_online ?? 0;
+      return acc + onlineCount;
+    }, 0);
     return [
       { label: 'Sites', value: totalSites },
       { label: 'Online devices', value: onlineDevices },

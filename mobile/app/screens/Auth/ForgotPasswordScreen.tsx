@@ -8,6 +8,7 @@ import { Screen, Card, PrimaryButton } from '../../theme/components';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
+import logo from '../../../assets/icon.png';
 
 type AuthStackParamList = {
   Login: undefined;
@@ -53,7 +54,7 @@ export const ForgotPasswordScreen: React.FC = () => {
     <Screen>
       <View style={styles.hero}>
         <View style={styles.logoBadge}>
-          <Image source={require('../../../assets/icon.png')} style={styles.logo} resizeMode="contain" />
+          <Image source={logo} style={styles.logo} resizeMode="contain" />
         </View>
         <Text style={[typography.title1, styles.title]}>Reset password</Text>
         <Text style={[typography.body, styles.muted]}>We will send a reset link to your email</Text>

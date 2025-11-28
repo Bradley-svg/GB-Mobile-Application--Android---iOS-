@@ -9,6 +9,7 @@ import { Screen, Card, PrimaryButton } from '../../theme/components';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
+import logo from '../../../assets/icon.png';
 
 type AuthStackParamList = {
   Login: undefined;
@@ -53,7 +54,7 @@ export const LoginScreen: React.FC = () => {
     <Screen>
       <View style={styles.hero}>
         <View style={styles.logoBadge}>
-          <Image source={require('../../../assets/icon.png')} style={styles.logo} resizeMode="contain" />
+          <Image source={logo} style={styles.logo} resizeMode="contain" />
         </View>
         <Text style={[typography.title1, styles.title]}>Welcome back</Text>
         <Text style={[typography.body, styles.muted]}>Monitor and control your Greenbro fleet</Text>

@@ -39,15 +39,6 @@ export const AlertsScreen: React.FC = () => {
 
   const navigation = useNavigation<Navigation>();
 
-  if (isLoading) {
-    return (
-      <Screen scroll={false} contentContainerStyle={styles.center}>
-        <ActivityIndicator color={colors.primary} />
-        <Text style={[typography.body, styles.muted, { marginTop: spacing.sm }]}>Loading alerts...</Text>
-      </Screen>
-    );
-  }
-
   const sortedAlerts = useMemo(
     () =>
       (alerts || []).slice().sort((a, b) => {
@@ -58,6 +49,15 @@ export const AlertsScreen: React.FC = () => {
       }),
     [alerts]
   );
+
+  if (isLoading) {
+    return (
+      <Screen scroll={false} contentContainerStyle={styles.center}>
+        <ActivityIndicator color={colors.primary} />
+        <Text style={[typography.body, styles.muted, { marginTop: spacing.sm }]}>Loading alerts...</Text>
+      </Screen>
+    );
+  }
 
   return (
     <Screen scroll={false} contentContainerStyle={{ paddingBottom: spacing.xxl }}>

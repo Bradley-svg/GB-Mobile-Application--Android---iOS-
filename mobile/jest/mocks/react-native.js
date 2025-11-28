@@ -7,6 +7,8 @@ const View = createComponent('View');
 const Text = createComponent('Text');
 const ScrollView = createComponent('ScrollView');
 const TextInput = createComponent('TextInput');
+const SafeAreaView = createComponent('SafeAreaView');
+const Image = createComponent('Image');
 const FlatList = ({ data = [], renderItem, ListEmptyComponent, ...rest }) => {
   const items = Array.isArray(data) ? data : [];
   const children = [];
@@ -53,6 +55,8 @@ module.exports = {
   Text,
   ScrollView,
   TextInput,
+  SafeAreaView,
+  Image,
   FlatList,
   Button,
   ActivityIndicator,

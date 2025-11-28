@@ -7,6 +7,8 @@ export type ApiSite = {
   city?: string;
   status?: string;
   last_seen_at?: string;
+  online_devices?: number;
+  device_count_online?: number;
 };
 
 export type ApiDevice = {

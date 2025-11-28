@@ -77,6 +77,15 @@ jest.mock('@react-navigation/bottom-tabs', () => {
   };
 });
 
+jest.mock('@expo/vector-icons', () => {
+  const React = require('react');
+  const { Text } = require('react-native');
+  const Icon = ({ name }: { name?: string }) => React.createElement(Text, {}, name ?? 'icon');
+  return {
+    Ionicons: Icon,
+  };
+});
+
 jest.mock('victory-native', () => {
   const React = require('react');
   const { View } = require('react-native');
