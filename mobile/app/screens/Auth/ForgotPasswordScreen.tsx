@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import axios from 'axios';
 import { useResetPassword } from '../../api/hooks';
-import { theme } from '../../theme/theme';
+import { Screen, Card, PrimaryButton } from '../../theme/components';
+import { colors } from '../../theme/colors';
+import { typography } from '../../theme/typography';
+import { spacing } from '../../theme/spacing';
 
 type AuthStackParamList = {
   Login: undefined;
@@ -47,50 +50,87 @@ export const ForgotPasswordScreen: React.FC = () => {
   };
 
   return (
-    <View style={{ flex: 1, padding: 16, backgroundColor: theme.colors.background }}>
-      <Text style={{ fontSize: 20, marginBottom: 16, fontWeight: '700', color: theme.colors.text }}>
-        Reset password
-      </Text>
-
-      <Text style={{ marginBottom: 4, color: theme.colors.text }}>Email</Text>
-      <TextInput
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        placeholder="you@example.com"
-        style={{
-          borderWidth: 1,
-          marginBottom: 8,
-          padding: 8,
-          borderRadius: 8,
-          borderColor: theme.colors.border,
-          backgroundColor: theme.colors.card,
-        }}
-      />
-
-      {error ? (
-        <Text style={{ color: theme.colors.danger, marginBottom: 12 }} testID="reset-error">
-          {error}
-        </Text>
-      ) : null}
-      {success ? (
-        <Text style={{ color: theme.colors.primary, marginBottom: 12 }} testID="reset-success">
-          {success}
-        </Text>
-      ) : null}
-
-      <Button
-        title={resetMutation.isPending ? 'Sending...' : 'Send reset link'}
-        onPress={onSubmit}
-        disabled={resetMutation.isPending}
-      />
-
-      <View style={{ marginTop: 16 }}>
-        <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-          <Text style={{ color: theme.colors.primary }}>Back to login</Text>
-        </TouchableOpacity>
+    <Screen>
+      <View style={styles.hero}>
+        <View style={styles.logoBadge}>
+          <Image source={require('../../../assets/icon.png')} style={styles.logo} resizeMode="contain" />
+        </View>
+        <Text style={[typography.title1, styles.title]}>Reset password</Text>
+        <Text style={[typography.body, styles.muted]}>We will send a reset link to your email</Text>
       </View>
-    </View>
+
+      <Card style={styles.formCard}>
+        <Text style={[typography.subtitle, styles.title, { marginBottom: spacing.sm }]}>Email</Text>
+        <TextInput
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          placeholder="you@example.com"
+          style={styles.input}
+          placeholderTextColor={colors.textMuted}
+        />
+
+        {error ? (
+          <Text style={[typography.caption, { color: colors.danger, marginBottom: spacing.sm }]} testID="reset-error">
+            {error}
+          </Text>
+        ) : null}
+        {success ? (
+          <Text style={[typography.caption, { color: colors.primary, marginBottom: spacing.sm }]} testID="reset-success">
+            {success}
+          </Text>
+        ) : null}
+
+        <PrimaryButton
+          label={resetMutation.isPending ? 'Sending...' : 'Send reset link'}
+          onPress={onSubmit}
+          disabled={resetMutation.isPending}
+        />
+
+        <View style={styles.linksRow}>
+          <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+            <Text style={[typography.body, { color: colors.primary }]}>Back to login</Text>
+          </TouchableOpacity>
+        </View>
+      </Card>
+    </Screen>
   );
 };
+
+const styles = StyleSheet.create({
+  hero: {
+    alignItems: 'center',
+    marginTop: spacing.xl,
+    marginBottom: spacing.lg,
+  },
+  logoBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  logo: { width: 40, height: 40 },
+  title: { color: colors.dark },
+  muted: { color: colors.textSecondary },
+  formCard: {
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 16,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.md,
+    color: colors.textPrimary,
+  },
+  linksRow: {
+    marginTop: spacing.md,
+  },
+});

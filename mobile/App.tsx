@@ -6,6 +6,7 @@ import { RootNavigator } from './app/navigation/RootNavigator';
 import { useAuthStore } from './app/store/authStore';
 import { api } from './app/api/client';
 import { useRegisterPushToken } from './app/hooks/useRegisterPushToken';
+import { colors } from './app/theme/colors';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -70,7 +71,9 @@ export default function App() {
   const isAuthenticated = !!user;
   return (
     <QueryClientProvider client={queryClient}>
-      <RootNavigator isAuthenticated={isAuthenticated} />
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <RootNavigator isAuthenticated={isAuthenticated} />
+      </View>
     </QueryClientProvider>
   );
 }

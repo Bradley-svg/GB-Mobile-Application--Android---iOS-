@@ -1,17 +1,14 @@
-import React, { useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { useAlerts } from '../../api/hooks';
 import { AppStackParamList } from '../../navigation/RootNavigator';
-import { theme } from '../../theme/theme';
+import { Screen, Card, PillTab, IconButton } from '../../theme/components';
+import { colors } from '../../theme/colors';
+import { typography } from '../../theme/typography';
+import { spacing } from '../../theme/spacing';
 
 type Navigation = NativeStackNavigationProp<AppStackParamList>;
 
@@ -24,11 +21,11 @@ const SEVERITY_ORDER: Record<string, number> = {
 const severityColor = (severity: string) => {
   switch (severity) {
     case 'critical':
-      return '#e11d48';
+      return colors.danger;
     case 'warning':
-      return '#facc15';
+      return colors.warning;
     default:
-      return '#0ea5e9';
+      return colors.info;
   }
 };
 
@@ -44,85 +41,94 @@ export const AlertsScreen: React.FC = () => {
 
   if (isLoading) {
     return (
-      <View style={[styles.center, { backgroundColor: theme.colors.background }]}>
-        <ActivityIndicator />
-      </View>
+      <Screen scroll={false} contentContainerStyle={styles.center}>
+        <ActivityIndicator color={colors.primary} />
+        <Text style={[typography.body, styles.muted, { marginTop: spacing.sm }]}>Loading alerts...</Text>
+      </Screen>
     );
   }
 
-  const sortedAlerts = (alerts || []).slice().sort((a, b) => {
-    const sA = SEVERITY_ORDER[a.severity] ?? 99;
-    const sB = SEVERITY_ORDER[b.severity] ?? 99;
-    if (sA !== sB) return sA - sB;
-    return new Date(b.last_seen_at).getTime() - new Date(a.last_seen_at).getTime();
-  });
+  const sortedAlerts = useMemo(
+    () =>
+      (alerts || []).slice().sort((a, b) => {
+        const sA = SEVERITY_ORDER[a.severity] ?? 99;
+        const sB = SEVERITY_ORDER[b.severity] ?? 99;
+        if (sA !== sB) return sA - sB;
+        return new Date(b.last_seen_at).getTime() - new Date(a.last_seen_at).getTime();
+      }),
+    [alerts]
+  );
 
   return (
-    <View style={{ flex: 1, padding: 16, backgroundColor: theme.colors.background }}>
-      <View style={styles.filterRow}>
-        {filterOptions.map((s) => (
-          <TouchableOpacity
-            key={s}
-            style={[styles.filterChip, severityFilter === s && styles.filterChipActive]}
-            onPress={() => setSeverityFilter(s)}
-          >
-            <Text style={{ color: severityFilter === s ? '#fff' : '#000' }}>{s.toUpperCase()}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
+    <Screen scroll={false} contentContainerStyle={{ paddingBottom: spacing.xxl }}>
       <FlatList
         data={sortedAlerts}
         keyExtractor={(item) => item.id}
+        contentContainerStyle={{ paddingBottom: spacing.xl }}
+        ListHeaderComponent={
+          <Card style={styles.headerCard}>
+            <View style={styles.headerRow}>
+              <View>
+                <Text style={[typography.caption, styles.muted]}>Overview</Text>
+                <Text style={[typography.title1, styles.title]}>Alerts</Text>
+              </View>
+              <IconButton icon={<Ionicons name="filter-outline" size={20} color={colors.dark} />} />
+            </View>
+            <View style={styles.filterRow}>
+              {filterOptions.map((s) => (
+                <View key={s} style={{ marginRight: spacing.sm }}>
+                  <PillTab label={s.toUpperCase()} selected={severityFilter === s} onPress={() => setSeverityFilter(s)} />
+                </View>
+              ))}
+            </View>
+          </Card>
+        }
+        ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
         renderItem={({ item }) => (
-          <TouchableOpacity
+          <Card
             style={styles.alertCard}
             onPress={() => navigation.navigate('AlertDetail', { alertId: item.id })}
           >
-            <View style={[styles.severityDot, { backgroundColor: severityColor(item.severity) }]} />
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontWeight: '600', color: theme.colors.text }}>{item.message}</Text>
-              <Text style={{ fontSize: 12, color: theme.colors.mutedText }}>
-                {item.type.toUpperCase()} | {new Date(item.last_seen_at).toLocaleString()}
-              </Text>
+            <View style={styles.alertRow}>
+              <View style={[styles.severityPill, { backgroundColor: severityColor(item.severity) }]}>
+                <Text style={[typography.label, { color: colors.white }]}>{item.severity.toUpperCase()}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[typography.body, styles.title]} numberOfLines={2}>
+                  {item.message}
+                </Text>
+                <Text style={[typography.caption, styles.muted]} numberOfLines={1}>
+                  {item.type.toUpperCase()} - {new Date(item.last_seen_at).toLocaleString()}
+                </Text>
+              </View>
+              <Ionicons
+                name="chevron-forward"
+                size={16}
+                color={colors.textMuted}
+                style={{ marginLeft: spacing.sm }}
+              />
             </View>
-          </TouchableOpacity>
+          </Card>
         )}
-        ListEmptyComponent={<Text style={{ color: theme.colors.mutedText }}>No active alerts yet.</Text>}
+        ListEmptyComponent={<Text style={[typography.body, styles.muted]}>No active alerts yet.</Text>}
       />
-    </View>
+    </Screen>
   );
 };
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  filterRow: { flexDirection: 'row', marginBottom: 12 },
-  filterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    marginRight: 8,
-  },
-  filterChipActive: {
-    backgroundColor: '#0f766e',
-    borderColor: '#0f766e',
-  },
-  alertCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    marginBottom: 8,
-    backgroundColor: theme.colors.card,
-  },
-  severityDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 8,
+  title: { color: colors.dark },
+  muted: { color: colors.textSecondary },
+  headerCard: { marginTop: spacing.xl, marginBottom: spacing.lg },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md },
+  filterRow: { flexDirection: 'row', alignItems: 'center' },
+  alertCard: { padding: spacing.md },
+  alertRow: { flexDirection: 'row', alignItems: 'center' },
+  severityPill: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: 14,
+    marginRight: spacing.sm,
   },
 });

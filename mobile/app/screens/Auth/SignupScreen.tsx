@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import axios from 'axios';
 import { useSignup } from '../../api/hooks';
 import { useAuthStore } from '../../store/authStore';
-import { theme } from '../../theme/theme';
+import { Screen, Card, PrimaryButton } from '../../theme/components';
+import { colors } from '../../theme/colors';
+import { typography } from '../../theme/typography';
+import { spacing } from '../../theme/spacing';
 
 type AuthStackParamList = {
   Login: undefined;
@@ -58,76 +61,103 @@ export const SignupScreen: React.FC = () => {
   };
 
   return (
-    <View style={{ flex: 1, padding: 16, backgroundColor: theme.colors.background }}>
-      <Text style={{ fontSize: 20, marginBottom: 16, fontWeight: '700', color: theme.colors.text }}>
-        Create an account
-      </Text>
-
-      <Text style={{ marginBottom: 4, color: theme.colors.text }}>Name</Text>
-      <TextInput
-        value={name}
-        onChangeText={setName}
-        placeholder="Jane Doe"
-        style={{
-          borderWidth: 1,
-          marginBottom: 8,
-          padding: 8,
-          borderRadius: 8,
-          borderColor: theme.colors.border,
-          backgroundColor: theme.colors.card,
-        }}
-      />
-
-      <Text style={{ marginBottom: 4, color: theme.colors.text }}>Email</Text>
-      <TextInput
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        placeholder="jane@example.com"
-        style={{
-          borderWidth: 1,
-          marginBottom: 8,
-          padding: 8,
-          borderRadius: 8,
-          borderColor: theme.colors.border,
-          backgroundColor: theme.colors.card,
-        }}
-      />
-
-      <Text style={{ marginBottom: 4, color: theme.colors.text }}>Password</Text>
-      <TextInput
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        placeholder="********"
-        style={{
-          borderWidth: 1,
-          marginBottom: 16,
-          padding: 8,
-          borderRadius: 8,
-          borderColor: theme.colors.border,
-          backgroundColor: theme.colors.card,
-        }}
-      />
-
-      {error ? (
-        <Text style={{ color: theme.colors.danger, marginBottom: 12 }} testID="signup-error">
-          {error}
-        </Text>
-      ) : null}
-
-      <Button
-        title={signupMutation.isPending ? 'Signing up...' : 'Sign up'}
-        onPress={onSignup}
-        disabled={signupMutation.isPending}
-      />
-
-      <View style={{ marginTop: 16 }}>
-        <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-          <Text style={{ color: theme.colors.primary }}>Already have an account? Log in</Text>
-        </TouchableOpacity>
+    <Screen>
+      <View style={styles.hero}>
+        <View style={styles.logoBadge}>
+          <Image source={require('../../../assets/icon.png')} style={styles.logo} resizeMode="contain" />
+        </View>
+        <Text style={[typography.title1, styles.title]}>Create an account</Text>
+        <Text style={[typography.body, styles.muted]}>Set up your Greenbro workspace</Text>
       </View>
-    </View>
+
+      <Card style={styles.formCard}>
+        <Text style={[typography.title2, styles.title, { marginBottom: spacing.sm }]}>Sign up</Text>
+
+        <Text style={[typography.caption, styles.muted]}>Name</Text>
+        <TextInput
+          value={name}
+          onChangeText={setName}
+          placeholder="Jane Doe"
+          style={styles.input}
+          placeholderTextColor={colors.textMuted}
+        />
+
+        <Text style={[typography.caption, styles.muted]}>Email</Text>
+        <TextInput
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          placeholder="jane@example.com"
+          style={styles.input}
+          placeholderTextColor={colors.textMuted}
+        />
+
+        <Text style={[typography.caption, styles.muted]}>Password</Text>
+        <TextInput
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          placeholder="********"
+          style={styles.input}
+          placeholderTextColor={colors.textMuted}
+        />
+
+        {error ? (
+          <Text style={[typography.caption, { color: colors.danger, marginBottom: spacing.sm }]} testID="signup-error">
+            {error}
+          </Text>
+        ) : null}
+
+        <PrimaryButton
+          label={signupMutation.isPending ? 'Signing up...' : 'Sign up'}
+          onPress={onSignup}
+          disabled={signupMutation.isPending}
+        />
+
+        <View style={styles.linksRow}>
+          <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+            <Text style={[typography.body, { color: colors.primary }]}>Already have an account? Log in</Text>
+          </TouchableOpacity>
+        </View>
+      </Card>
+    </Screen>
   );
 };
+
+const styles = StyleSheet.create({
+  hero: {
+    alignItems: 'center',
+    marginTop: spacing.xl,
+    marginBottom: spacing.lg,
+  },
+  logoBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  logo: { width: 40, height: 40 },
+  title: { color: colors.dark },
+  muted: { color: colors.textSecondary },
+  formCard: {
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 16,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.md,
+    color: colors.textPrimary,
+  },
+  linksRow: {
+    marginTop: spacing.md,
+  },
+});

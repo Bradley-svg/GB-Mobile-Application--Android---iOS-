@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, Alert, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import axios from 'axios';
 import { useLogin } from '../../api/hooks';
 import { useAuthStore } from '../../store/authStore';
-import { theme } from '../../theme/theme';
+import { Screen, Card, PrimaryButton } from '../../theme/components';
+import { colors } from '../../theme/colors';
+import { typography } from '../../theme/typography';
+import { spacing } from '../../theme/spacing';
 
 type AuthStackParamList = {
   Login: undefined;
@@ -47,58 +50,102 @@ export const LoginScreen: React.FC = () => {
   };
 
   return (
-    <View style={{ flex: 1, padding: 16, backgroundColor: theme.colors.background }}>
-      <Text style={{ fontSize: 20, marginBottom: 16, fontWeight: '700', color: theme.colors.text }}>
-        Greenbro Login
-      </Text>
-      <Text style={{ marginBottom: 4, color: theme.colors.text }}>Email</Text>
-      <TextInput
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        style={{
-          borderWidth: 1,
-          marginBottom: 8,
-          padding: 8,
-          borderRadius: 8,
-          borderColor: theme.colors.border,
-          backgroundColor: theme.colors.card,
-        }}
-      />
-      <Text style={{ marginBottom: 4, color: theme.colors.text }}>Password</Text>
-      <TextInput
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        style={{
-          borderWidth: 1,
-          marginBottom: 16,
-          padding: 8,
-          borderRadius: 8,
-          borderColor: theme.colors.border,
-          backgroundColor: theme.colors.card,
-        }}
-      />
-      {error ? (
-        <Text style={{ color: theme.colors.danger, marginBottom: 12 }} testID="login-error">
-          {error}
-        </Text>
-      ) : null}
-      <Button
-        title={loginMutation.isPending ? 'Logging in...' : 'Login'}
-        onPress={onLogin}
-        disabled={loginMutation.isPending}
-      />
-
-      <View style={{ marginTop: 16, gap: 8 }}>
-        <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
-          <Text style={{ color: theme.colors.primary }}>Create account</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
-          <Text style={{ color: theme.colors.primary }}>Forgot password?</Text>
-        </TouchableOpacity>
+    <Screen>
+      <View style={styles.hero}>
+        <View style={styles.logoBadge}>
+          <Image source={require('../../../assets/icon.png')} style={styles.logo} resizeMode="contain" />
+        </View>
+        <Text style={[typography.title1, styles.title]}>Welcome back</Text>
+        <Text style={[typography.body, styles.muted]}>Monitor and control your Greenbro fleet</Text>
       </View>
-    </View>
+
+      <Card style={styles.formCard}>
+        <Text style={[typography.title2, styles.title, { marginBottom: spacing.sm }]}>Greenbro Login</Text>
+
+        <Text style={[typography.caption, styles.muted]}>Email</Text>
+        <TextInput
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          style={styles.input}
+          placeholder="you@example.com"
+          placeholderTextColor={colors.textMuted}
+        />
+
+        <Text style={[typography.caption, styles.muted]}>Password</Text>
+        <TextInput
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          style={styles.input}
+          placeholder="********"
+          placeholderTextColor={colors.textMuted}
+        />
+
+        {error ? (
+          <Text style={[typography.caption, { color: colors.danger, marginBottom: spacing.sm }]} testID="login-error">
+            {error}
+          </Text>
+        ) : null}
+
+        <PrimaryButton
+          label={loginMutation.isPending ? 'Logging in...' : 'Login'}
+          onPress={onLogin}
+          disabled={loginMutation.isPending}
+        />
+
+        <View style={styles.linksRow}>
+          <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
+            <Text style={[typography.body, { color: colors.primary }]}>Create account</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
+            <Text style={[typography.body, { color: colors.primary }]}>Forgot password?</Text>
+          </TouchableOpacity>
+        </View>
+      </Card>
+    </Screen>
   );
 };
+
+const styles = StyleSheet.create({
+  hero: {
+    alignItems: 'center',
+    marginTop: spacing.xl,
+    marginBottom: spacing.lg,
+  },
+  logoBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  logo: {
+    width: 40,
+    height: 40,
+  },
+  title: { color: colors.dark },
+  muted: { color: colors.textSecondary },
+  formCard: {
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 16,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.md,
+    color: colors.textPrimary,
+  },
+  linksRow: {
+    marginTop: spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+});
