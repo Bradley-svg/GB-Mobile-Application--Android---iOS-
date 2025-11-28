@@ -2,6 +2,14 @@
 
 Node/Express API that powers the Greenbro mobile app. Includes authentication, site/device CRUD, telemetry storage, and workers for MQTT ingest and alert evaluation.
 
+## Environment variables
+- Copy `.env.example` to `.env` and fill in real values.
+- `DATABASE_URL` should point to your Postgres database.
+- `JWT_SECRET` must be a long random string.
+- `MQTT_*` are required if MQTT ingest is enabled.
+- `TELEMETRY_*` and `CONTROL_*` are only needed if using HTTP providers.
+- `EXPO_ACCESS_TOKEN` is optional but recommended for sending push notifications.
+
 ## Telemetry storage
 
 SQL to create telemetry tables (run against your Postgres instance):
