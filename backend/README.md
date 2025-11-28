@@ -29,67 +29,75 @@ SQL to create telemetry tables (run against your Postgres instance):
 ## Telemetry Ingest & Schema
 
 ### Incoming payload (MQTT or HTTP)
-`telemetryIngestService` accepts MQTT messages and HTTP posts with a normalized envelope containing a timestamp plus core sensor readings. Example:
+Messages land on `greenbro/{siteExternalId}/{deviceExternalId}/telemetry` and carry a normalized envelope with a timestamp plus core sensor readings. Example:
 
 ```json
 {
-  "device_id": "heatpump-1234",
-  "timestamp": "2025-01-12T10:15:00.000Z",
-  "supply_temp_c": 45.2,
-  "return_temp_c": 39.8,
-  "power_kw": 5.4,
-  "flow_lpm": 18.2,
-  "cop": 3.1
+  "timestamp": 1730000000000,
+  "sensor": {
+    "supply_temperature_c": 45.2,
+    "return_temperature_c": 39.8,
+    "power_w": 5400,
+    "flow_lps": 0.28,
+    "cop": 3.1
+  },
+  "meta": { "gateway": "gw-12" }
 }
 ```
 
 ### Mapping into storage
-- The ingest service normalizes units and names (e.g., `supply_temp_c` -> `supply_temp`, `flow_lpm` -> `flow_rate`) before writing.
-- For each numeric field it writes a `telemetry_points` row:
-  - `device_id` from payload
-  - `metric` in `{supply_temp, return_temp, power_kw, flow_rate, cop}`
-  - `ts` from `timestamp`
-  - `value` from the corresponding field after normalization
-- It also updates `device_snapshots.data` to keep the latest view per device using a canonical shape:
+- `telemetryIngestService` validates the topic, parses JSON, and looks up the device by `deviceExternalId`. Unknown topics or invalid payloads are ignored.
+- Each numeric sensor field is normalized into canonical metrics (with unit conversion for watts → kW):
+  - `supply_temperature_c` → `supply_temp`
+  - `return_temperature_c` → `return_temp`
+  - `power_w` → `power_kw`
+  - `flow_lps` → `flow_rate`
+  - `cop` → `cop`
+- Only present numeric metrics are written to `telemetry_points` with `metric in ('supply_temp','return_temp','power_kw','flow_rate','cop')`, `ts` (payload timestamp or now), and `value`.
+- `device_snapshots.data` keeps the latest payload in a canonical shape:
 
 ```json
 {
   "metrics": {
-    "supply_temp": { "ts": "2025-01-12T10:15:00.000Z", "value": 45.2 },
-    "return_temp": { "ts": "2025-01-12T10:15:00.000Z", "value": 39.8 },
-    "power_kw": { "ts": "2025-01-12T10:15:00.000Z", "value": 5.4 },
-    "flow_rate": { "ts": "2025-01-12T10:15:00.000Z", "value": 18.2 },
-    "cop": { "ts": "2025-01-12T10:15:00.000Z", "value": 3.1 }
+    "supply_temp": 45.2,
+    "return_temp": 39.8,
+    "power_kw": 5.4,
+    "flow_rate": 0.28,
+    "cop": 3.1
   },
   "raw": {
-    "device_id": "heatpump-1234",
-    "timestamp": "2025-01-12T10:15:00.000Z",
-    "supply_temp_c": 45.2,
-    "return_temp_c": 39.8,
-    "power_kw": 5.4,
-    "flow_lpm": 18.2,
-    "cop": 3.1
+    "timestamp": 1730000000000,
+    "sensor": {
+      "supply_temperature_c": 45.2,
+      "return_temperature_c": 39.8,
+      "power_w": 5400,
+      "flow_lps": 0.28,
+      "cop": 3.1
+    },
+    "meta": { "gateway": "gw-12" }
   }
 }
 ```
 
+Missing fields remain `null` in `metrics` but are preserved in `raw` for debugging.
+
 ### Reading telemetry
-`GET /devices/:id/telemetry?range=24h|7d` returns metric series for the selected window:
+`GET /devices/:id/telemetry?range=24h|7d` returns time series grouped per metric:
 
 ```json
 {
   "range": "24h",
   "metrics": {
     "supply_temp": [{ "ts": "2025-01-12T10:15:00.000Z", "value": 45.2 }],
-    "return_temp": [{ "ts": "2025-01-12T10:15:00.000Z", "value": 39.8 }],
+    "return_temp": [],
     "power_kw": [{ "ts": "2025-01-12T10:15:00.000Z", "value": 5.4 }],
-    "flow_rate": [{ "ts": "2025-01-12T10:15:00.000Z", "value": 18.2 }],
+    "flow_rate": [{ "ts": "2025-01-12T10:15:00.000Z", "value": 0.28 }],
     "cop": [{ "ts": "2025-01-12T10:15:00.000Z", "value": 3.1 }]
   }
 }
 ```
 
-`alertsWorker` and the mobile app both rely on these metric names (`supply_temp`, `return_temp`, `power_kw`, `flow_rate`, `cop`), so keep them stable when adding fields or changing ingest logic.
+Alerts logic and the mobile UI depend on these metric names (`supply_temp`, `return_temp`, `power_kw`, `flow_rate`, `cop`), so keep them stable when extending the payload.
 
 ## Local development
 

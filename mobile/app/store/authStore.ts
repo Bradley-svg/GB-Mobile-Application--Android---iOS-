@@ -5,6 +5,7 @@ type AuthUser = {
   id: string;
   email: string;
   name: string;
+  organisation_id?: string | null;
 };
 
 type AuthState = {

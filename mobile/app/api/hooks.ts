@@ -38,6 +38,47 @@ export type Alert = {
   muted_until: string | null;
 };
 
+export type AuthUser = {
+  id: string;
+  email: string;
+  name: string;
+  organisation_id?: string | null;
+};
+
+export type AuthTokens = {
+  accessToken: string;
+  refreshToken: string;
+};
+
+export type AuthResponse = AuthTokens & { user: AuthUser };
+
+export function useLogin() {
+  return useMutation({
+    mutationFn: async (payload: { email: string; password: string }) => {
+      const res = await api.post<AuthResponse>('/auth/login', payload);
+      return res.data;
+    },
+  });
+}
+
+export function useSignup() {
+  return useMutation({
+    mutationFn: async (payload: { name: string; email: string; password: string }) => {
+      const res = await api.post<AuthResponse>('/auth/signup', payload);
+      return res.data;
+    },
+  });
+}
+
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: async (payload: { email: string }) => {
+      const res = await api.post('/auth/reset-password', payload);
+      return res.data as { ok?: boolean; message?: string };
+    },
+  });
+}
+
 export function useSites() {
   return useQuery<ApiSite[]>({
     queryKey: ['sites'],

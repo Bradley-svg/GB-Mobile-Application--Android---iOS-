@@ -5,6 +5,7 @@ import { query } from '../db/pool';
 import { requireAuth } from '../middleware/requireAuth';
 
 const router = Router();
+const PUSH_TOKEN_RECENT_MINUTES = 10;
 
 router.post('/signup', async (req, res, next) => {
   const schema = z.object({
@@ -47,6 +48,17 @@ router.post('/login', async (req, res, next) => {
   }
 });
 
+router.post('/reset-password', async (req, res) => {
+  const schema = z.object({
+    email: z.string().email(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: 'Invalid body' });
+
+  // Stub for sending reset email/token; intentionally idempotent.
+  res.json({ ok: true });
+});
+
 router.get('/me', requireAuth, async (req, res, next) => {
   const userId = req.user!.id;
 
@@ -87,8 +99,25 @@ router.post('/me/push-tokens', requireAuth, async (req, res, next) => {
   }
 
   const { token } = parsed.data;
+  const recentThreshold = new Date(Date.now() - PUSH_TOKEN_RECENT_MINUTES * 60 * 1000);
 
   try {
+    const existing = await query<{ last_used_at: Date | null }>(
+      `
+      select last_used_at
+      from push_tokens
+      where user_id = $1 and expo_token = $2
+    `,
+      [userId, token]
+    );
+
+    const lastUsedRaw = existing.rows[0]?.last_used_at;
+    const lastUsedAt = lastUsedRaw ? new Date(lastUsedRaw) : null;
+
+    if (lastUsedAt && lastUsedAt > recentThreshold) {
+      return res.json({ ok: true, skipped: true });
+    }
+
     await query(
       `
       insert into push_tokens (user_id, expo_token, created_at, last_used_at)
