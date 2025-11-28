@@ -37,6 +37,15 @@ beforeEach(() => {
 });
 
 describe('evaluateHighTempAlerts', () => {
+  it('queries supply temp from metrics with a fallback to raw sensor payload', async () => {
+    queryMock.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+    await evaluateHighTempAlerts(new Date('2025-01-01T00:00:00.000Z'));
+
+    expect(queryMock).toHaveBeenCalledTimes(1);
+    expect(queryMock.mock.calls[0][0]).toContain("s.data->'raw'->'sensor'->>'supply_temperature_c'");
+  });
+
   it('creates or updates a critical alert when supply temp exceeds the threshold', async () => {
     const now = new Date('2025-01-01T00:00:00.000Z');
 

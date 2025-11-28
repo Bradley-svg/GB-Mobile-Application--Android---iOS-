@@ -30,7 +30,7 @@ jest.mock('../api/hooks', () => {
 });
 
 const renderWithClient = (ui: React.ReactNode) => {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 };
 

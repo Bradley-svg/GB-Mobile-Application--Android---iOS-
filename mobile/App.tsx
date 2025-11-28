@@ -15,7 +15,16 @@ Notifications.setNotificationHandler({
   }),
 });
 
-const queryClient = new QueryClient();
+const isTestEnv = process.env.JEST_WORKER_ID !== undefined;
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+      ...(isTestEnv ? { gcTime: 0 } : {}),
+    },
+  },
+});
 
 export default function App() {
   const { isHydrated, user, accessToken, hydrateFromSecureStore, setUser, clearAuth } =

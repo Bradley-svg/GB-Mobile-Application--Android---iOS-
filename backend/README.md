@@ -6,6 +6,7 @@ Node/Express API that powers the Greenbro mobile app. Includes authentication, s
 - Copy `.env.example` to `.env` and fill in real values.
 - `DATABASE_URL` should point to your Postgres database.
 - `JWT_SECRET` must be a long random string.
+- `APP_VERSION` can be set to surface a release identifier via `/health-plus`.
 - `MQTT_*` are required if MQTT ingest is enabled.
 - `ALERT_OFFLINE_MINUTES` / `ALERT_OFFLINE_CRITICAL_MINUTES` set the warning vs critical thresholds for offline alerts (only critical sends push); `ALERT_HIGH_TEMP_THRESHOLD` controls high-temp alerts.
 - `TELEMETRY_*` and `CONTROL_*` are only needed if using HTTP providers.
@@ -47,12 +48,12 @@ Messages land on `greenbro/{siteExternalId}/{deviceExternalId}/telemetry` and ca
 
 ### Mapping into storage
 - `telemetryIngestService` validates the topic, parses JSON, and looks up the device by `deviceExternalId`. Unknown topics or invalid payloads are ignored.
-- Each numeric sensor field is normalized into canonical metrics (with unit conversion for watts → kW):
-  - `supply_temperature_c` → `supply_temp`
-  - `return_temperature_c` → `return_temp`
-  - `power_w` → `power_kw`
-  - `flow_lps` → `flow_rate`
-  - `cop` → `cop`
+- Each numeric sensor field is normalized into canonical metrics (with unit conversion for watts -> kW):
+  - `supply_temperature_c` -> `supply_temp`
+  - `return_temperature_c` -> `return_temp`
+  - `power_w` -> `power_kw`
+  - `flow_lps` -> `flow_rate`
+  - `cop` -> `cop`
 - Only present numeric metrics are written to `telemetry_points` with `metric in ('supply_temp','return_temp','power_kw','flow_rate','cop')`, `ts` (payload timestamp or now), and `value`.
 - `device_snapshots.data` keeps the latest payload in a canonical shape:
 
@@ -80,6 +81,7 @@ Messages land on `greenbro/{siteExternalId}/{deviceExternalId}/telemetry` and ca
 ```
 
 Missing fields remain `null` in `metrics` but are preserved in `raw` for debugging.
+
 
 ### Reading telemetry
 `GET /devices/:id/telemetry?range=24h|7d` returns time series grouped per metric:

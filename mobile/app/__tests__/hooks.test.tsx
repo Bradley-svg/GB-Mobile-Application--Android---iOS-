@@ -31,7 +31,7 @@ describe('API hooks', () => {
       },
     });
 
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
 
     const { findByText } = render(
       <QueryClientProvider client={client}>
