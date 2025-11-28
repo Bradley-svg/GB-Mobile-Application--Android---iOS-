@@ -10,6 +10,8 @@ import {
   useSite,
 } from '../api/hooks';
 import * as navigation from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
+import type { AppStackParamList } from '../navigation/RootNavigator';
 
 jest.mock('../api/hooks', () => ({
   useDevice: jest.fn(),
@@ -24,9 +26,13 @@ describe('DeviceDetailScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    jest.spyOn(navigation, 'useRoute').mockReturnValue({
+    const route: RouteProp<AppStackParamList, 'DeviceDetail'> = {
+      key: 'DeviceDetail',
+      name: 'DeviceDetail',
       params: { deviceId: 'device-1' },
-    });
+    };
+
+    jest.spyOn(navigation, 'useRoute').mockReturnValue(route);
 
     (useDevice as jest.Mock).mockReturnValue({
       data: {
