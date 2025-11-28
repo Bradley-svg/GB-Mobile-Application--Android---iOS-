@@ -7,6 +7,7 @@ Node/Express API that powers the Greenbro mobile app. Includes authentication, s
 - `DATABASE_URL` should point to your Postgres database.
 - `JWT_SECRET` must be a long random string.
 - `MQTT_*` are required if MQTT ingest is enabled.
+- `ALERT_OFFLINE_MINUTES` / `ALERT_OFFLINE_CRITICAL_MINUTES` set the warning vs critical thresholds for offline alerts (only critical sends push); `ALERT_HIGH_TEMP_THRESHOLD` controls high-temp alerts.
 - `TELEMETRY_*` and `CONTROL_*` are only needed if using HTTP providers.
 - `EXPO_ACCESS_TOKEN` is optional but recommended for sending push notifications.
 

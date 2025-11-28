@@ -4,6 +4,7 @@ import { clearAlertIfExists, upsertActiveAlert } from '../services/alertService'
 import { sendAlertNotification } from '../services/pushService';
 
 const OFFLINE_MINUTES = Number(process.env.ALERT_OFFLINE_MINUTES || 10);
+const OFFLINE_CRITICAL_MINUTES = Number(process.env.ALERT_OFFLINE_CRITICAL_MINUTES || 60);
 const HIGH_TEMP_THRESHOLD = Number(process.env.ALERT_HIGH_TEMP_THRESHOLD || 60);
 
 type OfflineMetrics = {
@@ -32,16 +33,25 @@ export async function evaluateOfflineAlerts(now: Date): Promise<OfflineMetrics> 
   );
 
   for (const row of offline.rows) {
+    const minutesOffline =
+      (now.getTime() - new Date(row.last_seen_at).getTime()) / (60 * 1000);
+    const severity: 'warning' | 'critical' =
+      minutesOffline >= OFFLINE_CRITICAL_MINUTES ? 'critical' : 'warning';
+    const message =
+      severity === 'critical'
+        ? `Device offline for more than ${OFFLINE_CRITICAL_MINUTES} minutes`
+        : `Device offline for more than ${OFFLINE_MINUTES} minutes`;
+
     const { alert, isNew } = await upsertActiveAlert({
       siteId: row.site_id,
       deviceId: row.id,
       type: 'offline',
-      severity: 'warning',
-      message: `Device offline for more than ${OFFLINE_MINUTES} minutes`,
+      severity,
+      message,
       now,
     });
 
-    if (isNew && alert.severity === 'critical') {
+    if (isNew && severity === 'critical') {
       await sendAlertNotification(alert);
     }
   }
@@ -140,7 +150,7 @@ export async function runOnce(now: Date = new Date()) {
 export function start() {
   const intervalSec = Number(process.env.ALERT_WORKER_INTERVAL_SEC || 60);
   console.log(
-    `[alertsWorker] starting (env=${process.env.NODE_ENV || 'development'}) offlineThreshold=${OFFLINE_MINUTES}min highTemp=${HIGH_TEMP_THRESHOLD}C interval=${intervalSec}s`
+    `[alertsWorker] starting (env=${process.env.NODE_ENV || 'development'}) offlineThresholds=${OFFLINE_MINUTES}min-warn/${OFFLINE_CRITICAL_MINUTES}min-crit highTemp=${HIGH_TEMP_THRESHOLD}C interval=${intervalSec}s`
   );
 
   runOnce();
