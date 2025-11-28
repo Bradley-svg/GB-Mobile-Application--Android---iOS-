@@ -26,6 +26,71 @@ SQL to create telemetry tables (run against your Postgres instance):
 - `sql/alerts_schema.sql` - creates alert tables with indexes for status and severity.
 - `sql/push_tokens_schema.sql` - stores Expo push tokens per user for notifications.
 
+## Telemetry Ingest & Schema
+
+### Incoming payload (MQTT or HTTP)
+`telemetryIngestService` accepts MQTT messages and HTTP posts with a normalized envelope containing a timestamp plus core sensor readings. Example:
+
+```json
+{
+  "device_id": "heatpump-1234",
+  "timestamp": "2025-01-12T10:15:00.000Z",
+  "supply_temp_c": 45.2,
+  "return_temp_c": 39.8,
+  "power_kw": 5.4,
+  "flow_lpm": 18.2,
+  "cop": 3.1
+}
+```
+
+### Mapping into storage
+- The ingest service normalizes units and names (e.g., `supply_temp_c` -> `supply_temp`, `flow_lpm` -> `flow_rate`) before writing.
+- For each numeric field it writes a `telemetry_points` row:
+  - `device_id` from payload
+  - `metric` in `{supply_temp, return_temp, power_kw, flow_rate, cop}`
+  - `ts` from `timestamp`
+  - `value` from the corresponding field after normalization
+- It also updates `device_snapshots.data` to keep the latest view per device using a canonical shape:
+
+```json
+{
+  "metrics": {
+    "supply_temp": { "ts": "2025-01-12T10:15:00.000Z", "value": 45.2 },
+    "return_temp": { "ts": "2025-01-12T10:15:00.000Z", "value": 39.8 },
+    "power_kw": { "ts": "2025-01-12T10:15:00.000Z", "value": 5.4 },
+    "flow_rate": { "ts": "2025-01-12T10:15:00.000Z", "value": 18.2 },
+    "cop": { "ts": "2025-01-12T10:15:00.000Z", "value": 3.1 }
+  },
+  "raw": {
+    "device_id": "heatpump-1234",
+    "timestamp": "2025-01-12T10:15:00.000Z",
+    "supply_temp_c": 45.2,
+    "return_temp_c": 39.8,
+    "power_kw": 5.4,
+    "flow_lpm": 18.2,
+    "cop": 3.1
+  }
+}
+```
+
+### Reading telemetry
+`GET /devices/:id/telemetry?range=24h|7d` returns metric series for the selected window:
+
+```json
+{
+  "range": "24h",
+  "metrics": {
+    "supply_temp": [{ "ts": "2025-01-12T10:15:00.000Z", "value": 45.2 }],
+    "return_temp": [{ "ts": "2025-01-12T10:15:00.000Z", "value": 39.8 }],
+    "power_kw": [{ "ts": "2025-01-12T10:15:00.000Z", "value": 5.4 }],
+    "flow_rate": [{ "ts": "2025-01-12T10:15:00.000Z", "value": 18.2 }],
+    "cop": [{ "ts": "2025-01-12T10:15:00.000Z", "value": 3.1 }]
+  }
+}
+```
+
+`alertsWorker` and the mobile app both rely on these metric names (`supply_temp`, `return_temp`, `power_kw`, `flow_rate`, `cop`), so keep them stable when adding fields or changing ingest logic.
+
 ## Local development
 
 ```bash
