@@ -1,22 +1,31 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, Alert } from 'react-native';
+import { api } from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
 
 export const LoginScreen: React.FC = () => {
   const setAuth = useAuthStore((s) => s.setAuth);
   const [email, setEmail] = useState('demo@greenbro.com');
   const [password, setPassword] = useState('password');
+  const [submitting, setSubmitting] = useState(false);
 
   const onLogin = async () => {
     if (!email || !password) {
       Alert.alert('Error', 'Email and password are required');
       return;
     }
-    await setAuth({
-      accessToken: 'fake-access-token',
-      refreshToken: 'fake-refresh-token',
-      user: { id: 'user-1', email, name: 'Demo User' },
-    });
+
+    try {
+      setSubmitting(true);
+      const res = await api.post('/auth/login', { email, password });
+      const { accessToken, refreshToken, user } = res.data;
+      await setAuth({ accessToken, refreshToken, user });
+    } catch (e: any) {
+      console.error(e.response?.data || e);
+      Alert.alert('Login failed', 'Check your credentials');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -37,7 +46,7 @@ export const LoginScreen: React.FC = () => {
         secureTextEntry
         style={{ borderWidth: 1, marginBottom: 16, padding: 8 }}
       />
-      <Button title="Login (mock)" onPress={onLogin} />
+      <Button title={submitting ? 'Logging in...' : 'Login'} onPress={onLogin} disabled={submitting} />
     </View>
   );
 };

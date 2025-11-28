@@ -1,9 +1,9 @@
-import React, { useMemo } from 'react';
-import { View, Text, FlatList, TouchableOpacity } from 'react-native';
+import React from 'react';
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { AppStackParamList } from '../../navigation/RootNavigator';
-import { fakeSites, getFakeDevicesForSite } from '../../api/fakeData';
+import { useDevices, useSite } from '../../api/hooks';
 
 type Navigation = NativeStackNavigationProp<AppStackParamList>;
 type Route = RouteProp<AppStackParamList, 'SiteOverview'>;
@@ -13,14 +13,32 @@ export const SiteOverviewScreen: React.FC = () => {
   const route = useRoute<Route>();
   const { siteId } = route.params;
 
-  const site = useMemo(() => fakeSites.find((s) => s.id === siteId), [siteId]);
-  const devices = useMemo(() => getFakeDevicesForSite(siteId), [siteId]);
+  const { data: site, isLoading: siteLoading, isError: siteError } = useSite(siteId);
+  const { data: devices, isLoading: devicesLoading, isError: devicesError } = useDevices(siteId);
+
+  if (siteLoading || devicesLoading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" />
+        <Text style={{ marginTop: 8 }}>Loading site...</Text>
+      </View>
+    );
+  }
+
+  if (siteError || devicesError) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+        <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Failed to load site</Text>
+        <Text>Please check your connection and try again.</Text>
+      </View>
+    );
+  }
 
   if (!site) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 16 }}>
         <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Site not found</Text>
-        <Text>The site you are looking for does not exist in the mock data.</Text>
+        <Text>The site you are looking for could not be found.</Text>
       </View>
     );
   }
@@ -31,12 +49,12 @@ export const SiteOverviewScreen: React.FC = () => {
         <Text style={{ fontSize: 20, fontWeight: '700' }}>{site.name}</Text>
         <Text>{site.city}</Text>
         <Text>Status: {site.status}</Text>
-        <Text>Last seen: {new Date(site.lastSeenAt).toLocaleString()}</Text>
+        <Text>Last seen: {site.last_seen_at ? new Date(site.last_seen_at).toLocaleString() : 'Unknown'}</Text>
       </View>
 
       <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Devices</Text>
       <FlatList
-        data={devices}
+        data={devices || []}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <TouchableOpacity
