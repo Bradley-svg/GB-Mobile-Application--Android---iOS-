@@ -44,22 +44,52 @@ export async function handleTelemetryMessage(topic: string, payload: Buffer) {
     return;
   }
 
-  const tsMs = data.ts || Date.now();
+  if (!data || typeof data !== 'object') {
+    console.log('Telemetry payload is not an object; topic', topic);
+    return;
+  }
+
+  const sensor = (data as any).sensor;
+  if (!sensor || typeof sensor !== 'object') {
+    console.log('Telemetry payload missing sensor object; topic', topic);
+    return;
+  }
+
+  const rawTimestamp = (data as any).timestamp;
+  if (typeof rawTimestamp !== 'number') {
+    console.log('Telemetry payload missing timestamp; defaulting to now; topic', topic);
+  }
+
+  const tsMs = typeof rawTimestamp === 'number' ? rawTimestamp : Date.now();
   const ts = new Date(tsMs);
 
+  // Expected payload shape: { timestamp, sensor: { supply_temperature_c, return_temperature_c, power_w, flow_lps, cop } }
   const metrics: Record<string, number | undefined> = {
-    supply_temp: data.supplyTemp,
-    return_temp: data.returnTemp,
-    power_kw: data.powerKw,
-    flow_rate: data.flowRate,
-    cop: data.cop,
+    supply_temp:
+      typeof (sensor as any).supply_temperature_c === 'number'
+        ? (sensor as any).supply_temperature_c
+        : undefined,
+    return_temp:
+      typeof (sensor as any).return_temperature_c === 'number'
+        ? (sensor as any).return_temperature_c
+        : undefined,
+    power_kw:
+      typeof (sensor as any).power_w === 'number'
+        ? (sensor as any).power_w / 1000
+        : undefined,
+    flow_rate:
+      typeof (sensor as any).flow_lps === 'number' ? (sensor as any).flow_lps : undefined,
+    cop: typeof (sensor as any).cop === 'number' ? (sensor as any).cop : undefined,
   };
 
   const entries = Object.entries(metrics).filter(
     ([, value]) => typeof value === 'number' && !Number.isNaN(value)
   );
 
-  if (entries.length === 0) return;
+  if (entries.length === 0) {
+    console.log('Telemetry payload had no numeric metrics; topic', topic);
+    return;
+  }
 
   const valuesClause = entries
     .map(

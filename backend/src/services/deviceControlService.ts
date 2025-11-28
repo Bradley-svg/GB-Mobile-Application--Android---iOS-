@@ -1,3 +1,4 @@
+import mqtt, { MqttClient } from 'mqtt';
 import { query } from '../db/pool';
 import { getDeviceById } from './deviceService';
 
@@ -17,6 +18,46 @@ type ModeCommandPayload = {
 const SAFE_BOUNDS = {
   flow_temp: { min: 30, max: 60 },
 };
+
+let commandClient: MqttClient | null = null;
+
+function getCommandClient() {
+  if (commandClient) return commandClient;
+
+  const url = process.env.MQTT_URL;
+  const username = process.env.MQTT_USERNAME;
+  const password = process.env.MQTT_PASSWORD;
+
+  if (!url) {
+    throw new Error('MQTT_URL not set; cannot send commands');
+  }
+
+  commandClient = mqtt.connect(url, { username, password });
+
+  commandClient.on('connect', () => {
+    console.log('MQTT command client connected');
+  });
+
+  commandClient.on('error', (err) => {
+    console.error('MQTT command error', err);
+  });
+
+  return commandClient;
+}
+
+async function publishCommand(topic: string, message: string) {
+  const client = getCommandClient();
+
+  await new Promise<void>((resolve, reject) => {
+    client.publish(topic, message, { qos: 1 }, (err?: Error) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve();
+      }
+    });
+  });
+}
 
 async function insertCommandRow(
   deviceId: string,
@@ -48,14 +89,41 @@ async function insertCommandRow(
 }
 
 async function sendSetpointToExternal(
-  _deviceExternalId: string,
-  _payload: SetpointCommandPayload
+  deviceExternalId: string,
+  payload: SetpointCommandPayload
 ) {
-  await new Promise((resolve) => setTimeout(resolve, 300));
+  const topic = `greenbro/${deviceExternalId}/commands`;
+  const message = JSON.stringify({
+    type: 'setpoint',
+    metric: payload.metric,
+    value: payload.value,
+  });
+
+  console.log('[command] setpoint ->', topic, message);
+
+  try {
+    await publishCommand(topic, message);
+  } catch (err) {
+    console.error('[command] setpoint failed', err);
+    throw err instanceof Error ? err : new Error('Failed to publish setpoint command');
+  }
 }
 
-async function sendModeToExternal(_deviceExternalId: string, _payload: ModeCommandPayload) {
-  await new Promise((resolve) => setTimeout(resolve, 300));
+async function sendModeToExternal(deviceExternalId: string, payload: ModeCommandPayload) {
+  const topic = `greenbro/${deviceExternalId}/commands`;
+  const message = JSON.stringify({
+    type: 'mode',
+    mode: payload.mode,
+  });
+
+  console.log('[command] mode ->', topic, message);
+
+  try {
+    await publishCommand(topic, message);
+  } catch (err) {
+    console.error('[command] mode failed', err);
+    throw err instanceof Error ? err : new Error('Failed to publish mode command');
+  }
 }
 
 export async function setDeviceSetpoint(
