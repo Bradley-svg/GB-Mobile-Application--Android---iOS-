@@ -69,12 +69,16 @@ export const DeviceDetailScreen: React.FC = () => {
   const supplyPoints = telemetry?.metrics['supply_temp'] || [];
   const returnPoints = telemetry?.metrics['return_temp'] || [];
   const powerPoints = telemetry?.metrics['power_kw'] || [];
+  const flowPoints = telemetry?.metrics['flow_rate'] || [];
+  const copPoints = telemetry?.metrics['cop'] || [];
 
   const activeDeviceAlerts = (deviceAlerts || []).filter((a) => a.status === 'active');
 
   const supplyData = supplyPoints.map((p, idx) => ({ x: idx, y: p.value }));
   const returnData = returnPoints.map((p, idx) => ({ x: idx, y: p.value }));
   const powerData = powerPoints.map((p, idx) => ({ x: idx, y: p.value }));
+  const flowData = flowPoints.map((p, idx) => ({ x: idx, y: p.value }));
+  const copData = copPoints.map((p, idx) => ({ x: idx, y: p.value }));
 
   const onSetpointSave = async () => {
     const value = Number(setpointInput);
@@ -186,6 +190,32 @@ export const DeviceDetailScreen: React.FC = () => {
             </VictoryChart>
           ) : (
             <Text>No power telemetry for this range.</Text>
+          )}
+
+          <View style={{ height: 24 }} />
+
+          <Text style={{ marginBottom: 8, fontWeight: '600' }}>Flow rate (L/s)</Text>
+          {flowData.length > 0 ? (
+            <VictoryChart>
+              <VictoryAxis tickFormat={() => ''} />
+              <VictoryAxis dependentAxis />
+              <VictoryLine data={flowData} style={{ data: { stroke: '#0ea5e9' } }} />
+            </VictoryChart>
+          ) : (
+            <Text>No flow telemetry for this range.</Text>
+          )}
+
+          <View style={{ height: 24 }} />
+
+          <Text style={{ marginBottom: 8, fontWeight: '600' }}>COP</Text>
+          {copData.length > 0 ? (
+            <VictoryChart>
+              <VictoryAxis tickFormat={() => ''} />
+              <VictoryAxis dependentAxis />
+              <VictoryLine data={copData} style={{ data: { stroke: '#f59e0b' } }} />
+            </VictoryChart>
+          ) : (
+            <Text>No COP telemetry for this range.</Text>
           )}
         </View>
       )}
