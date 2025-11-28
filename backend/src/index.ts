@@ -5,6 +5,7 @@ import authRoutes from './routes/authRoutes';
 import siteRoutes from './routes/siteRoutes';
 import deviceRoutes from './routes/deviceRoutes';
 import alertRoutes from './routes/alertRoutes';
+import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.use('/auth', authRoutes);
 app.use(siteRoutes);
 app.use(deviceRoutes);
 app.use(alertRoutes);
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 4000;
 if (process.env.NODE_ENV !== 'test') {

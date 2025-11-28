@@ -6,26 +6,58 @@ import { getDeviceTelemetry } from '../services/telemetryService';
 import { setDeviceMode, setDeviceSetpoint } from '../services/deviceControlService';
 
 const router = Router();
+const deviceIdSchema = z.object({ id: z.string().uuid() });
+const telemetryQuerySchema = z.object({
+  range: z
+    .union([z.literal('24h'), z.literal('7d')])
+    .optional()
+    .transform((val) => val ?? '24h'),
+});
 router.use(requireAuth);
 
-router.get('/devices/:id', async (req, res) => {
-  const device = await getDeviceById(req.params.id);
-  if (!device) return res.status(404).json({ message: 'Not found' });
-  res.json(device);
+router.get('/devices/:id', async (req, res, next) => {
+  const parsedParams = deviceIdSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    return res.status(400).json({ message: 'Invalid device id' });
+  }
+
+  try {
+    const device = await getDeviceById(parsedParams.data.id);
+    if (!device) return res.status(404).json({ message: 'Not found' });
+    res.json(device);
+  } catch (e) {
+    next(e);
+  }
 });
 
-router.get('/devices/:id/telemetry', async (req, res) => {
-  const device = await getDeviceById(req.params.id);
-  if (!device) return res.status(404).json({ message: 'Not found' });
+router.get('/devices/:id/telemetry', async (req, res, next) => {
+  const parsedParams = deviceIdSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    return res.status(400).json({ message: 'Invalid device id' });
+  }
 
-  const rangeParam = (req.query.range as string) || '24h';
-  const range = rangeParam === '7d' ? '7d' : '24h';
+  const parsedQuery = telemetryQuerySchema.safeParse(req.query);
+  if (!parsedQuery.success) {
+    return res.status(400).json({ message: 'Invalid query' });
+  }
 
-  const telemetry = await getDeviceTelemetry(device.id, range);
-  res.json(telemetry);
+  try {
+    const device = await getDeviceById(parsedParams.data.id);
+    if (!device) return res.status(404).json({ message: 'Not found' });
+
+    const telemetry = await getDeviceTelemetry(device.id, parsedQuery.data.range);
+    res.json(telemetry);
+  } catch (e) {
+    next(e);
+  }
 });
 
-router.post('/devices/:id/commands/setpoint', async (req, res) => {
+router.post('/devices/:id/commands/setpoint', async (req, res, next) => {
+  const paramsResult = deviceIdSchema.safeParse(req.params);
+  if (!paramsResult.success) {
+    return res.status(400).json({ message: 'Invalid device id' });
+  }
+
   const userId = req.user!.id;
   const schema = z.object({
     metric: z.literal('flow_temp'),
@@ -38,7 +70,7 @@ router.post('/devices/:id/commands/setpoint', async (req, res) => {
   }
 
   try {
-    const command = await setDeviceSetpoint(req.params.id, userId, parsed.data);
+    const command = await setDeviceSetpoint(paramsResult.data.id, userId, parsed.data);
     res.json(command);
   } catch (e: any) {
     switch (e.message) {
@@ -53,13 +85,17 @@ router.post('/devices/:id/commands/setpoint', async (req, res) => {
       case 'COMMAND_FAILED':
         return res.status(502).json({ message: 'External control command failed' });
       default:
-        console.error(e);
-        return res.status(500).json({ message: 'Server error' });
+        return next(e);
     }
   }
 });
 
-router.post('/devices/:id/commands/mode', async (req, res) => {
+router.post('/devices/:id/commands/mode', async (req, res, next) => {
+  const paramsResult = deviceIdSchema.safeParse(req.params);
+  if (!paramsResult.success) {
+    return res.status(400).json({ message: 'Invalid device id' });
+  }
+
   const userId = req.user!.id;
   const schema = z.object({
     mode: z.enum(['OFF', 'HEATING', 'COOLING', 'AUTO']),
@@ -71,7 +107,7 @@ router.post('/devices/:id/commands/mode', async (req, res) => {
   }
 
   try {
-    const command = await setDeviceMode(req.params.id, userId, parsed.data);
+    const command = await setDeviceMode(paramsResult.data.id, userId, parsed.data);
     res.json(command);
   } catch (e: any) {
     switch (e.message) {
@@ -84,8 +120,7 @@ router.post('/devices/:id/commands/mode', async (req, res) => {
       case 'COMMAND_FAILED':
         return res.status(502).json({ message: 'External control command failed' });
       default:
-        console.error(e);
-        return res.status(500).json({ message: 'Server error' });
+        return next(e);
     }
   }
 });

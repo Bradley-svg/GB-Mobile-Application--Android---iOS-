@@ -6,7 +6,7 @@ import { requireAuth } from '../middleware/requireAuth';
 
 const router = Router();
 
-router.post('/signup', async (req, res) => {
+router.post('/signup', async (req, res, next) => {
   const schema = z.object({
     email: z.string().email(),
     password: z.string().min(6),
@@ -23,12 +23,11 @@ router.post('/signup', async (req, res) => {
     if (e.message === 'EMAIL_EXISTS') {
       return res.status(409).json({ message: 'Email already in use' });
     }
-    console.error(e);
-    res.status(500).json({ message: 'Server error' });
+    next(e);
   }
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', async (req, res, next) => {
   const schema = z.object({
     email: z.string().email(),
     password: z.string().min(1),
@@ -44,35 +43,38 @@ router.post('/login', async (req, res) => {
     if (e.message === 'INVALID_CREDENTIALS') {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
-    console.error(e);
-    res.status(500).json({ message: 'Server error' });
+    next(e);
   }
 });
 
-router.get('/me', requireAuth, async (req, res) => {
+router.get('/me', requireAuth, async (req, res, next) => {
   const userId = req.user!.id;
 
-  const result = await query<{
-    id: string;
-    email: string;
-    name: string;
-    organisation_id: string | null;
-  }>(
-    `
-    select id, email, name, organisation_id
-    from users
-    where id = $1
-  `,
-    [userId]
-  );
+  try {
+    const result = await query<{
+      id: string;
+      email: string;
+      name: string;
+      organisation_id: string | null;
+    }>(
+      `
+      select id, email, name, organisation_id
+      from users
+      where id = $1
+    `,
+      [userId]
+    );
 
-  const user = result.rows[0];
-  if (!user) return res.status(404).json({ message: 'User not found' });
+    const user = result.rows[0];
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
-  res.json(user);
+    res.json(user);
+  } catch (e) {
+    next(e);
+  }
 });
 
-router.post('/me/push-tokens', requireAuth, async (req, res) => {
+router.post('/me/push-tokens', requireAuth, async (req, res, next) => {
   const userId = req.user!.id;
 
   const schema = z.object({
@@ -86,18 +88,22 @@ router.post('/me/push-tokens', requireAuth, async (req, res) => {
 
   const { token } = parsed.data;
 
-  await query(
-    `
-    insert into push_tokens (user_id, expo_token, created_at, last_used_at)
-    values ($1, $2, now(), null)
-    on conflict (user_id, expo_token)
-    do update set last_used_at = now()
-    returning *
-  `,
-    [userId, token]
-  );
+  try {
+    await query(
+      `
+      insert into push_tokens (user_id, expo_token, created_at, last_used_at)
+      values ($1, $2, now(), null)
+      on conflict (user_id, expo_token)
+      do update set last_used_at = now()
+      returning *
+    `,
+      [userId, token]
+    );
 
-  res.json({ ok: true });
+    res.json({ ok: true });
+  } catch (e) {
+    next(e);
+  }
 });
 
 export default router;
