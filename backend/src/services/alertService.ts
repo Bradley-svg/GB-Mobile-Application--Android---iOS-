@@ -42,7 +42,7 @@ export async function upsertActiveAlert(options: {
     [deviceId, type]
   );
 
-  if (existing.rowCount > 0) {
+  if ((existing.rowCount ?? 0) > 0) {
     const alert = existing.rows[0];
     const result = await query<AlertRow>(
       `

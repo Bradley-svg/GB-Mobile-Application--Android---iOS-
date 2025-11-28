@@ -14,7 +14,7 @@ type UserRow = {
 
 export async function registerUser(email: string, password: string, name: string) {
   const existing = await query<UserRow>('select * from users where email = $1', [email]);
-  if (existing.rowCount > 0) {
+  if ((existing.rowCount ?? 0) > 0) {
     throw new Error('EMAIL_EXISTS');
   }
 

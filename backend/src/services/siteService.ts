@@ -1,6 +1,6 @@
 import { query } from '../db/pool';
 
-export async function getSitesForUser(userId: string) {
+export async function getSitesForUser(_userId: string) {
   const result = await query('select * from sites order by name');
   return result.rows;
 }

@@ -47,11 +47,14 @@ async function insertCommandRow(
   return res.rows[0];
 }
 
-async function sendSetpointToExternal(deviceExternalId: string, payload: SetpointCommandPayload) {
+async function sendSetpointToExternal(
+  _deviceExternalId: string,
+  _payload: SetpointCommandPayload
+) {
   await new Promise((resolve) => setTimeout(resolve, 300));
 }
 
-async function sendModeToExternal(deviceExternalId: string, payload: ModeCommandPayload) {
+async function sendModeToExternal(_deviceExternalId: string, _payload: ModeCommandPayload) {
   await new Promise((resolve) => setTimeout(resolve, 300));
 }
 

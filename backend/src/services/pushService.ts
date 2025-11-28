@@ -14,7 +14,7 @@ async function getAllPushTokens(): Promise<string[]> {
   `
   );
 
-  return res.rows.map((r) => r.expo_token);
+  return res.rows.map((r: { expo_token: string }) => r.expo_token);
 }
 
 export async function sendAlertNotification(alert: AlertRow) {
