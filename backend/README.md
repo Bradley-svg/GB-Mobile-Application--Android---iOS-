@@ -10,6 +10,13 @@ Node/Express API that powers the Greenbro mobile app. Includes authentication, s
 - `TELEMETRY_*` and `CONTROL_*` are only needed if using HTTP providers.
 - `EXPO_ACCESS_TOKEN` is optional but recommended for sending push notifications.
 
+## Environments
+- **development**: Run locally with `NODE_ENV=development` (default). `dotenv` loads values from `.env` (or `.env.development` if you prefer that naming) to point at your local `DATABASE_URL`, MQTT broker, etc. Logging can stay verbose here to aid debugging.
+- **staging**: Deployed instance with `NODE_ENV=staging` and its own `DATABASE_URL`, `MQTT_URL`, and secrets. Configure these through your hosting provider's environment management (Railway, Render, etc.), not committed files.
+- **production**: Deployed instance with `NODE_ENV=production` and production-grade database URLs, MQTT endpoints, and secrets, also injected via the hosting provider.
+
+Environment files `.env.development`, `.env.staging`, and `.env.production` should **not** be committed; only `.env.example` is tracked as the template. CORS can be tightened per-environment later (e.g., restrict allowed origins in staging/prod while keeping local development more permissive).
+
 ## Telemetry storage
 
 SQL to create telemetry tables (run against your Postgres instance):
