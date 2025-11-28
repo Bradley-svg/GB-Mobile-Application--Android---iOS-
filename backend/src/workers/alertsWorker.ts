@@ -6,7 +6,17 @@ import { sendAlertNotification } from '../services/pushService';
 const OFFLINE_MINUTES = Number(process.env.ALERT_OFFLINE_MINUTES || 10);
 const HIGH_TEMP_THRESHOLD = Number(process.env.ALERT_HIGH_TEMP_THRESHOLD || 60);
 
-async function evaluateOfflineAlerts(now: Date) {
+type OfflineMetrics = {
+  offlineCount: number;
+  clearedCount: number;
+};
+
+type HighTempMetrics = {
+  evaluatedCount: number;
+  overThresholdCount: number;
+};
+
+async function evaluateOfflineAlerts(now: Date): Promise<OfflineMetrics> {
   const offline = await query<{
     id: string;
     site_id: string;
@@ -36,6 +46,8 @@ async function evaluateOfflineAlerts(now: Date) {
     }
   }
 
+  console.log(`[alertsWorker] offline: ${offline.rows.length} offline devices`);
+
   const online = await query<{ id: string; site_id: string; last_seen_at: Date }>(
     `
     select d.id, d.site_id, s.last_seen_at
@@ -49,9 +61,13 @@ async function evaluateOfflineAlerts(now: Date) {
   for (const row of online.rows) {
     await clearAlertIfExists(row.id, 'offline', now);
   }
+
+  console.log(`[alertsWorker] offline clear check complete (${online.rows.length} devices)`);
+
+  return { offlineCount: offline.rows.length, clearedCount: online.rows.length };
 }
 
-async function evaluateHighTempAlerts(now: Date) {
+async function evaluateHighTempAlerts(now: Date): Promise<HighTempMetrics> {
   const res = await query<{
     id: string;
     site_id: string;
@@ -88,15 +104,32 @@ async function evaluateHighTempAlerts(now: Date) {
       await clearAlertIfExists(row.id, 'high_temp', now);
     }
   }
+
+  const overThresholdCount = res.rows.filter(
+    (row) =>
+      row.supply_temp != null &&
+      !Number.isNaN(row.supply_temp) &&
+      row.supply_temp > HIGH_TEMP_THRESHOLD
+  ).length;
+
+  console.log(
+    `[alertsWorker] highTemp check complete (${res.rows.length} devices, ${overThresholdCount} above threshold)`
+  );
+
+  return { evaluatedCount: res.rows.length, overThresholdCount };
 }
 
 async function runOnce() {
   const now = new Date();
-  console.log(`[alertsWorker] running at ${now.toISOString()}`);
+  console.log(`[alertsWorker] cycle start at ${now.toISOString()}`);
 
   try {
-    await evaluateOfflineAlerts(now);
-    await evaluateHighTempAlerts(now);
+    const offlineMetrics = await evaluateOfflineAlerts(now);
+    const highTempMetrics = await evaluateHighTempAlerts(now);
+
+    console.log(
+      `[alertsWorker] cycle complete at ${now.toISOString()} offline={checked:${offlineMetrics.offlineCount}, cleared:${offlineMetrics.clearedCount}} highTemp={evaluated:${highTempMetrics.evaluatedCount}, over:${highTempMetrics.overThresholdCount}}`
+    );
   } catch (e) {
     console.error('[alertsWorker] error', e);
   }
@@ -105,7 +138,7 @@ async function runOnce() {
 function start() {
   const intervalSec = Number(process.env.ALERT_WORKER_INTERVAL_SEC || 60);
   console.log(
-    `Starting alertsWorker. Offline threshold=${OFFLINE_MINUTES}min, highTemp=${HIGH_TEMP_THRESHOLD}C, interval=${intervalSec}s`
+    `[alertsWorker] starting (env=${process.env.NODE_ENV || 'development'}) offlineThreshold=${OFFLINE_MINUTES}min highTemp=${HIGH_TEMP_THRESHOLD}C interval=${intervalSec}s`
   );
 
   runOnce();

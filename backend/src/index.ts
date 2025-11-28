@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import healthRoutes from './routes/healthRoutes';
 import authRoutes from './routes/authRoutes';
 import siteRoutes from './routes/siteRoutes';
 import deviceRoutes from './routes/deviceRoutes';
@@ -12,10 +13,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.get('/health', (req, res) => {
-  res.json({ ok: true });
-});
-
+app.use(healthRoutes);
 app.use('/auth', authRoutes);
 app.use(siteRoutes);
 app.use(deviceRoutes);

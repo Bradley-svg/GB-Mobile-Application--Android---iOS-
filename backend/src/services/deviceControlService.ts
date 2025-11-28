@@ -35,11 +35,11 @@ function getCommandClient() {
   commandClient = mqtt.connect(url, { username, password });
 
   commandClient.on('connect', () => {
-    console.log('MQTT command client connected');
+    console.log('[command] MQTT command client connected');
   });
 
   commandClient.on('error', (err) => {
-    console.error('MQTT command error', err);
+    console.error('[command] MQTT command error', err);
   });
 
   return commandClient;
@@ -99,12 +99,15 @@ async function sendSetpointToExternal(
     value: payload.value,
   });
 
-  console.log('[command] setpoint ->', topic, message);
+  console.log(
+    `[command] publishing setpoint deviceExternalId=${deviceExternalId} metric=${payload.metric} value=${payload.value}`
+  );
 
   try {
     await publishCommand(topic, message);
+    console.log(`[command] setpoint publish success deviceExternalId=${deviceExternalId}`);
   } catch (err) {
-    console.error('[command] setpoint failed', err);
+    console.error(`[command] setpoint publish failed deviceExternalId=${deviceExternalId}`, err);
     throw err instanceof Error ? err : new Error('Failed to publish setpoint command');
   }
 }
@@ -116,12 +119,15 @@ async function sendModeToExternal(deviceExternalId: string, payload: ModeCommand
     mode: payload.mode,
   });
 
-  console.log('[command] mode ->', topic, message);
+  console.log(
+    `[command] publishing mode deviceExternalId=${deviceExternalId} mode=${payload.mode}`
+  );
 
   try {
     await publishCommand(topic, message);
+    console.log(`[command] mode publish success deviceExternalId=${deviceExternalId}`);
   } catch (err) {
-    console.error('[command] mode failed', err);
+    console.error(`[command] mode publish failed deviceExternalId=${deviceExternalId}`, err);
     throw err instanceof Error ? err : new Error('Failed to publish mode command');
   }
 }

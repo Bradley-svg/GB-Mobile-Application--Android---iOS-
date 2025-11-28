@@ -2,6 +2,7 @@ import mqtt, { MqttClient } from 'mqtt';
 import { handleTelemetryMessage } from './telemetryIngestService';
 
 let client: MqttClient | null = null;
+let messageCount = 0;
 
 export function initMqtt() {
   const url = process.env.MQTT_URL;
@@ -10,7 +11,7 @@ export function initMqtt() {
 
   if (!url) {
     console.warn('MQTT_URL not set; MQTT ingest is disabled');
-    return;
+    return null;
   }
 
   client = mqtt.connect(url, {
@@ -19,26 +20,31 @@ export function initMqtt() {
   });
 
   client.on('connect', () => {
-    console.log('MQTT connected');
+    console.log('[mqttIngest] connected to broker');
     client!.subscribe('greenbro/+/+/telemetry', (err) => {
-      if (err) console.error('MQTT subscribe error', err);
-      else console.log('MQTT subscribed to greenbro/+/+/telemetry');
+      if (err) console.error('[mqttIngest] subscribe error', err);
+      else console.log('[mqttIngest] subscribed to greenbro/+/+/telemetry');
     });
   });
 
   client.on('message', async (topic, payload) => {
+    messageCount += 1;
+    console.log(`[mqttIngest] message #${messageCount} topic=${topic}`);
+
     try {
       await handleTelemetryMessage(topic, payload);
     } catch (e) {
-      console.error('Failed to handle MQTT message', e);
+      console.error('[mqttIngest] failed to handle MQTT message', e);
     }
   });
 
   client.on('error', (err) => {
-    console.error('MQTT error', err);
+    console.error('[mqttIngest] error', err);
   });
 
   client.on('close', () => {
-    console.warn('MQTT connection closed');
+    console.warn('[mqttIngest] connection closed');
   });
+
+  return client;
 }

@@ -40,7 +40,7 @@ export async function handleTelemetryMessage(topic: string, payload: Buffer) {
   try {
     data = JSON.parse(payload.toString('utf8'));
   } catch (e) {
-    console.error('Failed to parse MQTT payload', e);
+    console.error('Failed to parse MQTT payload', { topic, error: e });
     return;
   }
 
@@ -124,5 +124,9 @@ export async function handleTelemetryMessage(topic: string, payload: Buffer) {
                   updated_at = now()
   `,
     [deviceId, ts, JSON.stringify(snapshotData)]
+  );
+
+  console.log(
+    `[telemetry] stored telemetry device=${deviceId} metrics=${entries.length} ts=${ts.toISOString()}`
   );
 }
