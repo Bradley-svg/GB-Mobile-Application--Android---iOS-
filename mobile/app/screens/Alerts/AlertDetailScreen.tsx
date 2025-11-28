@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Button, Text, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useAcknowledgeAlert, useAlerts, useMuteAlert } from '../../api/hooks';
 import { AppStackParamList } from '../../navigation/RootNavigator';
+import { theme } from '../../theme/theme';
 
 type AlertDetailRouteParams = RouteProp<AppStackParamList, 'AlertDetail'>;
 
@@ -11,14 +12,25 @@ export const AlertDetailScreen: React.FC = () => {
   const alertId = route.params.alertId;
   const navigation = useNavigation<any>();
 
-  const { data: alerts, isLoading } = useAlerts();
+  const { data: alerts, isLoading, isError } = useAlerts();
   const acknowledge = useAcknowledgeAlert();
   const mute = useMuteAlert();
 
   if (isLoading || !alerts) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}>
         <ActivityIndicator />
+      </View>
+    );
+  }
+
+  if (isError) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}>
+        <Text style={{ color: theme.colors.text, fontWeight: '600', marginBottom: 4 }}>
+          Failed to load alert
+        </Text>
+        <Text style={{ color: theme.colors.mutedText }}>Please try again.</Text>
       </View>
     );
   }
@@ -26,8 +38,8 @@ export const AlertDetailScreen: React.FC = () => {
   const alertItem = alerts.find((a) => a.id === alertId);
   if (!alertItem) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <Text>Alert not found</Text>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}>
+        <Text style={{ color: theme.colors.text }}>Alert not found</Text>
       </View>
     );
   }
@@ -51,16 +63,18 @@ export const AlertDetailScreen: React.FC = () => {
   };
 
   return (
-    <View style={{ flex: 1, padding: 16 }}>
-      <Text style={{ fontSize: 20, fontWeight: '600', marginBottom: 8 }}>Alert detail</Text>
-      <Text style={{ marginBottom: 4 }}>Type: {alertItem.type}</Text>
-      <Text style={{ marginBottom: 4 }}>Severity: {alertItem.severity}</Text>
-      <Text style={{ marginBottom: 4 }}>Status: {alertItem.status}</Text>
-      <Text style={{ marginBottom: 4 }}>Message: {alertItem.message}</Text>
-      <Text style={{ marginBottom: 4 }}>
+    <View style={{ flex: 1, padding: 16, backgroundColor: theme.colors.background }}>
+      <Text style={{ fontSize: 20, fontWeight: '600', marginBottom: 8, color: theme.colors.text }}>
+        Alert detail
+      </Text>
+      <Text style={{ marginBottom: 4, color: theme.colors.text }}>Type: {alertItem.type}</Text>
+      <Text style={{ marginBottom: 4, color: theme.colors.text }}>Severity: {alertItem.severity}</Text>
+      <Text style={{ marginBottom: 4, color: theme.colors.text }}>Status: {alertItem.status}</Text>
+      <Text style={{ marginBottom: 4, color: theme.colors.text }}>Message: {alertItem.message}</Text>
+      <Text style={{ marginBottom: 4, color: theme.colors.mutedText }}>
         First seen: {new Date(alertItem.first_seen_at).toLocaleString()}
       </Text>
-      <Text style={{ marginBottom: 16 }}>
+      <Text style={{ marginBottom: 16, color: theme.colors.mutedText }}>
         Last seen: {new Date(alertItem.last_seen_at).toLocaleString()}
       </Text>
 

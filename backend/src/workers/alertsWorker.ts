@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { query } from '../db/pool';
 import { clearAlertIfExists, upsertActiveAlert } from '../services/alertService';
+import { sendAlertNotification } from '../services/pushService';
 
 const OFFLINE_MINUTES = Number(process.env.ALERT_OFFLINE_MINUTES || 10);
 const HIGH_TEMP_THRESHOLD = Number(process.env.ALERT_HIGH_TEMP_THRESHOLD || 60);
@@ -21,7 +22,7 @@ async function evaluateOfflineAlerts(now: Date) {
   );
 
   for (const row of offline.rows) {
-    await upsertActiveAlert({
+    const { alert, isNew } = await upsertActiveAlert({
       siteId: row.site_id,
       deviceId: row.id,
       type: 'offline',
@@ -29,6 +30,10 @@ async function evaluateOfflineAlerts(now: Date) {
       message: `Device offline for more than ${OFFLINE_MINUTES} minutes`,
       now,
     });
+
+    if (isNew && alert.severity === 'critical') {
+      await sendAlertNotification(alert);
+    }
   }
 
   const online = await query<{ id: string; site_id: string; last_seen_at: Date }>(
@@ -67,7 +72,7 @@ async function evaluateHighTempAlerts(now: Date) {
     }
 
     if (temp > HIGH_TEMP_THRESHOLD) {
-      await upsertActiveAlert({
+      const { alert, isNew } = await upsertActiveAlert({
         siteId: row.site_id,
         deviceId: row.id,
         type: 'high_temp',
@@ -75,6 +80,10 @@ async function evaluateHighTempAlerts(now: Date) {
         message: `Supply temperature high: ${temp.toFixed(1)}C (limit ${HIGH_TEMP_THRESHOLD}C)`,
         now,
       });
+
+      if (isNew) {
+        await sendAlertNotification(alert);
+      }
     } else {
       await clearAlertIfExists(row.id, 'high_temp', now);
     }

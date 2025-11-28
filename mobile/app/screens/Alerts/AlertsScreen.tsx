@@ -11,6 +11,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAlerts } from '../../api/hooks';
 import { AppStackParamList } from '../../navigation/RootNavigator';
+import { theme } from '../../theme/theme';
 
 type Navigation = NativeStackNavigationProp<AppStackParamList>;
 
@@ -42,7 +43,7 @@ export const AlertsScreen: React.FC = () => {
 
   if (isLoading) {
     return (
-      <View style={styles.center}>
+      <View style={[styles.center, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator />
       </View>
     );
@@ -56,7 +57,7 @@ export const AlertsScreen: React.FC = () => {
   });
 
   return (
-    <View style={{ flex: 1, padding: 16 }}>
+    <View style={{ flex: 1, padding: 16, backgroundColor: theme.colors.background }}>
       <View style={styles.filterRow}>
         {['all', 'warning', 'critical'].map((s) => (
           <TouchableOpacity
@@ -79,14 +80,14 @@ export const AlertsScreen: React.FC = () => {
           >
             <View style={[styles.severityDot, { backgroundColor: severityColor(item.severity) }]} />
             <View style={{ flex: 1 }}>
-              <Text style={{ fontWeight: '600' }}>{item.message}</Text>
-              <Text style={{ fontSize: 12, color: '#555' }}>
+              <Text style={{ fontWeight: '600', color: theme.colors.text }}>{item.message}</Text>
+              <Text style={{ fontSize: 12, color: theme.colors.mutedText }}>
                 {item.type.toUpperCase()} | {new Date(item.last_seen_at).toLocaleString()}
               </Text>
             </View>
           </TouchableOpacity>
         )}
-        ListEmptyComponent={<Text>No active alerts yet.</Text>}
+        ListEmptyComponent={<Text style={{ color: theme.colors.mutedText }}>No active alerts yet.</Text>}
       />
     </View>
   );
@@ -115,6 +116,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e7eb',
     marginBottom: 8,
+    backgroundColor: theme.colors.card,
   },
   severityDot: {
     width: 10,

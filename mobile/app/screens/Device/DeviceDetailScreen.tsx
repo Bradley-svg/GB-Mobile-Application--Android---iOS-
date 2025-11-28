@@ -198,7 +198,7 @@ export const DeviceDetailScreen: React.FC = () => {
           <TextInput
             value={setpointInput}
             onChangeText={setSetpointInput}
-            keyboardType="numeric"
+            keyboardType='numeric'
             style={{
               borderWidth: 1,
               borderColor: '#d1d5db',

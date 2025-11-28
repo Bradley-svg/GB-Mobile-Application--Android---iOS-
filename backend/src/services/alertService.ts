@@ -27,7 +27,7 @@ export async function upsertActiveAlert(options: {
   severity: AlertSeverity;
   message: string;
   now: Date;
-}): Promise<AlertRow> {
+}): Promise<{ alert: AlertRow; isNew: boolean }> {
   const { siteId, deviceId, type, severity, message, now } = options;
 
   const existing = await query<AlertRow>(
@@ -55,7 +55,7 @@ export async function upsertActiveAlert(options: {
     `,
       [severity, message, now, alert.id]
     );
-    return result.rows[0];
+    return { alert: result.rows[0], isNew: false };
   }
 
   const insert = await query<AlertRow>(
@@ -69,7 +69,7 @@ export async function upsertActiveAlert(options: {
     [siteId, deviceId, severity, type, message, now]
   );
 
-  return insert.rows[0];
+  return { alert: insert.rows[0], isNew: true };
 }
 
 export async function clearAlertIfExists(deviceId: string, type: AlertType, now: Date) {

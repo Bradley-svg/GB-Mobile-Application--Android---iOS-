@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { issueTokens, loginUser, registerUser } from '../services/authService';
+import { query } from '../db/pool';
+import { requireAuth } from '../middleware/requireAuth';
 
 const router = Router();
 
@@ -47,8 +49,55 @@ router.post('/login', async (req, res) => {
   }
 });
 
-router.get('/me', async (_req, res) => {
-  return res.status(501).json({ message: 'Not implemented yet' });
+router.get('/me', requireAuth, async (req, res) => {
+  const userId = req.user!.id;
+
+  const result = await query<{
+    id: string;
+    email: string;
+    name: string;
+    organisation_id: string | null;
+  }>(
+    `
+    select id, email, name, organisation_id
+    from users
+    where id = $1
+  `,
+    [userId]
+  );
+
+  const user = result.rows[0];
+  if (!user) return res.status(404).json({ message: 'User not found' });
+
+  res.json(user);
+});
+
+router.post('/me/push-tokens', requireAuth, async (req, res) => {
+  const userId = req.user!.id;
+
+  const schema = z.object({
+    token: z.string().min(1),
+  });
+
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: 'Invalid body' });
+  }
+
+  const { token } = parsed.data;
+
+  await query(
+    `
+    insert into push_tokens (user_id, expo_token, created_at, last_used_at)
+    values ($1, $2, now(), null)
+    on conflict (user_id, expo_token)
+    do update set last_used_at = now()
+    returning *
+  `,
+    [userId, token]
+  );
+
+  res.json({ ok: true });
 });
 
 export default router;
