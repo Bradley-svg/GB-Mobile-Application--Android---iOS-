@@ -10,6 +10,7 @@ import { AlertsScreen } from '../screens/Alerts/AlertsScreen';
 import { ProfileScreen } from '../screens/Profile/ProfileScreen';
 import { SiteOverviewScreen } from '../screens/Site/SiteOverviewScreen';
 import { DeviceDetailScreen } from '../screens/Device/DeviceDetailScreen';
+import { AlertDetailScreen } from '../screens/Alerts/AlertDetailScreen';
 
 export type RootStackParamList = {
   Auth: undefined;
@@ -20,6 +21,7 @@ export type AppStackParamList = {
   Tabs: undefined;
   SiteOverview: { siteId: string };
   DeviceDetail: { deviceId: string };
+  AlertDetail: { alertId: string };
 };
 
 export type AppTabParamList = {
@@ -59,6 +61,7 @@ function AppNavigator() {
       <AppStack.Screen name="Tabs" component={AppTabs} options={{ headerShown: false }} />
       <AppStack.Screen name="SiteOverview" component={SiteOverviewScreen} options={{ title: 'Site' }} />
       <AppStack.Screen name="DeviceDetail" component={DeviceDetailScreen} options={{ title: 'Device' }} />
+      <AppStack.Screen name="AlertDetail" component={AlertDetailScreen} options={{ title: 'Alert' }} />
     </AppStack.Navigator>
   );
 }

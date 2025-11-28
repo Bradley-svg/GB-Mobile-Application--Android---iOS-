@@ -1,14 +1,13 @@
 # Greenbro Backend
 
-Node/Express API that powers the Greenbro mobile app. Includes authentication, site/device
-CRUD, telemetry storage, and an MQTT ingest worker for time-series metrics.
+Node/Express API that powers the Greenbro mobile app. Includes authentication, site/device CRUD, telemetry storage, and workers for MQTT ingest and alert evaluation.
 
 ## Telemetry storage
 
 SQL to create telemetry tables (run against your Postgres instance):
 
-- `sql/telemetry_schema.sql` – creates `telemetry_points` (time series) and
-  `device_snapshots` (latest view) with indexes.
+- `sql/telemetry_schema.sql` - creates `telemetry_points` (time series) and `device_snapshots` (latest view) with indexes.
+- `sql/alerts_schema.sql` - creates alert tables with indexes for status and severity.
 
 ## Local development
 
@@ -18,6 +17,8 @@ npm install
 npm run dev
 # MQTT ingest worker (requires MQTT_* env vars)
 npm run dev:mqtt
+# Alerts evaluation worker (uses ALERT_* env vars)
+npm run dev:alerts
 ```
 
-Copy `.env.example` to `.env` and fill in your Postgres, JWT, and MQTT connection values.
+Copy `.env.example` to `.env` and fill in your Postgres, JWT, MQTT, and alert worker thresholds.

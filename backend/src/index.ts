@@ -4,6 +4,7 @@ import cors from 'cors';
 import authRoutes from './routes/authRoutes';
 import siteRoutes from './routes/siteRoutes';
 import deviceRoutes from './routes/deviceRoutes';
+import alertRoutes from './routes/alertRoutes';
 
 const app = express();
 
@@ -17,6 +18,7 @@ app.get('/health', (req, res) => {
 app.use('/auth', authRoutes);
 app.use(siteRoutes);
 app.use(deviceRoutes);
+app.use(alertRoutes);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {

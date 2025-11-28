@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, ActivityIndicator, Button, ScrollView } from 'react-native';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { AppStackParamList } from '../../navigation/RootNavigator';
-import { useDevice, useDeviceTelemetry, useSite } from '../../api/hooks';
+import { useDevice, useDeviceAlerts, useDeviceTelemetry, useSite } from '../../api/hooks';
 import { VictoryAxis, VictoryChart, VictoryLegend, VictoryLine } from 'victory-native';
 
 type Route = RouteProp<AppStackParamList, 'DeviceDetail'>;
@@ -15,6 +15,7 @@ export const DeviceDetailScreen: React.FC = () => {
   const { data: device, isLoading, isError } = useDevice(deviceId);
   const siteId = device?.site_id;
   const { data: site } = useSite(siteId || '');
+  const { data: deviceAlerts } = useDeviceAlerts(deviceId);
   const {
     data: telemetry,
     isLoading: telemetryLoading,
@@ -45,6 +46,8 @@ export const DeviceDetailScreen: React.FC = () => {
   const returnPoints = telemetry?.metrics['return_temp'] || [];
   const powerPoints = telemetry?.metrics['power_kw'] || [];
 
+  const activeDeviceAlerts = (deviceAlerts || []).filter((a) => a.status === 'active');
+
   const supplyData = supplyPoints.map((p, idx) => ({ x: idx, y: p.value }));
   const returnData = returnPoints.map((p, idx) => ({ x: idx, y: p.value }));
   const powerData = powerPoints.map((p, idx) => ({ x: idx, y: p.value }));
@@ -54,12 +57,25 @@ export const DeviceDetailScreen: React.FC = () => {
       <Text style={{ fontSize: 20, fontWeight: '700' }}>{device.name}</Text>
       <Text>Type: {device.type}</Text>
       <Text>Status: {device.status}</Text>
-      <Text>Last seen: {device.last_seen_at ? new Date(device.last_seen_at).toLocaleString() : 'Unknown'}</Text>
+      <Text>
+        Last seen: {device.last_seen_at ? new Date(device.last_seen_at).toLocaleString() : 'Unknown'}
+      </Text>
       <View style={{ marginTop: 12 }}>
         <Text style={{ fontWeight: '600' }}>Site</Text>
         <Text>{siteName}</Text>
         {site?.city ? <Text>{site.city}</Text> : null}
       </View>
+
+      {activeDeviceAlerts.length > 0 && (
+        <View style={{ marginTop: 12 }}>
+          <Text style={{ fontWeight: '700', marginBottom: 4 }}>Active alerts</Text>
+          {activeDeviceAlerts.map((a) => (
+            <Text key={a.id} style={{ color: '#b91c1c' }}>
+              - [{a.severity.toUpperCase()}] {a.message}
+            </Text>
+          ))}
+        </View>
+      )}
 
       <View style={{ flexDirection: 'row', marginVertical: 16 }}>
         <Button
@@ -88,7 +104,7 @@ export const DeviceDetailScreen: React.FC = () => {
 
       {!telemetryLoading && !telemetryError && (
         <View>
-          <Text style={{ marginBottom: 8, fontWeight: '600' }}>Flow temperatures (°C)</Text>
+          <Text style={{ marginBottom: 8, fontWeight: '600' }}>Flow temperatures (C)</Text>
           {supplyData.length > 0 || returnData.length > 0 ? (
             <VictoryChart>
               <VictoryAxis tickFormat={() => ''} />
