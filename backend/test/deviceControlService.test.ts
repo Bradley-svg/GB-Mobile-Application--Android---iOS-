@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const queryMock = vi.fn();
 const getDeviceByIdMock = vi.fn();
@@ -30,6 +30,8 @@ vi.mock('mqtt', () => {
 let setDeviceSetpoint: typeof import('../src/services/deviceControlService').setDeviceSetpoint;
 let setDeviceMode: typeof import('../src/services/deviceControlService').setDeviceMode;
 
+const originalMqttUrl = process.env.MQTT_URL;
+
 beforeAll(async () => {
   const mod = await import('../src/services/deviceControlService');
   setDeviceSetpoint = mod.setDeviceSetpoint;
@@ -42,6 +44,11 @@ beforeEach(() => {
   publishMock.mockReset();
   connectMock.mockClear();
   onMock.mockReset();
+  process.env.MQTT_URL = 'mqtt://test-broker';
+});
+
+afterAll(() => {
+  process.env.MQTT_URL = originalMqttUrl;
 });
 
 describe('deviceControlService', () => {

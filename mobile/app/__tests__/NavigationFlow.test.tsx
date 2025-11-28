@@ -1,6 +1,6 @@
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render } from '@testing-library/react-native';
+import { act, render } from '@testing-library/react-native';
 import { RootNavigator } from '../navigation/RootNavigator';
 import { useAuthStore } from '../store/authStore';
 
@@ -36,20 +36,24 @@ const renderWithClient = (ui: React.ReactNode) => {
 
 describe('RootNavigator', () => {
   beforeEach(() => {
-    useAuthStore.setState({
-      accessToken: 'token',
-      refreshToken: 'refresh',
-      user: { id: 'user-1', email: 'test@example.com', name: 'Test User' },
-      isHydrated: true,
+    act(() => {
+      useAuthStore.setState({
+        accessToken: 'token',
+        refreshToken: 'refresh',
+        user: { id: 'user-1', email: 'test@example.com', name: 'Test User' },
+        isHydrated: true,
+      });
     });
   });
 
   afterEach(() => {
-    useAuthStore.setState({
-      accessToken: null,
-      refreshToken: null,
-      user: null,
-      isHydrated: true,
+    act(() => {
+      useAuthStore.setState({
+        accessToken: null,
+        refreshToken: null,
+        user: null,
+        isHydrated: true,
+      });
     });
   });
 
