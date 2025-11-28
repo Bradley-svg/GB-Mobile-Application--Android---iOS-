@@ -1,8 +1,24 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, ActivityIndicator, Button, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  ActivityIndicator,
+  Button,
+  ScrollView,
+  TextInput,
+  Alert,
+  TouchableOpacity,
+} from 'react-native';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { AppStackParamList } from '../../navigation/RootNavigator';
-import { useDevice, useDeviceAlerts, useDeviceTelemetry, useSite } from '../../api/hooks';
+import {
+  useDevice,
+  useDeviceAlerts,
+  useDeviceTelemetry,
+  useModeCommand,
+  useSetpointCommand,
+  useSite,
+} from '../../api/hooks';
 import { VictoryAxis, VictoryChart, VictoryLegend, VictoryLine } from 'victory-native';
 
 type Route = RouteProp<AppStackParamList, 'DeviceDetail'>;
@@ -21,6 +37,14 @@ export const DeviceDetailScreen: React.FC = () => {
     isLoading: telemetryLoading,
     isError: telemetryError,
   } = useDeviceTelemetry(deviceId, range);
+
+  const setpointMutation = useSetpointCommand(deviceId);
+  const modeMutation = useModeCommand(deviceId);
+
+  const [setpointInput, setSetpointInput] = useState('45');
+  const [selectedMode, setSelectedMode] = useState<'OFF' | 'HEATING' | 'COOLING' | 'AUTO'>(
+    'HEATING'
+  );
 
   const siteName = useMemo(() => site?.name || 'Unknown site', [site]);
 
@@ -51,6 +75,31 @@ export const DeviceDetailScreen: React.FC = () => {
   const supplyData = supplyPoints.map((p, idx) => ({ x: idx, y: p.value }));
   const returnData = returnPoints.map((p, idx) => ({ x: idx, y: p.value }));
   const powerData = powerPoints.map((p, idx) => ({ x: idx, y: p.value }));
+
+  const onSetpointSave = async () => {
+    const value = Number(setpointInput);
+    if (Number.isNaN(value)) {
+      Alert.alert('Invalid value', 'Please enter a number');
+      return;
+    }
+
+    try {
+      await setpointMutation.mutateAsync(value);
+      Alert.alert('Success', `Setpoint updated to ${value}C`);
+    } catch (e) {
+      Alert.alert('Error', 'Failed to update setpoint');
+    }
+  };
+
+  const onModeChange = async (mode: 'OFF' | 'HEATING' | 'COOLING' | 'AUTO') => {
+    setSelectedMode(mode);
+    try {
+      await modeMutation.mutateAsync(mode);
+      Alert.alert('Success', `Mode changed to ${mode}`);
+    } catch (e) {
+      Alert.alert('Error', 'Failed to change mode');
+    }
+  };
 
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
@@ -140,6 +189,68 @@ export const DeviceDetailScreen: React.FC = () => {
           )}
         </View>
       )}
+
+      <View style={{ marginTop: 24, paddingVertical: 8, borderTopWidth: 1, borderColor: '#eee' }}>
+        <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 8 }}>Controls</Text>
+
+        <View style={{ marginBottom: 16 }}>
+          <Text style={{ marginBottom: 4 }}>Flow temperature setpoint (C)</Text>
+          <TextInput
+            value={setpointInput}
+            onChangeText={setSetpointInput}
+            keyboardType="numeric"
+            style={{
+              borderWidth: 1,
+              borderColor: '#d1d5db',
+              padding: 8,
+              borderRadius: 6,
+              marginBottom: 8,
+              maxWidth: 120,
+            }}
+          />
+          <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>Allowed range: 30-60C</Text>
+          <Button
+            title={setpointMutation.isLoading ? 'Updating...' : 'Update setpoint'}
+            onPress={onSetpointSave}
+            disabled={setpointMutation.isLoading}
+          />
+        </View>
+
+        <View>
+          <Text style={{ marginBottom: 8 }}>Mode</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+            {(['OFF', 'HEATING', 'COOLING', 'AUTO'] as const).map((mode) => {
+              const selected = selectedMode === mode;
+              return (
+                <TouchableOpacity
+                  key={mode}
+                  onPress={() => onModeChange(mode)}
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 16,
+                    borderWidth: 1,
+                    borderColor: selected ? '#0f766e' : '#d1d5db',
+                    backgroundColor: selected ? '#0f766e' : '#fff',
+                    marginRight: 8,
+                    marginBottom: 8,
+                  }}
+                  disabled={modeMutation.isLoading}
+                >
+                  <Text
+                    style={{
+                      color: selected ? '#fff' : '#111827',
+                      fontWeight: selected ? '600' : '400',
+                    }}
+                  >
+                    {mode}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      </View>
     </ScrollView>
   );
 };
