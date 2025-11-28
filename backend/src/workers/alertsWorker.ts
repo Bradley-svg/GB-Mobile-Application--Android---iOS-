@@ -75,7 +75,10 @@ async function evaluateHighTempAlerts(now: Date): Promise<HighTempMetrics> {
   }>(
     `
     select d.id, d.site_id,
-           (s.data->>'supplyTemp')::double precision as supply_temp
+           coalesce(
+             (s.data->'metrics'->>'supply_temp')::double precision,
+             (s.data->'sensor'->>'supply_temperature_c')::double precision
+           ) as supply_temp
     from devices d
     join device_snapshots s on d.id = s.device_id
   `

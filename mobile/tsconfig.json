@@ -3,7 +3,7 @@
   "compilerOptions": {
     "strict": true,
     "baseUrl": "./",
-    "types": ["jest"]
+    "types": ["jest", "node"]
   },
   "include": ["**/*.ts", "**/*.tsx", "jest.setup.ts"],
   "exclude": ["node_modules"]

@@ -28,7 +28,7 @@ export async function getDeviceTelemetry(
     from telemetry_points
     where device_id = $1
       and ts >= now() - ${interval}
-      and metric in ('supply_temp', 'return_temp', 'power_kw')
+      and metric in ('supply_temp', 'return_temp', 'power_kw', 'flow_rate', 'cop')
     order by ts asc
   `,
     [deviceId]

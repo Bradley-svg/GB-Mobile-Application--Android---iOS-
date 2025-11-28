@@ -110,8 +110,11 @@ export async function handleTelemetryMessage(topic: string, payload: Buffer) {
 
   await query(insertSql, params);
 
+  const numericMetrics = Object.fromEntries(entries) as Record<string, number>;
+
   const snapshotData = {
-    ...data,
+    timestamp: ts.toISOString(),
+    metrics: numericMetrics,
   };
 
   await query(
