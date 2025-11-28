@@ -86,7 +86,7 @@ export const DeviceDetailScreen: React.FC = () => {
     try {
       await setpointMutation.mutateAsync(value);
       Alert.alert('Success', `Setpoint updated to ${value}C`);
-    } catch (e) {
+    } catch {
       Alert.alert('Error', 'Failed to update setpoint');
     }
   };
@@ -96,7 +96,7 @@ export const DeviceDetailScreen: React.FC = () => {
     try {
       await modeMutation.mutateAsync(mode);
       Alert.alert('Success', `Mode changed to ${mode}`);
-    } catch (e) {
+    } catch {
       Alert.alert('Error', 'Failed to change mode');
     }
   };
@@ -210,9 +210,9 @@ export const DeviceDetailScreen: React.FC = () => {
           />
           <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>Allowed range: 30-60C</Text>
           <Button
-            title={setpointMutation.isLoading ? 'Updating...' : 'Update setpoint'}
+            title={setpointMutation.isPending ? 'Updating...' : 'Update setpoint'}
             onPress={onSetpointSave}
-            disabled={setpointMutation.isLoading}
+            disabled={setpointMutation.isPending}
           />
         </View>
 
@@ -235,7 +235,7 @@ export const DeviceDetailScreen: React.FC = () => {
                     marginRight: 8,
                     marginBottom: 8,
                   }}
-                  disabled={modeMutation.isLoading}
+                  disabled={modeMutation.isPending}
                 >
                   <Text
                     style={{

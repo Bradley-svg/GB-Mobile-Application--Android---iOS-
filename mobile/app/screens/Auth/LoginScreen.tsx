@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, Alert } from 'react-native';
+import axios from 'axios';
 import { api } from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
 
@@ -20,8 +21,12 @@ export const LoginScreen: React.FC = () => {
       const res = await api.post('/auth/login', { email, password });
       const { accessToken, refreshToken, user } = res.data;
       await setAuth({ accessToken, refreshToken, user });
-    } catch (e: any) {
-      console.error(e.response?.data || e);
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        console.error(err.response?.data ?? err.message);
+      } else {
+        console.error(err);
+      }
       Alert.alert('Login failed', 'Check your credentials');
     } finally {
       setSubmitting(false);

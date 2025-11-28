@@ -1,16 +1,18 @@
 import React from 'react';
 import { ActivityIndicator, Alert, Button, Text, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAcknowledgeAlert, useAlerts, useMuteAlert } from '../../api/hooks';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { theme } from '../../theme/theme';
 
 type AlertDetailRouteParams = RouteProp<AppStackParamList, 'AlertDetail'>;
+type AlertDetailNavigation = NativeStackNavigationProp<AppStackParamList, 'AlertDetail'>;
 
 export const AlertDetailScreen: React.FC = () => {
   const route = useRoute<AlertDetailRouteParams>();
   const alertId = route.params.alertId;
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<AlertDetailNavigation>();
 
   const { data: alerts, isLoading, isError } = useAlerts();
   const acknowledge = useAcknowledgeAlert();
@@ -48,7 +50,7 @@ export const AlertDetailScreen: React.FC = () => {
     try {
       await acknowledge.mutateAsync(alertItem.id);
       Alert.alert('Acknowledged', 'Alert marked as acknowledged');
-    } catch (e) {
+    } catch {
       Alert.alert('Error', 'Failed to acknowledge alert');
     }
   };
@@ -57,7 +59,7 @@ export const AlertDetailScreen: React.FC = () => {
     try {
       await mute.mutateAsync({ alertId: alertItem.id, minutes: 60 });
       Alert.alert('Muted', 'Alert muted for 60 minutes');
-    } catch (e) {
+    } catch {
       Alert.alert('Error', 'Failed to mute alert');
     }
   };

@@ -55,8 +55,13 @@
     "preset": "jest-expo",
     "setupFilesAfterEnv": ["<rootDir>/jest.setup.ts"],
     "transformIgnorePatterns": [
-      "node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|victory-native|@react-native-async-storage/async-storage|@react-navigation/.*|react-native-svg|@tanstack/react-query|expo-device|expo-secure-store|expo-notifications)/)"
+      "node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|victory-native|@react-native-async-storage/async-storage|@react-navigation/.*|react-native-svg|@tanstack/react-query|expo-device|expo-secure-store|expo-notifications|expo-modules-core)/)"
     ],
+    "moduleNameMapper": {
+      "^react-native$": "<rootDir>/jest/mocks/react-native.js",
+      "^.*vendor/emitter/EventEmitter$": "<rootDir>/jest/mocks/EventEmitter.js",
+      "^.*NativeAnimatedHelper$": "<rootDir>/jest/mocks/NativeAnimatedHelper.js"
+    },
     "testPathIgnorePatterns": ["/node_modules/", "/android/", "/ios/"]
   }
 }

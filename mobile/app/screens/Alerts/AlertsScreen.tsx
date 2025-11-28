@@ -34,6 +34,7 @@ const severityColor = (severity: string) => {
 
 export const AlertsScreen: React.FC = () => {
   const [severityFilter, setSeverityFilter] = useState<'all' | 'warning' | 'critical'>('all');
+  const filterOptions: Array<'all' | 'warning' | 'critical'> = ['all', 'warning', 'critical'];
   const { data: alerts, isLoading } = useAlerts({
     status: 'active',
     severity: severityFilter === 'all' ? undefined : severityFilter,
@@ -59,11 +60,11 @@ export const AlertsScreen: React.FC = () => {
   return (
     <View style={{ flex: 1, padding: 16, backgroundColor: theme.colors.background }}>
       <View style={styles.filterRow}>
-        {['all', 'warning', 'critical'].map((s) => (
+        {filterOptions.map((s) => (
           <TouchableOpacity
             key={s}
             style={[styles.filterChip, severityFilter === s && styles.filterChipActive]}
-            onPress={() => setSeverityFilter(s as any)}
+            onPress={() => setSeverityFilter(s)}
           >
             <Text style={{ color: severityFilter === s ? '#fff' : '#000' }}>{s.toUpperCase()}</Text>
           </TouchableOpacity>
