@@ -22,3 +22,13 @@ Android Bundling failed 30976ms D:\GB-Mobile-Application--Android---iOS-\mobile\
   40 | };
   41 |
   42 | /**
+Android Bundling failed 2380ms D:\GB-Mobile-Application--Android---iOS-\mobile\index.js (2016 modules)
+ ERROR  SyntaxError: D:\GB-Mobile-Application--Android---iOS-\mobile\node_modules\react-native\Libraries\vendor\emitter\EventEmitter.js: Unexpected token, expected "]" (39:5)
+
+  37 |
+  38 | type Registry<TEventToArgsMap: {...}> = {
+> 39 |   [K in keyof TEventToArgsMap]: Set<Registration<TEventToArgsMap[K]>>,
+     |      ^
+  40 | };
+  41 |
+  42 | /**
