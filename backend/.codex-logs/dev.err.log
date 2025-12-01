@@ -1,0 +1,11 @@
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at Function.listen (D:\GB-Mobile-Application--Android---iOS-\backend\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (D:\GB-Mobile-Application--Android---iOS-\backend\src\index.ts:27:7)
+    at Module.<anonymous> (node:internal/modules/cjs/loader:1706:14)
+    at Module._compile (D:\GB-Mobile-Application--Android---iOS-\backend\node_modules\source-map-support\source-map-support.js:568:25)
+    at Module.m._compile (C:\Users\BRADL~1.CRA\AppData\Local\Temp\ts-node-dev-hook-7373907259964303.js:69:33)
+    at node:internal/modules/cjs/loader:1839:10
+    at require.extensions..jsx.require.extensions..js (C:\Users\BRADL~1.CRA\AppData\Local\Temp\ts-node-dev-hook-7373907259964303.js:114:20)
