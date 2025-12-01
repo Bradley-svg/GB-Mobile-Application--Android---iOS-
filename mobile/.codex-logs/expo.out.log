@@ -3,7 +3,22 @@ env: load .env
 env: export EXPO_PUBLIC_API_URL
 Starting Metro Bundler
 warning: Bundler cache is empty, rebuilding (this may take a minute)
-› Opening exp://127.0.0.1:8081 on Pixel_7_API_34
 Waiting on http://localhost:8081
 Logs for your project will appear below.
-Android Bundled 36696ms D:\GB-Mobile-Application--Android---iOS-\mobile\index.js (2025 modules)
+Android Bundled 42557ms D:\GB-Mobile-Application--Android---iOS-\mobile\index.js (1969 modules)
+Android Bundled 44005ms D:\GB-Mobile-Application--Android---iOS-\mobile\index.js (1 module)
+Android Bundled 22307ms D:\GB-Mobile-Application--Android---iOS-\mobile\index.js (1964 modules)
+ LOG  App: render start
+ LOG  App: waiting for hydration {"authChecked": false, "hasAccessToken": false, "isHydrated": false}
+ LOG  App: hydrateFromSecureStore invoked
+ LOG  App: loadUser check {"hasAccessToken": false, "isHydrated": false}
+ LOG  App: auth state updated {"authChecked": false, "hasAccessToken": false, "hasUser": false, "isAuthenticated": false, "isHydrated": false}
+ LOG  App: render start
+ LOG  App: waiting for hydration {"authChecked": false, "hasAccessToken": false, "isHydrated": true}
+ LOG  App: loadUser check {"hasAccessToken": false, "isHydrated": true}
+ LOG  App: no access token, skipping /auth/me fetch
+ LOG  App: auth state updated {"authChecked": false, "hasAccessToken": false, "hasUser": false, "isAuthenticated": false, "isHydrated": true}
+ LOG  App: render start
+ LOG  App: rendering RootNavigator {"authChecked": true, "isAuthenticated": false, "isHydrated": true}
+ LOG  RootNavigator: rendering {"stack": "Auth"}
+ LOG  App: auth state updated {"authChecked": true, "hasAccessToken": false, "hasUser": false, "isAuthenticated": false, "isHydrated": true}
