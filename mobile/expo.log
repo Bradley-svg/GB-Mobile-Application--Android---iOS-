@@ -1,0 +1,5 @@
+Starting project at D:\GB-Mobile-Application--Android---iOS-\mobile
+env: load .env
+env: export EXPO_PUBLIC_API_URL
+Starting Metro Bundler
+Error: UNKNOWN: unknown error, scandir 'D:\GB-Mobile-Application--Android---iOS-\mobile\node_modules_old\neo-async-bad-tmp'
