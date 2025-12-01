@@ -69,6 +69,16 @@ export function useSignup() {
       const res = await api.post<AuthResponse>('/auth/signup', payload);
       return res.data;
     },
+    onSuccess: (data) => {
+      console.log('Signup SUCCESS:', JSON.stringify(data));
+    },
+    onError: (error: any) => {
+      console.log('Signup ERROR:', {
+        message: error?.message,
+        status: error?.response?.status,
+        data: error?.response?.data,
+      });
+    },
   });
 }
 
