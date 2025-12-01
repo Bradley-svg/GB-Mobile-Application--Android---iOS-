@@ -1,0 +1,8 @@
+Starting project at D:\GB-Mobile-Application--Android---iOS-\mobile
+env: load .env
+env: export EXPO_PUBLIC_API_URL
+Starting Metro Bundler
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+› Opening exp://127.0.0.1:8081 on Pixel_7_API_34
+Waiting on http://localhost:8081
+Logs for your project will appear below.
