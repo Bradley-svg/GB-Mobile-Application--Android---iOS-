@@ -20,6 +20,14 @@ async function getAllPushTokens(): Promise<string[]> {
 export async function sendAlertNotification(alert: AlertRow) {
   if (alert.severity !== 'critical') return;
 
+  const mutedUntil = alert.muted_until ? new Date(alert.muted_until) : null;
+  if (mutedUntil && mutedUntil > new Date()) {
+    console.log(
+      `[push] skipping notification for alert=${alert.id} muted_until=${mutedUntil.toISOString()}`
+    );
+    return;
+  }
+
   const tokens = await getAllPushTokens();
   if (tokens.length === 0) {
     return;

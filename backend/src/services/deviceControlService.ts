@@ -20,6 +20,8 @@ const SAFE_BOUNDS = {
 };
 
 let commandClient: MqttClient | null = null;
+const controlHttpUrl = () => process.env.CONTROL_API_URL;
+const controlHttpKey = () => process.env.CONTROL_API_KEY;
 
 function getCommandClient() {
   if (commandClient) return commandClient;
@@ -88,16 +90,58 @@ async function insertCommandRow(
   return res.rows[0];
 }
 
+async function sendControlOverHttp(
+  deviceExternalId: string,
+  body: { type: 'setpoint' | 'mode'; payload: object }
+) {
+  const httpUrl = controlHttpUrl();
+  if (!httpUrl) {
+    throw new Error('CONTROL_API_URL not set; cannot send HTTP command');
+  }
+
+  const headers: Record<string, string> = {
+    'content-type': 'application/json',
+  };
+
+  const apiKey = controlHttpKey();
+  if (apiKey) {
+    headers.Authorization = `Bearer ${apiKey}`;
+  }
+
+  const res = await fetch(`${httpUrl.replace(/\/$/, '')}/devices/${deviceExternalId}/commands`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`CONTROL_HTTP_FAILED:${res.status}:${detail.slice(0, 120)}`);
+  }
+}
+
 async function sendSetpointToExternal(
   deviceExternalId: string,
   payload: SetpointCommandPayload
 ) {
+  const body = {
+    type: 'setpoint' as const,
+    payload: {
+      metric: payload.metric,
+      value: payload.value,
+    },
+  };
+
+  if (controlHttpUrl()) {
+    console.log(
+      `[command] sending setpoint over HTTP deviceExternalId=${deviceExternalId} metric=${payload.metric} value=${payload.value}`
+    );
+    await sendControlOverHttp(deviceExternalId, body);
+    return;
+  }
+
   const topic = `greenbro/${deviceExternalId}/commands`;
-  const message = JSON.stringify({
-    type: 'setpoint',
-    metric: payload.metric,
-    value: payload.value,
-  });
+  const message = JSON.stringify(body);
 
   console.log(
     `[command] publishing setpoint deviceExternalId=${deviceExternalId} metric=${payload.metric} value=${payload.value}`
@@ -113,11 +157,23 @@ async function sendSetpointToExternal(
 }
 
 async function sendModeToExternal(deviceExternalId: string, payload: ModeCommandPayload) {
+  const body = {
+    type: 'mode' as const,
+    payload: {
+      mode: payload.mode,
+    },
+  };
+
+  if (controlHttpUrl()) {
+    console.log(
+      `[command] sending mode over HTTP deviceExternalId=${deviceExternalId} mode=${payload.mode}`
+    );
+    await sendControlOverHttp(deviceExternalId, body);
+    return;
+  }
+
   const topic = `greenbro/${deviceExternalId}/commands`;
-  const message = JSON.stringify({
-    type: 'mode',
-    mode: payload.mode,
-  });
+  const message = JSON.stringify(body);
 
   console.log(
     `[command] publishing mode deviceExternalId=${deviceExternalId} mode=${payload.mode}`
@@ -135,9 +191,10 @@ async function sendModeToExternal(deviceExternalId: string, payload: ModeCommand
 export async function setDeviceSetpoint(
   deviceId: string,
   userId: string,
-  payload: SetpointCommandPayload
+  payload: SetpointCommandPayload,
+  organisationId?: string
 ) {
-  const device = await getDeviceById(deviceId);
+  const device = await getDeviceById(deviceId, organisationId);
   if (!device) {
     throw new Error('DEVICE_NOT_FOUND');
   }
@@ -186,8 +243,13 @@ export async function setDeviceSetpoint(
   }
 }
 
-export async function setDeviceMode(deviceId: string, userId: string, payload: ModeCommandPayload) {
-  const device = await getDeviceById(deviceId);
+export async function setDeviceMode(
+  deviceId: string,
+  userId: string,
+  payload: ModeCommandPayload,
+  organisationId?: string
+) {
+  const device = await getDeviceById(deviceId, organisationId);
   if (!device) {
     throw new Error('DEVICE_NOT_FOUND');
   }

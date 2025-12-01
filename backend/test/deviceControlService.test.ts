@@ -5,6 +5,7 @@ const getDeviceByIdMock = vi.fn();
 const publishMock = vi.fn();
 const connectMock = vi.fn();
 const onMock = vi.fn();
+const fetchMock = vi.fn();
 const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -33,6 +34,8 @@ let setDeviceSetpoint: typeof import('../src/services/deviceControlService').set
 let setDeviceMode: typeof import('../src/services/deviceControlService').setDeviceMode;
 
 const originalMqttUrl = process.env.MQTT_URL;
+const originalControlUrl = process.env.CONTROL_API_URL;
+const originalControlKey = process.env.CONTROL_API_KEY;
 
 beforeAll(async () => {
   const mod = await import('../src/services/deviceControlService');
@@ -46,13 +49,19 @@ beforeEach(() => {
   publishMock.mockReset();
   connectMock.mockClear();
   onMock.mockReset();
+  fetchMock.mockReset();
   process.env.MQTT_URL = 'mqtt://test-broker';
+  delete process.env.CONTROL_API_URL;
+  delete process.env.CONTROL_API_KEY;
+  (global as any).fetch = undefined;
   consoleLogSpy.mockClear();
   consoleErrorSpy.mockClear();
 });
 
 afterAll(() => {
   process.env.MQTT_URL = originalMqttUrl;
+  if (originalControlUrl) process.env.CONTROL_API_URL = originalControlUrl;
+  if (originalControlKey) process.env.CONTROL_API_KEY = originalControlKey;
   consoleLogSpy.mockRestore();
   consoleErrorSpy.mockRestore();
 });
@@ -155,5 +164,38 @@ describe('deviceControlService', () => {
     );
     expect(result.status).toBe('success');
     expect(result.completed_at).toBeInstanceOf(Date);
+  });
+
+  it('sends commands via HTTP provider when configured', async () => {
+    (global as any).fetch = fetchMock;
+    fetchMock.mockResolvedValueOnce({ ok: true, text: vi.fn() });
+    process.env.CONTROL_API_URL = 'https://control.example.com';
+    process.env.CONTROL_API_KEY = 'secret-key';
+
+    getDeviceByIdMock.mockResolvedValue(baseDevice);
+    const commandRow = {
+      id: 'cmd-http',
+      device_id: 'device-1',
+      user_id: 'user-4',
+      command_type: 'setpoint',
+      payload: { metric: 'flow_temp', value: 42 },
+      status: 'pending',
+      requested_at: new Date(),
+      completed_at: null,
+      error_message: null,
+    };
+    queryMock.mockResolvedValueOnce({ rows: [commandRow], rowCount: 1 });
+    queryMock.mockResolvedValueOnce({ rows: [], rowCount: 1 });
+
+    await setDeviceSetpoint('device-1', 'user-4', { metric: 'flow_temp', value: 42 });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://control.example.com/devices/ext-1/commands',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ Authorization: 'Bearer secret-key' }),
+      })
+    );
+    expect(publishMock).not.toHaveBeenCalled();
   });
 });

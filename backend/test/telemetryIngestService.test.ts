@@ -10,10 +10,12 @@ vi.mock('../src/db/pool', () => ({
 }));
 
 let handleTelemetryMessage: typeof import('../src/services/telemetryIngestService').handleTelemetryMessage;
+let handleHttpTelemetryIngest: typeof import('../src/services/telemetryIngestService').handleHttpTelemetryIngest;
 
 beforeAll(async () => {
   const mod = await import('../src/services/telemetryIngestService');
   handleTelemetryMessage = mod.handleTelemetryMessage;
+  handleHttpTelemetryIngest = mod.handleHttpTelemetryIngest;
 });
 
 beforeEach(() => {
@@ -29,20 +31,39 @@ afterAll(() => {
   consoleLogSpy.mockRestore();
 });
 
-describe('handleTelemetryMessage', () => {
+describe('telemetry ingest', () => {
   it('ignores unknown topics', async () => {
-    await handleTelemetryMessage('bad/topic', Buffer.from('{}'));
+    const result = await handleTelemetryMessage('bad/topic', Buffer.from('{}'));
+    expect(result).toBe(false);
     expect(queryMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects malformed payloads via validation', async () => {
+    queryMock.mockResolvedValueOnce({ rows: [{ id: 'device-123' }], rowCount: 1 });
+
+    const result = await handleTelemetryMessage(
+      'greenbro/site-1/device-1/telemetry',
+      Buffer.from(
+        JSON.stringify({
+          timestamp: 'bad',
+          sensor: { supply_temperature_c: 'hot' },
+        })
+      )
+    );
+
+    expect(result).toBe(false);
+    expect(queryMock).toHaveBeenCalledTimes(1);
   });
 
   it('ignores messages with invalid JSON', async () => {
     queryMock.mockResolvedValueOnce({ rows: [{ id: 'device-123' }], rowCount: 1 });
 
-    await handleTelemetryMessage(
+    const result = await handleTelemetryMessage(
       'greenbro/site-1/device-1/telemetry',
       Buffer.from('not-json')
     );
 
+    expect(result).toBe(false);
     expect(queryMock).toHaveBeenCalledTimes(1);
   });
 
@@ -60,11 +81,12 @@ describe('handleTelemetryMessage', () => {
       },
     };
 
-    await handleTelemetryMessage(
+    const ok = await handleTelemetryMessage(
       'greenbro/site-1/device-1/telemetry',
       Buffer.from(JSON.stringify(payload))
     );
 
+    expect(ok).toBe(true);
     expect(queryMock).toHaveBeenCalledTimes(3);
     const telemetryParams = queryMock.mock.calls[1][1] as any[];
     expect(telemetryParams[0]).toBe('device-123');
@@ -79,5 +101,29 @@ describe('handleTelemetryMessage', () => {
     expect(snapshotData.metrics.power_kw).toBeCloseTo(1.2);
     expect(snapshotData.metrics.return_temp).toBeNull();
     expect(snapshotData.raw.sensor.power_w).toBe(1200);
+  });
+
+  it('handles HTTP ingest with the same validation path', async () => {
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ id: 'device-999' }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 2 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 });
+
+    const payload = {
+      timestamp: 1730000000000,
+      sensor: { cop: 3.3, flow_lps: 0.4 },
+    };
+
+    const ok = await handleHttpTelemetryIngest({
+      deviceExternalId: 'dev-http',
+      payload,
+    });
+
+    expect(ok).toBe(true);
+    expect(queryMock).toHaveBeenCalledTimes(3);
+    expect(queryMock.mock.calls[0][1]).toEqual(['dev-http']);
+    const snapshotData = JSON.parse(queryMock.mock.calls[2][1][2] as string);
+    expect(snapshotData.metrics.cop).toBeCloseTo(3.3);
+    expect(snapshotData.metrics.flow_rate).toBeCloseTo(0.4);
   });
 });

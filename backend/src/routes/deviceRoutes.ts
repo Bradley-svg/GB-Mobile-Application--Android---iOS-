@@ -1,9 +1,10 @@
-import { Router } from 'express';
+import { Router, Response } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../middleware/requireAuth';
 import { getDeviceById } from '../services/deviceService';
 import { getDeviceTelemetry } from '../services/telemetryService';
 import { setDeviceMode, setDeviceSetpoint } from '../services/deviceControlService';
+import { getUserContext, requireOrganisationId } from '../services/userService';
 
 const router = Router();
 const deviceIdSchema = z.object({ id: z.string().uuid() });
@@ -15,6 +16,21 @@ const telemetryQuerySchema = z.object({
 });
 router.use(requireAuth);
 
+async function loadOrganisationId(userId: string, res: Response) {
+  const user = await getUserContext(userId);
+  if (!user) {
+    res.status(401).json({ message: 'Unauthorized' });
+    return null;
+  }
+
+  try {
+    return requireOrganisationId(user);
+  } catch {
+    res.status(403).json({ message: 'User not assigned to an organisation' });
+    return null;
+  }
+}
+
 router.get('/devices/:id', async (req, res, next) => {
   const parsedParams = deviceIdSchema.safeParse(req.params);
   if (!parsedParams.success) {
@@ -22,7 +38,10 @@ router.get('/devices/:id', async (req, res, next) => {
   }
 
   try {
-    const device = await getDeviceById(parsedParams.data.id);
+    const organisationId = await loadOrganisationId(req.user!.id, res);
+    if (!organisationId) return;
+
+    const device = await getDeviceById(parsedParams.data.id, organisationId);
     if (!device) return res.status(404).json({ message: 'Not found' });
     res.json(device);
   } catch (e) {
@@ -42,7 +61,10 @@ router.get('/devices/:id/telemetry', async (req, res, next) => {
   }
 
   try {
-    const device = await getDeviceById(parsedParams.data.id);
+    const organisationId = await loadOrganisationId(req.user!.id, res);
+    if (!organisationId) return;
+
+    const device = await getDeviceById(parsedParams.data.id, organisationId);
     if (!device) return res.status(404).json({ message: 'Not found' });
 
     const telemetry = await getDeviceTelemetry(device.id, parsedQuery.data.range);
@@ -70,7 +92,15 @@ router.post('/devices/:id/commands/setpoint', async (req, res, next) => {
   }
 
   try {
-    const command = await setDeviceSetpoint(paramsResult.data.id, userId, parsed.data);
+    const organisationId = await loadOrganisationId(userId, res);
+    if (!organisationId) return;
+
+    const command = await setDeviceSetpoint(
+      paramsResult.data.id,
+      userId,
+      parsed.data,
+      organisationId
+    );
     res.json(command);
   } catch (e: any) {
     switch (e.message) {
@@ -107,7 +137,10 @@ router.post('/devices/:id/commands/mode', async (req, res, next) => {
   }
 
   try {
-    const command = await setDeviceMode(paramsResult.data.id, userId, parsed.data);
+    const organisationId = await loadOrganisationId(userId, res);
+    if (!organisationId) return;
+
+    const command = await setDeviceMode(paramsResult.data.id, userId, parsed.data, organisationId);
     res.json(command);
   } catch (e: any) {
     switch (e.message) {

@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { query } from '../db/pool';
 
 type ParsedTopic = {
@@ -12,6 +13,24 @@ type SnapshotMetrics = {
   flow_rate: number | null;
   cop: number | null;
 };
+
+export const telemetryPayloadSchema = z
+  .object({
+    timestamp: z.number().finite().optional(),
+    sensor: z
+      .object({
+        supply_temperature_c: z.number().finite().optional(),
+        return_temperature_c: z.number().finite().optional(),
+        power_w: z.number().finite().optional(),
+        flow_lps: z.number().finite().optional(),
+        cop: z.number().finite().optional(),
+      })
+      .strict(),
+    meta: z.record(z.any()).optional(),
+  })
+  .strict();
+
+export type TelemetryPayload = z.infer<typeof telemetryPayloadSchema>;
 
 function parseTopic(topic: string): ParsedTopic | null {
   const parts = topic.split('/');
@@ -30,59 +49,43 @@ async function getDeviceIdByExternalId(externalId: string) {
   return res.rows[0]?.id || null;
 }
 
-export async function handleTelemetryMessage(topic: string, payload: Buffer) {
-  const parsedTopic = parseTopic(topic);
-  if (!parsedTopic) {
-    console.warn('Ignoring unknown topic', topic);
-    return;
+function parsePayload(raw: Buffer | unknown, source: string): TelemetryPayload | null {
+  let decoded: unknown = raw;
+
+  if (Buffer.isBuffer(raw)) {
+    try {
+      decoded = JSON.parse(raw.toString('utf8'));
+    } catch (e) {
+      console.error('Failed to parse MQTT payload', { source, error: e });
+      return null;
+    }
   }
 
-  const { deviceExternalId } = parsedTopic;
-  const deviceId = await getDeviceIdByExternalId(deviceExternalId);
-  if (!deviceId) {
-    console.warn('No device mapped for external id', deviceExternalId);
-    return;
+  const parsed = telemetryPayloadSchema.safeParse(decoded);
+  if (!parsed.success) {
+    console.warn('[telemetry] payload validation failed', {
+      source,
+      issues: parsed.error.flatten().fieldErrors,
+    });
+    return null;
   }
 
-  let data: any;
-  try {
-    data = JSON.parse(payload.toString('utf8'));
-  } catch (e) {
-    console.error('Failed to parse MQTT payload', { topic, error: e });
-    return;
-  }
+  return parsed.data;
+}
 
-  if (!data || typeof data !== 'object') {
-    console.log('Telemetry payload is not an object; topic', topic);
-    return;
-  }
-
-  const sensor = (data as any).sensor;
-  if (!sensor || typeof sensor !== 'object') {
-    console.log('Telemetry payload missing sensor object; topic', topic);
-    return;
-  }
-
-  const rawTimestamp = (data as any).timestamp;
-  if (typeof rawTimestamp !== 'number') {
-    console.log('Telemetry payload missing timestamp; defaulting to now; topic', topic);
-  }
-
-  const tsMs = typeof rawTimestamp === 'number' ? rawTimestamp : Date.now();
+async function storeTelemetry(deviceId: string, payload: TelemetryPayload, source: string) {
+  const tsMs = payload.timestamp ?? Date.now();
   const ts = new Date(tsMs);
 
-  const toNumber = (value: unknown): number | null =>
-    typeof value === 'number' && !Number.isNaN(value) ? value : null;
-
   const metrics: SnapshotMetrics = {
-    supply_temp: toNumber((sensor as any).supply_temperature_c),
-    return_temp: toNumber((sensor as any).return_temperature_c),
-    power_kw: (() => {
-      const watts = toNumber((sensor as any).power_w);
-      return watts === null ? null : watts / 1000;
-    })(),
-    flow_rate: toNumber((sensor as any).flow_lps),
-    cop: toNumber((sensor as any).cop),
+    supply_temp: payload.sensor.supply_temperature_c ?? null,
+    return_temp: payload.sensor.return_temperature_c ?? null,
+    power_kw:
+      payload.sensor.power_w === undefined || payload.sensor.power_w === null
+        ? null
+        : payload.sensor.power_w / 1000,
+    flow_rate: payload.sensor.flow_lps ?? null,
+    cop: payload.sensor.cop ?? null,
   };
 
   const entries = Object.entries(metrics).filter(
@@ -90,8 +93,8 @@ export async function handleTelemetryMessage(topic: string, payload: Buffer) {
   );
 
   if (entries.length === 0) {
-    console.log('Telemetry payload had no numeric metrics; topic', topic);
-    return;
+    console.log('[telemetry] payload had no numeric metrics; skipping insert');
+    return false;
   }
 
   const valuesClause = entries
@@ -115,7 +118,7 @@ export async function handleTelemetryMessage(topic: string, payload: Buffer) {
 
   const snapshotData = {
     metrics,
-    raw: data,
+    raw: payload,
   };
 
   await query(
@@ -131,6 +134,50 @@ export async function handleTelemetryMessage(topic: string, payload: Buffer) {
   );
 
   console.log(
-    `[telemetry] stored telemetry device=${deviceId} metrics=${entries.length} ts=${ts.toISOString()}`
+    `[telemetry] stored telemetry device=${deviceId} metrics=${entries.length} ts=${ts.toISOString()} source=${source}`
   );
+
+  return true;
+}
+
+export async function handleTelemetryMessage(topic: string, payload: Buffer) {
+  const parsedTopic = parseTopic(topic);
+  if (!parsedTopic) {
+    console.warn('Ignoring unknown topic', topic);
+    return false;
+  }
+
+  const { deviceExternalId } = parsedTopic;
+  const deviceId = await getDeviceIdByExternalId(deviceExternalId);
+  if (!deviceId) {
+    console.warn('No device mapped for external id', deviceExternalId);
+    return false;
+  }
+
+  const parsedPayload = parsePayload(payload, 'mqtt');
+  if (!parsedPayload) {
+    return false;
+  }
+
+  return storeTelemetry(deviceId, parsedPayload, 'mqtt');
+}
+
+export async function handleHttpTelemetryIngest(params: {
+  deviceExternalId: string;
+  siteExternalId?: string;
+  payload: unknown;
+}) {
+  const { deviceExternalId, payload } = params;
+  const deviceId = await getDeviceIdByExternalId(deviceExternalId);
+  if (!deviceId) {
+    console.warn('No device mapped for external id', deviceExternalId);
+    return false;
+  }
+
+  const parsedPayload = parsePayload(payload, 'http');
+  if (!parsedPayload) {
+    return false;
+  }
+
+  return storeTelemetry(deviceId, parsedPayload, 'http');
 }

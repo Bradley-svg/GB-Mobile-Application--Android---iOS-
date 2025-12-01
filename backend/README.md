@@ -26,6 +26,7 @@ SQL to create telemetry tables (run against your Postgres instance):
 - `sql/telemetry_schema.sql` - creates `telemetry_points` (time series) and `device_snapshots` (latest view) with indexes.
 - `sql/alerts_schema.sql` - creates alert tables with indexes for status and severity.
 - `sql/push_tokens_schema.sql` - stores Expo push tokens per user for notifications.
+- `sql/refresh_tokens_schema.sql` - keeps refresh token rotation/revocation records.
 
 ## Telemetry Ingest & Schema
 

@@ -10,6 +10,7 @@ const HIGH_TEMP_THRESHOLD = Number(process.env.ALERT_HIGH_TEMP_THRESHOLD || 60);
 type OfflineMetrics = {
   offlineCount: number;
   clearedCount: number;
+  mutedCount: number;
 };
 
 type HighTempMetrics = {
@@ -22,17 +23,32 @@ export async function evaluateOfflineAlerts(now: Date): Promise<OfflineMetrics> 
     id: string;
     site_id: string;
     last_seen_at: Date;
+    muted_until: Date | null;
   }>(
     `
     select d.id, d.site_id, s.last_seen_at
+         , max(a.muted_until) as muted_until
     from devices d
     join device_snapshots s on d.id = s.device_id
+    left join alerts a on a.device_id = d.id and a.type = 'offline'
     where s.last_seen_at < now() - ($1 || ' minutes')::interval
+    group by d.id, d.site_id, s.last_seen_at
   `,
     [OFFLINE_MINUTES]
   );
 
+  let mutedCount = 0;
+
   for (const row of offline.rows) {
+    const mutedUntil = row.muted_until ? new Date(row.muted_until) : null;
+    if (mutedUntil && mutedUntil > now) {
+      mutedCount += 1;
+      console.log(
+        `[alertsWorker] offline muted device=${row.id} until ${mutedUntil.toISOString()}`
+      );
+      continue;
+    }
+
     const minutesOffline =
       (now.getTime() - new Date(row.last_seen_at).getTime()) / (60 * 1000);
     const severity: 'warning' | 'critical' =
@@ -74,7 +90,7 @@ export async function evaluateOfflineAlerts(now: Date): Promise<OfflineMetrics> 
 
   console.log(`[alertsWorker] offline clear check complete (${online.rows.length} devices)`);
 
-  return { offlineCount: offline.rows.length, clearedCount: online.rows.length };
+  return { offlineCount: offline.rows.length, clearedCount: online.rows.length, mutedCount };
 }
 
 export async function evaluateHighTempAlerts(now: Date): Promise<HighTempMetrics> {
@@ -140,7 +156,7 @@ export async function runOnce(now: Date = new Date()) {
     const highTempMetrics = await evaluateHighTempAlerts(now);
 
     console.log(
-      `[alertsWorker] cycle complete at ${now.toISOString()} offline={checked:${offlineMetrics.offlineCount}, cleared:${offlineMetrics.clearedCount}} highTemp={evaluated:${highTempMetrics.evaluatedCount}, over:${highTempMetrics.overThresholdCount}}`
+      `[alertsWorker] cycle complete at ${now.toISOString()} offline={checked:${offlineMetrics.offlineCount}, cleared:${offlineMetrics.clearedCount}, muted:${offlineMetrics.mutedCount}} highTemp={evaluated:${highTempMetrics.evaluatedCount}, over:${highTempMetrics.overThresholdCount}}`
     );
   } catch (e) {
     console.error('[alertsWorker] error', e);

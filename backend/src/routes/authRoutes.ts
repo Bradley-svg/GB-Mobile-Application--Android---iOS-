@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { issueTokens, loginUser, registerUser } from '../services/authService';
+import { issueTokens, loginUser, registerUser, verifyRefreshToken } from '../services/authService';
 import { query } from '../db/pool';
 import { requireAuth } from '../middleware/requireAuth';
 
@@ -18,7 +18,7 @@ router.post('/signup', async (req, res, next) => {
 
   try {
     const user = await registerUser(parsed.data.email, parsed.data.password, parsed.data.name);
-    const tokens = issueTokens(user.id);
+    const tokens = await issueTokens(user.id);
     res.json({ ...tokens, user });
   } catch (e: any) {
     if (e.message === 'EMAIL_EXISTS') {
@@ -38,7 +38,7 @@ router.post('/login', async (req, res, next) => {
 
   try {
     const user = await loginUser(parsed.data.email, parsed.data.password);
-    const tokens = issueTokens(user.id);
+    const tokens = await issueTokens(user.id);
     res.json({ ...tokens, user });
   } catch (e: any) {
     if (e.message === 'INVALID_CREDENTIALS') {
@@ -55,8 +55,39 @@ router.post('/reset-password', async (req, res) => {
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: 'Invalid body' });
 
-  // Stub for sending reset email/token; intentionally idempotent.
-  res.json({ ok: true });
+  res.status(501).json({
+    ok: false,
+    message: 'Password reset flow not implemented; please contact support or try again later.',
+  });
+});
+
+router.post('/refresh', async (req, res, next) => {
+  const schema = z.object({
+    refreshToken: z.string().min(10),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: 'Invalid body' });
+
+  try {
+    const { userId, tokenId } = await verifyRefreshToken(parsed.data.refreshToken);
+    const tokens = await issueTokens(userId, { rotateFromId: tokenId });
+    res.json(tokens);
+  } catch (e: any) {
+    const invalidReasons = [
+      'INVALID_TOKEN_TYPE',
+      'REFRESH_TOKEN_NOT_FOUND',
+      'REFRESH_TOKEN_USER_MISMATCH',
+      'REFRESH_TOKEN_REVOKED',
+      'REFRESH_TOKEN_EXPIRED',
+    ];
+    if (invalidReasons.includes(e?.message)) {
+      return res.status(401).json({ message: 'Invalid refresh token' });
+    }
+    if (e?.name === 'JsonWebTokenError' || e?.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Invalid refresh token' });
+    }
+    next(e);
+  }
 });
 
 router.get('/me', requireAuth, async (req, res, next) => {

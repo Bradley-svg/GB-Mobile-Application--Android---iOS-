@@ -40,25 +40,30 @@ describe('GET /sites', () => {
   });
 
   it('returns sites for an authenticated user', async () => {
-    queryMock.mockResolvedValueOnce({
-      rows: [
-        {
-          id: 'site-1',
-          name: 'Test Site',
-          city: 'Cape Town',
-          status: 'ok',
-          last_seen_at: '2025-01-01T00:00:00.000Z',
-        },
-      ],
-      rowCount: 1,
-    });
+    queryMock
+      .mockResolvedValueOnce({
+        rows: [{ id: 'user-123', organisation_id: 'org-1', email: 'a@test.com', name: 'A' }],
+        rowCount: 1,
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'site-1',
+            name: 'Test Site',
+            city: 'Cape Town',
+            status: 'ok',
+            last_seen_at: '2025-01-01T00:00:00.000Z',
+          },
+        ],
+        rowCount: 1,
+      });
 
     const res = await request(app)
       .get('/sites')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(queryMock).toHaveBeenCalledTimes(1);
+    expect(queryMock).toHaveBeenCalledTimes(2);
     expect(res.body).toEqual([
       {
         id: 'site-1',
@@ -68,5 +73,20 @@ describe('GET /sites', () => {
         last_seen_at: '2025-01-01T00:00:00.000Z',
       },
     ]);
+  });
+
+  it('returns 403 when user has no organisation', async () => {
+    queryMock.mockResolvedValueOnce({
+      rows: [{ id: 'user-123', organisation_id: null, email: 'a@test.com', name: 'A' }],
+      rowCount: 1,
+    });
+
+    const res = await request(app)
+      .get('/sites')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(403);
+
+    expect(res.body).toEqual({ message: 'User not assigned to an organisation' });
+    expect(queryMock).toHaveBeenCalledTimes(1);
   });
 });

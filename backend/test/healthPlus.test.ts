@@ -52,6 +52,23 @@ describe('GET /health-plus', () => {
       version: 'test-version',
     });
   });
+
+  it('recovers after a transient db failure', async () => {
+    queryMock
+      .mockRejectedValueOnce(new Error('connection lost'))
+      .mockResolvedValueOnce({ rows: [{ ok: 1 }], rowCount: 1 });
+
+    const first = await request(app).get('/health-plus').expect(500);
+    expect(first.body.ok).toBe(false);
+
+    const second = await request(app).get('/health-plus').expect(200);
+    expect(second.body).toEqual({
+      ok: true,
+      env: process.env.NODE_ENV,
+      db: 'ok',
+      version: 'test-version',
+    });
+  });
 });
 
 afterAll(() => {
