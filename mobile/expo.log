@@ -33,3 +33,33 @@ Android Bundling failed 2380ms D:\GB-Mobile-Application--Android---iOS-\mobile\i
   41 |
   42 | /**
 › Detected a change in metro.config.js. Restart the server to see the new results.
+Android Bundling failed 11704ms D:\GB-Mobile-Application--Android---iOS-\mobile\index.js (1 module)
+ ERROR  SyntaxError: D:\GB-Mobile-Application--Android---iOS-\mobile\node_modules\react-native\Libraries\vendor\emitter\EventEmitter.js: Unexpected token, expected "]" (39:5)
+
+  37 |
+  38 | type Registry<TEventToArgsMap: {...}> = {
+> 39 |   [K in keyof TEventToArgsMap]: Set<Registration<TEventToArgsMap[K]>>,
+     |      ^
+  40 | };
+  41 |
+  42 | /**
+Android Bundling failed 28921ms D:\GB-Mobile-Application--Android---iOS-\mobile\index.js (2025 modules)
+ ERROR  SyntaxError: D:\GB-Mobile-Application--Android---iOS-\mobile\node_modules\react-native\Libraries\vendor\emitter\EventEmitter.js: Unexpected token, expected "]" (39:5)
+
+  37 |
+  38 | type Registry<TEventToArgsMap: {...}> = {
+> 39 |   [K in keyof TEventToArgsMap]: Set<Registration<TEventToArgsMap[K]>>,
+     |      ^
+  40 | };
+  41 |
+  42 | /**
+Android Bundling failed 1940ms D:\GB-Mobile-Application--Android---iOS-\mobile\index.js (2021 modules)
+ ERROR  SyntaxError: D:\GB-Mobile-Application--Android---iOS-\mobile\node_modules\react-native\Libraries\vendor\emitter\EventEmitter.js: Unexpected token, expected "]" (39:5)
+
+  37 |
+  38 | type Registry<TEventToArgsMap: {...}> = {
+> 39 |   [K in keyof TEventToArgsMap]: Set<Registration<TEventToArgsMap[K]>>,
+     |      ^
+  40 | };
+  41 |
+  42 | /**

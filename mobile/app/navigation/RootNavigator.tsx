@@ -131,14 +131,20 @@ interface RootNavigatorProps {
   isAuthenticated: boolean;
 }
 
-export const RootNavigator: React.FC<RootNavigatorProps> = ({ isAuthenticated }) => (
-  <NavigationContainer>
-    <RootStack.Navigator screenOptions={{ headerShown: false }}>
-      {isAuthenticated ? (
-        <RootStack.Screen name="App" component={AppNavigator} />
-      ) : (
-        <RootStack.Screen name="Auth" component={AuthNavigator} />
-      )}
-    </RootStack.Navigator>
-  </NavigationContainer>
-);
+export const RootNavigator: React.FC<RootNavigatorProps> = ({ isAuthenticated }) => {
+  console.log('RootNavigator: rendering', {
+    stack: isAuthenticated ? 'App' : 'Auth',
+  });
+
+  return (
+    <NavigationContainer>
+      <RootStack.Navigator screenOptions={{ headerShown: false }}>
+        {isAuthenticated ? (
+          <RootStack.Screen name="App" component={AppNavigator} />
+        ) : (
+          <RootStack.Screen name="Auth" component={AuthNavigator} />
+        )}
+      </RootStack.Navigator>
+    </NavigationContainer>
+  );
+};

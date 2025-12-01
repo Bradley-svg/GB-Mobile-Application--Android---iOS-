@@ -28,23 +28,32 @@ const queryClient = new QueryClient({
 });
 
 export default function App() {
+  console.log('App: render start');
   const { isHydrated, user, accessToken, hydrateFromSecureStore, setUser, clearAuth } =
     useAuthStore();
   const [authChecked, setAuthChecked] = useState(false);
+  const isAuthenticated = !!user;
 
   useEffect(() => {
+    console.log('App: hydrateFromSecureStore invoked');
     hydrateFromSecureStore();
   }, [hydrateFromSecureStore]);
 
   useEffect(() => {
     const loadUser = async () => {
+      console.log('App: loadUser check', {
+        isHydrated,
+        hasAccessToken: !!accessToken,
+      });
       if (!isHydrated) return;
       if (!accessToken) {
+        console.log('App: no access token, skipping /auth/me fetch');
         setAuthChecked(true);
         return;
       }
 
       try {
+        console.log('App: fetching /auth/me with access token');
         const res = await api.get('/auth/me');
         setUser(res.data);
       } catch (e) {
@@ -58,9 +67,24 @@ export default function App() {
     loadUser();
   }, [accessToken, clearAuth, isHydrated, setUser]);
 
+  useEffect(() => {
+    console.log('App: auth state updated', {
+      isHydrated,
+      authChecked,
+      hasAccessToken: !!accessToken,
+      hasUser: !!user,
+      isAuthenticated,
+    });
+  }, [accessToken, authChecked, isAuthenticated, isHydrated, user]);
+
   useRegisterPushToken();
 
   if (!isHydrated || !authChecked) {
+    console.log('App: waiting for hydration', {
+      isHydrated,
+      authChecked,
+      hasAccessToken: !!accessToken,
+    });
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
         <Text>Loading...</Text>
@@ -68,7 +92,11 @@ export default function App() {
     );
   }
 
-  const isAuthenticated = !!user;
+  console.log('App: rendering RootNavigator', {
+    isAuthenticated,
+    isHydrated,
+    authChecked,
+  });
   return (
     <QueryClientProvider client={queryClient}>
       <View style={{ flex: 1, backgroundColor: colors.background }}>
