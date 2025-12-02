@@ -21,3 +21,4 @@ Android Bundled 58478ms D:\GB-Mobile-Application--Android---iOS-\mobile\index.js
  LOG  App: rendering RootNavigator {"authChecked": true, "isAuthenticated": false, "isHydrated": true}
  LOG  RootNavigator: rendering {"stack": "Auth"}
  LOG  App: auth state updated {"authChecked": true, "hasAccessToken": false, "hasUser": false, "isAuthenticated": false, "isHydrated": true}
+Android Bundled 254ms D:\GB-Mobile-Application--Android---iOS-\mobile\index.js (1 module)
