@@ -1,5 +1,7 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
+import { LEGACY_PUSH_TOKEN_KEY, PUSH_TOKEN_STORAGE_PREFIX } from '../constants/pushTokens';
 
 type AuthUser = {
   id: string;
@@ -48,6 +50,19 @@ export const useAuthStore = create<AuthState>((set) => ({
   clearAuth: async () => {
     await SecureStore.deleteItemAsync(ACCESS_KEY);
     await SecureStore.deleteItemAsync(REFRESH_KEY);
+
+    try {
+      const allKeys = await AsyncStorage.getAllKeys();
+      const pushTokenKeys = allKeys.filter(
+        (key) => key === LEGACY_PUSH_TOKEN_KEY || key.startsWith(PUSH_TOKEN_STORAGE_PREFIX)
+      );
+      if (pushTokenKeys.length) {
+        await AsyncStorage.multiRemove(pushTokenKeys);
+      }
+    } catch (err) {
+      console.error('Failed to clear push token flags on logout', err);
+    }
+
     set({ accessToken: null, refreshToken: null, user: null });
   },
 

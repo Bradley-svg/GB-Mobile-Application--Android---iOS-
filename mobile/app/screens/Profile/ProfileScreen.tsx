@@ -1,9 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '../../store/authStore';
-import { PUSH_TOKEN_REGISTERED_KEY } from '../../hooks/useRegisterPushToken';
 import { Screen, Card, PrimaryButton, IconButton } from '../../theme/components';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
@@ -22,7 +20,6 @@ export const ProfileScreen: React.FC = () => {
   }, [user?.name]);
 
   const onLogout = async () => {
-    await AsyncStorage.removeItem(PUSH_TOKEN_REGISTERED_KEY);
     await clearAuth();
   };
 

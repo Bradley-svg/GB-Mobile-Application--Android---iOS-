@@ -4,7 +4,8 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../api/client';
-import { PUSH_TOKEN_REGISTERED_KEY, useRegisterPushToken } from '../hooks/useRegisterPushToken';
+import { getPushTokenStorageKey } from '../constants/pushTokens';
+import { useRegisterPushToken } from '../hooks/useRegisterPushToken';
 import { useAuthStore } from '../store/authStore';
 
 jest.mock('expo-device', () => ({ isDevice: true }));
@@ -83,7 +84,7 @@ describe('useRegisterPushToken', () => {
     render(<TestComponent />);
 
     await waitFor(() => {
-      expect(AsyncStorage.getItem).toHaveBeenCalledWith(PUSH_TOKEN_REGISTERED_KEY);
+      expect(AsyncStorage.getItem).toHaveBeenCalledWith(getPushTokenStorageKey('user-1'));
     });
     expect(Notifications.getExpoPushTokenAsync).not.toHaveBeenCalled();
     expect(apiPostSpy).not.toHaveBeenCalled();
@@ -100,7 +101,7 @@ describe('useRegisterPushToken', () => {
     render(<TestComponent />);
 
     await waitFor(() => {
-      expect(AsyncStorage.getItem).toHaveBeenCalledWith(PUSH_TOKEN_REGISTERED_KEY);
+      expect(AsyncStorage.getItem).toHaveBeenCalledWith(getPushTokenStorageKey('user-2'));
     });
 
     await waitFor(() => {
@@ -110,6 +111,6 @@ describe('useRegisterPushToken', () => {
     await waitFor(() => {
       expect(apiPostSpy).toHaveBeenCalledWith('/auth/me/push-tokens', { token: 'push-token' });
     });
-    expect(AsyncStorage.setItem).toHaveBeenCalledWith(PUSH_TOKEN_REGISTERED_KEY, '1');
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith(getPushTokenStorageKey('user-2'), '1');
   });
 });

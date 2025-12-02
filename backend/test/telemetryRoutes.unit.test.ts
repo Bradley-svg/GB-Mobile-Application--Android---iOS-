@@ -1,27 +1,18 @@
-import { describe, expect, it, vi } from 'vitest';
+import express from 'express';
+import request from 'supertest';
+import { describe, expect, it } from 'vitest';
+import telemetryRoutes from '../src/routes/telemetryRoutes';
 
-const queryMock = vi.fn();
+describe('telemetryRoutes HTTP ingest', () => {
+  const app = express();
+  app.use(express.json());
+  app.use(telemetryRoutes);
 
-vi.mock('../src/db/pool', () => ({
-  query: (...args: unknown[]) => queryMock(...(args as [string, unknown[]?])),
-}));
+  it('returns 501 and instructs clients to use MQTT ingest', async () => {
+    const res = await request(app).post('/telemetry/http').send({ foo: 'bar' }).expect(501);
 
-async function loadTelemetryRoutes() {
-  vi.resetModules();
-  return import('../src/routes/telemetryRoutes');
-}
-
-describe('telemetryRoutes configuration', () => {
-  it('disables HTTP ingest when no API key is set', async () => {
-    delete process.env.TELEMETRY_API_KEY;
-    const mod = await loadTelemetryRoutes();
-    expect(mod.TELEMETRY_HTTP_ENABLED).toBe(false);
-  });
-
-  it('enables HTTP ingest when API key is configured', async () => {
-    process.env.TELEMETRY_API_KEY = 'secret-key';
-    const mod = await loadTelemetryRoutes();
-    expect(mod.TELEMETRY_HTTP_ENABLED).toBe(true);
-    expect(mod.TELEMETRY_HTTP_KEY).toBe('secret-key');
+    expect(res.body).toEqual({
+      error: 'HTTP telemetry ingest is disabled in this build. Use MQTT ingest.',
+    });
   });
 });

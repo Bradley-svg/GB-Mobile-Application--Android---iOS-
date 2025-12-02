@@ -30,6 +30,8 @@ SQL to create telemetry tables (run against your Postgres instance):
 
 ## Telemetry Ingest & Schema
 
+HTTP telemetry ingest is disabled in this build. Only MQTT ingest is supported for v1; `POST /telemetry/http` responds with `501` to avoid unsafe usage.
+
 ### Incoming payload (MQTT or HTTP)
 Messages land on `greenbro/{siteExternalId}/{deviceExternalId}/telemetry` and carry a normalized envelope with a timestamp plus core sensor readings. Example:
 

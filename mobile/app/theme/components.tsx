@@ -82,12 +82,19 @@ export const Screen: React.FC<ScreenProps> = ({
 };
 
 export const Card: React.FC<CardProps> = ({ children, style, onPress }) => {
-  const Component = onPress ? TouchableOpacity : View;
-  return (
-    <Component style={[styles.card, style]} onPress={onPress} activeOpacity={0.9}>
-      {children}
-    </Component>
-  );
+  if (onPress) {
+    return (
+      <TouchableOpacity
+        style={[styles.card, style]}
+        onPress={onPress}
+        activeOpacity={0.9}
+      >
+        {children}
+      </TouchableOpacity>
+    );
+  }
+
+  return <View style={[styles.card, style]}>{children}</View>;
 };
 
 export const PillTab: React.FC<PillTabProps> = ({ label, selected, onPress }) => (

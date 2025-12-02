@@ -5,8 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { api } from '../api/client';
 import { useAuthStore } from '../store/authStore';
-
-export const PUSH_TOKEN_REGISTERED_KEY = 'greenbro_push_token_registered';
+import { getPushTokenStorageKey } from '../constants/pushTokens';
 
 async function registerTokenWithBackend(token: string) {
   await api.post('/auth/me/push-tokens', { token });
@@ -49,9 +48,11 @@ export function useRegisterPushToken() {
 
   useEffect(() => {
     const run = async () => {
-      if (!user) return;
+      const userId = user?.id;
+      if (!userId) return;
 
-      const already = await AsyncStorage.getItem(PUSH_TOKEN_REGISTERED_KEY);
+      const storageKey = getPushTokenStorageKey(userId);
+      const already = await AsyncStorage.getItem(storageKey);
       if (already === '1') {
         return;
       }
@@ -61,7 +62,7 @@ export function useRegisterPushToken() {
 
       try {
         await registerTokenWithBackend(token);
-        await AsyncStorage.setItem(PUSH_TOKEN_REGISTERED_KEY, '1');
+        await AsyncStorage.setItem(storageKey, '1');
         console.log('Push token registered');
       } catch (e) {
         console.error('Failed to register push token', e);

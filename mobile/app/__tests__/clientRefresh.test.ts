@@ -1,10 +1,14 @@
-import { AxiosError, AxiosResponse } from 'axios';
+import { AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import { api } from '../api/client';
 import { useAuthStore } from '../store/authStore';
 
 const originalAdapter = api.defaults.adapter;
 
-const makeResponse = (config: any, data: any, status = 200): AxiosResponse => ({
+const makeResponse = <T = unknown>(
+  config: InternalAxiosRequestConfig,
+  data: T,
+  status = 200
+): AxiosResponse<T> => ({
   data,
   status,
   statusText: 'OK',
@@ -12,7 +16,7 @@ const makeResponse = (config: any, data: any, status = 200): AxiosResponse => ({
   config,
 });
 
-const unauthorizedError = (config: any) =>
+const unauthorizedError = (config: InternalAxiosRequestConfig) =>
   new AxiosError('Unauthorized', undefined, config, {}, {
     status: 401,
     statusText: 'Unauthorized',

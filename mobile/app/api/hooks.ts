@@ -1,3 +1,4 @@
+import type { AxiosError } from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './client';
 
@@ -72,11 +73,12 @@ export function useSignup() {
     onSuccess: (data) => {
       console.log('Signup SUCCESS:', JSON.stringify(data));
     },
-    onError: (error: any) => {
-      console.log('Signup ERROR:', {
-        message: error?.message,
-        status: error?.response?.status,
-        data: error?.response?.data,
+    onError: (error: unknown) => {
+      const axiosError = error as AxiosError<{ error?: string }>;
+      console.error('Signup ERROR:', {
+        message: axiosError.message,
+        status: axiosError.response?.status,
+        data: axiosError.response?.data,
       });
     },
   });
