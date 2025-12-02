@@ -1,26 +1,38 @@
-# Node
-node_modules
+# Node / Expo
+node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-
-# Expo / React Native
-.expo
-.expo-shared
-.codex-logs
-dist
+dist/
+.expo/
+.expo-shared/
+.expo-dev-tools/
+.expo/*
 ios
 android
 
+# Logs & temp
+logs/
+*.log
+.codex-logs/
+*.tmp
+
 # TypeScript
 *.tsbuildinfo
-dist/
 
 # Env / secrets
 .env
 .env.local
 .env.*.local
 
-# OS
+# Backups
+node_modules_old*/
+**/node_modules_old*/
+*.orig
+*.rej
+
+# OS / editor
 .DS_Store
 Thumbs.db
+.idea/
+.vscode/
