@@ -10,10 +10,10 @@ function parseAllowedOrigins() {
 
 export function buildCorsOptions(): CorsOptions {
   const env = process.env.NODE_ENV || 'development';
-  const allowAll = env !== 'production';
   const allowedOrigins = parseAllowedOrigins();
+  const allowAll = env !== 'production' && allowedOrigins.length === 0;
 
-  if (!allowAll && allowedOrigins.length === 0) {
+  if (env === 'production' && allowedOrigins.length === 0) {
     throw new Error('CORS_ALLOWED_ORIGINS must be set in production');
   }
 
@@ -24,15 +24,8 @@ export function buildCorsOptions(): CorsOptions {
         return callback(null, true);
       }
 
-      if (allowAll) {
-        return callback(null, true);
-      }
-
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      return callback(new Error('Not allowed by CORS'));
+      const isAllowed = allowAll || allowedOrigins.includes(origin);
+      return callback(null, isAllowed);
     },
     credentials: true,
     maxAge: 86400,
