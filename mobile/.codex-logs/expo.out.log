@@ -6,3 +6,18 @@ warning: Bundler cache is empty, rebuilding (this may take a minute)
 Waiting on http://localhost:8081
 Logs for your project will appear below.
 Android Bundled 58478ms D:\GB-Mobile-Application--Android---iOS-\mobile\index.js (1964 modules)
+ LOG  Greenbro API base URL at runtime: http://10.0.2.2:4000
+ LOG  App: render start
+ LOG  App: waiting for hydration {"authChecked": false, "hasAccessToken": false, "isHydrated": false}
+ LOG  App: hydrateFromSecureStore invoked
+ LOG  App: loadUser check {"hasAccessToken": false, "isHydrated": false}
+ LOG  App: auth state updated {"authChecked": false, "hasAccessToken": false, "hasUser": false, "isAuthenticated": false, "isHydrated": false}
+ LOG  App: render start
+ LOG  App: waiting for hydration {"authChecked": false, "hasAccessToken": false, "isHydrated": true}
+ LOG  App: loadUser check {"hasAccessToken": false, "isHydrated": true}
+ LOG  App: no access token, skipping /auth/me fetch
+ LOG  App: auth state updated {"authChecked": false, "hasAccessToken": false, "hasUser": false, "isAuthenticated": false, "isHydrated": true}
+ LOG  App: render start
+ LOG  App: rendering RootNavigator {"authChecked": true, "isAuthenticated": false, "isHydrated": true}
+ LOG  RootNavigator: rendering {"stack": "Auth"}
+ LOG  App: auth state updated {"authChecked": true, "hasAccessToken": false, "hasUser": false, "isAuthenticated": false, "isHydrated": true}
