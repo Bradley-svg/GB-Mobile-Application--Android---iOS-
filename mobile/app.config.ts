@@ -23,6 +23,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       supportsTablet: true,
     },
     android: {
+      // Unique application id required for native builds/dev client
+      package: 'com.greenbro.mobile',
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
         backgroundColor: '#ffffff',
