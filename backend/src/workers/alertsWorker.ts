@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { query } from '../db/pool';
 import { clearAlertIfExists, upsertActiveAlert } from '../services/alertService';
 import { sendAlertNotification } from '../services/pushService';
-import { upsertStatus } from '../services/statusService';
+import { markAlertsWorkerHeartbeat, upsertStatus } from '../services/statusService';
 
 const OFFLINE_MINUTES = Number(process.env.ALERT_OFFLINE_MINUTES || 10);
 const OFFLINE_CRITICAL_MINUTES = Number(process.env.ALERT_OFFLINE_CRITICAL_MINUTES || 60);
@@ -175,6 +175,12 @@ export async function runOnce(now: Date = new Date()) {
       await upsertStatus('alerts_worker', heartbeat);
     } catch (statusErr) {
       console.error('[alertsWorker] failed to persist heartbeat', statusErr);
+    }
+
+    try {
+      await markAlertsWorkerHeartbeat(now);
+    } catch (statusErr) {
+      console.error('[alertsWorker] failed to record heartbeat timestamp', statusErr);
     }
   } catch (e) {
     console.error('[alertsWorker] error', e);

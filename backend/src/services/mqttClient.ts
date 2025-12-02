@@ -1,5 +1,6 @@
 import mqtt, { MqttClient } from 'mqtt';
 import { handleTelemetryMessage } from './telemetryIngestService';
+import { markMqttIngestError, markMqttIngestSuccess } from './statusService';
 
 let client: MqttClient | null = null;
 let messageCount = 0;
@@ -7,6 +8,22 @@ let lastMessageAt: Date | null = null;
 let lastConnectAt: Date | null = null;
 let lastDisconnectAt: Date | null = null;
 let lastError: string | null = null;
+
+async function safeMarkMqttSuccess(now: Date) {
+  try {
+    await markMqttIngestSuccess(now);
+  } catch (statusErr) {
+    console.warn('[mqttIngest] failed to record ingest success', statusErr);
+  }
+}
+
+async function safeMarkMqttError(now: Date, err: unknown) {
+  try {
+    await markMqttIngestError(now, err);
+  } catch (statusErr) {
+    console.warn('[mqttIngest] failed to record ingest error', statusErr);
+  }
+}
 
 function formatBroker(url: string | null) {
   if (!url) return null;
@@ -69,19 +86,27 @@ export function initMqtt() {
 
   client.on('message', async (topic, payload) => {
     messageCount += 1;
-    lastMessageAt = new Date();
+    const now = new Date();
+    lastMessageAt = now;
     console.log(`[mqttIngest] message #${messageCount} topic=${topic}`);
 
     try {
-      await handleTelemetryMessage(topic, payload);
+      const ok = await handleTelemetryMessage(topic, payload);
+      if (ok) {
+        await safeMarkMqttSuccess(now);
+      } else {
+        await safeMarkMqttError(now, 'telemetry ingest returned false');
+      }
     } catch (e) {
       console.error('[mqttIngest] failed to handle MQTT message', e);
+      await safeMarkMqttError(new Date(), e);
     }
   });
 
   client.on('error', (err) => {
     console.error('[mqttIngest] error', err);
     lastError = err?.message || 'MQTT error';
+    safeMarkMqttError(new Date(), err);
   });
 
   client.on('close', () => {

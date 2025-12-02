@@ -1,6 +1,7 @@
 import { Expo, ExpoPushMessage, ExpoPushTicket } from 'expo-server-sdk';
 import { query } from '../db/pool';
 import { AlertRow } from './alertService';
+import { markPushSampleResult } from './statusService';
 
 const expo = new Expo({
   accessToken: process.env.EXPO_ACCESS_TOKEN,
@@ -24,6 +25,14 @@ export type PushHealthStatus = {
 };
 
 let lastPushSample: PushHealthSample | null = null;
+
+async function recordPushSample(now: Date, err: unknown) {
+  try {
+    await markPushSampleResult(now, err);
+  } catch (statusErr) {
+    console.warn('[push] failed to record push health sample', statusErr);
+  }
+}
 
 function maskToken(token: string | null) {
   if (!token) return null;
@@ -190,12 +199,14 @@ export async function runPushHealthCheck(): Promise<PushHealthStatus> {
       detail: `Sent to token ${maskToken(token)}`,
       at: now.toISOString(),
     };
+    await recordPushSample(now, null);
   } catch (e: any) {
     lastPushSample = {
       status: 'error',
       detail: e?.message || 'Push health send failed',
       at: now.toISOString(),
     };
+    await recordPushSample(now, e);
   }
 
   return buildResponse();

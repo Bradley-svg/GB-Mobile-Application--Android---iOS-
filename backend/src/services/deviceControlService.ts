@@ -1,6 +1,7 @@
 import mqtt, { MqttClient } from 'mqtt';
 import { query } from '../db/pool';
 import { getDeviceById } from './deviceService';
+import { markControlCommandError, markControlCommandSuccess } from './statusService';
 
 type CommandStatus = 'pending' | 'success' | 'failed';
 
@@ -47,6 +48,22 @@ function formatTarget(url: string | null) {
     return parsed.host || url;
   } catch {
     return url;
+  }
+}
+
+async function safeMarkControlSuccess(now: Date) {
+  try {
+    await markControlCommandSuccess(now);
+  } catch (statusErr) {
+    console.warn('[command] failed to record control success', statusErr);
+  }
+}
+
+async function safeMarkControlError(now: Date, err: unknown) {
+  try {
+    await markControlCommandError(now, err);
+  } catch (statusErr) {
+    console.warn('[command] failed to record control error', statusErr);
   }
 }
 
@@ -283,7 +300,13 @@ export async function setDeviceSetpoint(
     throw new Error('OUT_OF_RANGE');
   }
 
-  const controlConfig = resolveControlConfig();
+  let controlConfig: ControlConfig;
+  try {
+    controlConfig = resolveControlConfig();
+  } catch (err) {
+    await safeMarkControlError(new Date(), err);
+    throw err;
+  }
   const commandRow = await insertCommandRow(deviceId, userId, 'setpoint', payload, 'pending');
 
   try {
@@ -299,6 +322,7 @@ export async function setDeviceSetpoint(
       [commandRow.id]
     );
 
+    await safeMarkControlSuccess(new Date());
     return { ...commandRow, status: 'success', completed_at: new Date() };
   } catch (e: any) {
     await query(
@@ -311,6 +335,7 @@ export async function setDeviceSetpoint(
     `,
       [commandRow.id, e.message || 'External command failed']
     );
+    await safeMarkControlError(new Date(), e);
     throw new Error('COMMAND_FAILED');
   }
 }
@@ -369,7 +394,13 @@ export async function setDeviceMode(
     throw new Error('UNSUPPORTED_MODE');
   }
 
-  const controlConfig = resolveControlConfig();
+  let controlConfig: ControlConfig;
+  try {
+    controlConfig = resolveControlConfig();
+  } catch (err) {
+    await safeMarkControlError(new Date(), err);
+    throw err;
+  }
   const commandRow = await insertCommandRow(deviceId, userId, 'mode', payload, 'pending');
 
   try {
@@ -385,6 +416,7 @@ export async function setDeviceMode(
       [commandRow.id]
     );
 
+    await safeMarkControlSuccess(new Date());
     return { ...commandRow, status: 'success', completed_at: new Date() };
   } catch (e: any) {
     await query(
@@ -397,6 +429,7 @@ export async function setDeviceMode(
     `,
       [commandRow.id, e.message || 'External command failed']
     );
+    await safeMarkControlError(new Date(), e);
     throw new Error('COMMAND_FAILED');
   }
 }

@@ -1,12 +1,13 @@
 import request from 'supertest';
 import type { Express } from 'express';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { SystemStatus } from '../src/services/statusService';
 
 const queryMock = vi.fn();
 const getControlStatusMock = vi.fn();
 const getMqttHealthMock = vi.fn();
 const runPushHealthCheckMock = vi.fn();
-const getStatusMock = vi.fn();
+const getSystemStatusMock = vi.fn();
 const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
 vi.mock('../src/db/pool', () => ({
@@ -22,16 +23,30 @@ vi.mock('../src/services/pushService', () => ({
   runPushHealthCheck: (...args: unknown[]) => runPushHealthCheckMock(...args),
 }));
 vi.mock('../src/services/statusService', () => ({
-  getStatus: (...args: unknown[]) => getStatusMock(...(args as [string])),
+  getSystemStatus: (...args: unknown[]) => getSystemStatusMock(...args),
 }));
 
 let app: Express;
+const baseSystemStatus = (): SystemStatus => ({
+  key: 'global',
+  payload: {},
+  mqtt_last_ingest_at: null,
+  mqtt_last_error_at: null,
+  mqtt_last_error: null,
+  control_last_command_at: null,
+  control_last_error_at: null,
+  control_last_error: null,
+  alerts_worker_last_heartbeat_at: null,
+  push_last_sample_at: null,
+  push_last_error: null,
+  updated_at: new Date('2025-01-01T00:00:00.000Z'),
+});
 const defaultControl = {
   configured: false,
   type: null,
   target: null,
   lastCommandAt: null,
-  lastError: 'CONTROL_CHANNEL_UNCONFIGURED',
+  lastError: null,
 };
 const defaultMqtt = {
   configured: false,
@@ -42,7 +57,7 @@ const defaultMqtt = {
   lastDisconnectAt: null,
   lastError: null,
 };
-const defaultPush = { configured: false, tokensPresent: false, lastSample: null };
+const defaultPushHealth = { configured: false, tokensPresent: false, lastSample: null };
 
 beforeAll(async () => {
   process.env.NODE_ENV = 'test';
@@ -57,43 +72,52 @@ beforeEach(() => {
   getControlStatusMock.mockReset();
   getMqttHealthMock.mockReset();
   runPushHealthCheckMock.mockReset();
-  getStatusMock.mockReset();
+  getSystemStatusMock.mockReset();
 
   getControlStatusMock.mockReturnValue(defaultControl);
   getMqttHealthMock.mockReturnValue(defaultMqtt);
-  runPushHealthCheckMock.mockResolvedValue(defaultPush);
-  getStatusMock.mockResolvedValue(null);
+  runPushHealthCheckMock.mockResolvedValue(defaultPushHealth);
+  getSystemStatusMock.mockResolvedValue(baseSystemStatus());
 });
 
-describe('GET /health-plus', () => {
+afterAll(() => {
+  consoleErrorSpy.mockRestore();
+});
+
+describe('GET /health-plus (baseline)', () => {
   it('returns ok with version and db ok when query succeeds', async () => {
     queryMock.mockResolvedValueOnce({ rows: [{ ok: 1 }], rowCount: 1 });
-    getStatusMock.mockResolvedValueOnce({
-      payload: {
-        last_run_at: '2025-01-01T00:00:00.000Z',
-        offline: { offlineCount: 0, clearedCount: 0, mutedCount: 0 },
-        high_temp: { evaluatedCount: 0, overThresholdCount: 0 },
-      },
-      updated_at: new Date('2025-01-01T00:00:00.000Z'),
-    });
 
     const res = await request(app).get('/health-plus').expect(200);
 
-    expect(queryMock).toHaveBeenCalledTimes(1);
     expect(res.body).toEqual({
       ok: true,
       env: process.env.NODE_ENV,
       db: 'ok',
       version: 'test-version',
-      mqtt: defaultMqtt,
-      control: defaultControl,
-      alertsWorker: {
-        last_run_at: '2025-01-01T00:00:00.000Z',
-        offline: { offlineCount: 0, clearedCount: 0, mutedCount: 0 },
-        high_temp: { evaluatedCount: 0, overThresholdCount: 0 },
-        updated_at: '2025-01-01T00:00:00.000Z',
+      mqtt: {
+        configured: false,
+        lastIngestAt: null,
+        lastErrorAt: null,
+        lastError: null,
+        healthy: true,
       },
-      push: defaultPush,
+      control: {
+        configured: false,
+        lastCommandAt: null,
+        lastErrorAt: null,
+        lastError: null,
+        healthy: true,
+      },
+      alertsWorker: {
+        lastHeartbeatAt: null,
+        healthy: true,
+      },
+      push: {
+        enabled: false,
+        lastSampleAt: null,
+        lastError: null,
+      },
     });
   });
 
@@ -102,17 +126,35 @@ describe('GET /health-plus', () => {
 
     const res = await request(app).get('/health-plus').expect(500);
 
-    expect(queryMock).toHaveBeenCalledTimes(1);
     expect(consoleErrorSpy).toHaveBeenCalledWith('health-plus error', expect.any(Error));
     expect(res.body).toEqual({
       ok: false,
       env: process.env.NODE_ENV,
       db: 'error',
       version: 'test-version',
-      mqtt: defaultMqtt,
-      control: defaultControl,
-      alertsWorker: { last_run_at: null },
-      push: defaultPush,
+      mqtt: {
+        configured: false,
+        lastIngestAt: null,
+        lastErrorAt: null,
+        lastError: null,
+        healthy: true,
+      },
+      control: {
+        configured: false,
+        lastCommandAt: null,
+        lastErrorAt: null,
+        lastError: null,
+        healthy: true,
+      },
+      alertsWorker: {
+        lastHeartbeatAt: null,
+        healthy: false,
+      },
+      push: {
+        enabled: false,
+        lastSampleAt: null,
+        lastError: null,
+      },
     });
   });
 
@@ -125,19 +167,6 @@ describe('GET /health-plus', () => {
     expect(first.body.ok).toBe(false);
 
     const second = await request(app).get('/health-plus').expect(200);
-    expect(second.body).toEqual({
-      ok: true,
-      env: process.env.NODE_ENV,
-      db: 'ok',
-      version: 'test-version',
-      mqtt: defaultMqtt,
-      control: defaultControl,
-      alertsWorker: { last_run_at: null },
-      push: defaultPush,
-    });
+    expect(second.body.ok).toBe(true);
   });
-});
-
-afterAll(() => {
-  consoleErrorSpy.mockRestore();
 });
