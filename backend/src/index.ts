@@ -1,6 +1,5 @@
 import 'dotenv/config';
 import express from 'express';
-import cors from 'cors';
 import healthRoutes from './routes/healthRoutes';
 import authRoutes from './routes/authRoutes';
 import siteRoutes from './routes/siteRoutes';
@@ -8,10 +7,11 @@ import deviceRoutes from './routes/deviceRoutes';
 import alertRoutes from './routes/alertRoutes';
 import telemetryRoutes from './routes/telemetryRoutes';
 import { errorHandler } from './middleware/errorHandler';
+import { createCorsMiddleware } from './middleware/corsConfig';
 
 const app = express();
 
-app.use(cors());
+app.use(createCorsMiddleware());
 app.use(express.json());
 
 app.use(healthRoutes);

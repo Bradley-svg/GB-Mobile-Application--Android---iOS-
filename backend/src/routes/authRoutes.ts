@@ -1,11 +1,21 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import rateLimit from 'express-rate-limit';
 import { issueTokens, loginUser, registerUser, verifyRefreshToken } from '../services/authService';
 import { query } from '../db/pool';
 import { requireAuth } from '../middleware/requireAuth';
 
 const router = Router();
 const PUSH_TOKEN_RECENT_MINUTES = 10;
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 50,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many auth attempts. Please try again shortly.' },
+});
+
+router.use(['/login', '/signup', '/refresh', '/reset-password'], authLimiter);
 
 router.post('/signup', async (req, res, next) => {
   const allowPublicSignup = process.env.AUTH_ALLOW_PUBLIC_SIGNUP === 'true';

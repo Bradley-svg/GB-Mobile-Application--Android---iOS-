@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { query } from '../db/pool';
 import { clearAlertIfExists, upsertActiveAlert } from '../services/alertService';
 import { sendAlertNotification } from '../services/pushService';
+import { upsertStatus } from '../services/statusService';
 
 const OFFLINE_MINUTES = Number(process.env.ALERT_OFFLINE_MINUTES || 10);
 const OFFLINE_CRITICAL_MINUTES = Number(process.env.ALERT_OFFLINE_CRITICAL_MINUTES || 60);
@@ -16,6 +17,12 @@ type OfflineMetrics = {
 type HighTempMetrics = {
   evaluatedCount: number;
   overThresholdCount: number;
+};
+
+export type AlertsWorkerHeartbeat = {
+  last_run_at: string;
+  offline: OfflineMetrics;
+  high_temp: HighTempMetrics;
 };
 
 export async function evaluateOfflineAlerts(now: Date): Promise<OfflineMetrics> {
@@ -158,6 +165,17 @@ export async function runOnce(now: Date = new Date()) {
     console.log(
       `[alertsWorker] cycle complete at ${now.toISOString()} offline={checked:${offlineMetrics.offlineCount}, cleared:${offlineMetrics.clearedCount}, muted:${offlineMetrics.mutedCount}} highTemp={evaluated:${highTempMetrics.evaluatedCount}, over:${highTempMetrics.overThresholdCount}}`
     );
+
+    try {
+      const heartbeat: AlertsWorkerHeartbeat = {
+        last_run_at: now.toISOString(),
+        offline: offlineMetrics,
+        high_temp: highTempMetrics,
+      };
+      await upsertStatus('alerts_worker', heartbeat);
+    } catch (statusErr) {
+      console.error('[alertsWorker] failed to persist heartbeat', statusErr);
+    }
   } catch (e) {
     console.error('[alertsWorker] error', e);
   }

@@ -81,21 +81,55 @@ export const DeviceDetailScreen: React.FC = () => {
   const powerPoints = telemetry?.metrics['power_kw'] || [];
   const flowPoints = telemetry?.metrics['flow_rate'] || [];
   const copPoints = telemetry?.metrics['cop'] || [];
+  const currentTemp = Math.round(supplyPoints[supplyPoints.length - 1]?.value ?? 20);
 
   const activeDeviceAlerts = (deviceAlerts || []).filter((a) => a.status === 'active');
 
-  const supplyData = supplyPoints.map((p, idx) => ({ x: idx, y: p.value }));
-  const returnData = returnPoints.map((p, idx) => ({ x: idx, y: p.value }));
-  const powerData = powerPoints.map((p, idx) => ({ x: idx, y: p.value }));
-  const flowData = flowPoints.map((p, idx) => ({ x: idx, y: p.value }));
-  const copData = copPoints.map((p, idx) => ({ x: idx, y: p.value }));
+  const toSeries = (points: typeof supplyPoints) =>
+    points.map((p) => ({ x: new Date(p.ts), y: p.value }));
+
+  const supplyData = toSeries(supplyPoints);
+  const returnData = toSeries(returnPoints);
+  const powerData = toSeries(powerPoints);
+  const flowData = toSeries(flowPoints);
+  const copData = toSeries(copPoints);
+  const lastUpdatedAt = useMemo(() => {
+    const timestamps = [
+      ...supplyPoints,
+      ...returnPoints,
+      ...powerPoints,
+      ...flowPoints,
+      ...copPoints,
+    ]
+      .map((p) => new Date(p.ts).getTime())
+      .filter((ts) => !Number.isNaN(ts));
+    if (timestamps.length === 0) return null;
+    return new Date(Math.max(...timestamps)).toISOString();
+  }, [supplyPoints, returnPoints, powerPoints, flowPoints, copPoints]);
+
+  const xTickCount = range === '7d' ? 5 : 6;
+  const formatAxisTick = useMemo(
+    () => (value: Date | number) => {
+      const date = typeof value === 'number' ? new Date(value) : value;
+      if (Number.isNaN(date.getTime())) return '';
+
+      if (range === '7d') {
+        return `${date.getMonth() + 1}/${date.getDate()}`;
+      }
+
+      const hours = `${date.getHours()}`.padStart(2, '0');
+      const minutes = `${date.getMinutes()}`.padStart(2, '0');
+      return `${hours}:${minutes}`;
+    },
+    [range]
+  );
+
   const hasSupplyData = supplyData.length > 0;
   const hasReturnData = returnData.length > 0;
   const hasPowerData = powerData.length > 0;
   const hasFlowData = flowData.length > 0;
   const hasCopData = copData.length > 0;
   const emptyMetricPlaceholder = 'No data for this metric in the selected range.';
-  const currentTemp = Math.round(supplyPoints[supplyPoints.length - 1]?.value ?? 20);
 
   const onSetpointSave = async () => {
     const value = Number(setpointInput);
@@ -165,6 +199,11 @@ export const DeviceDetailScreen: React.FC = () => {
               {siteName}
             </Text>
           </View>
+          <Text style={[typography.caption, styles.muted, { marginTop: spacing.xs }]}>
+            {lastUpdatedAt
+              ? `Last updated at ${new Date(lastUpdatedAt).toLocaleString()}`
+              : 'No telemetry yet'}
+          </Text>
         </View>
 
         <View style={styles.dialWrapper}>
@@ -214,8 +253,8 @@ export const DeviceDetailScreen: React.FC = () => {
             'Flow temperatures (C)',
             colors.info,
             hasSupplyData || hasReturnData,
-            <VictoryChart>
-              <VictoryAxis tickFormat={() => ''} />
+            <VictoryChart scale={{ x: 'time' }}>
+              <VictoryAxis tickFormat={formatAxisTick} tickCount={xTickCount} />
               <VictoryAxis dependentAxis />
               <VictoryLegend
                 x={40}
@@ -237,8 +276,8 @@ export const DeviceDetailScreen: React.FC = () => {
             'Power (kW)',
             colors.primary,
             hasPowerData,
-            <VictoryChart>
-              <VictoryAxis tickFormat={() => ''} />
+            <VictoryChart scale={{ x: 'time' }}>
+              <VictoryAxis tickFormat={formatAxisTick} tickCount={xTickCount} />
               <VictoryAxis dependentAxis />
               <VictoryLine data={powerData} style={{ data: { stroke: colors.primary } }} />
             </VictoryChart>,
@@ -249,8 +288,8 @@ export const DeviceDetailScreen: React.FC = () => {
             'Flow rate (L/s)',
             colors.info,
             hasFlowData,
-            <VictoryChart>
-              <VictoryAxis tickFormat={() => ''} />
+            <VictoryChart scale={{ x: 'time' }}>
+              <VictoryAxis tickFormat={formatAxisTick} tickCount={xTickCount} />
               <VictoryAxis dependentAxis />
               <VictoryLine data={flowData} style={{ data: { stroke: colors.info } }} />
             </VictoryChart>,
@@ -261,8 +300,8 @@ export const DeviceDetailScreen: React.FC = () => {
             'COP',
             colors.warning,
             hasCopData,
-            <VictoryChart>
-              <VictoryAxis tickFormat={() => ''} />
+            <VictoryChart scale={{ x: 'time' }}>
+              <VictoryAxis tickFormat={formatAxisTick} tickCount={xTickCount} />
               <VictoryAxis dependentAxis />
               <VictoryLine data={copData} style={{ data: { stroke: colors.warning } }} />
             </VictoryChart>,

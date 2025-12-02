@@ -22,11 +22,33 @@ const SAFE_BOUNDS = {
 let commandClient: MqttClient | null = null;
 const controlHttpUrl = () => process.env.CONTROL_API_URL;
 const controlHttpKey = () => process.env.CONTROL_API_KEY;
-const CONTROL_CHANNEL_UNCONFIGURED = 'CONTROL_CHANNEL_UNCONFIGURED';
+export const CONTROL_CHANNEL_UNCONFIGURED = 'CONTROL_CHANNEL_UNCONFIGURED';
+let lastControlError: string | null = null;
+let lastControlAttemptAt: Date | null = null;
 
 type ControlConfig =
   | { type: 'http'; url: string; apiKey: string }
   | { type: 'mqtt'; url: string };
+
+function recordControlError(err: unknown) {
+  if (err instanceof Error) {
+    lastControlError = err.message;
+  } else if (typeof err === 'string') {
+    lastControlError = err;
+  } else {
+    lastControlError = 'Unknown control error';
+  }
+}
+
+function formatTarget(url: string | null) {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    return parsed.host || url;
+  } catch {
+    return url;
+  }
+}
 
 function resolveControlConfig(): ControlConfig {
   const httpUrl = controlHttpUrl();
@@ -34,16 +56,20 @@ function resolveControlConfig(): ControlConfig {
 
   if (httpUrl) {
     if (!httpKey) {
+      recordControlError(CONTROL_CHANNEL_UNCONFIGURED);
       throw new Error(CONTROL_CHANNEL_UNCONFIGURED);
     }
+    lastControlError = null;
     return { type: 'http', url: httpUrl, apiKey: httpKey };
   }
 
   const mqttUrl = process.env.MQTT_URL;
   if (!mqttUrl) {
+    recordControlError(CONTROL_CHANNEL_UNCONFIGURED);
     throw new Error(CONTROL_CHANNEL_UNCONFIGURED);
   }
 
+  lastControlError = null;
   return { type: 'mqtt', url: mqttUrl };
 }
 
@@ -145,6 +171,8 @@ async function sendSetpointToExternal(
   payload: SetpointCommandPayload,
   controlConfig: ControlConfig
 ) {
+  lastControlAttemptAt = new Date();
+
   const body = {
     type: 'setpoint' as const,
     payload: {
@@ -157,8 +185,14 @@ async function sendSetpointToExternal(
     console.log(
       `[command] sending setpoint over HTTP deviceExternalId=${deviceExternalId} metric=${payload.metric} value=${payload.value}`
     );
-    await sendControlOverHttp(deviceExternalId, body, controlConfig);
-    return;
+    try {
+      await sendControlOverHttp(deviceExternalId, body, controlConfig);
+      lastControlError = null;
+      return;
+    } catch (err) {
+      recordControlError(err);
+      throw err;
+    }
   }
 
   const topic = `greenbro/${deviceExternalId}/commands`;
@@ -171,8 +205,10 @@ async function sendSetpointToExternal(
   try {
     await publishCommand(topic, message, controlConfig);
     console.log(`[command] setpoint publish success deviceExternalId=${deviceExternalId}`);
+    lastControlError = null;
   } catch (err) {
     console.error(`[command] setpoint publish failed deviceExternalId=${deviceExternalId}`, err);
+    recordControlError(err);
     throw err instanceof Error ? err : new Error('Failed to publish setpoint command');
   }
 }
@@ -182,6 +218,8 @@ async function sendModeToExternal(
   payload: ModeCommandPayload,
   controlConfig: ControlConfig
 ) {
+  lastControlAttemptAt = new Date();
+
   const body = {
     type: 'mode' as const,
     payload: {
@@ -193,8 +231,14 @@ async function sendModeToExternal(
     console.log(
       `[command] sending mode over HTTP deviceExternalId=${deviceExternalId} mode=${payload.mode}`
     );
-    await sendControlOverHttp(deviceExternalId, body, controlConfig);
-    return;
+    try {
+      await sendControlOverHttp(deviceExternalId, body, controlConfig);
+      lastControlError = null;
+      return;
+    } catch (err) {
+      recordControlError(err);
+      throw err;
+    }
   }
 
   const topic = `greenbro/${deviceExternalId}/commands`;
@@ -207,8 +251,10 @@ async function sendModeToExternal(
   try {
     await publishCommand(topic, message, controlConfig);
     console.log(`[command] mode publish success deviceExternalId=${deviceExternalId}`);
+    lastControlError = null;
   } catch (err) {
     console.error(`[command] mode publish failed deviceExternalId=${deviceExternalId}`, err);
+    recordControlError(err);
     throw err instanceof Error ? err : new Error('Failed to publish mode command');
   }
 }
@@ -267,6 +313,40 @@ export async function setDeviceSetpoint(
     );
     throw new Error('COMMAND_FAILED');
   }
+}
+
+export function getControlChannelStatus() {
+  const httpUrl = controlHttpUrl();
+  const httpKey = controlHttpKey();
+  const mqttUrl = process.env.MQTT_URL || null;
+
+  let configured = false;
+  let type: ControlConfig['type'] | null = null;
+  let target: string | null = null;
+  let error = lastControlError;
+
+  if (httpUrl) {
+    type = 'http';
+    target = httpUrl;
+    configured = Boolean(httpKey);
+    if (!configured) {
+      error = CONTROL_CHANNEL_UNCONFIGURED;
+    }
+  } else if (mqttUrl) {
+    type = 'mqtt';
+    target = mqttUrl;
+    configured = true;
+  } else {
+    error = CONTROL_CHANNEL_UNCONFIGURED;
+  }
+
+  return {
+    configured,
+    type,
+    target: formatTarget(target),
+    lastCommandAt: lastControlAttemptAt ? lastControlAttemptAt.toISOString() : null,
+    lastError: error,
+  };
 }
 
 export async function setDeviceMode(

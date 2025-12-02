@@ -139,6 +139,12 @@ async function main() {
 
     create index if not exists control_commands_device_idx
       on control_commands (device_id, requested_at desc);
+
+    create table if not exists system_status (
+      key text primary key,
+      payload jsonb not null,
+      updated_at timestamptz not null default now()
+    );
   `;
 
   await client.query(ddl);

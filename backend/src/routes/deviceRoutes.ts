@@ -1,4 +1,5 @@
 import { Router, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { requireAuth } from '../middleware/requireAuth';
 import { getDeviceById } from '../services/deviceService';
@@ -8,6 +9,14 @@ import { getUserContext, requireOrganisationId } from '../services/userService';
 
 const router = Router();
 const deviceIdSchema = z.object({ id: z.string().uuid() });
+const controlLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.user?.id || req.ip || 'unknown',
+  message: { message: 'Too many control commands. Please retry in a few minutes.' },
+});
 const telemetryQuerySchema = z.object({
   range: z
     .union([z.literal('24h'), z.literal('7d')])
@@ -74,7 +83,7 @@ router.get('/devices/:id/telemetry', async (req, res, next) => {
   }
 });
 
-router.post('/devices/:id/commands/setpoint', async (req, res, next) => {
+router.post('/devices/:id/commands/setpoint', controlLimiter, async (req, res, next) => {
   const paramsResult = deviceIdSchema.safeParse(req.params);
   if (!paramsResult.success) {
     return res.status(400).json({ message: 'Invalid device id' });
@@ -122,7 +131,7 @@ router.post('/devices/:id/commands/setpoint', async (req, res, next) => {
   }
 });
 
-router.post('/devices/:id/commands/mode', async (req, res, next) => {
+router.post('/devices/:id/commands/mode', controlLimiter, async (req, res, next) => {
   const paramsResult = deviceIdSchema.safeParse(req.params);
   if (!paramsResult.success) {
     return res.status(400).json({ message: 'Invalid device id' });
