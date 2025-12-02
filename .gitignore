@@ -7,6 +7,7 @@ yarn-error.log*
 # Expo / React Native
 .expo
 .expo-shared
+.codex-logs
 dist
 ios
 android
