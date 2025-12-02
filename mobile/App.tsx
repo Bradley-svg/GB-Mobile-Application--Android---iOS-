@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import { Text, View } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -57,8 +58,11 @@ export default function App() {
         const res = await api.get('/auth/me');
         setUser(res.data);
       } catch (e) {
-        console.error('Failed to load current user', e);
-        await clearAuth();
+        if (axios.isAxiosError(e) && e.response?.status === 401) {
+          await clearAuth();
+        } else {
+          console.error('Failed to load current user', e);
+        }
       } finally {
         setAuthChecked(true);
       }

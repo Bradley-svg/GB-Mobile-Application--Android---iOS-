@@ -8,6 +8,11 @@ const router = Router();
 const PUSH_TOKEN_RECENT_MINUTES = 10;
 
 router.post('/signup', async (req, res, next) => {
+  const allowPublicSignup = process.env.AUTH_ALLOW_PUBLIC_SIGNUP === 'true';
+  if (!allowPublicSignup) {
+    return res.status(403).json({ error: 'Signup disabled. Contact administrator.' });
+  }
+
   const schema = z.object({
     email: z.string().email(),
     password: z.string().min(6),
@@ -56,8 +61,7 @@ router.post('/reset-password', async (req, res) => {
   if (!parsed.success) return res.status(400).json({ message: 'Invalid body' });
 
   res.status(501).json({
-    ok: false,
-    message: 'Password reset flow not implemented; please contact support or try again later.',
+    error: 'Password reset not implemented yet.',
   });
 });
 

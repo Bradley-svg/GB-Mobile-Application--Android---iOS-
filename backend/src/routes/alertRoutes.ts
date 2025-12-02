@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Response, Router } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../middleware/requireAuth';
 import {
@@ -7,6 +7,7 @@ import {
   getAlertsForDevice,
   muteAlert,
 } from '../services/alertService';
+import { getUserContext, requireOrganisationId } from '../services/userService';
 
 const router = Router();
 const alertIdSchema = z.object({ id: z.string().uuid() });
@@ -20,6 +21,21 @@ const alertsQuerySchema = z.object({
 
 router.use(requireAuth);
 
+async function loadOrganisationId(userId: string, res: Response) {
+  const user = await getUserContext(userId);
+  if (!user) {
+    res.status(401).json({ message: 'Unauthorized' });
+    return null;
+  }
+
+  try {
+    return requireOrganisationId(user);
+  } catch {
+    res.status(403).json({ message: 'User not assigned to an organisation' });
+    return null;
+  }
+}
+
 router.get('/alerts', async (req, res, next) => {
   const parsedQuery = alertsQuerySchema.safeParse(req.query);
   if (!parsedQuery.success) {
@@ -29,11 +45,15 @@ router.get('/alerts', async (req, res, next) => {
   const { siteId, severity, status, limit } = parsedQuery.data;
 
   try {
+    const organisationId = await loadOrganisationId(req.user!.id, res);
+    if (!organisationId) return;
+
     const alerts = await getAlerts({
       siteId,
       severity,
       status: status ?? 'active',
       limit,
+      organisationId,
     });
 
     res.json(alerts);
@@ -49,7 +69,10 @@ router.get('/devices/:id/alerts', async (req, res, next) => {
   }
 
   try {
-    const alerts = await getAlertsForDevice(parsedParams.data.id);
+    const organisationId = await loadOrganisationId(req.user!.id, res);
+    if (!organisationId) return;
+
+    const alerts = await getAlertsForDevice(parsedParams.data.id, organisationId);
     res.json(alerts);
   } catch (e) {
     next(e);
@@ -65,7 +88,10 @@ router.post('/alerts/:id/acknowledge', async (req, res, next) => {
   const userId = req.user!.id;
 
   try {
-    const alert = await acknowledgeAlert(parsedParams.data.id, userId);
+    const organisationId = await loadOrganisationId(userId, res);
+    if (!organisationId) return;
+
+    const alert = await acknowledgeAlert(parsedParams.data.id, userId, organisationId);
     if (!alert) return res.status(404).json({ message: 'Not found' });
     res.json(alert);
   } catch (e) {
@@ -89,7 +115,10 @@ router.post('/alerts/:id/mute', async (req, res, next) => {
   }
 
   try {
-    const alert = await muteAlert(parsedParams.data.id, parsed.data.minutes);
+    const organisationId = await loadOrganisationId(req.user!.id, res);
+    if (!organisationId) return;
+
+    const alert = await muteAlert(parsedParams.data.id, parsed.data.minutes, organisationId);
     if (!alert) return res.status(404).json({ message: 'Not found' });
     res.json(alert);
   } catch (e) {

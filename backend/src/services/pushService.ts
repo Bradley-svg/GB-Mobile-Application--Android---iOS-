@@ -6,12 +6,31 @@ const expo = new Expo({
   accessToken: process.env.EXPO_ACCESS_TOKEN,
 });
 
-async function getAllPushTokens(): Promise<string[]> {
+async function getOrganisationIdForAlert(alert: AlertRow): Promise<string | null> {
+  const res = await query<{ organisation_id: string | null }>(
+    `
+    select s.organisation_id
+    from alerts a
+    left join devices d on a.device_id = d.id
+    left join sites s on coalesce(a.site_id, d.site_id) = s.id
+    where a.id = $1
+    limit 1
+  `,
+    [alert.id]
+  );
+
+  return res.rows[0]?.organisation_id ?? null;
+}
+
+async function getPushTokensForOrganisation(organisationId: string): Promise<string[]> {
   const res = await query<{ expo_token: string }>(
     `
-    select distinct expo_token
-    from push_tokens
-  `
+    select distinct pt.expo_token
+    from push_tokens pt
+    join users u on pt.user_id = u.id
+    where u.organisation_id = $1
+  `,
+    [organisationId]
   );
 
   return res.rows.map((r: { expo_token: string }) => r.expo_token);
@@ -28,7 +47,13 @@ export async function sendAlertNotification(alert: AlertRow) {
     return;
   }
 
-  const tokens = await getAllPushTokens();
+  const organisationId = await getOrganisationIdForAlert(alert);
+  if (!organisationId) {
+    console.warn(`[push] skipping alert=${alert.id} because organisation is unknown`);
+    return;
+  }
+
+  const tokens = await getPushTokensForOrganisation(organisationId);
   if (tokens.length === 0) {
     return;
   }
@@ -59,7 +84,7 @@ export async function sendAlertNotification(alert: AlertRow) {
   for (const chunk of chunks) {
     try {
       const tickets: ExpoPushTicket[] = await expo.sendPushNotificationsAsync(chunk);
-      console.log('Push tickets sent:', tickets.length);
+      console.log('Push tickets sent:', (tickets ?? []).length);
     } catch (e) {
       console.error('Error sending push notifications', e);
     }

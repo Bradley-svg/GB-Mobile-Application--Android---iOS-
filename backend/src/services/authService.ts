@@ -3,7 +3,19 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { query } from '../db/pool';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+export function resolveJwtSecret() {
+  const nodeEnv = process.env.NODE_ENV || 'development';
+  const envSecret = process.env.JWT_SECRET;
+  const secret = envSecret || 'dev-secret';
+
+  if (nodeEnv !== 'development' && (!envSecret || envSecret === 'dev-secret')) {
+    throw new Error('JWT_SECRET must be set to a non-default value when NODE_ENV is not development');
+  }
+
+  return secret;
+}
+
+const JWT_SECRET = resolveJwtSecret();
 const REFRESH_EXPIRY_DAYS = Number(process.env.REFRESH_TOKEN_DAYS || 30);
 
 type UserRow = {

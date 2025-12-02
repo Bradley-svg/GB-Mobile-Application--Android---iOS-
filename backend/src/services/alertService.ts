@@ -91,33 +91,36 @@ export async function getAlerts(filters: {
   severity?: string;
   status?: string;
   limit?: number;
+  organisationId: string;
 }) {
-  const where: string[] = [];
-  const params: any[] = [];
-  let idx = 1;
+  const where: string[] = ['s.organisation_id = $1'];
+  const params: any[] = [filters.organisationId];
+  let idx = 2;
 
   if (filters.siteId) {
-    where.push(`site_id = $${idx++}`);
+    where.push(`s.id = $${idx++}`);
     params.push(filters.siteId);
   }
   if (filters.severity) {
-    where.push(`severity = $${idx++}`);
+    where.push(`a.severity = $${idx++}`);
     params.push(filters.severity);
   }
   if (filters.status) {
-    where.push(`status = $${idx++}`);
+    where.push(`a.status = $${idx++}`);
     params.push(filters.status);
   }
 
-  const whereClause = where.length ? `where ${where.join(' and ')}` : '';
+  const whereClause = `where ${where.join(' and ')}`;
   const limit = filters.limit ?? 100;
 
   const result = await query<AlertRow>(
     `
-    select *
-    from alerts
+    select a.*
+    from alerts a
+    left join devices d on a.device_id = d.id
+    left join sites s on coalesce(a.site_id, d.site_id) = s.id
     ${whereClause}
-    order by last_seen_at desc
+    order by a.last_seen_at desc
     limit ${limit}
   `,
     params
@@ -126,21 +129,48 @@ export async function getAlerts(filters: {
   return result.rows;
 }
 
-export async function getAlertsForDevice(deviceId: string) {
+export async function getAlertsForDevice(deviceId: string, organisationId: string) {
   const result = await query<AlertRow>(
     `
-    select *
-    from alerts
-    where device_id = $1
-    order by last_seen_at desc
+    select a.*
+    from alerts a
+    join devices d on a.device_id = d.id
+    join sites s on d.site_id = s.id
+    where a.device_id = $1
+      and s.organisation_id = $2
+    order by a.last_seen_at desc
     limit 50
   `,
-    [deviceId]
+    [deviceId, organisationId]
   );
   return result.rows;
 }
 
-export async function acknowledgeAlert(alertId: string, userId: string): Promise<AlertRow | null> {
+async function getAlertForOrganisation(alertId: string, organisationId: string) {
+  const res = await query<AlertRow>(
+    `
+    select a.*
+    from alerts a
+    left join devices d on a.device_id = d.id
+    left join sites s on coalesce(a.site_id, d.site_id) = s.id
+    where a.id = $1
+      and s.organisation_id = $2
+    limit 1
+  `,
+    [alertId, organisationId]
+  );
+
+  return res.rows[0] || null;
+}
+
+export async function acknowledgeAlert(
+  alertId: string,
+  userId: string,
+  organisationId: string
+): Promise<AlertRow | null> {
+  const alert = await getAlertForOrganisation(alertId, organisationId);
+  if (!alert) return null;
+
   const res = await query<AlertRow>(
     `
     update alerts
@@ -154,7 +184,14 @@ export async function acknowledgeAlert(alertId: string, userId: string): Promise
   return res.rows[0] || null;
 }
 
-export async function muteAlert(alertId: string, minutes: number): Promise<AlertRow | null> {
+export async function muteAlert(
+  alertId: string,
+  minutes: number,
+  organisationId: string
+): Promise<AlertRow | null> {
+  const alert = await getAlertForOrganisation(alertId, organisationId);
+  if (!alert) return null;
+
   const res = await query<AlertRow>(
     `
     update alerts

@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError, AxiosRequestConfig } from 'axios';
 import Constants from 'expo-constants';
 import { useAuthStore } from '../store/authStore';
 
@@ -15,6 +15,9 @@ export const api = axios.create({
   baseURL: apiUrl,
 });
 
+type RetriableRequestConfig = AxiosRequestConfig & { _retry?: boolean };
+type AuthTokens = { accessToken: string; refreshToken: string };
+
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken;
   if (token) {
@@ -23,3 +26,38 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error: AxiosError) => {
+    const { response, config } = error;
+    const originalRequest = config as RetriableRequestConfig;
+
+    if (!response) {
+      return Promise.reject(error);
+    }
+
+    const isUnauthorized = response.status === 401;
+    const isRefreshRequest = originalRequest.url?.includes('/auth/refresh');
+    if (!isUnauthorized || originalRequest._retry || isRefreshRequest) {
+      return Promise.reject(error);
+    }
+
+    originalRequest._retry = true;
+    const { refreshToken, updateTokens, clearAuth } = useAuthStore.getState();
+
+    if (!refreshToken) {
+      await clearAuth();
+      return Promise.reject(error);
+    }
+
+    try {
+      const refreshRes = await api.post<AuthTokens>('/auth/refresh', { refreshToken });
+      await updateTokens(refreshRes.data);
+      return api(originalRequest);
+    } catch (refreshError) {
+      await clearAuth();
+      return Promise.reject(refreshError);
+    }
+  }
+);

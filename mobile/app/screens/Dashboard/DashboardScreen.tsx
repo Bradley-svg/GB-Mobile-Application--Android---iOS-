@@ -5,7 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useAlerts, useSites } from '../../api/hooks';
 import { AppStackParamList } from '../../navigation/RootNavigator';
-import { Screen, Card, IconButton } from '../../theme/components';
+import { Screen, Card, IconButton, PrimaryButton } from '../../theme/components';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
@@ -14,7 +14,7 @@ type Navigation = NativeStackNavigationProp<AppStackParamList>;
 
 export const DashboardScreen: React.FC = () => {
   const navigation = useNavigation<Navigation>();
-  const { data, isLoading, isError } = useSites();
+  const { data, isLoading, isError, refetch } = useSites();
   const { data: alerts } = useAlerts({ status: 'active' });
 
   const metrics = useMemo(() => {
@@ -42,8 +42,15 @@ export const DashboardScreen: React.FC = () => {
   if (isError) {
     return (
       <Screen scroll={false} contentContainerStyle={styles.center}>
-        <Text style={[typography.title2, styles.title, { marginBottom: spacing.xs }]}>Failed to load sites</Text>
-        <Text style={[typography.body, styles.muted]}>Check your connection and try again.</Text>
+        <Card style={styles.errorCard}>
+          <Text style={[typography.title2, styles.title, { marginBottom: spacing.xs }]}>
+            Failed to load sites
+          </Text>
+          <Text style={[typography.body, styles.muted, { marginBottom: spacing.md }]}>
+            Check your connection and try again.
+          </Text>
+          <PrimaryButton label="Retry" onPress={() => refetch()} />
+        </Card>
       </Screen>
     );
   }
@@ -159,6 +166,9 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  errorCard: {
+    padding: spacing.lg,
   },
   title: {
     color: colors.dark,

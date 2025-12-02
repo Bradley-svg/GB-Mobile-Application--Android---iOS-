@@ -6,6 +6,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 const queryMock = vi.fn();
 const acknowledgeAlertMock = vi.fn();
 const muteAlertMock = vi.fn();
+const getUserContextMock = vi.fn();
 
 vi.mock('../src/db/pool', () => ({
   query: (...args: unknown[]) => queryMock(...(args as [string, unknown[]?])),
@@ -16,6 +17,14 @@ vi.mock('../src/services/alertService', () => ({
   getAlertsForDevice: () => Promise.resolve([]),
   acknowledgeAlert: (...args: unknown[]) => acknowledgeAlertMock(...(args as [any])),
   muteAlert: (...args: unknown[]) => muteAlertMock(...(args as [any])),
+}));
+
+vi.mock('../src/services/userService', () => ({
+  getUserContext: (...args: unknown[]) => getUserContextMock(...(args as [string])),
+  requireOrganisationId: (user: { organisation_id: string | null }) => {
+    if (!user.organisation_id) throw new Error('USER_ORG_MISSING');
+    return user.organisation_id;
+  },
 }));
 
 process.env.NODE_ENV = 'test';
@@ -34,6 +43,13 @@ beforeEach(() => {
   queryMock.mockReset();
   acknowledgeAlertMock.mockReset();
   muteAlertMock.mockReset();
+  getUserContextMock.mockReset();
+  getUserContextMock.mockResolvedValue({
+    id: 'user-2',
+    email: 'user@example.com',
+    name: 'Test User',
+    organisation_id: 'org-1',
+  });
 });
 
 describe('/alerts/:id/acknowledge', () => {
@@ -70,7 +86,8 @@ describe('/alerts/:id/acknowledge', () => {
 
     expect(acknowledgeAlertMock).toHaveBeenCalledWith(
       '0f7e1ae8-0b4f-43b4-96e8-000000000001',
-      'user-2'
+      'user-2',
+      'org-1'
     );
     expect(res.body).toEqual(alert);
   });
@@ -121,7 +138,8 @@ describe('/alerts/:id/mute', () => {
 
     expect(muteAlertMock).toHaveBeenCalledWith(
       '0f7e1ae8-0b4f-43b4-96e8-000000000001',
-      30
+      30,
+      'org-1'
     );
     expect(res.body.muted_until).toBe(muted.muted_until);
   });

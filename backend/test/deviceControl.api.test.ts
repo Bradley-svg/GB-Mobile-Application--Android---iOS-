@@ -71,6 +71,18 @@ describe('control endpoints', () => {
     expect(res.body).toEqual({ message: 'Value outside allowed range for this metric' });
   });
 
+  it('returns 503 when control channel is not configured for setpoint', async () => {
+    setDeviceSetpointMock.mockRejectedValueOnce(new Error('CONTROL_CHANNEL_UNCONFIGURED'));
+
+    const res = await request(app)
+      .post('/devices/00000000-0000-0000-0000-000000000111/commands/setpoint')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ metric: 'flow_temp', value: 44 })
+      .expect(503);
+
+    expect(res.body).toEqual({ message: 'Control channel not configured' });
+  });
+
   it('returns a successful mode command response', async () => {
     const command = {
       id: 'cmd-1',
@@ -106,5 +118,17 @@ describe('control endpoints', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({ mode: 'OFF' })
       .expect(404);
+  });
+
+  it('returns 503 when control channel is not configured for mode', async () => {
+    setDeviceModeMock.mockRejectedValueOnce(new Error('CONTROL_CHANNEL_UNCONFIGURED'));
+
+    const res = await request(app)
+      .post('/devices/00000000-0000-0000-0000-000000000444/commands/mode')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ mode: 'AUTO' })
+      .expect(503);
+
+    expect(res.body).toEqual({ message: 'Control channel not configured' });
   });
 });

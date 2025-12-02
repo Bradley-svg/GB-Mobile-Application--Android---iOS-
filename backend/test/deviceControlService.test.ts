@@ -75,6 +75,28 @@ describe('deviceControlService', () => {
     type: 'heatpump',
   };
 
+  it('fails fast when MQTT channel is not configured', async () => {
+    process.env.MQTT_URL = '';
+    getDeviceByIdMock.mockResolvedValue(baseDevice);
+
+    await expect(
+      setDeviceSetpoint('device-1', 'user-1', { metric: 'flow_temp', value: 45 })
+    ).rejects.toThrow('CONTROL_CHANNEL_UNCONFIGURED');
+
+    expect(queryMock).not.toHaveBeenCalled();
+  });
+
+  it('fails fast on missing MQTT config for mode commands', async () => {
+    process.env.MQTT_URL = '';
+    getDeviceByIdMock.mockResolvedValue(baseDevice);
+
+    await expect(setDeviceMode('device-1', 'user-2', { mode: 'AUTO' })).rejects.toThrow(
+      'CONTROL_CHANNEL_UNCONFIGURED'
+    );
+
+    expect(queryMock).not.toHaveBeenCalled();
+  });
+
   it('marks setpoint command as failed when publishing throws', async () => {
     getDeviceByIdMock.mockResolvedValue(baseDevice);
     const commandRow = {

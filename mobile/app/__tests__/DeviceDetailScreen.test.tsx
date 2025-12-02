@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 import { DeviceDetailScreen } from '../screens/Device/DeviceDetailScreen';
 import {
   useDevice,
@@ -94,5 +94,21 @@ describe('DeviceDetailScreen', () => {
 
     const placeholders = screen.getAllByText('No data for this metric in the selected range.');
     expect(placeholders).toHaveLength(4);
+  });
+
+  it('prevents out-of-range setpoint updates', () => {
+    const setpointMock = jest.fn();
+    (useSetpointCommand as jest.Mock).mockReturnValue({
+      mutateAsync: setpointMock,
+      isPending: false,
+    });
+
+    render(<DeviceDetailScreen />);
+
+    fireEvent.changeText(screen.getByTestId('setpoint-input'), '10');
+    fireEvent.press(screen.getByText('Update setpoint'));
+
+    expect(setpointMock).not.toHaveBeenCalled();
+    expect(screen.getByText(/Flow temperature must be between 30-60/)).toBeTruthy();
   });
 });

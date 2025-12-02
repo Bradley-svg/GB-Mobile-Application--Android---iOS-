@@ -5,7 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useAlerts } from '../../api/hooks';
 import { AppStackParamList } from '../../navigation/RootNavigator';
-import { Screen, Card, PillTab, IconButton } from '../../theme/components';
+import { Screen, Card, PillTab, IconButton, PrimaryButton } from '../../theme/components';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
@@ -32,7 +32,7 @@ const severityColor = (severity: string) => {
 export const AlertsScreen: React.FC = () => {
   const [severityFilter, setSeverityFilter] = useState<'all' | 'warning' | 'critical'>('all');
   const filterOptions: Array<'all' | 'warning' | 'critical'> = ['all', 'warning', 'critical'];
-  const { data: alerts, isLoading } = useAlerts({
+  const { data: alerts, isLoading, isError, refetch } = useAlerts({
     status: 'active',
     severity: severityFilter === 'all' ? undefined : severityFilter,
   });
@@ -55,6 +55,22 @@ export const AlertsScreen: React.FC = () => {
       <Screen scroll={false} contentContainerStyle={styles.center}>
         <ActivityIndicator color={colors.primary} />
         <Text style={[typography.body, styles.muted, { marginTop: spacing.sm }]}>Loading alerts...</Text>
+      </Screen>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Screen scroll={false} contentContainerStyle={styles.center}>
+        <Card style={styles.errorCard}>
+          <Text style={[typography.title2, styles.title, { marginBottom: spacing.xs }]}>
+            Failed to load alerts
+          </Text>
+          <Text style={[typography.body, styles.muted, { marginBottom: spacing.md }]}>
+            Please try again in a moment.
+          </Text>
+          <PrimaryButton label="Retry" onPress={() => refetch()} />
+        </Card>
       </Screen>
     );
   }
@@ -118,6 +134,7 @@ export const AlertsScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  errorCard: { padding: spacing.lg },
   title: { color: colors.dark },
   muted: { color: colors.textSecondary },
   headerCard: { marginTop: spacing.xl, marginBottom: spacing.lg },

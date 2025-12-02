@@ -40,6 +40,20 @@ beforeEach(() => {
   consoleLogSpy.mockClear();
 
   queryMock.mockImplementation(async (text: string, params?: any[]) => {
+    if (text.includes('from users') && text.includes('organisation_id')) {
+      return {
+        rows: [
+          {
+            id: params?.[0] || 'user-123',
+            organisation_id: 'org-1',
+            email: 'user@example.com',
+            name: 'User Test',
+          },
+        ],
+        rowCount: 1,
+      };
+    }
+
     if (text.includes("s.data->'raw'->'sensor'->>'supply_temperature_c'")) {
       return {
         rows: [{ id: 'device-1', site_id: 'site-1', supply_temp: 74.2 }],
@@ -107,6 +121,15 @@ beforeEach(() => {
         if (statusParam) {
           rows = rows.filter((a) => a.status === statusParam);
         }
+      }
+      return { rows, rowCount: rows.length };
+    }
+
+    if (text.includes('from alerts a') && text.includes('left join devices')) {
+      let rows = [...alertsTable];
+      const statusParam = params?.find((p) => p === 'active' || p === 'cleared');
+      if (statusParam) {
+        rows = rows.filter((a) => a.status === statusParam);
       }
       return { rows, rowCount: rows.length };
     }

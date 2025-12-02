@@ -39,7 +39,10 @@ describe('telemetry ingest', () => {
   });
 
   it('rejects malformed payloads via validation', async () => {
-    queryMock.mockResolvedValueOnce({ rows: [{ id: 'device-123' }], rowCount: 1 });
+    queryMock.mockResolvedValueOnce({
+      rows: [{ id: 'device-123', site_external_id: 'site-1' }],
+      rowCount: 1,
+    });
 
     const result = await handleTelemetryMessage(
       'greenbro/site-1/device-1/telemetry',
@@ -56,7 +59,10 @@ describe('telemetry ingest', () => {
   });
 
   it('ignores messages with invalid JSON', async () => {
-    queryMock.mockResolvedValueOnce({ rows: [{ id: 'device-123' }], rowCount: 1 });
+    queryMock.mockResolvedValueOnce({
+      rows: [{ id: 'device-123', site_external_id: 'site-1' }],
+      rowCount: 1,
+    });
 
     const result = await handleTelemetryMessage(
       'greenbro/site-1/device-1/telemetry',
@@ -67,9 +73,30 @@ describe('telemetry ingest', () => {
     expect(queryMock).toHaveBeenCalledTimes(1);
   });
 
+  it('skips ingest when the topic site does not match the device site', async () => {
+    queryMock.mockResolvedValueOnce({
+      rows: [{ id: 'device-123', site_external_id: 'site-expected' }],
+      rowCount: 1,
+    });
+
+    const payload = {
+      timestamp: Date.now(),
+      sensor: { supply_temperature_c: 40 },
+    };
+
+    const ok = await handleTelemetryMessage(
+      'greenbro/site-wrong/device-1/telemetry',
+      Buffer.from(JSON.stringify(payload))
+    );
+
+    expect(ok).toBe(false);
+    expect(queryMock).toHaveBeenCalledTimes(1);
+    expect(consoleWarnSpy).toHaveBeenCalled();
+  });
+
   it('stores only present metrics when payload is partial', async () => {
     queryMock
-      .mockResolvedValueOnce({ rows: [{ id: 'device-123' }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ id: 'device-123', site_external_id: 'site-1' }], rowCount: 1 })
       .mockResolvedValueOnce({ rows: [], rowCount: 2 })
       .mockResolvedValueOnce({ rows: [], rowCount: 1 });
 
@@ -105,7 +132,10 @@ describe('telemetry ingest', () => {
 
   it('handles HTTP ingest with the same validation path', async () => {
     queryMock
-      .mockResolvedValueOnce({ rows: [{ id: 'device-999' }], rowCount: 1 })
+      .mockResolvedValueOnce({
+        rows: [{ id: 'device-999', site_external_id: 'site-http' }],
+        rowCount: 1,
+      })
       .mockResolvedValueOnce({ rows: [], rowCount: 2 })
       .mockResolvedValueOnce({ rows: [], rowCount: 1 });
 

@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, ActivityIndicator, Alert, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
+import axios from 'axios';
+import { View, Text, ActivityIndicator, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +22,10 @@ import { VictoryAxis, VictoryChart, VictoryLegend, VictoryLine } from 'victory-n
 type Route = RouteProp<AppStackParamList, 'DeviceDetail'>;
 type Navigation = NativeStackNavigationProp<AppStackParamList>;
 
+const SETPOINT_MIN = 30;
+const SETPOINT_MAX = 60;
+const DEFAULT_SETPOINT = '45';
+
 export const DeviceDetailScreen: React.FC = () => {
   const navigation = useNavigation<Navigation>();
   const route = useRoute<Route>();
@@ -35,12 +40,16 @@ export const DeviceDetailScreen: React.FC = () => {
     data: telemetry,
     isLoading: telemetryLoading,
     isError: telemetryError,
+    refetch: refetchTelemetry,
   } = useDeviceTelemetry(deviceId, range);
 
   const setpointMutation = useSetpointCommand(deviceId);
   const modeMutation = useModeCommand(deviceId);
 
-  const [setpointInput, setSetpointInput] = useState('45');
+  const [setpointInput, setSetpointInput] = useState(DEFAULT_SETPOINT);
+  const [lastSetpoint, setLastSetpoint] = useState(DEFAULT_SETPOINT);
+  const [setpointError, setSetpointError] = useState<string | null>(null);
+  const [commandError, setCommandError] = useState<string | null>(null);
   const [selectedMode, setSelectedMode] = useState<'OFF' | 'HEATING' | 'COOLING' | 'AUTO'>(
     'HEATING'
   );
@@ -91,25 +100,47 @@ export const DeviceDetailScreen: React.FC = () => {
   const onSetpointSave = async () => {
     const value = Number(setpointInput);
     if (Number.isNaN(value)) {
-      Alert.alert('Invalid value', 'Please enter a number');
+      setSetpointError('Please enter a number');
       return;
     }
 
+    if (value < SETPOINT_MIN || value > SETPOINT_MAX) {
+      setSetpointError(
+        `Flow temperature must be between ${SETPOINT_MIN}-${SETPOINT_MAX}\u00B0C`
+      );
+      return;
+    }
+
+    setSetpointError(null);
+    setCommandError(null);
+    const previousValue = lastSetpoint;
+
     try {
       await setpointMutation.mutateAsync(value);
-      Alert.alert('Success', `Setpoint updated to ${value}C`);
-    } catch {
-      Alert.alert('Error', 'Failed to update setpoint');
+      const nextValue = value.toString();
+      setLastSetpoint(nextValue);
+      setSetpointInput(nextValue);
+    } catch (err) {
+      setSetpointInput(previousValue);
+      const message = axios.isAxiosError(err)
+        ? err.response?.data?.message ?? 'Failed to update setpoint'
+        : 'Failed to update setpoint';
+      setCommandError(message);
     }
   };
 
   const onModeChange = async (mode: 'OFF' | 'HEATING' | 'COOLING' | 'AUTO') => {
+    const previousMode = selectedMode;
     setSelectedMode(mode);
+    setCommandError(null);
     try {
       await modeMutation.mutateAsync(mode);
-      Alert.alert('Success', `Mode changed to ${mode}`);
-    } catch {
-      Alert.alert('Error', 'Failed to change mode');
+    } catch (err) {
+      setSelectedMode(previousMode);
+      const message = axios.isAxiosError(err)
+        ? err.response?.data?.message ?? 'Failed to change mode'
+        : 'Failed to change mode';
+      setCommandError(message);
     }
   };
 
@@ -169,9 +200,12 @@ export const DeviceDetailScreen: React.FC = () => {
         </View>
       )}
       {telemetryError && !telemetryLoading ? (
-        <Text style={[typography.caption, { color: colors.danger, marginBottom: spacing.md }]}>
-          Failed to load telemetry.
-        </Text>
+        <Card style={styles.errorCard}>
+          <Text style={[typography.caption, styles.title, { marginBottom: spacing.sm }]}>
+            Failed to load telemetry.
+          </Text>
+          <PrimaryButton label="Retry" onPress={() => refetchTelemetry()} />
+        </Card>
       ) : null}
 
       {!telemetryLoading && !telemetryError && (
@@ -243,20 +277,34 @@ export const DeviceDetailScreen: React.FC = () => {
             <Text style={[typography.subtitle, styles.title]}>Setpoint</Text>
             <Text style={[typography.caption, styles.muted]}>Safe range 30-60C</Text>
           </View>
-          <Text style={[typography.title2, { color: colors.primary }]}>{`${setpointInput}\u00B0C`}</Text>
+          <Text style={[typography.title2, { color: colors.primary }]}>{`${lastSetpoint}\u00B0C`}</Text>
         </View>
         <TextInput
+          testID="setpoint-input"
           value={setpointInput}
-          onChangeText={setSetpointInput}
+          onChangeText={(text) => {
+            setSetpointInput(text);
+            setSetpointError(null);
+            setCommandError(null);
+          }}
           keyboardType="numeric"
           style={styles.input}
         />
+        {setpointError ? (
+          <Text style={[typography.caption, styles.errorText]}>{setpointError}</Text>
+        ) : null}
         <PrimaryButton
           label={setpointMutation.isPending ? 'Updating...' : 'Update setpoint'}
           onPress={onSetpointSave}
           disabled={setpointMutation.isPending}
         />
       </Card>
+
+      {commandError ? (
+        <View style={styles.commandError}>
+          <Text style={[typography.caption, styles.errorText]}>{commandError}</Text>
+        </View>
+      ) : null}
 
       <Card style={styles.modeCard}>
         <Text style={[typography.subtitle, styles.title, { marginBottom: spacing.sm }]}>Mode</Text>
@@ -488,6 +536,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     marginBottom: spacing.md,
+  },
+  errorText: {
+    color: colors.danger,
+    marginBottom: spacing.sm,
+  },
+  commandError: {
+    marginBottom: spacing.md,
+    padding: spacing.md,
+    borderRadius: 12,
+    backgroundColor: '#FFE8E6',
+    borderWidth: 1,
+    borderColor: colors.danger,
+  },
+  errorCard: {
+    marginBottom: spacing.md,
+    padding: spacing.md,
   },
   modeCard: {
     marginBottom: spacing.md,

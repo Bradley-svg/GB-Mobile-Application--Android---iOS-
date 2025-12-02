@@ -22,11 +22,35 @@ const SAFE_BOUNDS = {
 let commandClient: MqttClient | null = null;
 const controlHttpUrl = () => process.env.CONTROL_API_URL;
 const controlHttpKey = () => process.env.CONTROL_API_KEY;
+const CONTROL_CHANNEL_UNCONFIGURED = 'CONTROL_CHANNEL_UNCONFIGURED';
 
-function getCommandClient() {
+type ControlConfig =
+  | { type: 'http'; url: string; apiKey: string }
+  | { type: 'mqtt'; url: string };
+
+function resolveControlConfig(): ControlConfig {
+  const httpUrl = controlHttpUrl();
+  const httpKey = controlHttpKey();
+
+  if (httpUrl) {
+    if (!httpKey) {
+      throw new Error(CONTROL_CHANNEL_UNCONFIGURED);
+    }
+    return { type: 'http', url: httpUrl, apiKey: httpKey };
+  }
+
+  const mqttUrl = process.env.MQTT_URL;
+  if (!mqttUrl) {
+    throw new Error(CONTROL_CHANNEL_UNCONFIGURED);
+  }
+
+  return { type: 'mqtt', url: mqttUrl };
+}
+
+function getCommandClient(config?: Extract<ControlConfig, { type: 'mqtt' }>) {
   if (commandClient) return commandClient;
 
-  const url = process.env.MQTT_URL;
+  const url = config?.url || process.env.MQTT_URL;
   const username = process.env.MQTT_USERNAME;
   const password = process.env.MQTT_PASSWORD;
 
@@ -47,8 +71,12 @@ function getCommandClient() {
   return commandClient;
 }
 
-async function publishCommand(topic: string, message: string) {
-  const client = getCommandClient();
+async function publishCommand(
+  topic: string,
+  message: string,
+  config: Extract<ControlConfig, { type: 'mqtt' }>
+) {
+  const client = getCommandClient(config);
 
   await new Promise<void>((resolve, reject) => {
     client.publish(topic, message, { qos: 1 }, (err?: Error) => {
@@ -92,23 +120,15 @@ async function insertCommandRow(
 
 async function sendControlOverHttp(
   deviceExternalId: string,
-  body: { type: 'setpoint' | 'mode'; payload: object }
+  body: { type: 'setpoint' | 'mode'; payload: object },
+  config: Extract<ControlConfig, { type: 'http' }>
 ) {
-  const httpUrl = controlHttpUrl();
-  if (!httpUrl) {
-    throw new Error('CONTROL_API_URL not set; cannot send HTTP command');
-  }
-
   const headers: Record<string, string> = {
     'content-type': 'application/json',
+    Authorization: `Bearer ${config.apiKey}`,
   };
 
-  const apiKey = controlHttpKey();
-  if (apiKey) {
-    headers.Authorization = `Bearer ${apiKey}`;
-  }
-
-  const res = await fetch(`${httpUrl.replace(/\/$/, '')}/devices/${deviceExternalId}/commands`, {
+  const res = await fetch(`${config.url.replace(/\/$/, '')}/devices/${deviceExternalId}/commands`, {
     method: 'POST',
     headers,
     body: JSON.stringify(body),
@@ -122,7 +142,8 @@ async function sendControlOverHttp(
 
 async function sendSetpointToExternal(
   deviceExternalId: string,
-  payload: SetpointCommandPayload
+  payload: SetpointCommandPayload,
+  controlConfig: ControlConfig
 ) {
   const body = {
     type: 'setpoint' as const,
@@ -132,11 +153,11 @@ async function sendSetpointToExternal(
     },
   };
 
-  if (controlHttpUrl()) {
+  if (controlConfig.type === 'http') {
     console.log(
       `[command] sending setpoint over HTTP deviceExternalId=${deviceExternalId} metric=${payload.metric} value=${payload.value}`
     );
-    await sendControlOverHttp(deviceExternalId, body);
+    await sendControlOverHttp(deviceExternalId, body, controlConfig);
     return;
   }
 
@@ -148,7 +169,7 @@ async function sendSetpointToExternal(
   );
 
   try {
-    await publishCommand(topic, message);
+    await publishCommand(topic, message, controlConfig);
     console.log(`[command] setpoint publish success deviceExternalId=${deviceExternalId}`);
   } catch (err) {
     console.error(`[command] setpoint publish failed deviceExternalId=${deviceExternalId}`, err);
@@ -156,7 +177,11 @@ async function sendSetpointToExternal(
   }
 }
 
-async function sendModeToExternal(deviceExternalId: string, payload: ModeCommandPayload) {
+async function sendModeToExternal(
+  deviceExternalId: string,
+  payload: ModeCommandPayload,
+  controlConfig: ControlConfig
+) {
   const body = {
     type: 'mode' as const,
     payload: {
@@ -164,11 +189,11 @@ async function sendModeToExternal(deviceExternalId: string, payload: ModeCommand
     },
   };
 
-  if (controlHttpUrl()) {
+  if (controlConfig.type === 'http') {
     console.log(
       `[command] sending mode over HTTP deviceExternalId=${deviceExternalId} mode=${payload.mode}`
     );
-    await sendControlOverHttp(deviceExternalId, body);
+    await sendControlOverHttp(deviceExternalId, body, controlConfig);
     return;
   }
 
@@ -180,7 +205,7 @@ async function sendModeToExternal(deviceExternalId: string, payload: ModeCommand
   );
 
   try {
-    await publishCommand(topic, message);
+    await publishCommand(topic, message, controlConfig);
     console.log(`[command] mode publish success deviceExternalId=${deviceExternalId}`);
   } catch (err) {
     console.error(`[command] mode publish failed deviceExternalId=${deviceExternalId}`, err);
@@ -212,10 +237,11 @@ export async function setDeviceSetpoint(
     throw new Error('OUT_OF_RANGE');
   }
 
+  const controlConfig = resolveControlConfig();
   const commandRow = await insertCommandRow(deviceId, userId, 'setpoint', payload, 'pending');
 
   try {
-    await sendSetpointToExternal(device.external_id as string, payload);
+    await sendSetpointToExternal(device.external_id as string, payload, controlConfig);
 
     await query(
       `
@@ -263,10 +289,11 @@ export async function setDeviceMode(
     throw new Error('UNSUPPORTED_MODE');
   }
 
+  const controlConfig = resolveControlConfig();
   const commandRow = await insertCommandRow(deviceId, userId, 'mode', payload, 'pending');
 
   try {
-    await sendModeToExternal(device.external_id as string, payload);
+    await sendModeToExternal(device.external_id as string, payload, controlConfig);
 
     await query(
       `

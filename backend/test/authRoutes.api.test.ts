@@ -79,8 +79,7 @@ describe('/auth/reset-password', () => {
       .expect(501);
 
     expect(res.body).toEqual({
-      ok: false,
-      message: 'Password reset flow not implemented; please contact support or try again later.',
+      error: 'Password reset not implemented yet.',
     });
   });
 });
@@ -134,5 +133,17 @@ describe('/auth/refresh', () => {
 
     // Old token now revoked
     await request(app).post('/auth/refresh').send({ refreshToken }).expect(401);
+  });
+});
+
+describe('/auth/signup', () => {
+  it('blocks public signup by default', async () => {
+    const res = await request(app)
+      .post('/auth/signup')
+      .send({ email: 'new@example.com', password: 'hunter22', name: 'New User' })
+      .expect(403);
+
+    expect(res.body).toEqual({ error: 'Signup disabled. Contact administrator.' });
+    expect(queryMock).not.toHaveBeenCalled();
   });
 });

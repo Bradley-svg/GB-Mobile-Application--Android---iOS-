@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Alert, TouchableOpacity, StyleSheet, Image } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { View, Text, TextInput, Alert, StyleSheet, Image } from 'react-native';
 import axios from 'axios';
 import { useLogin } from '../../api/hooks';
 import { useAuthStore } from '../../store/authStore';
@@ -11,15 +9,7 @@ import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 import logo from '../../../assets/icon.png';
 
-type AuthStackParamList = {
-  Login: undefined;
-  Signup: undefined;
-  ForgotPassword: undefined;
-};
-type AuthNavigation = NativeStackNavigationProp<AuthStackParamList>;
-
 export const LoginScreen: React.FC = () => {
-  const navigation = useNavigation<AuthNavigation>();
   const setAuth = useAuthStore((s) => s.setAuth);
   const [email, setEmail] = useState('demo@greenbro.com');
   const [password, setPassword] = useState('password');
@@ -95,14 +85,13 @@ export const LoginScreen: React.FC = () => {
           onPress={onLogin}
           disabled={loginMutation.isPending}
         />
-
-        <View style={styles.linksRow}>
-          <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
-            <Text style={[typography.body, { color: colors.primary }]}>Create account</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
-            <Text style={[typography.body, { color: colors.primary }]}>Forgot password?</Text>
-          </TouchableOpacity>
+        <View style={styles.notice}>
+          <Text style={[typography.body, styles.noticePrimary]}>
+            New account creation is disabled. Contact support.
+          </Text>
+          <Text style={[typography.caption, styles.noticeSecondary]}>
+            Password reset is not available in this build.
+          </Text>
         </View>
       </Card>
     </Screen>
@@ -144,9 +133,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     color: colors.textPrimary,
   },
-  linksRow: {
-    marginTop: spacing.md,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  notice: {
+    marginTop: spacing.lg,
+    padding: spacing.md,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
   },
+  noticePrimary: { color: colors.textPrimary, marginBottom: spacing.xs },
+  noticeSecondary: { color: colors.textSecondary },
 });

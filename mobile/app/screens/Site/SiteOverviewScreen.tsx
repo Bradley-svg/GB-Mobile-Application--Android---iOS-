@@ -5,7 +5,7 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { useDevices, useSite } from '../../api/hooks';
-import { Screen, Card, IconButton } from '../../theme/components';
+import { Screen, Card, IconButton, PrimaryButton } from '../../theme/components';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
@@ -18,8 +18,18 @@ export const SiteOverviewScreen: React.FC = () => {
   const route = useRoute<Route>();
   const { siteId } = route.params;
 
-  const { data: site, isLoading: siteLoading, isError: siteError } = useSite(siteId);
-  const { data: devices, isLoading: devicesLoading, isError: devicesError } = useDevices(siteId);
+  const {
+    data: site,
+    isLoading: siteLoading,
+    isError: siteError,
+    refetch: refetchSite,
+  } = useSite(siteId);
+  const {
+    data: devices,
+    isLoading: devicesLoading,
+    isError: devicesError,
+    refetch: refetchDevices,
+  } = useDevices(siteId);
 
   if (siteLoading || devicesLoading) {
     return (
@@ -33,8 +43,21 @@ export const SiteOverviewScreen: React.FC = () => {
   if (siteError || devicesError) {
     return (
       <Screen scroll={false} contentContainerStyle={styles.center}>
-        <Text style={[typography.title2, styles.title, { marginBottom: spacing.xs }]}>Failed to load site</Text>
-        <Text style={[typography.body, styles.muted]}>Please check your connection and try again.</Text>
+        <Card style={styles.errorCard}>
+          <Text style={[typography.title2, styles.title, { marginBottom: spacing.xs }]}>
+            Failed to load site
+          </Text>
+          <Text style={[typography.body, styles.muted, { marginBottom: spacing.md }]}>
+            Please check your connection and try again.
+          </Text>
+          <PrimaryButton
+            label="Retry"
+            onPress={() => {
+              refetchSite();
+              refetchDevices();
+            }}
+          />
+        </Card>
       </Screen>
     );
   }
@@ -143,6 +166,9 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  errorCard: {
+    padding: spacing.lg,
   },
   title: {
     color: colors.dark,

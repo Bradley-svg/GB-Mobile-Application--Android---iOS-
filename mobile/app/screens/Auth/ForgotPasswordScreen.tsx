@@ -1,9 +1,7 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import axios from 'axios';
-import { useResetPassword } from '../../api/hooks';
 import { Screen, Card, PrimaryButton } from '../../theme/components';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
@@ -19,36 +17,6 @@ type AuthNavigation = NativeStackNavigationProp<AuthStackParamList>;
 
 export const ForgotPasswordScreen: React.FC = () => {
   const navigation = useNavigation<AuthNavigation>();
-  const resetMutation = useResetPassword();
-  const [email, setEmail] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-
-  const onSubmit = async () => {
-    setSuccess(null);
-    if (!email.trim()) {
-      setError('Email is required.');
-      return;
-    }
-    if (!email.includes('@')) {
-      setError('Please enter a valid email address.');
-      return;
-    }
-
-    try {
-      setError(null);
-      const res = await resetMutation.mutateAsync({ email: email.trim() });
-      setSuccess(res?.message ?? 'If the email exists, a reset link has been sent.');
-    } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
-        console.error(err.response?.data ?? err.message);
-        setError(err.response?.data?.message ?? 'Reset request failed. Please try again.');
-      } else {
-        console.error(err);
-        setError('Reset request failed. Please try again.');
-      }
-    }
-  };
 
   return (
     <Screen>
@@ -56,38 +24,19 @@ export const ForgotPasswordScreen: React.FC = () => {
         <View style={styles.logoBadge}>
           <Image source={logo} style={styles.logo} resizeMode="contain" />
         </View>
-        <Text style={[typography.title1, styles.title]}>Reset password</Text>
-        <Text style={[typography.body, styles.muted]}>We will send a reset link to your email</Text>
+        <Text style={[typography.title1, styles.title]}>Password reset</Text>
+        <Text style={[typography.body, styles.muted]}>
+          Password reset is not available in this build.
+        </Text>
       </View>
 
       <Card style={styles.formCard}>
-        <Text style={[typography.subtitle, styles.title, { marginBottom: spacing.sm }]}>Email</Text>
-        <TextInput
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          placeholder="you@example.com"
-          style={styles.input}
-          placeholderTextColor={colors.textMuted}
-        />
+        <Text style={[typography.body, styles.notice]}>
+          Password reset is not available in this build. Please contact support if you need help
+          accessing your account.
+        </Text>
 
-        {error ? (
-          <Text style={[typography.caption, { color: colors.danger, marginBottom: spacing.sm }]} testID="reset-error">
-            {error}
-          </Text>
-        ) : null}
-        {success ? (
-          <Text style={[typography.caption, { color: colors.primary, marginBottom: spacing.sm }]} testID="reset-success">
-            {success}
-          </Text>
-        ) : null}
-
-        <PrimaryButton
-          label={resetMutation.isPending ? 'Sending...' : 'Send reset link'}
-          onPress={onSubmit}
-          disabled={resetMutation.isPending}
-        />
+        <PrimaryButton label="Back to login" onPress={() => navigation.navigate('Login')} />
 
         <View style={styles.linksRow}>
           <TouchableOpacity onPress={() => navigation.navigate('Login')}>
@@ -121,16 +70,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     marginBottom: spacing.xl,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: 16,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    marginBottom: spacing.md,
-    color: colors.textPrimary,
-  },
+  notice: { color: colors.textPrimary, marginBottom: spacing.md },
   linksRow: {
     marginTop: spacing.md,
   },

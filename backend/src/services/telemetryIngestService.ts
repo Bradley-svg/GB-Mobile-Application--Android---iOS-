@@ -42,11 +42,19 @@ function parseTopic(topic: string): ParsedTopic | null {
   return { siteExternalId, deviceExternalId };
 }
 
-async function getDeviceIdByExternalId(externalId: string) {
-  const res = await query<{ id: string }>('select id from devices where external_id = $1', [
-    externalId,
-  ]);
-  return res.rows[0]?.id || null;
+type DeviceLookup = { id: string; site_external_id: string | null };
+
+async function getDeviceByExternalId(externalId: string): Promise<DeviceLookup | null> {
+  const res = await query<DeviceLookup>(
+    `
+    select d.id, s.external_id as site_external_id
+    from devices d
+    left join sites s on d.site_id = s.id
+    where d.external_id = $1
+  `,
+    [externalId]
+  );
+  return res.rows[0] || null;
 }
 
 function parsePayload(raw: Buffer | unknown, source: string): TelemetryPayload | null {
@@ -147,10 +155,17 @@ export async function handleTelemetryMessage(topic: string, payload: Buffer) {
     return false;
   }
 
-  const { deviceExternalId } = parsedTopic;
-  const deviceId = await getDeviceIdByExternalId(deviceExternalId);
-  if (!deviceId) {
+  const { deviceExternalId, siteExternalId } = parsedTopic;
+  const device = await getDeviceByExternalId(deviceExternalId);
+  if (!device) {
     console.warn('No device mapped for external id', deviceExternalId);
+    return false;
+  }
+
+  if (device.site_external_id && device.site_external_id !== siteExternalId) {
+    console.warn(
+      `[telemetry] topic site ${siteExternalId} does not match device site ${device.site_external_id} for ${deviceExternalId}`
+    );
     return false;
   }
 
@@ -159,7 +174,7 @@ export async function handleTelemetryMessage(topic: string, payload: Buffer) {
     return false;
   }
 
-  return storeTelemetry(deviceId, parsedPayload, 'mqtt');
+  return storeTelemetry(device.id, parsedPayload, 'mqtt');
 }
 
 export async function handleHttpTelemetryIngest(params: {
@@ -168,8 +183,8 @@ export async function handleHttpTelemetryIngest(params: {
   payload: unknown;
 }) {
   const { deviceExternalId, payload } = params;
-  const deviceId = await getDeviceIdByExternalId(deviceExternalId);
-  if (!deviceId) {
+  const device = await getDeviceByExternalId(deviceExternalId);
+  if (!device) {
     console.warn('No device mapped for external id', deviceExternalId);
     return false;
   }
@@ -179,5 +194,5 @@ export async function handleHttpTelemetryIngest(params: {
     return false;
   }
 
-  return storeTelemetry(deviceId, parsedPayload, 'http');
+  return storeTelemetry(device.id, parsedPayload, 'http');
 }

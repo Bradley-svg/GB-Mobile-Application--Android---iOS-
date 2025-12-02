@@ -114,6 +114,8 @@ router.post('/devices/:id/commands/setpoint', async (req, res, next) => {
         return res.status(400).json({ message: 'Value outside allowed range for this metric' });
       case 'COMMAND_FAILED':
         return res.status(502).json({ message: 'External control command failed' });
+      case 'CONTROL_CHANNEL_UNCONFIGURED':
+        return res.status(503).json({ message: 'Control channel not configured' });
       default:
         return next(e);
     }
@@ -152,6 +154,8 @@ router.post('/devices/:id/commands/mode', async (req, res, next) => {
         return res.status(400).json({ message: 'Unsupported mode' });
       case 'COMMAND_FAILED':
         return res.status(502).json({ message: 'External control command failed' });
+      case 'CONTROL_CHANNEL_UNCONFIGURED':
+        return res.status(503).json({ message: 'Control channel not configured' });
       default:
         return next(e);
     }
