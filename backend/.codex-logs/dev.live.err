@@ -8,7 +8,7 @@ Unhandled error: SyntaxError: Expected property name or '}' in JSON at position 
     at IncomingMessage.onEnd (D:\GB-Mobile-Application--Android---iOS-\backend\node_modules\raw-body\index.js:287:7)
     at IncomingMessage.emit (node:events:519:28)
     at endReadableNT (node:internal/streams/readable:1698:12)
-    at processTicksAndRejections (node:internal/process/task_queues:90:21) {
+    at processTicksAndRejections (node:internal/process/task_queues:90:21)^C
   expose: true,
   statusCode: 400,
   status: 400,
@@ -80,3 +80,4 @@ Unhandled error: error: relation "users" does not exist
   line: '1452',
   routine: 'parserOpenTable'
 }
+^C^C

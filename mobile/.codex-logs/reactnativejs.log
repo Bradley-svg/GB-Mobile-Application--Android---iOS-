@@ -192,3 +192,69 @@
 12-01 22:08:12.470 22105 23984 W ReactNativeJS: URL: 127.0.0.1:8081
 12-01 22:08:12.470 22105 23984 W ReactNativeJS: 
 12-01 22:08:12.470 22105 23984 W ReactNativeJS: Error: null
+12-01 22:38:03.238 25244 25444 I ReactNativeJS: 'Greenbro API base URL at runtime:', 'http://10.0.2.2:4000'
+12-01 22:38:05.481 25244 25444 I ReactNativeJS: Running "main" with {"initialProps":{"exp":{"initialUri":"exp://127.0.0.1:8081","shell":false,"manifestString":"{\"id\":\"e669d3b0-c27c-469b-9fe5-bd560200c629\",\"createdAt\":\"2025-12-01T20:36:46.188Z\",\"runtimeVersion\":\"exposdk:51.0.0\",\"launchAsset\":{\"key\":\"bundle\",\"contentType\":\"application\\/javascript\",\"url\":\"http:\\/\\/127.0.0.1:8081\\/index.bundle?platform=android&dev=true&hot=false&transform.engine=hermes&transform.bytecode=true&transform.routerRoot=app\"},\"assets\":[],\"metadata\":{},\"extra\":{\"eas\":{},\"expoClient\":{\"name\":\"greenbro-mobile\",\"slug\":\"greenbro-mobile\",\"version\":\"1.0.0\",\"orientation\":\"portrait\",\"icon\":\".\\/assets\\/icon.png\",\"userInterfaceStyle\":\"light\",\"splash\":{\"image\":\".\\/assets\\/splash.png\",\"resizeMode\":\"contain\",\"backgroundColor\":\"#ffffff\",\"imageUrl\":\"http:\\/\\/127.0.0.1:8081\\/assets\\/.\\/assets\\/splash.png\"},\"assetBundlePatterns\":[\"**\\/*\"],\"ios\":{\"supportsTablet\":true},\"android\":{\"adaptiveIcon\":{\"foregroundImage\":\".\\/assets\\/adaptive-icon.png\",\"backgroundColor\":\"#ffffff\",\"foregroundImageUrl\":\"http:\\/\\/127.0.0.1:8081\\/assets\\/.\\/assets\\/adaptive-icon.png\"}},\"web\":{\"bundler\":\"metro\"},\"extra\":{\"apiUrl\":\"http:\\/\\/10.0.2.2:4000\"},\"_internal\":{\"isDebug\":false,\"projectRoot\":\"D:\\\\GB-Mobile-Application--Android---iOS-\\\\mobile\",\"dynamicConfigPath\":\"D:\\\\GB-Mobile-Application--Android---iOS-\\\\mobile\\\\app.config.ts\",\"staticConfigPath\":\"D:\\\\GB-Mobile-Application--Android---iOS-\\\\mobile\\\\app.json\",\"packageJsonPath\":\"D:\\\\GB-Mobile-Application--Android---iOS-\\\\mobile\\\\package.json\"},\"sdkVersion\":\"51.0.0\",\"platforms\":[\"ios\",\"android\"],\"iconUrl\":\"http:\\/\\/127.0.0.1:8081\\/assets\\/.\\/assets\\/icon.png\",\"hostUri\":\"127.0.0.1:8081\"},\"expoGo\":{\"debuggerHost\":\"127.0.0.1:8081\",\"developer\":{\"tool\":\"expo-cli\",\"projectRoot\":\"D:\\\\GB-Mobile-Application--Android---iOS-\\\\mobile\"},\"packagerOpts\":{\"dev\":true},\"mainModuleName\":\"index\",\"__flipperHack\":\"React Native packager is running\"},\"scopeKey\":\"@anonymous\\/greenbro-mobile-f1bbbc56-fd92-4f28-a0b4-e0c5445bfa52\"},\"isVerified\":true}"}},"rootTag":11}
+12-01 22:38:06.379 25244 25444 I ReactNativeJS: App: render start
+12-01 22:38:06.420 25244 25444 I ReactNativeJS: 'App: waiting for hydration', { isHydrated: false, authChecked: false, hasAccessToken: false }
+12-01 22:38:06.776 25244 25444 I ReactNativeJS: App: hydrateFromSecureStore invoked
+12-01 22:38:06.801 25244 25444 I ReactNativeJS: 'App: loadUser check', { isHydrated: false, hasAccessToken: false }
+12-01 22:38:06.802 25244 25444 I ReactNativeJS: 'App: auth state updated', { isHydrated: false,
+12-01 22:38:06.802 25244 25444 I ReactNativeJS:   authChecked: false,
+12-01 22:38:06.802 25244 25444 I ReactNativeJS:   hasAccessToken: false,
+12-01 22:38:06.802 25244 25444 I ReactNativeJS:   hasUser: false,
+12-01 22:38:06.802 25244 25444 I ReactNativeJS:   isAuthenticated: false }
+12-01 22:38:07.347 25244 25444 I ReactNativeJS: App: render start
+12-01 22:38:07.437 25244 25444 I ReactNativeJS: 'App: waiting for hydration', { isHydrated: true, authChecked: false, hasAccessToken: false }
+12-01 22:38:07.453 25244 25444 I ReactNativeJS: 'App: loadUser check', { isHydrated: true, hasAccessToken: false }
+12-01 22:38:07.453 25244 25444 I ReactNativeJS: App: no access token, skipping /auth/me fetch
+12-01 22:38:07.484 25244 25444 I ReactNativeJS: 'App: auth state updated', { isHydrated: true,
+12-01 22:38:07.484 25244 25444 I ReactNativeJS:   authChecked: false,
+12-01 22:38:07.484 25244 25444 I ReactNativeJS:   hasAccessToken: false,
+12-01 22:38:07.484 25244 25444 I ReactNativeJS:   hasUser: false,
+12-01 22:38:07.484 25244 25444 I ReactNativeJS:   isAuthenticated: false }
+12-01 22:38:07.505 25244 25444 I ReactNativeJS: App: render start
+12-01 22:38:07.516 25244 25444 I ReactNativeJS: 'App: rendering RootNavigator', { isAuthenticated: false, isHydrated: true, authChecked: true }
+12-01 22:38:07.541 25244 25444 I ReactNativeJS: 'RootNavigator: rendering', { stack: 'Auth' }
+12-01 22:38:08.571 25244 25444 I ReactNativeJS: 'App: auth state updated', { isHydrated: true,
+12-01 22:38:08.571 25244 25444 I ReactNativeJS:   authChecked: true,
+12-01 22:38:08.571 25244 25444 I ReactNativeJS:   hasAccessToken: false,
+12-01 22:38:08.571 25244 25444 I ReactNativeJS:   hasUser: false,
+12-01 22:38:08.571 25244 25444 I ReactNativeJS:   isAuthenticated: false }
+12-01 22:38:09.613 25244 25381 I ReactNativeJS: Running "HomeMenu
+12-01 22:46:54.432 25244 25444 I ReactNativeJS: 'Signup SUCCESS:', '{"accessToken":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2YjVjNmM1Yi1jYWEzLTQyMjgtYmNlNC02ZDhlNmFkNmYxYjgiLCJ0eXBlIjoiYWNjZXNzIiwiaWF0IjoxNzY0NjIyMDE4LCJleHAiOjE3NjQ2MjI5MTh9.sX-3x38Mpg2WTmXXZrJ4lYlqOKKuBUb0O4Hq1H9DNYk","refreshToken":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2YjVjNmM1Yi1jYWEzLTQyMjgtYmNlNC02ZDhlNmFkNmYxYjgiLCJ0eXBlIjoicmVmcmVzaCIsImp0aSI6IjllZDI3NjNmLTg3MzctNDUxZS1iMWRjLWVjMmMzN2M1MjA1NSIsImlhdCI6MTc2NDYyMjAxOCwiZXhwIjoxNzY3MjE0MDE4fQ.wfA-FWBIanrzcMEbZuz1Ir2YgPbDKUiUQSQJ2UDA29U","user":{"id":"6b5c6c5b-caa3-4228-bce4-6d8e6ad6f1b8","email":"emu+1@greenbro.local","name":"Emu User","organisation_id":"11111111-1111-1111-1111-111111111111"}}'
+12-01 22:46:55.610 25244 25444 I ReactNativeJS: App: render start
+12-01 22:46:55.647 25244 25444 I ReactNativeJS: 'App: rendering RootNavigator', { isAuthenticated: true, isHydrated: true, authChecked: true }
+12-01 22:46:55.658 25244 25444 I ReactNativeJS: 'RootNavigator: rendering', { stack: 'App' }
+12-01 22:46:56.641 25244 25444 I ReactNativeJS: 'App: loadUser check', { isHydrated: true, hasAccessToken: true }
+12-01 22:46:56.643 25244 25444 I ReactNativeJS: App: fetching /auth/me with access token
+12-01 22:46:56.644 25244 25444 I ReactNativeJS: 'App: auth state updated', { isHydrated: true,
+12-01 22:46:56.644 25244 25444 I ReactNativeJS:   authChecked: true,
+12-01 22:46:56.644 25244 25444 I ReactNativeJS:   hasAccessToken: true,
+12-01 22:46:56.644 25244 25444 I ReactNativeJS:   hasUser: true,
+12-01 22:46:56.644 25244 25444 I ReactNativeJS:   isAuthenticated: true }
+12-01 22:46:56.661 25244 25444 I ReactNativeJS: App: render start
+12-01 22:46:56.662 25244 25444 I ReactNativeJS: 'App: rendering RootNavigator', { isAuthenticated: true, isHydrated: true, authChecked: true }
+12-01 22:46:56.991 25244 25444 I ReactNativeJS: Push notifications only work on physical devices
+12-01 22:46:57.020 25244 25444 I ReactNativeJS: App: render start
+12-01 22:46:57.021 25244 25444 I ReactNativeJS: 'App: rendering RootNavigator', { isAuthenticated: true, isHydrated: true, authChecked: true }
+12-01 22:46:57.056 25244 25444 I ReactNativeJS: 'RootNavigator: rendering', { stack: 'App' }
+12-01 22:46:57.222 25244 25444 I ReactNativeJS: 'App: auth state updated', { isHydrated: true,
+12-01 22:46:57.222 25244 25444 I ReactNativeJS:   authChecked: true,
+12-01 22:46:57.222 25244 25444 I ReactNativeJS:   hasAccessToken: true,
+12-01 22:46:57.222 25244 25444 I ReactNativeJS:   hasUser: true,
+12-01 22:46:57.222 25244 25444 I ReactNativeJS:   isAuthenticated: true }
+12-01 22:46:57.259 25244 25444 I ReactNativeJS: App: render start
+12-01 22:46:57.285 25244 25444 I ReactNativeJS: 'App: rendering RootNavigator', { isAuthenticated: true, isHydrated: true, authChecked: true }
+12-01 22:46:58.380 25244 25444 I ReactNativeJS: Push notifications only work on physical devices
+12-01 22:54:26.407 25244 25444 I ReactNativeJS: App: render start
+12-01 22:54:26.408 25244 25444 I ReactNativeJS: 'App: rendering RootNavigator', { isAuthenticated: false, isHydrated: true, authChecked: true }
+12-01 22:54:26.419 25244 25444 I ReactNativeJS: 'RootNavigator: rendering', { stack: 'Auth' }
+12-01 22:54:26.754 25244 25444 I ReactNativeJS: 'App: loadUser check', { isHydrated: true, hasAccessToken: false }
+12-01 22:54:26.755 25244 25444 I ReactNativeJS: App: no access token, skipping /auth/me fetch
+12-01 22:54:26.757 25244 25444 I ReactNativeJS: 'App: auth state updated', { isHydrated: true,
+12-01 22:54:26.757 25244 25444 I ReactNativeJS:   authChecked: true,
+12-01 22:54:26.757 25244 25444 I ReactNativeJS:   hasAccessToken: false,
+12-01 22:54:26.757 25244 25444 I ReactNativeJS:   hasUser: false,
+12-01 22:54:26.757 25244 25444 I ReactNativeJS:   isAuthenticated: false }
+12-01 22:54:26.775 25244 25444 I ReactNativeJS: App: render start
+12-01 22:54:26.777 25244 25444 I ReactNativeJS: 'App: rendering RootNavigator', { isAuthenticated: false, isHydrated: true, authChecked: true }
