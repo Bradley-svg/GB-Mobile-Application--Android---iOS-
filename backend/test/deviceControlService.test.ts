@@ -6,6 +6,8 @@ const publishMock = vi.fn();
 const connectMock = vi.fn();
 const onMock = vi.fn();
 const fetchMock = vi.fn();
+const markControlCommandSuccessMock = vi.fn();
+const markControlCommandErrorMock = vi.fn();
 const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -15,6 +17,11 @@ vi.mock('../src/db/pool', () => ({
 
 vi.mock('../src/services/deviceService', () => ({
   getDeviceById: (...args: unknown[]) => getDeviceByIdMock(...(args as [string])),
+}));
+
+vi.mock('../src/services/statusService', () => ({
+  markControlCommandSuccess: (...args: unknown[]) => markControlCommandSuccessMock(...args),
+  markControlCommandError: (...args: unknown[]) => markControlCommandErrorMock(...args),
 }));
 
 vi.mock('mqtt', () => {
@@ -50,6 +57,8 @@ beforeEach(() => {
   connectMock.mockClear();
   onMock.mockReset();
   fetchMock.mockReset();
+  markControlCommandSuccessMock.mockReset();
+  markControlCommandErrorMock.mockReset();
   process.env.MQTT_URL = 'mqtt://test-broker';
   delete process.env.CONTROL_API_URL;
   delete process.env.CONTROL_API_KEY;
