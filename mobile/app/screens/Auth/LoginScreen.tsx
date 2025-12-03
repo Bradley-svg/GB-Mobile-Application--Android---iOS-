@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, Alert, StyleSheet, Image } from 'react-native';
 import axios from 'axios';
 import { useLogin } from '../../api/hooks';
-import { useAuthStore } from '../../store/authStore';
 import { Screen, Card, PrimaryButton } from '../../theme/components';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
@@ -10,7 +9,6 @@ import { spacing } from '../../theme/spacing';
 import logo from '../../../assets/icon.png';
 
 export const LoginScreen: React.FC = () => {
-  const setAuth = useAuthStore((s) => s.setAuth);
   const [email, setEmail] = useState('demo@greenbro.com');
   const [password, setPassword] = useState('password');
   const [error, setError] = useState<string | null>(null);
@@ -24,11 +22,11 @@ export const LoginScreen: React.FC = () => {
 
     try {
       setError(null);
-      const { accessToken, refreshToken, user } = await loginMutation.mutateAsync({
+      console.log('LoginScreen: submitting login', { email, password });
+      await loginMutation.mutateAsync({
         email,
         password,
       });
-      await setAuth({ accessToken, refreshToken, user });
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
         console.error(err.response?.data ?? err.message);
