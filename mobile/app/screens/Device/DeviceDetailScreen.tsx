@@ -27,24 +27,10 @@ const SETPOINT_MAX = 60;
 const DEFAULT_SETPOINT = '45';
 
 export const DeviceDetailScreen: React.FC = () => {
-  const navigation = useNavigation<Navigation>();
   const route = useRoute<Route>();
   const { deviceId } = route.params;
+  const navigation = useNavigation<Navigation>();
   const [range, setRange] = useState<'24h' | '7d'>('24h');
-
-  const { data: device, isLoading, isError } = useDevice(deviceId);
-  const siteId = device?.site_id;
-  const { data: site } = useSite(siteId || '');
-  const { data: deviceAlerts } = useDeviceAlerts(deviceId);
-  const {
-    data: telemetry,
-    isLoading: telemetryLoading,
-    isError: telemetryError,
-    refetch: refetchTelemetry,
-  } = useDeviceTelemetry(deviceId, range);
-
-  const setpointMutation = useSetpointCommand(deviceId);
-  const modeMutation = useModeCommand(deviceId);
 
   const [setpointInput, setSetpointInput] = useState(DEFAULT_SETPOINT);
   const [lastSetpoint, setLastSetpoint] = useState(DEFAULT_SETPOINT);
@@ -54,36 +40,27 @@ export const DeviceDetailScreen: React.FC = () => {
     'HEATING'
   );
 
-  const siteName = useMemo(() => site?.name || 'Unknown site', [site]);
+  const deviceQuery = useDevice(deviceId);
+  const siteId = deviceQuery.data?.site_id;
+  const siteQuery = useSite(siteId || '');
+  const alertsQuery = useDeviceAlerts(deviceId);
+  const telemetryQuery = useDeviceTelemetry(deviceId, range);
+  const setpointMutation = useSetpointCommand(deviceId);
+  const modeMutation = useModeCommand(deviceId);
+  const refetchTelemetry = telemetryQuery.refetch;
 
-  if (isLoading) {
-    return (
-      <Screen scroll={false} contentContainerStyle={styles.center}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[typography.body, styles.muted, { marginTop: spacing.sm }]}>Loading device...</Text>
-      </Screen>
-    );
-  }
+  const siteName = useMemo(() => siteQuery.data?.name || 'Unknown site', [siteQuery.data]);
+  const activeDeviceAlerts = useMemo(
+    () => (alertsQuery.data || []).filter((a) => a.status === 'active'),
+    [alertsQuery.data]
+  );
 
-  if (isError || !device) {
-    return (
-      <Screen scroll={false} contentContainerStyle={styles.center}>
-        <Text style={[typography.title2, styles.title, { marginBottom: spacing.xs }]}>Device not found</Text>
-        <Text style={[typography.body, styles.muted]}>
-          The device you are looking for could not be retrieved.
-        </Text>
-      </Screen>
-    );
-  }
-
-  const supplyPoints = telemetry?.metrics['supply_temp'] || [];
-  const returnPoints = telemetry?.metrics['return_temp'] || [];
-  const powerPoints = telemetry?.metrics['power_kw'] || [];
-  const flowPoints = telemetry?.metrics['flow_rate'] || [];
-  const copPoints = telemetry?.metrics['cop'] || [];
+  const supplyPoints = telemetryQuery.data?.metrics['supply_temp'] || [];
+  const returnPoints = telemetryQuery.data?.metrics['return_temp'] || [];
+  const powerPoints = telemetryQuery.data?.metrics['power_kw'] || [];
+  const flowPoints = telemetryQuery.data?.metrics['flow_rate'] || [];
+  const copPoints = telemetryQuery.data?.metrics['cop'] || [];
   const currentTemp = Math.round(supplyPoints[supplyPoints.length - 1]?.value ?? 20);
-
-  const activeDeviceAlerts = (deviceAlerts || []).filter((a) => a.status === 'active');
 
   const toSeries = (points: typeof supplyPoints) =>
     points.map((p) => ({ x: new Date(p.ts), y: p.value }));
@@ -94,18 +71,21 @@ export const DeviceDetailScreen: React.FC = () => {
   const flowData = toSeries(flowPoints);
   const copData = toSeries(copPoints);
   const lastUpdatedAt = useMemo(() => {
-    const timestamps = [
-      ...supplyPoints,
-      ...returnPoints,
-      ...powerPoints,
-      ...flowPoints,
-      ...copPoints,
-    ]
-      .map((p) => new Date(p.ts).getTime())
-      .filter((ts) => !Number.isNaN(ts));
+    const metrics = telemetryQuery.data?.metrics;
+    if (!metrics) return null;
+
+    const timestamps = Object.values(metrics).reduce<number[]>((acc, points) => {
+      points.forEach((p) => {
+        const ts = new Date(p.ts).getTime();
+        if (!Number.isNaN(ts)) {
+          acc.push(ts);
+        }
+      });
+      return acc;
+    }, []);
     if (timestamps.length === 0) return null;
     return new Date(Math.max(...timestamps)).toISOString();
-  }, [supplyPoints, returnPoints, powerPoints, flowPoints, copPoints]);
+  }, [telemetryQuery.data]);
 
   const xTickCount = range === '7d' ? 5 : 6;
   const formatAxisTick = useMemo(
@@ -123,6 +103,33 @@ export const DeviceDetailScreen: React.FC = () => {
     },
     [range]
   );
+
+  const isLoading = deviceQuery.isLoading;
+  const deviceNotFound = (deviceQuery.isError || !deviceQuery.data) && !deviceQuery.isLoading;
+  const telemetryLoading = telemetryQuery.isLoading;
+  const telemetryError = telemetryQuery.isError;
+
+  if (isLoading) {
+    return (
+      <Screen scroll={false} contentContainerStyle={styles.center}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[typography.body, styles.muted, { marginTop: spacing.sm }]}>Loading device...</Text>
+      </Screen>
+    );
+  }
+
+  if (deviceNotFound) {
+    return (
+      <Screen scroll={false} contentContainerStyle={styles.center}>
+        <Text style={[typography.title2, styles.title, { marginBottom: spacing.xs }]}>Device not found</Text>
+        <Text style={[typography.body, styles.muted]}>
+          The device you are looking for could not be retrieved.
+        </Text>
+      </Screen>
+    );
+  }
+
+  const device = deviceQuery.data!;
 
   const hasSupplyData = supplyData.length > 0;
   const hasReturnData = returnData.length > 0;
