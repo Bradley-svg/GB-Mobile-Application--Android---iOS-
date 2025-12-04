@@ -22,6 +22,37 @@ export type DeviceTelemetry = {
   metrics: Record<string, { ts: string; value: number }[]>;
 };
 
+export type HeatPumpHistoryField = {
+  field: string;
+  unit?: string;
+  decimals?: number;
+  displayName?: string;
+  propertyName?: string;
+};
+
+export type HeatPumpHistoryRequest = {
+  mac: string;
+  from: string;
+  to: string;
+  aggregation?: 'raw' | 'avg' | 'min' | 'max';
+  mode?: 'live' | 'history';
+  fields: HeatPumpHistoryField[];
+};
+
+export type HeatPumpHistoryPoint = {
+  timestamp: string;
+  value: number | null;
+};
+
+export type HeatPumpHistorySeries = {
+  field: string;
+  points: HeatPumpHistoryPoint[];
+};
+
+export type HeatPumpHistoryResponse = {
+  series: HeatPumpHistorySeries[];
+};
+
 export type Alert = {
   id: string;
   site_id: string | null;

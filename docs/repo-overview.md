@@ -24,6 +24,7 @@
   - `src/utils/` – helpers (organisation resolution, etc.).
   - `src/scripts/` – `backfillDeviceSnapshots` utility.
 - **SQL**: `backend/sql/*.sql` for telemetry, alerts, control commands, push tokens, refresh tokens, system status schemas. `scripts/init-local-db.js` seeds demo org/site/device, telemetry history, snapshots, and alerts.
+- **External APIs**: control HTTP provider (`CONTROL_API_URL`/`CONTROL_API_KEY`), Expo push (`EXPO_ACCESS_TOKEN`), heat pump history (`HEATPUMP_HISTORY_URL` defaulting to the Azure endpoint + `HEATPUMP_HISTORY_API_KEY` for secure calls).
 - **npm scripts (backend/package.json)**: `dev`, `dev:mqtt`, `dev:alerts`, `script:backfill-snapshots`, `build`, `start`, `typecheck`, `lint`, `test`, `test:watch`.
 - **Tests**: Vitest in `backend/test/**/*.test.ts` covering auth routes/config, site/device scoping, telemetry ingest parsing (MQTT + HTTP helper), telemetry read API, device control API/service, alerts worker (offline/high-temp) and ack/mute flows, push service, health-plus, app bootstrap. Coverage focuses on business logic and request handling; DB mocked in most suites.
 

@@ -10,6 +10,7 @@ Node/Express API that powers the Greenbro mobile app. Includes authentication, s
 - `MQTT_*` are required if MQTT ingest is enabled.
 - `ALERT_OFFLINE_MINUTES` / `ALERT_OFFLINE_CRITICAL_MINUTES` set the warning vs critical thresholds for offline alerts (only critical sends push); `ALERT_HIGH_TEMP_THRESHOLD` controls high-temp alerts.
 - `TELEMETRY_*` and `CONTROL_*` are only needed if using HTTP providers.
+- `HEATPUMP_HISTORY_URL` / `HEATPUMP_HISTORY_API_KEY` configure the upstream Heat Pump History API client (URL defaults to the Azure endpoint; API key required in staging/prod).
 - `EXPO_ACCESS_TOKEN` is optional but recommended for sending push notifications.
 
 ## Environments
