@@ -12,6 +12,7 @@ async function main() {
   const defaultOrgId = '11111111-1111-1111-1111-111111111111';
   const siteId = '22222222-2222-2222-2222-222222222222';
   const deviceId = '33333333-3333-3333-3333-333333333333';
+  // Must match the MAC Azure expects for the demo heat pump history calls.
   const DEMO_HEATPUMP_MAC = '38:18:2B:60:A9:94';
 
   const client = new Client({ connectionString });
