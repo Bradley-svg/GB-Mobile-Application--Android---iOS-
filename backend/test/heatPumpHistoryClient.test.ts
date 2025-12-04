@@ -1,8 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type {
-  HeatPumpHistoryRequest,
-  HeatPumpHistoryResponse,
-} from '../src/integrations/heatPumpHistoryClient';
+import type { HeatPumpHistoryRequest } from '../src/integrations/heatPumpHistoryClient';
 
 const fetchMock = vi.fn();
 const originalFetch = global.fetch;
@@ -40,12 +37,42 @@ afterAll(() => {
 });
 
 describe('heatPumpHistoryClient', () => {
-  it('maps a successful response into HeatPumpHistoryResponse', async () => {
-    const upstream: HeatPumpHistoryResponse = {
+  it('sends the vendor/Azure payload shape (aggregation as string at the top level)', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      text: vi.fn().mockResolvedValue('{}'),
+    });
+
+    await fetchHeatPumpHistory(baseRequest);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, options] = fetchMock.mock.calls[0] as [string, any];
+    expect(url).toBe(process.env.HEATPUMP_HISTORY_URL);
+    expect(options.method).toBe('POST');
+    expect(options.headers).toMatchObject({
+      accept: 'application/json,text/plain',
+      'content-type': 'application/json-patch+json',
+      'x-api-key': 'test-key',
+    });
+    expect(JSON.parse(options.body)).toEqual(baseRequest);
+  });
+
+  it('normalizes the Azure series shape into HeatPumpHistoryResponse', async () => {
+    const upstream = {
       series: [
         {
-          field: 'metric_compCurrentA',
-          points: [{ timestamp: '2025-12-03T08:12:46.503Z', value: 12.3 }],
+          name: 'Current',
+          yAxis: 0,
+          unit: 'A',
+          decimals: 1,
+          propertyName: '',
+          data: [
+            [1764749601000.0, 0.0],
+            ['2025-12-03T08:12:46.503Z', '12.3'],
+            { timestamp: '2025-12-03T09:00:00.000Z', value: null },
+          ],
         },
       ],
     };
@@ -59,14 +86,18 @@ describe('heatPumpHistoryClient', () => {
 
     const result = await fetchHeatPumpHistory(baseRequest);
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      process.env.HEATPUMP_HISTORY_URL,
-      expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({ 'x-api-key': 'test-key' }),
-      })
-    );
-    expect(result).toEqual(upstream);
+    expect(result).toEqual({
+      series: [
+        {
+          field: 'Current',
+          points: [
+            { timestamp: new Date(1764749601000).toISOString(), value: 0 },
+            { timestamp: '2025-12-03T08:12:46.503Z', value: 12.3 },
+            { timestamp: '2025-12-03T09:00:00.000Z', value: null },
+          ],
+        },
+      ],
+    });
   });
 
   it('throws a friendly error when the upstream responds with an error status', async () => {

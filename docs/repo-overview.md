@@ -10,7 +10,7 @@
 - Root helpers: `dev.ps1`/`dev.sh`, README, repo-level git config; stray PNGs/screenshots moved into `docs/`.
 
 ## Backend (API)
-- **Entry points**: `src/index.ts` (Express app), `src/workers/mqttIngest.ts` (telemetry ingest), `src/workers/alertsWorker.ts` (alert evaluation). Script entry: `src/scripts/backfillDeviceSnapshots.ts`. Runtime compiled to `dist/`.
+- **Entry points**: `src/index.ts` (Express app), `src/workers/mqttIngest.ts` (telemetry ingest), `src/workers/alertsWorker.ts` (alert evaluation). Script entries: `src/scripts/backfillDeviceSnapshots.ts` and `src/scripts/debugHeatPumpHistory.ts`. Runtime compiled to `dist/`.
 - **Source layout**:
   - `src/config/` – env loaders and wiring (`config/db.ts`, CORS settings).
   - `src/middleware/` – auth guard, CORS builder, error handler.
@@ -22,10 +22,10 @@
   - `src/workers/` – `mqttIngest` wires MQTT messages into telemetry ingest service; `alertsWorker` does offline/high-temp checks and heartbeats.
   - `src/domain/` – shared types (alerts, status, telemetry).
   - `src/utils/` – helpers (organisation resolution, etc.).
-  - `src/scripts/` – `backfillDeviceSnapshots` utility.
+  - `src/scripts/` – `backfillDeviceSnapshots` utility and `debugHeatPumpHistory` payload probe.
 - **SQL**: `backend/sql/*.sql` for telemetry, alerts, control commands, push tokens, refresh tokens, system status schemas. `scripts/init-local-db.js` seeds demo org/site/device, telemetry history, snapshots, and alerts.
-- **External APIs**: control HTTP provider (`CONTROL_API_URL`/`CONTROL_API_KEY`), Expo push (`EXPO_ACCESS_TOKEN`), heat pump history (`HEATPUMP_HISTORY_URL` defaulting to the Azure endpoint + `HEATPUMP_HISTORY_API_KEY` for secure calls).
-- **npm scripts (backend/package.json)**: `dev`, `dev:mqtt`, `dev:alerts`, `script:backfill-snapshots`, `build`, `start`, `typecheck`, `lint`, `test`, `test:watch`.
+- **External APIs**: control HTTP provider (`CONTROL_API_URL`/`CONTROL_API_KEY`), Expo push (`EXPO_ACCESS_TOKEN`), heat pump history (`HEATPUMP_HISTORY_URL` defaulting to the Azure endpoint + `HEATPUMP_HISTORY_API_KEY` for secure calls; Azure accepts the vendor payload with top-level `aggregation/from/to/mode/fields/mac` and responds with `series[].data` pairs that the client normalizes).
+- **npm scripts (backend/package.json)**: `dev`, `dev:mqtt`, `dev:alerts`, `script:backfill-snapshots`, `script:debug:heat-pump-history`, `build`, `start`, `typecheck`, `lint`, `test`, `test:watch`.
 - **Tests**: Vitest in `backend/test/**/*.test.ts` covering auth routes/config, site/device scoping, telemetry ingest parsing (MQTT + HTTP helper), telemetry read API, device control API/service, alerts worker (offline/high-temp) and ack/mute flows, push service, health-plus, app bootstrap. Coverage focuses on business logic and request handling; DB mocked in most suites.
 
 ## Mobile (Expo app)

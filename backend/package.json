@@ -8,6 +8,7 @@
     "dev:mqtt": "ts-node-dev --respawn --transpile-only src/workers/mqttIngest.ts",
     "dev:alerts": "ts-node-dev --respawn --transpile-only src/workers/alertsWorker.ts",
     "script:backfill-snapshots": "ts-node-dev --transpile-only src/scripts/backfillDeviceSnapshots.ts",
+    "script:debug:heat-pump-history": "ts-node-dev --transpile-only src/scripts/debugHeatPumpHistory.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",

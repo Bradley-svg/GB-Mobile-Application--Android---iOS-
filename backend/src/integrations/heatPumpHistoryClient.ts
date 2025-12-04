@@ -33,6 +33,14 @@ export type HeatPumpHistoryResponse = {
   series: HeatPumpHistorySeries[];
 };
 
+type AzureHeatPumpHistoryRequest = HeatPumpHistoryRequest;
+
+function buildAzureRequest(payload: HeatPumpHistoryRequest): AzureHeatPumpHistoryRequest {
+  // Azure dev endpoint (see src/scripts/debugHeatPumpHistory.ts) accepts the vendor shape:
+  // top-level aggregation string plus from/to/mode/fields/mac at the same level.
+  return { ...payload };
+}
+
 function resolveConfig() {
   const nodeEnv = process.env.NODE_ENV || 'development';
   const url =
@@ -146,6 +154,7 @@ function normalizeHeatPumpHistoryResponse(raw: unknown): HeatPumpHistoryResponse
 export async function fetchHeatPumpHistory(
   req: HeatPumpHistoryRequest
 ): Promise<HeatPumpHistoryResponse> {
+  const azurePayload = buildAzureRequest(req);
   const { url, apiKey, requestTimeoutMs } = resolveConfig();
 
   const controller = new AbortController();
@@ -159,7 +168,7 @@ export async function fetchHeatPumpHistory(
         'content-type': 'application/json-patch+json',
         ...(apiKey ? { 'x-api-key': apiKey } : {}),
       },
-      body: JSON.stringify(req),
+      body: JSON.stringify(azurePayload),
       signal: controller.signal,
     });
 

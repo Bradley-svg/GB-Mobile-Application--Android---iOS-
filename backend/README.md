@@ -13,6 +13,11 @@ Node/Express API that powers the Greenbro mobile app. Includes authentication, s
 - `HEATPUMP_HISTORY_URL` / `HEATPUMP_HISTORY_API_KEY` configure the upstream Heat Pump History API client (URL defaults to the Azure endpoint; API key required in staging/prod).
 - `EXPO_ACCESS_TOKEN` is optional but recommended for sending push notifications.
 
+## Heat pump history
+- Upstream Azure dev endpoint (`https://za-iot-dev-api.azurewebsites.net/api/HeatPumpHistory/historyHeatPump`) accepts the vendor payload shape: top-level `aggregation` (e.g., `"raw"`), `from`, `to`, `mode`, `fields`, and `mac`, sent as JSON (`content-type: application/json-patch+json`) with `x-api-key`.
+- Responses come back as `series` entries with `name` + `data` pairs like `[[timestampMs, value], ...]`; the client normalizes these into `HeatPumpHistoryResponse.series[].points` with ISO timestamps and numeric values for the mobile app.
+- Manual probing: `npm run script:debug:heat-pump-history` runs `src/scripts/debugHeatPumpHistory.ts` against Azure. As of 2025-12-04, the vendor/top-level shape succeeds (HTTP 200); nested `query` variants return HTTP 400. Keep API keys in `.env`, never log them.
+
 ## Environments
 - **development**: Run locally with `NODE_ENV=development` (default). `dotenv` loads values from `.env` (or `.env.development` if you prefer that naming) to point at your local `DATABASE_URL`, MQTT broker, etc. Logging can stay verbose here to aid debugging.
 - **staging**: Deployed instance with `NODE_ENV=staging` and its own `DATABASE_URL`, `MQTT_URL`, and secrets. Configure these through your hosting provider's environment management (Railway, Render, etc.), not committed files.
