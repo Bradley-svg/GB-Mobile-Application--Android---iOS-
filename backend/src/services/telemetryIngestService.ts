@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { query } from '../db/pool';
+import { getDeviceByExternalId } from '../repositories/devicesRepository';
+import { insertTelemetryBatch, upsertDeviceSnapshot } from '../repositories/telemetryRepository';
 
 type ParsedTopic = {
   siteExternalId: string;
@@ -40,21 +41,6 @@ function parseTopic(topic: string): ParsedTopic | null {
   if (root !== 'greenbro' || type !== 'telemetry') return null;
 
   return { siteExternalId, deviceExternalId };
-}
-
-type DeviceLookup = { id: string; site_external_id: string | null };
-
-async function getDeviceByExternalId(externalId: string): Promise<DeviceLookup | null> {
-  const res = await query<DeviceLookup>(
-    `
-    select d.id, s.external_id as site_external_id
-    from devices d
-    left join sites s on d.site_id = s.id
-    where d.external_id = $1
-  `,
-    [externalId]
-  );
-  return res.rows[0] || null;
 }
 
 function parsePayload(raw: Buffer | unknown, source: string): TelemetryPayload | null {
@@ -105,41 +91,19 @@ async function storeTelemetry(deviceId: string, payload: TelemetryPayload, sourc
     return false;
   }
 
-  const valuesClause = entries
-    .map(
-      (_, idx) =>
-        `($1, $${idx * 3 + 2}, $${idx * 3 + 3}, $${idx * 3 + 4}, 'good', now())`
-    )
-    .join(', ');
-
-  const params: any[] = [deviceId];
+  const numericMetrics: Record<string, number> = {};
   for (const [metricName, value] of entries) {
-    params.push(metricName, ts, value);
+    numericMetrics[metricName] = value;
   }
 
-  const insertSql = `
-    insert into telemetry_points (device_id, metric, ts, value, quality, created_at)
-    values ${valuesClause}
-  `;
-
-  await query(insertSql, params);
+  await insertTelemetryBatch(deviceId, numericMetrics, ts);
 
   const snapshotData = {
     metrics,
     raw: payload,
   };
 
-  await query(
-    `
-    insert into device_snapshots (device_id, last_seen_at, data, updated_at)
-    values ($1, $2, $3::jsonb, now())
-    on conflict (device_id)
-    do update set last_seen_at = excluded.last_seen_at,
-                  data = excluded.data,
-                  updated_at = now()
-  `,
-    [deviceId, ts, JSON.stringify(snapshotData)]
-  );
+  await upsertDeviceSnapshot(deviceId, ts, snapshotData);
 
   console.log(
     `[telemetry] stored telemetry device=${deviceId} metrics=${entries.length} ts=${ts.toISOString()} source=${source}`

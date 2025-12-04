@@ -13,7 +13,7 @@ import {
   useSetpointCommand,
   useSite,
 } from '../../api/hooks';
-import { Screen, Card, PillTab, PrimaryButton, IconButton } from '../../theme/components';
+import { Screen, Card, PillTab, PrimaryButton, IconButton } from '../../components';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';

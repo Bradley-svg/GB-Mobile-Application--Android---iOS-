@@ -1,5 +1,9 @@
 import 'dotenv/config';
-import { query } from '../db/pool';
+import {
+  findOfflineDevices,
+  findOnlineDevices,
+  getDeviceSnapshotTemperatures,
+} from '../repositories/devicesRepository';
 import { clearAlertIfExists, upsertActiveAlert } from '../services/alertService';
 import { sendAlertNotification } from '../services/pushService';
 import { markAlertsWorkerHeartbeat, upsertStatus } from '../services/statusService';
@@ -26,27 +30,11 @@ export type AlertsWorkerHeartbeat = {
 };
 
 export async function evaluateOfflineAlerts(now: Date): Promise<OfflineMetrics> {
-  const offline = await query<{
-    id: string;
-    site_id: string;
-    last_seen_at: Date;
-    muted_until: Date | null;
-  }>(
-    `
-    select d.id, d.site_id, s.last_seen_at
-         , max(a.muted_until) as muted_until
-    from devices d
-    join device_snapshots s on d.id = s.device_id
-    left join alerts a on a.device_id = d.id and a.type = 'offline'
-    where s.last_seen_at < now() - ($1 || ' minutes')::interval
-    group by d.id, d.site_id, s.last_seen_at
-  `,
-    [OFFLINE_MINUTES]
-  );
+  const offline = await findOfflineDevices(OFFLINE_MINUTES);
 
   let mutedCount = 0;
 
-  for (const row of offline.rows) {
+  for (const row of offline) {
     const mutedUntil = row.muted_until ? new Date(row.muted_until) : null;
     if (mutedUntil && mutedUntil > now) {
       mutedCount += 1;
@@ -79,45 +67,23 @@ export async function evaluateOfflineAlerts(now: Date): Promise<OfflineMetrics> 
     }
   }
 
-  console.log(`[alertsWorker] offline: ${offline.rows.length} offline devices`);
+  console.log(`[alertsWorker] offline: ${offline.length} offline devices`);
 
-  const online = await query<{ id: string; site_id: string; last_seen_at: Date }>(
-    `
-    select d.id, d.site_id, s.last_seen_at
-    from devices d
-    join device_snapshots s on d.id = s.device_id
-    where s.last_seen_at >= now() - ($1 || ' minutes')::interval
-  `,
-    [OFFLINE_MINUTES]
-  );
+  const online = await findOnlineDevices(OFFLINE_MINUTES);
 
-  for (const row of online.rows) {
+  for (const row of online) {
     await clearAlertIfExists(row.id, 'offline', now);
   }
 
-  console.log(`[alertsWorker] offline clear check complete (${online.rows.length} devices)`);
+  console.log(`[alertsWorker] offline clear check complete (${online.length} devices)`);
 
-  return { offlineCount: offline.rows.length, clearedCount: online.rows.length, mutedCount };
+  return { offlineCount: offline.length, clearedCount: online.length, mutedCount };
 }
 
 export async function evaluateHighTempAlerts(now: Date): Promise<HighTempMetrics> {
-  const res = await query<{
-    id: string;
-    site_id: string;
-    supply_temp: number | null;
-  }>(
-    `
-    select d.id, d.site_id,
-           coalesce(
-             (s.data->'metrics'->>'supply_temp')::double precision,
-             (s.data->'raw'->'sensor'->>'supply_temperature_c')::double precision
-           ) as supply_temp
-    from devices d
-    join device_snapshots s on d.id = s.device_id
-  `
-  );
+  const snapshots = await getDeviceSnapshotTemperatures();
 
-  for (const row of res.rows) {
+  for (const row of snapshots) {
     const temp = row.supply_temp;
     if (temp == null || Number.isNaN(temp)) {
       continue;
@@ -141,7 +107,7 @@ export async function evaluateHighTempAlerts(now: Date): Promise<HighTempMetrics
     }
   }
 
-  const overThresholdCount = res.rows.filter(
+  const overThresholdCount = snapshots.filter(
     (row) =>
       row.supply_temp != null &&
       !Number.isNaN(row.supply_temp) &&
@@ -149,10 +115,10 @@ export async function evaluateHighTempAlerts(now: Date): Promise<HighTempMetrics
   ).length;
 
   console.log(
-    `[alertsWorker] highTemp check complete (${res.rows.length} devices, ${overThresholdCount} above threshold)`
+    `[alertsWorker] highTemp check complete (${snapshots.length} devices, ${overThresholdCount} above threshold)`
   );
 
-  return { evaluatedCount: res.rows.length, overThresholdCount };
+  return { evaluatedCount: snapshots.length, overThresholdCount };
 }
 
 export async function runOnce(now: Date = new Date()) {

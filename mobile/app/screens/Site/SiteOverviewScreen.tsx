@@ -5,7 +5,7 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { useDevices, useSite } from '../../api/hooks';
-import { Screen, Card, IconButton, PrimaryButton } from '../../theme/components';
+import { Screen, Card, IconButton, PrimaryButton } from '../../components';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';

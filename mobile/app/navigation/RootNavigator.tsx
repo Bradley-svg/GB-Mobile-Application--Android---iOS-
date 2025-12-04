@@ -16,7 +16,7 @@ import { AlertDetailScreen } from '../screens/Alerts/AlertDetailScreen';
 import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
 import { spacing } from '../theme/spacing';
-import { surfaceStyles } from '../theme/components';
+import { surfaceStyles } from '../components';
 
 export type RootStackParamList = {
   Auth: undefined;

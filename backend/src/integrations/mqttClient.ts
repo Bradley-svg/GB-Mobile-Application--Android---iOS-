@@ -1,6 +1,6 @@
 import mqtt, { MqttClient } from 'mqtt';
-import { handleTelemetryMessage } from './telemetryIngestService';
-import { markMqttIngestError, markMqttIngestSuccess } from './statusService';
+import { handleTelemetryMessage } from '../services/telemetryIngestService';
+import { markMqttIngestError, markMqttIngestSuccess } from '../services/statusService';
 
 let client: MqttClient | null = null;
 let messageCount = 0;

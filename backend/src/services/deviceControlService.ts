@@ -1,9 +1,12 @@
 import mqtt, { MqttClient } from 'mqtt';
-import { query } from '../db/pool';
+import { sendControlOverHttp } from '../integrations/controlClient';
+import {
+  insertCommandRow,
+  markCommandFailure,
+  markCommandSuccess as markCommandSuccessRow,
+} from '../repositories/controlCommandsRepository';
 import { getDeviceById } from './deviceService';
 import { markControlCommandError, markControlCommandSuccess } from './statusService';
-
-type CommandStatus = 'pending' | 'success' | 'failed';
 
 type SetpointCommandPayload = {
   metric: 'flow_temp';
@@ -132,57 +135,6 @@ async function publishCommand(
   });
 }
 
-async function insertCommandRow(
-  deviceId: string,
-  userId: string,
-  commandType: string,
-  payload: object,
-  status: CommandStatus,
-  errorMessage?: string
-) {
-  const res = await query<{
-    id: string;
-    device_id: string;
-    user_id: string;
-    command_type: string;
-    payload: any;
-    status: string;
-    requested_at: Date;
-    completed_at: Date | null;
-    error_message: string | null;
-  }>(
-    `
-    insert into control_commands (device_id, user_id, command_type, payload, status, completed_at, error_message)
-    values ($1, $2, $3, $4::jsonb, $5, case when $5 = 'pending' then null else now() end, $6)
-    returning *
-  `,
-    [deviceId, userId, commandType, JSON.stringify(payload), status, errorMessage || null]
-  );
-  return res.rows[0];
-}
-
-async function sendControlOverHttp(
-  deviceExternalId: string,
-  body: { type: 'setpoint' | 'mode'; payload: object },
-  config: Extract<ControlConfig, { type: 'http' }>
-) {
-  const headers: Record<string, string> = {
-    'content-type': 'application/json',
-    Authorization: `Bearer ${config.apiKey}`,
-  };
-
-  const res = await fetch(`${config.url.replace(/\/$/, '')}/devices/${deviceExternalId}/commands`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body),
-  });
-
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(`CONTROL_HTTP_FAILED:${res.status}:${detail.slice(0, 120)}`);
-  }
-}
-
 async function sendSetpointToExternal(
   deviceExternalId: string,
   payload: SetpointCommandPayload,
@@ -203,10 +155,10 @@ async function sendSetpointToExternal(
       `[command] sending setpoint over HTTP deviceExternalId=${deviceExternalId} metric=${payload.metric} value=${payload.value}`
     );
     try {
-      await sendControlOverHttp(deviceExternalId, body, controlConfig);
-      lastControlError = null;
-      return;
-    } catch (err) {
+    await sendControlOverHttp(deviceExternalId, body, controlConfig);
+    lastControlError = null;
+    return;
+  } catch (err) {
       recordControlError(err);
       throw err;
     }
@@ -249,10 +201,10 @@ async function sendModeToExternal(
       `[command] sending mode over HTTP deviceExternalId=${deviceExternalId} mode=${payload.mode}`
     );
     try {
-      await sendControlOverHttp(deviceExternalId, body, controlConfig);
-      lastControlError = null;
-      return;
-    } catch (err) {
+    await sendControlOverHttp(deviceExternalId, body, controlConfig);
+    lastControlError = null;
+    return;
+  } catch (err) {
       recordControlError(err);
       throw err;
     }
@@ -312,29 +264,12 @@ export async function setDeviceSetpoint(
   try {
     await sendSetpointToExternal(device.external_id as string, payload, controlConfig);
 
-    await query(
-      `
-      update control_commands
-      set status = 'success',
-          completed_at = now()
-      where id = $1
-    `,
-      [commandRow.id]
-    );
+    await markCommandSuccessRow(commandRow.id);
 
     await safeMarkControlSuccess(new Date());
     return { ...commandRow, status: 'success', completed_at: new Date() };
   } catch (e: any) {
-    await query(
-      `
-      update control_commands
-      set status = 'failed',
-          completed_at = now(),
-          error_message = $2
-      where id = $1
-    `,
-      [commandRow.id, e.message || 'External command failed']
-    );
+    await markCommandFailure(commandRow.id, e.message || 'External command failed');
     await safeMarkControlError(new Date(), e);
     throw new Error('COMMAND_FAILED');
   }
@@ -406,29 +341,12 @@ export async function setDeviceMode(
   try {
     await sendModeToExternal(device.external_id as string, payload, controlConfig);
 
-    await query(
-      `
-      update control_commands
-      set status = 'success',
-          completed_at = now()
-      where id = $1
-    `,
-      [commandRow.id]
-    );
+    await markCommandSuccessRow(commandRow.id);
 
     await safeMarkControlSuccess(new Date());
     return { ...commandRow, status: 'success', completed_at: new Date() };
   } catch (e: any) {
-    await query(
-      `
-      update control_commands
-      set status = 'failed',
-          completed_at = now(),
-          error_message = $2
-      where id = $1
-    `,
-      [commandRow.id, e.message || 'External command failed']
-    );
+    await markCommandFailure(commandRow.id, e.message || 'External command failed');
     await safeMarkControlError(new Date(), e);
     throw new Error('COMMAND_FAILED');
   }

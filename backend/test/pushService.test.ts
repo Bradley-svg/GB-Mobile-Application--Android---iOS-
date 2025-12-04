@@ -6,7 +6,7 @@ const queryMock = vi.fn();
 const sendPushNotificationsAsync = vi.fn(async () => []);
 const chunkPushNotifications = vi.fn();
 
-vi.mock('../src/db/pool', () => ({
+vi.mock('../src/config/db', () => ({
   query: (...args: unknown[]) => queryMock(...(args as [string, unknown[]?])),
 }));
 

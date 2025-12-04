@@ -1,11 +1,9 @@
 import { Router } from 'express';
+import { ingestHttpTelemetry } from '../controllers/telemetryController';
 
 const router = Router();
 
-router.post('/telemetry/http', (req, res) => {
-  return res.status(501).json({
-    error: 'HTTP telemetry ingest is disabled in this build. Use MQTT ingest.',
-  });
-});
+// HTTP telemetry ingest is intentionally disabled; keep the stub for future providers.
+router.post('/telemetry/http', ingestHttpTelemetry);
 
 export default router;

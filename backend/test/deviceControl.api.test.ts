@@ -21,7 +21,7 @@ vi.mock('../src/services/userService', () => ({
 }));
 
 // Prevent real DB calls when routes import other services
-vi.mock('../src/db/pool', () => ({
+vi.mock('../src/config/db', () => ({
   query: () => Promise.resolve({ rows: [], rowCount: 0 }),
 }));
 

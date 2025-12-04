@@ -8,7 +8,7 @@ const acknowledgeAlertMock = vi.fn();
 const muteAlertMock = vi.fn();
 const getUserContextMock = vi.fn();
 
-vi.mock('../src/db/pool', () => ({
+vi.mock('../src/config/db', () => ({
   query: (...args: unknown[]) => queryMock(...(args as [string, unknown[]?])),
 }));
 

@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { initMqtt } from '../services/mqttClient';
+import { initMqtt } from '../integrations/mqttClient';
 
 const env = process.env.NODE_ENV || 'development';
 const mqttUrl = process.env.MQTT_URL;

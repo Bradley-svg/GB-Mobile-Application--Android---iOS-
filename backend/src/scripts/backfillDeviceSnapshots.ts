@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { QueryResultRow } from 'pg';
-import { query } from '../db/pool';
+import { query } from '../config/db';
 
 type SnapshotMetrics = {
   supply_temp: number | null;

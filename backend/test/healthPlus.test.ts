@@ -10,13 +10,13 @@ const runPushHealthCheckMock = vi.fn();
 const getSystemStatusMock = vi.fn();
 const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-vi.mock('../src/db/pool', () => ({
+vi.mock('../src/config/db', () => ({
   query: (...args: unknown[]) => queryMock(...(args as [string, unknown[]?])),
 }));
 vi.mock('../src/services/deviceControlService', () => ({
   getControlChannelStatus: (...args: unknown[]) => getControlStatusMock(...args),
 }));
-vi.mock('../src/services/mqttClient', () => ({
+vi.mock('../src/integrations/mqttClient', () => ({
   getMqttHealth: (...args: unknown[]) => getMqttHealthMock(...args),
 }));
 vi.mock('../src/services/pushService', () => ({

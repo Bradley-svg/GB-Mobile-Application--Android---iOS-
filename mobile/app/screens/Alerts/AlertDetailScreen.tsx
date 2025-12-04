@@ -5,7 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useAcknowledgeAlert, useAlerts, useMuteAlert } from '../../api/hooks';
 import { AppStackParamList } from '../../navigation/RootNavigator';
-import { Screen, Card, PrimaryButton, IconButton } from '../../theme/components';
+import { Screen, Card, PrimaryButton, IconButton } from '../../components';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';

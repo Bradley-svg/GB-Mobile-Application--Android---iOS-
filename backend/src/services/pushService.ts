@@ -1,11 +1,19 @@
-import { Expo, ExpoPushMessage, ExpoPushTicket } from 'expo-server-sdk';
-import { query } from '../db/pool';
-import { AlertRow } from './alertService';
+import { AlertRow } from '../domain/alerts';
+import {
+  isExpoPushToken,
+  sendPushNotification,
+  sendPushNotifications,
+  type ExpoPushMessage,
+} from '../integrations/push/expoClient';
+import { getOrganisationIdForAlert as fetchOrganisationIdForAlert } from '../repositories/alertsRepository';
+import {
+  getExistingUserPushToken,
+  getLatestPushToken,
+  getPushTokensForOrganisation,
+  upsertUserPushToken,
+} from '../repositories/pushTokensRepository';
 import { markPushSampleResult } from './statusService';
 
-const expo = new Expo({
-  accessToken: process.env.EXPO_ACCESS_TOKEN,
-});
 const PUSH_HEALTHCHECK_ENABLED = process.env.PUSH_HEALTHCHECK_ENABLED === 'true';
 const PUSH_HEALTHCHECK_INTERVAL_MINUTES = Number(
   process.env.PUSH_HEALTHCHECK_INTERVAL_MINUTES || 30
@@ -40,47 +48,27 @@ function maskToken(token: string | null) {
   return `***${tail}`;
 }
 
-async function getOrganisationIdForAlert(alert: AlertRow): Promise<string | null> {
-  const res = await query<{ organisation_id: string | null }>(
-    `
-    select s.organisation_id
-    from alerts a
-    left join devices d on a.device_id = d.id
-    left join sites s on coalesce(a.site_id, d.site_id) = s.id
-    where a.id = $1
-    limit 1
-  `,
-    [alert.id]
-  );
+export async function registerPushTokenForUser(
+  userId: string,
+  token: string,
+  recentMinutes: number
+) {
+  const recentThreshold = new Date(Date.now() - recentMinutes * 60 * 1000);
+  const existing = await getExistingUserPushToken(userId, token);
 
-  return res.rows[0]?.organisation_id ?? null;
+  const lastUsedRaw = existing?.last_used_at;
+  const lastUsedAt = lastUsedRaw ? new Date(lastUsedRaw) : null;
+
+  if (lastUsedAt && lastUsedAt > recentThreshold) {
+    return { skipped: true };
+  }
+
+  await upsertUserPushToken(userId, token);
+  return { skipped: false };
 }
 
-async function getPushTokensForOrganisation(organisationId: string): Promise<string[]> {
-  const res = await query<{ expo_token: string }>(
-    `
-    select distinct pt.expo_token
-    from push_tokens pt
-    join users u on pt.user_id = u.id
-    where u.organisation_id = $1
-  `,
-    [organisationId]
-  );
-
-  return res.rows.map((r: { expo_token: string }) => r.expo_token);
-}
-
-async function getLatestPushToken(): Promise<string | null> {
-  const res = await query<{ expo_token: string }>(
-    `
-    select expo_token
-    from push_tokens
-    order by coalesce(last_used_at, created_at) desc
-    limit 1
-  `
-  );
-
-  return res.rows[0]?.expo_token ?? null;
+async function resolveOrganisationIdForAlert(alert: AlertRow): Promise<string | null> {
+  return fetchOrganisationIdForAlert(alert.id);
 }
 
 export async function sendAlertNotification(alert: AlertRow) {
@@ -94,7 +82,7 @@ export async function sendAlertNotification(alert: AlertRow) {
     return;
   }
 
-  const organisationId = await getOrganisationIdForAlert(alert);
+  const organisationId = await resolveOrganisationIdForAlert(alert);
   if (!organisationId) {
     console.warn(`[push] skipping alert=${alert.id} because organisation is unknown`);
     return;
@@ -108,7 +96,7 @@ export async function sendAlertNotification(alert: AlertRow) {
   const messages: ExpoPushMessage[] = [];
 
   for (const token of tokens) {
-    if (!Expo.isExpoPushToken(token)) {
+    if (!isExpoPushToken(token)) {
       console.warn(`Invalid Expo push token: ${token}`);
       continue;
     }
@@ -127,14 +115,11 @@ export async function sendAlertNotification(alert: AlertRow) {
     });
   }
 
-  const chunks = expo.chunkPushNotifications(messages);
-  for (const chunk of chunks) {
-    try {
-      const tickets: ExpoPushTicket[] = await expo.sendPushNotificationsAsync(chunk);
-      console.log('Push tickets sent:', (tickets ?? []).length);
-    } catch (e) {
-      console.error('Error sending push notifications', e);
-    }
+  try {
+    const tickets = await sendPushNotifications(messages);
+    console.log('Push tickets sent:', (tickets ?? []).length);
+  } catch (e) {
+    console.error('Error sending push notifications', e);
   }
 }
 
@@ -193,7 +178,7 @@ export async function runPushHealthCheck(): Promise<PushHealthStatus> {
       body: 'Push delivery path verified',
       data: { type: 'healthcheck' },
     };
-    await expo.sendPushNotificationsAsync([message]);
+    await sendPushNotification(message);
     lastPushSample = {
       status: 'ok',
       detail: `Sent to token ${maskToken(token)}`,

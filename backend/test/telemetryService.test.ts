@@ -2,7 +2,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const queryMock = vi.fn();
 
-vi.mock('../src/db/pool', () => ({
+vi.mock('../src/config/db', () => ({
   query: (...args: unknown[]) => queryMock(...(args as [string, unknown[]?])),
 }));
 

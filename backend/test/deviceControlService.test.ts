@@ -11,7 +11,7 @@ const markControlCommandErrorMock = vi.fn();
 const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-vi.mock('../src/db/pool', () => ({
+vi.mock('../src/config/db', () => ({
   query: (...args: unknown[]) => queryMock(...(args as [string, unknown[]?])),
 }));
 

@@ -1,7 +1,8 @@
 import { randomUUID } from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { query } from '../db/pool';
+import { findRefreshTokenById, insertRefreshToken, revokeRefreshToken } from '../repositories/refreshTokensRepository';
+import { findUserByEmail, insertUser } from '../repositories/usersRepository';
 
 export function resolveJwtSecret() {
   const nodeEnv = process.env.NODE_ENV || 'development';
@@ -18,41 +19,20 @@ export function resolveJwtSecret() {
 const JWT_SECRET = resolveJwtSecret();
 const REFRESH_EXPIRY_DAYS = Number(process.env.REFRESH_TOKEN_DAYS || 30);
 
-type UserRow = {
-  id: string;
-  email: string;
-  password_hash: string;
-  name: string;
-  organisation_id: string | null;
-};
-
-type RefreshTokenRow = {
-  id: string;
-  user_id: string;
-  revoked: boolean;
-  replaced_by: string | null;
-  expires_at: Date | null;
-};
-
 export async function registerUser(email: string, password: string, name: string) {
-  const existing = await query<UserRow>('select * from users where email = $1', [email]);
-  if ((existing.rowCount ?? 0) > 0) {
+  const existing = await findUserByEmail(email);
+  if (existing) {
     throw new Error('EMAIL_EXISTS');
   }
 
   const hash = await bcrypt.hash(password, 10);
 
-  const result = await query<UserRow>(
-    'insert into users (email, password_hash, name) values ($1, $2, $3) returning id, email, name, organisation_id',
-    [email, hash, name]
-  );
-
-  return result.rows[0];
+  const user = await insertUser(email, hash, name);
+  return { id: user.id, email: user.email, name: user.name, organisation_id: user.organisation_id };
 }
 
 export async function loginUser(email: string, password: string) {
-  const result = await query<UserRow>('select * from users where email = $1', [email]);
-  const user = result.rows[0];
+  const user = await findUserByEmail(email);
   if (!user) {
     throw new Error('INVALID_CREDENTIALS');
   }
@@ -66,39 +46,7 @@ export async function loginUser(email: string, password: string) {
 }
 
 async function persistRefreshToken(id: string, userId: string, expiresAt: Date) {
-  await query(
-    `
-    insert into refresh_tokens (id, user_id, revoked, replaced_by, expires_at, created_at)
-    values ($1, $2, false, null, $3, now())
-  `,
-    [id, userId, expiresAt]
-  );
-}
-
-async function getRefreshTokenById(id: string): Promise<RefreshTokenRow | null> {
-  const res = await query<RefreshTokenRow>(
-    `
-    select id, user_id, revoked, replaced_by, expires_at
-    from refresh_tokens
-    where id = $1
-  `,
-    [id]
-  );
-  return res.rows[0] || null;
-}
-
-async function revokeRefreshToken(id: string, reason: string, replacedBy?: string) {
-  await query(
-    `
-    update refresh_tokens
-    set revoked = true,
-        revoked_reason = $2,
-        revoked_at = now(),
-        replaced_by = coalesce(replaced_by, $3)
-    where id = $1
-  `,
-    [id, reason, replacedBy || null]
-  );
+  await insertRefreshToken(id, userId, expiresAt);
 }
 
 export async function issueTokens(userId: string, options?: { rotateFromId?: string }) {
@@ -132,7 +80,7 @@ export async function verifyRefreshToken(token: string) {
   if (decoded.type !== 'refresh') throw new Error('INVALID_TOKEN_TYPE');
   if (!decoded.jti) throw new Error('MISSING_TOKEN_ID');
 
-  const tokenRow = await getRefreshTokenById(decoded.jti);
+  const tokenRow = await findRefreshTokenById(decoded.jti);
   if (!tokenRow) {
     throw new Error('REFRESH_TOKEN_NOT_FOUND');
   }

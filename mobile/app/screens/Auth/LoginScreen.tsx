@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, Alert, StyleSheet, Image } from 'react-native';
 import axios from 'axios';
 import { useLogin } from '../../api/hooks';
-import { Screen, Card, PrimaryButton } from '../../theme/components';
+import { Screen, Card, PrimaryButton } from '../../components';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
