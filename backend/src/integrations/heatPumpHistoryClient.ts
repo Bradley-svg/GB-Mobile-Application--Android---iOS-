@@ -2,6 +2,9 @@ const DEFAULT_HEATPUMP_HISTORY_URL =
   'https://za-iot-dev-api.azurewebsites.net/api/HeatPumpHistory/historyHeatPump';
 const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
 
+let legacyEnvWarningLogged = false;
+let invalidTimeoutWarningLogged = false;
+
 export type HeatPumpHistoryField = {
   field: string;
   unit?: string;
@@ -41,22 +44,63 @@ function buildAzureRequest(payload: HeatPumpHistoryRequest): AzureHeatPumpHistor
   return { ...payload };
 }
 
+function logLegacyEnvWarning() {
+  if (legacyEnvWarningLogged) return;
+  console.warn(
+    'HEAT_PUMP_* env vars are deprecated; please use HEATPUMP_HISTORY_URL, HEATPUMP_HISTORY_API_KEY, and HEATPUMP_HISTORY_TIMEOUT_MS instead.'
+  );
+  legacyEnvWarningLogged = true;
+}
+
+function resolveEnvValue(primaryKey: string, legacyKey: string) {
+  const primary = process.env[primaryKey]?.trim();
+  if (primary) return { value: primary, usedLegacy: false };
+
+  const legacy = process.env[legacyKey]?.trim();
+  if (legacy) {
+    logLegacyEnvWarning();
+    return { value: legacy, usedLegacy: true };
+  }
+
+  return { value: undefined, usedLegacy: false };
+}
+
+function resolveTimeoutMs() {
+  const primaryTimeout = process.env.HEATPUMP_HISTORY_TIMEOUT_MS?.trim();
+  const legacyTimeout = process.env.HEAT_PUMP_HISTORY_TIMEOUT_MS?.trim();
+  const timeoutEnv = primaryTimeout || legacyTimeout;
+
+  if (!primaryTimeout && legacyTimeout) {
+    logLegacyEnvWarning();
+  }
+
+  if (!timeoutEnv) {
+    return DEFAULT_REQUEST_TIMEOUT_MS;
+  }
+
+  const parsedTimeout = Number(timeoutEnv);
+  if (!Number.isFinite(parsedTimeout) || parsedTimeout <= 0) {
+    if (!invalidTimeoutWarningLogged) {
+      console.warn(
+        'Invalid HEATPUMP_HISTORY_TIMEOUT_MS (or HEAT_PUMP_HISTORY_TIMEOUT_MS) value; falling back to default of 10000ms.'
+      );
+      invalidTimeoutWarningLogged = true;
+    }
+    return DEFAULT_REQUEST_TIMEOUT_MS;
+  }
+
+  return parsedTimeout;
+}
+
 function resolveConfig() {
   const nodeEnv = process.env.NODE_ENV || 'development';
-  const url =
-    process.env.HEATPUMP_HISTORY_URL?.trim() ||
-    process.env.HEAT_PUMP_HISTORY_URL?.trim() ||
-    DEFAULT_HEATPUMP_HISTORY_URL;
-  const apiKey =
-    process.env.HEATPUMP_HISTORY_API_KEY?.trim() ||
-    process.env.HEAT_PUMP_HISTORY_API_KEY?.trim();
-  const timeoutEnv =
-    process.env.HEATPUMP_HISTORY_TIMEOUT_MS || process.env.HEAT_PUMP_HISTORY_TIMEOUT_MS;
-  const parsedTimeout = timeoutEnv ? Number(timeoutEnv) : DEFAULT_REQUEST_TIMEOUT_MS;
-  const requestTimeoutMs =
-    Number.isFinite(parsedTimeout) && parsedTimeout > 0
-      ? parsedTimeout
-      : DEFAULT_REQUEST_TIMEOUT_MS;
+  const resolvedUrl = resolveEnvValue('HEATPUMP_HISTORY_URL', 'HEAT_PUMP_HISTORY_URL');
+  const url = resolvedUrl.value || DEFAULT_HEATPUMP_HISTORY_URL;
+
+  const resolvedApiKey = resolveEnvValue('HEATPUMP_HISTORY_API_KEY', 'HEAT_PUMP_HISTORY_API_KEY');
+  const apiKey = resolvedApiKey.value;
+
+  const requestTimeoutMs = resolveTimeoutMs();
 
   if (!url && nodeEnv !== 'development') {
     throw new Error('HEATPUMP_HISTORY_URL is required when NODE_ENV is not development');

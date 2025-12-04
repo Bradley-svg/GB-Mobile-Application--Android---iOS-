@@ -1,8 +1,19 @@
+import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../client';
 import type { HeatPumpHistoryRequest, HeatPumpHistoryResponse } from '../types';
 
 const HEAT_PUMP_HISTORY_QUERY_KEY = ['heatPumpHistory'];
+
+const shouldRetry = (failureCount: number, error: unknown) => {
+  if (axios.isAxiosError(error)) {
+    const status = error.response?.status;
+    if (status && status < 500 && status !== 429) return false;
+  }
+  return failureCount < 2;
+};
+
+const retryDelay = (attempt: number) => attempt * 1000;
 
 export function useHeatPumpHistory(
   params: HeatPumpHistoryRequest,
@@ -19,5 +30,7 @@ export function useHeatPumpHistory(
       });
       return response.data;
     },
+    retry: shouldRetry,
+    retryDelay,
   });
 }

@@ -1,177 +1,18 @@
 import { NextFunction, Request, Response } from 'express';
-import { query } from '../config/db';
-import { getControlChannelStatus } from '../services/deviceControlService';
-import { getMqttHealth } from '../integrations/mqttClient';
-import { runPushHealthCheck, type PushHealthStatus } from '../services/pushService';
-import { SystemStatus } from '../domain/status';
-import { getSystemStatus } from '../services/statusService';
-
-const MQTT_INGEST_STALE_MS = 5 * 60 * 1000;
-const MQTT_ERROR_WINDOW_MS = 5 * 60 * 1000;
-const CONTROL_ERROR_WINDOW_MS = 10 * 60 * 1000;
-
-function toIso(value: Date | string | null | undefined) {
-  if (!value) return null;
-  const date = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
-}
-
-function isStale(date: Date | null, thresholdMs: number, now: Date) {
-  if (!date) return true;
-  return now.getTime() - date.getTime() > thresholdMs;
-}
-
-function isRecent(date: Date | null, windowMs: number, now: Date) {
-  if (!date) return false;
-  return now.getTime() - date.getTime() <= windowMs;
-}
+import { getHealthPlus } from '../services/healthService';
 
 export function health(_req: Request, res: Response) {
   res.json({ ok: true });
 }
 
 export async function healthPlus(_req: Request, res: Response, _next: NextFunction) {
-  const env = process.env.NODE_ENV || 'development';
-  const version = process.env.APP_VERSION || null;
-  const now = new Date();
-  const mqttSnapshot = getMqttHealth();
-  const controlSnapshot = getControlChannelStatus();
-  const pushEnabled = process.env.PUSH_HEALTHCHECK_ENABLED === 'true';
-  const alertsIntervalSec = Number(process.env.ALERT_WORKER_INTERVAL_SEC || 60);
-  const alertsHeartbeatWindowMs = Math.max(alertsIntervalSec * 2 * 1000, 60 * 1000);
-  const alertsWorkerEnabled =
-    (process.env.ALERT_WORKER_ENABLED || 'true').toLowerCase() !== 'false';
-  const alertsExpected = env === 'production' && alertsWorkerEnabled;
-
   try {
-    const dbRes = await query('select 1 as ok');
-    const dbOk = dbRes.rows[0]?.ok === 1;
-
-    let pushHealth: PushHealthStatus | null = null;
-    try {
-      pushHealth = await runPushHealthCheck();
-    } catch (pushErr) {
-      console.error('[health-plus] push health check failed', pushErr);
+    const result = await getHealthPlus();
+    if (result.error) {
+      console.error('health-plus error', result.error);
     }
-
-    let systemStatus: SystemStatus | null = null;
-    let statusLoadFailed = false;
-    try {
-      systemStatus = await getSystemStatus();
-    } catch (statusErr) {
-      statusLoadFailed = true;
-      console.error('[health-plus] failed to load system_status', statusErr);
-    }
-
-    const mqttLastIngestAt = systemStatus?.mqtt_last_ingest_at ?? null;
-    const mqttLastErrorAt = systemStatus?.mqtt_last_error_at ?? null;
-    const mqttLastError = systemStatus?.mqtt_last_error ?? mqttSnapshot.lastError ?? null;
-    const mqttStale = mqttSnapshot.configured && isStale(mqttLastIngestAt, MQTT_INGEST_STALE_MS, now);
-    const mqttRecentError =
-      mqttSnapshot.configured &&
-      isRecent(mqttLastErrorAt, MQTT_ERROR_WINDOW_MS, now) &&
-      (!mqttLastIngestAt || (mqttLastErrorAt as Date) >= mqttLastIngestAt);
-    const mqttHealthy = statusLoadFailed
-      ? !mqttSnapshot.configured
-      : !mqttSnapshot.configured || (!mqttStale && !mqttRecentError);
-
-    const controlLastCommandAt = systemStatus?.control_last_command_at ?? null;
-    const controlLastErrorAt = systemStatus?.control_last_error_at ?? null;
-    const controlLastError =
-      systemStatus?.control_last_error ?? controlSnapshot.lastError ?? null;
-    const controlRecentError =
-      controlSnapshot.configured &&
-      isRecent(controlLastErrorAt, CONTROL_ERROR_WINDOW_MS, now) &&
-      (!controlLastCommandAt || (controlLastErrorAt as Date) >= controlLastCommandAt);
-    const controlHealthy = statusLoadFailed
-      ? !controlSnapshot.configured
-      : !controlSnapshot.configured || !controlRecentError;
-
-    const alertsHeartbeat = systemStatus?.alerts_worker_last_heartbeat_at ?? null;
-    const alertsHealthy =
-      !alertsExpected ||
-      (!statusLoadFailed &&
-        alertsHeartbeat != null &&
-        !isStale(alertsHeartbeat, alertsHeartbeatWindowMs, now));
-
-    const pushLastSampleAt =
-      systemStatus?.push_last_sample_at ??
-      (pushHealth?.lastSample ? new Date(pushHealth.lastSample.at) : null);
-    const pushLastError =
-      systemStatus?.push_last_error ??
-      (pushHealth?.lastSample?.status === 'error'
-        ? pushHealth.lastSample.detail ?? 'Push health sample failed'
-        : null);
-
-    const push = {
-      enabled: pushEnabled,
-      lastSampleAt: toIso(pushLastSampleAt),
-      lastError: pushEnabled ? pushLastError : null,
-    };
-
-    const ok = statusLoadFailed
-      ? dbOk
-      : dbOk &&
-        (!mqttSnapshot.configured || mqttHealthy) &&
-        (!controlSnapshot.configured || controlHealthy) &&
-        (!alertsExpected || alertsHealthy) &&
-        (!push.enabled || !push.lastError);
-
-    res.json({
-      ok,
-      env,
-      db: dbOk ? 'ok' : 'error',
-      version,
-      mqtt: {
-        configured: mqttSnapshot.configured,
-        lastIngestAt: toIso(mqttLastIngestAt),
-        lastErrorAt: toIso(mqttLastErrorAt),
-        lastError: mqttLastError,
-        healthy: mqttHealthy,
-      },
-      control: {
-        configured: controlSnapshot.configured,
-        lastCommandAt: toIso(controlLastCommandAt),
-        lastErrorAt: toIso(controlLastErrorAt),
-        lastError: controlLastError,
-        healthy: controlHealthy,
-      },
-      alertsWorker: {
-        lastHeartbeatAt: toIso(alertsHeartbeat),
-        healthy: alertsHealthy,
-      },
-      push,
-    });
-  } catch (e) {
-    console.error('health-plus error', e);
-    res.status(500).json({
-      ok: false,
-      env,
-      db: 'error',
-      version,
-      mqtt: {
-        configured: mqttSnapshot.configured,
-        lastIngestAt: null,
-        lastErrorAt: null,
-        lastError: mqttSnapshot.lastError ?? null,
-        healthy: !mqttSnapshot.configured,
-      },
-      control: {
-        configured: controlSnapshot.configured,
-        lastCommandAt: null,
-        lastErrorAt: null,
-        lastError: controlSnapshot.lastError ?? null,
-        healthy: !controlSnapshot.configured,
-      },
-      alertsWorker: {
-        lastHeartbeatAt: null,
-        healthy: false,
-      },
-      push: {
-        enabled: pushEnabled,
-        lastSampleAt: null,
-        lastError: null,
-      },
-    });
+    res.status(result.status).json(result.body);
+  } catch (err) {
+    _next(err);
   }
 }

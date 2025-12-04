@@ -61,7 +61,7 @@ describe('RootNavigator', () => {
     const { findByText } = renderWithClient(<RootNavigator isAuthenticated />);
 
     expect(await findByText('Test Site')).toBeTruthy();
-    expect(await findByText('No active alerts yet.')).toBeTruthy();
+    expect(await findByText('No active alerts.')).toBeTruthy();
     expect(await findByText('Log out')).toBeTruthy();
   });
 });

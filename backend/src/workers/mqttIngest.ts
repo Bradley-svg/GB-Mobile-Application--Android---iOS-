@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { initMqtt } from '../integrations/mqttClient';
+import { logger } from '../utils/logger';
 
 const env = process.env.NODE_ENV || 'development';
 const mqttUrl = process.env.MQTT_URL;
@@ -14,11 +15,13 @@ if (mqttUrl) {
   }
 }
 
-console.log(
-  `[mqttIngest] starting (env=${env}, broker=${brokerHost}, usernameConfigured=${mqttUsernameSet})`
-);
+logger.info('mqttIngest', 'starting', {
+  env,
+  broker: brokerHost,
+  usernameConfigured: mqttUsernameSet,
+});
 const mqttClient = initMqtt();
 
 if (!mqttClient) {
-  console.warn('[mqttIngest] MQTT ingest not started (MQTT_URL missing)');
+  logger.warn('mqttIngest', 'MQTT ingest not started (MQTT_URL missing)');
 }

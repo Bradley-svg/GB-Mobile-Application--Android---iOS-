@@ -120,4 +120,22 @@ describe('DeviceDetailScreen', () => {
     expect(setpointMock).not.toHaveBeenCalled();
     expect(screen.getByText(/Flow temperature must be between 30-60/)).toBeTruthy();
   });
+
+  it('shows telemetry error with retry action', () => {
+    const refetchMock = jest.fn();
+    (useDeviceTelemetry as jest.Mock).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      refetch: refetchMock,
+      error: new Error('fail'),
+    });
+
+    render(<DeviceDetailScreen />);
+
+    const retryButton = screen.getByText('Retry');
+    fireEvent.press(retryButton);
+    expect(refetchMock).toHaveBeenCalled();
+    expect(screen.getByTestId('telemetry-error')).toBeTruthy();
+  });
 });

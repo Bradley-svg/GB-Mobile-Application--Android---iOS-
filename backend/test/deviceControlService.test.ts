@@ -8,8 +8,9 @@ const onMock = vi.fn();
 const fetchMock = vi.fn();
 const markControlCommandSuccessMock = vi.fn();
 const markControlCommandErrorMock = vi.fn();
-const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+const loggerInfoMock = vi.fn();
+const loggerWarnMock = vi.fn();
+const loggerErrorMock = vi.fn();
 
 vi.mock('../src/config/db', () => ({
   query: (...args: unknown[]) => queryMock(...(args as [string, unknown[]?])),
@@ -22,6 +23,14 @@ vi.mock('../src/services/deviceService', () => ({
 vi.mock('../src/services/statusService', () => ({
   markControlCommandSuccess: (...args: unknown[]) => markControlCommandSuccessMock(...args),
   markControlCommandError: (...args: unknown[]) => markControlCommandErrorMock(...args),
+}));
+
+vi.mock('../src/utils/logger', () => ({
+  logger: {
+    info: (...args: unknown[]) => loggerInfoMock(...args),
+    warn: (...args: unknown[]) => loggerWarnMock(...args),
+    error: (...args: unknown[]) => loggerErrorMock(...args),
+  },
 }));
 
 vi.mock('mqtt', () => {
@@ -63,16 +72,15 @@ beforeEach(() => {
   delete process.env.CONTROL_API_URL;
   delete process.env.CONTROL_API_KEY;
   (global as any).fetch = undefined;
-  consoleLogSpy.mockClear();
-  consoleErrorSpy.mockClear();
+  loggerInfoMock.mockReset();
+  loggerWarnMock.mockReset();
+  loggerErrorMock.mockReset();
 });
 
 afterAll(() => {
   process.env.MQTT_URL = originalMqttUrl;
   if (originalControlUrl) process.env.CONTROL_API_URL = originalControlUrl;
   if (originalControlKey) process.env.CONTROL_API_KEY = originalControlKey;
-  consoleLogSpy.mockRestore();
-  consoleErrorSpy.mockRestore();
 });
 
 describe('deviceControlService', () => {
@@ -133,6 +141,16 @@ describe('deviceControlService', () => {
     const updateCall = queryMock.mock.calls[1];
     expect(updateCall[0]).toContain('update control_commands');
     expect(updateCall[1]).toEqual(['cmd-1', 'publish failed']);
+    expect(loggerInfoMock).toHaveBeenCalledWith(
+      'command',
+      'attempting setpoint command',
+      expect.objectContaining({ deviceId: 'device-1', deviceExternalId: 'ext-1' })
+    );
+    expect(loggerErrorMock).toHaveBeenCalledWith(
+      'command',
+      'setpoint publish failed',
+      expect.objectContaining({ deviceExternalId: 'ext-1' })
+    );
   });
 
   it('marks mode command as failed when publishing throws', async () => {

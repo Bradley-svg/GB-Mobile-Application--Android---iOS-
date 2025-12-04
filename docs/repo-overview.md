@@ -8,10 +8,14 @@
 - `logs/`: Git-ignored runtime logs. A few dev logs remain under root/backend while locked by running node processes.
 - Helpers: root `dev.ps1`/`dev.sh`, `scripts/prepare-openai-image.js`, backend `scripts/init-local-db.js`, `src/scripts/backfillDeviceSnapshots.ts`, `src/scripts/debugHeatPumpHistory.ts`.
 
+## Security / npm audit (2025-12-04)
+- Backend: 6 vulns (0 low / 6 moderate / 0 high / 0 critical). Fixed runtime `jsonwebtoken` to 9.0.3. Remaining moderates come from dev-only vitest/vite/esbuild; fixes would require major upgrades, so risk accepted for now (tooling only). See `backend/audit-backend.json`.
+- Mobile: 3 low vulns (expo send template injection via @expo/cli). Fix requires major Expo jump (54.x); accepted until planned Expo upgrade. See `mobile/audit-mobile.json`.
+
 ## Backend
 - Entrypoint: `src/index.ts` mounts CORS, JSON parsing, routers, and error handler; server start is skipped in tests.
 - Layering: controllers mostly call services; `healthController` directly queries the DB and `mqttClient` health helpers; `heatPumpHistoryController` calls the integration client directly; HTTP telemetry route is an intentional 501 stub pointing to MQTT ingest.
-- Config/env notes: JWT secret throws if unset in non-dev; CORS allowlist required in prod and allow-all only in non-prod with an empty list; heat-pump client supports both `HEATPUMP_*` and legacy `HEAT_PUMP_*` env names (standardise later); HTTP telemetry API key env exists but route stays disabled.
+- Config/env notes: JWT secret throws if unset in non-dev; CORS allowlist required in prod and allow-all only in non-prod with an empty list; heat-pump client prefers `HEATPUMP_*` env names with deprecated `HEAT_PUMP_*` fallbacks; HTTP telemetry API key env exists but route stays disabled.
 - Integrations: MQTT ingest on `greenbro/+/+/telemetry`; control channel over HTTP (or MQTT) depending on env; Expo push with optional health sample; Azure heat-pump history client with timeout handling.
 - Health (2025-12-04 local): `npm install` ✅ (npm audit reports 7 vulns: 6 moderate, 1 high); `npm run typecheck` ✅; `npm run lint` ✅; `npm test` ✅ (vitest; expected mock upstream error log + Vite CJS deprecation warning); `npm run build` ✅.
 - Security/reliability/observability: auth uses JWT + refresh rotation, signup gated by env, reset-password returns 501; control/telemetry status recorded to `system_status` but workers run via long-lived MQTT client and `setInterval` without distributed lock/backoff; health-plus surfaces DB/MQTT/control/push/alerts worker signals; logging is console-based (no structured logs/metrics).
@@ -29,8 +33,8 @@
 - No code deletions this pass; HTTP telemetry stub kept intentionally.
 
 ## Open risks / TODOs before more API work
-- Standardise heat-pump env naming (`HEATPUMP_*` vs `HEAT_PUMP_*`) and document the chosen scheme in code and `.env.example`.
+- Legacy `HEAT_PUMP_*` heat-pump envs are still accepted but deprecated; `HEATPUMP_*` is the canonical scheme.
 - Consider moving DB/integration calls in `healthController`/`heatPumpHistoryController` behind services to keep the layering strict.
 - Harden MQTT/alerts/control workers (reconnect/backoff, job locking/visibility) and add structured logs/metrics that feed health-plus.
 - Improve mobile error/offline states and control-command feedback; add retry/backoff patterns for data fetching.
-- Address or formally waive npm audit findings (backend: 6 moderate/1 high; mobile: 3 low).
+- Address or formally waive npm audit findings (backend: 6 moderate dev-tooling remaining; mobile: 3 low pending Expo major upgrade).

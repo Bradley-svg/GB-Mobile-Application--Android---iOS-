@@ -5,7 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useAlerts, useSites } from '../../api/hooks';
 import { AppStackParamList } from '../../navigation/RootNavigator';
-import { Screen, Card, IconButton, PrimaryButton } from '../../components';
+import { Screen, Card, IconButton, ErrorCard, EmptyState } from '../../components';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
@@ -42,15 +42,20 @@ export const DashboardScreen: React.FC = () => {
   if (isError) {
     return (
       <Screen scroll={false} contentContainerStyle={styles.center}>
-        <Card style={styles.errorCard}>
-          <Text style={[typography.title2, styles.title, { marginBottom: spacing.xs }]}>
-            Failed to load sites
-          </Text>
-          <Text style={[typography.body, styles.muted, { marginBottom: spacing.md }]}>
-            Check your connection and try again.
-          </Text>
-          <PrimaryButton label="Retry" onPress={() => refetch()} />
-        </Card>
+        <ErrorCard
+          title="Couldn't load sites"
+          message="Check your connection and try again."
+          onRetry={() => refetch()}
+          testID="dashboard-error"
+        />
+      </Screen>
+    );
+  }
+
+  if (!isLoading && !isError && (data?.length ?? 0) === 0) {
+    return (
+      <Screen scroll={false} contentContainerStyle={styles.center}>
+        <EmptyState message="No sites available yet." testID="dashboard-empty" />
       </Screen>
     );
   }

@@ -15,7 +15,7 @@ import {
   useHeatPumpHistory,
 } from '../../api/hooks';
 import type { HeatPumpHistoryRequest } from '../../api/types';
-import { Screen, Card, PillTab, PrimaryButton, IconButton } from '../../components';
+import { Screen, Card, PillTab, PrimaryButton, IconButton, ErrorCard } from '../../components';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
@@ -90,6 +90,7 @@ export const DeviceDetailScreen: React.FC = () => {
       enabled: !!historyRequest,
     }
   );
+  const refetchHistory = heatPumpHistoryQuery.refetch;
 
   const siteName = useMemo(() => siteQuery.data?.name || 'Unknown site', [siteQuery.data]);
   const activeDeviceAlerts = useMemo(
@@ -163,6 +164,13 @@ export const DeviceDetailScreen: React.FC = () => {
   const deviceNotFound = (deviceQuery.isError || !deviceQuery.data) && !deviceQuery.isLoading;
   const telemetryLoading = telemetryQuery.isLoading;
   const telemetryError = telemetryQuery.isError;
+  const telemetryErrorObj = telemetryQuery.error;
+  const historyErrorObj = heatPumpHistoryQuery.error;
+
+  if (__DEV__) {
+    if (telemetryErrorObj) console.log('Telemetry load error', telemetryErrorObj);
+    if (historyErrorObj) console.log('Heat pump history load error', historyErrorObj);
+  }
 
   if (isLoading) {
     return (
@@ -301,12 +309,12 @@ export const DeviceDetailScreen: React.FC = () => {
         </View>
       )}
       {telemetryError && !telemetryLoading ? (
-        <Card style={styles.errorCard}>
-          <Text style={[typography.caption, styles.title, { marginBottom: spacing.sm }]}>
-            Failed to load telemetry.
-          </Text>
-          <PrimaryButton label="Retry" onPress={() => refetchTelemetry()} />
-        </Card>
+        <ErrorCard
+          title="Couldn't load telemetry"
+          message="Please try again."
+          onRetry={() => refetchTelemetry()}
+          testID="telemetry-error"
+        />
       ) : null}
 
       {!telemetryLoading && !telemetryError && (
@@ -380,7 +388,11 @@ export const DeviceDetailScreen: React.FC = () => {
         )}
 
         {heatPumpHistoryQuery.isError && !heatPumpHistoryQuery.isLoading && (
-          <Text style={[typography.caption, styles.cardError]}>Could not load heat pump history.</Text>
+          <ErrorCard
+            title="Could not load heat pump history."
+            onRetry={() => refetchHistory()}
+            testID="history-error"
+          />
         )}
 
         {!heatPumpHistoryQuery.isLoading &&

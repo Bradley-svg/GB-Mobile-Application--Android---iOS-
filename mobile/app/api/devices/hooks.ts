@@ -1,6 +1,17 @@
+import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../client';
 import type { ApiDevice, DeviceTelemetry } from '../types';
+
+const shouldRetry = (failureCount: number, error: unknown) => {
+  if (axios.isAxiosError(error)) {
+    const status = error.response?.status;
+    if (status && status < 500 && status !== 429) return false;
+  }
+  return failureCount < 2;
+};
+
+const retryDelay = (attempt: number) => attempt * 1000;
 
 export function useDevices(siteId: string) {
   return useQuery<ApiDevice[]>({
@@ -10,6 +21,8 @@ export function useDevices(siteId: string) {
       return res.data;
     },
     enabled: !!siteId,
+    retry: shouldRetry,
+    retryDelay,
   });
 }
 
@@ -21,6 +34,8 @@ export function useDevice(deviceId: string) {
       return res.data;
     },
     enabled: !!deviceId,
+    retry: shouldRetry,
+    retryDelay,
   });
 }
 
@@ -34,5 +49,7 @@ export function useDeviceTelemetry(deviceId: string, range: '24h' | '7d') {
       return res.data;
     },
     enabled: !!deviceId,
+    retry: shouldRetry,
+    retryDelay,
   });
 }

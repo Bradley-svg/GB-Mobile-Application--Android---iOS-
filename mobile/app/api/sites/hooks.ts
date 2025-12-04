@@ -1,6 +1,17 @@
+import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../client';
 import type { ApiSite } from '../types';
+
+const shouldRetry = (failureCount: number, error: unknown) => {
+  if (axios.isAxiosError(error)) {
+    const status = error.response?.status;
+    if (status && status < 500 && status !== 429) return false;
+  }
+  return failureCount < 2;
+};
+
+const retryDelay = (attempt: number) => attempt * 1000;
 
 export function useSites() {
   return useQuery<ApiSite[]>({
@@ -9,6 +20,8 @@ export function useSites() {
       const res = await api.get('/sites');
       return res.data;
     },
+    retry: shouldRetry,
+    retryDelay,
   });
 }
 
@@ -20,5 +33,7 @@ export function useSite(id: string) {
       return res.data;
     },
     enabled: !!id,
+    retry: shouldRetry,
+    retryDelay,
   });
 }

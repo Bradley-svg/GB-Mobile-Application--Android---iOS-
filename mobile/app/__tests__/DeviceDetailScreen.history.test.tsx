@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 import { DeviceDetailScreen } from '../screens/Device/DeviceDetailScreen';
 import {
   useDevice,
@@ -129,15 +129,20 @@ describe('DeviceDetailScreen heat pump history', () => {
   });
 
   it('shows an inline error when the history request fails', () => {
+    const refetchMock = jest.fn();
     (useHeatPumpHistory as jest.Mock).mockReturnValue({
       data: undefined,
       isLoading: false,
       isError: true,
+      refetch: refetchMock,
     });
 
     render(<DeviceDetailScreen />);
 
     expect(screen.getByText('Could not load heat pump history.')).toBeTruthy();
+    const retry = screen.getByText('Retry');
+    fireEvent.press(retry);
+    expect(refetchMock).toHaveBeenCalled();
   });
 
   it('disables history when mac is missing', () => {

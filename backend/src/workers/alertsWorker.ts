@@ -7,10 +7,16 @@ import {
 import { clearAlertIfExists, upsertActiveAlert } from '../services/alertService';
 import { sendAlertNotification } from '../services/pushService';
 import { markAlertsWorkerHeartbeat, upsertStatus } from '../services/statusService';
+import { logger } from '../utils/logger';
 
 const OFFLINE_MINUTES = Number(process.env.ALERT_OFFLINE_MINUTES || 10);
 const OFFLINE_CRITICAL_MINUTES = Number(process.env.ALERT_OFFLINE_CRITICAL_MINUTES || 60);
 const HIGH_TEMP_THRESHOLD = Number(process.env.ALERT_HIGH_TEMP_THRESHOLD || 60);
+const FAILURE_COOLDOWN_MS = 5000;
+const COMPONENT = 'alertsWorker';
+
+let inProgress = false;
+let lastFailureAt: Date | null = null;
 
 type OfflineMetrics = {
   offlineCount: number;
@@ -38,9 +44,7 @@ export async function evaluateOfflineAlerts(now: Date): Promise<OfflineMetrics> 
     const mutedUntil = row.muted_until ? new Date(row.muted_until) : null;
     if (mutedUntil && mutedUntil > now) {
       mutedCount += 1;
-      console.log(
-        `[alertsWorker] offline muted device=${row.id} until ${mutedUntil.toISOString()}`
-      );
+      logger.info(COMPONENT, 'offline muted device', { deviceId: row.id, mutedUntil });
       continue;
     }
 
@@ -67,7 +71,7 @@ export async function evaluateOfflineAlerts(now: Date): Promise<OfflineMetrics> 
     }
   }
 
-  console.log(`[alertsWorker] offline: ${offline.length} offline devices`);
+  logger.info(COMPONENT, 'offline check complete', { offlineCount: offline.length });
 
   const online = await findOnlineDevices(OFFLINE_MINUTES);
 
@@ -75,7 +79,7 @@ export async function evaluateOfflineAlerts(now: Date): Promise<OfflineMetrics> 
     await clearAlertIfExists(row.id, 'offline', now);
   }
 
-  console.log(`[alertsWorker] offline clear check complete (${online.length} devices)`);
+  logger.info(COMPONENT, 'offline clear check complete', { cleared: online.length });
 
   return { offlineCount: offline.length, clearedCount: online.length, mutedCount };
 }
@@ -114,23 +118,32 @@ export async function evaluateHighTempAlerts(now: Date): Promise<HighTempMetrics
       row.supply_temp > HIGH_TEMP_THRESHOLD
   ).length;
 
-  console.log(
-    `[alertsWorker] highTemp check complete (${snapshots.length} devices, ${overThresholdCount} above threshold)`
-  );
+  logger.info(COMPONENT, 'high temp check complete', {
+    evaluated: snapshots.length,
+    overThreshold: overThresholdCount,
+  });
 
   return { evaluatedCount: snapshots.length, overThresholdCount };
 }
 
 export async function runOnce(now: Date = new Date()) {
-  console.log(`[alertsWorker] cycle start at ${now.toISOString()}`);
+  if (inProgress) {
+    logger.warn(COMPONENT, 'cycle skipped: already running');
+    return { success: true, skipped: true };
+  }
+
+  inProgress = true;
+  logger.info(COMPONENT, 'cycle start', { at: now.toISOString() });
 
   try {
     const offlineMetrics = await evaluateOfflineAlerts(now);
     const highTempMetrics = await evaluateHighTempAlerts(now);
 
-    console.log(
-      `[alertsWorker] cycle complete at ${now.toISOString()} offline={checked:${offlineMetrics.offlineCount}, cleared:${offlineMetrics.clearedCount}, muted:${offlineMetrics.mutedCount}} highTemp={evaluated:${highTempMetrics.evaluatedCount}, over:${highTempMetrics.overThresholdCount}}`
-    );
+    logger.info(COMPONENT, 'cycle complete', {
+      at: now.toISOString(),
+      offline: offlineMetrics,
+      highTemp: highTempMetrics,
+    });
 
     try {
       const heartbeat: AlertsWorkerHeartbeat = {
@@ -140,29 +153,60 @@ export async function runOnce(now: Date = new Date()) {
       };
       await upsertStatus('alerts_worker', heartbeat);
     } catch (statusErr) {
-      console.error('[alertsWorker] failed to persist heartbeat', statusErr);
+      logger.error(COMPONENT, 'failed to persist heartbeat', { error: statusErr });
     }
 
     try {
       await markAlertsWorkerHeartbeat(now);
     } catch (statusErr) {
-      console.error('[alertsWorker] failed to record heartbeat timestamp', statusErr);
+      logger.error(COMPONENT, 'failed to record heartbeat timestamp', { error: statusErr });
     }
+
+    return { success: true };
   } catch (e) {
-    console.error('[alertsWorker] error', e);
+    logger.error(COMPONENT, 'cycle failed', { error: e });
+    return { success: false };
+  } finally {
+    inProgress = false;
   }
+}
+
+function scheduleNext(run: () => Promise<void>, delayMs: number) {
+  setTimeout(run, delayMs);
+}
+
+async function runManagedCycle(intervalMs: number) {
+  const startedAt = Date.now();
+  const result = await runOnce();
+  lastFailureAt = result.success ? null : new Date();
+
+  const baseDelay = intervalMs;
+  const delay = result.success ? baseDelay : baseDelay + FAILURE_COOLDOWN_MS;
+  logger.info(COMPONENT, 'scheduling next cycle', {
+    in: `${delay}ms`,
+    lastDurationMs: Date.now() - startedAt,
+    lastFailureAt: lastFailureAt ? lastFailureAt.toISOString() : null,
+  });
+  scheduleNext(() => runManagedCycle(intervalMs), delay);
 }
 
 export function start() {
   const intervalSec = Number(process.env.ALERT_WORKER_INTERVAL_SEC || 60);
-  console.log(
-    `[alertsWorker] starting (env=${process.env.NODE_ENV || 'development'}) offlineThresholds=${OFFLINE_MINUTES}min-warn/${OFFLINE_CRITICAL_MINUTES}min-crit highTemp=${HIGH_TEMP_THRESHOLD}C interval=${intervalSec}s`
-  );
+  logger.info(COMPONENT, 'starting', {
+    env: process.env.NODE_ENV || 'development',
+    offlineWarnMinutes: OFFLINE_MINUTES,
+    offlineCriticalMinutes: OFFLINE_CRITICAL_MINUTES,
+    highTempThreshold: HIGH_TEMP_THRESHOLD,
+    intervalSec,
+  });
 
-  runOnce();
-  setInterval(runOnce, intervalSec * 1000);
+  runManagedCycle(intervalSec * 1000);
 }
 
 if (require.main === module) {
   start();
+}
+
+export function getAlertsWorkerState() {
+  return { inProgress };
 }

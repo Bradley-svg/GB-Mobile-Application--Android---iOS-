@@ -1,6 +1,17 @@
+import axios from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../client';
 import type { Alert } from '../types';
+
+const shouldRetry = (failureCount: number, error: unknown) => {
+  if (axios.isAxiosError(error)) {
+    const status = error.response?.status;
+    if (status && status < 500 && status !== 429) return false;
+  }
+  return failureCount < 2;
+};
+
+const retryDelay = (attempt: number) => attempt * 1000;
 
 export function useAlerts(filters?: { status?: string; severity?: string; siteId?: string }) {
   const params: Record<string, string> = {};
@@ -14,6 +25,8 @@ export function useAlerts(filters?: { status?: string; severity?: string; siteId
       const res = await api.get('/alerts', { params });
       return res.data;
     },
+    retry: shouldRetry,
+    retryDelay,
   });
 }
 
@@ -25,6 +38,8 @@ export function useDeviceAlerts(deviceId: string) {
       return res.data;
     },
     enabled: !!deviceId,
+    retry: shouldRetry,
+    retryDelay,
   });
 }
 
