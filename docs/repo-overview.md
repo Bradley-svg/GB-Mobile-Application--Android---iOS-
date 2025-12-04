@@ -1,116 +1,36 @@
 # Greenbro Repo Overview
 
-## Repo structure
-- `backend/` – Node/Express API; owns auth, sites/devices CRUD, telemetry ingest, alerts/notifications, control commands, workers, SQL, and local DB init. Source now split into `src/config`, `src/controllers`, `src/services`, `src/repositories`, `src/integrations`, `src/middleware`, `src/workers`, `src/domain`, and `src/utils`.
-- `mobile/` – Expo React Native app (TS) with navigation, API hooks, shared components, auth store, and tests.
-- `archive/` – Legacy/mobile backup (`archive/mobile_workdir` with its own app copy), old node_modules backup, archived logs; not referenced by current code.
-- `docs/` – Screenshots and dev notes; no runtime imports.
-- `logs/` – Local runtime logs; ignored by git and unused by code. Root log/dump captures have been moved here.
-- `.github/` – CI workflow for backend and mobile.
-- Root helpers: `dev.ps1`/`dev.sh`, README, repo-level git config; stray PNGs/screenshots moved into `docs/`.
+## Repo map (current)
+- `backend/`: Express API split into `src/config` (DB/CORS/env), `src/controllers` (auth/sites/devices/alerts/health/heat-pump-history/telemetry stub), `src/services` (auth, telemetry ingest/read, alerts, control, push, status, users, sites/devices), `src/repositories` (users, refresh_tokens, sites, devices, telemetry points/snapshots, alerts, control_commands, push_tokens, system_status), `src/integrations` (MQTT, Expo push, HTTP control, Azure heat-pump history), `src/middleware` (auth, CORS, errors), `src/routes` (registration only), `src/workers` (mqttIngest, alertsWorker), `src/scripts` (backfill snapshots, debug heat-pump history), `src/sql` schemas, `src/index.ts` entrypoint.
+- `mobile/`: Expo app with `app/navigation/RootNavigator.tsx` (Auth vs App stacks; Dashboard/Alerts/Profile tabs; Site/Device/Alert detail), `app/screens` (Auth stubs, Dashboard, Site, Device with telemetry/control/history, Alerts list/detail, Profile), `app/components` (Screen, Card, PillTab, PrimaryButton, IconButton, styles), `app/api` (axios client + refresh, domain hooks for auth/sites/devices/alerts/control/heatPumpHistory, shared types), `app/store` (Zustand auth + SecureStore/AsyncStorage), `app/hooks` (push token registration), `app/theme` (tokens), `app/__tests__` (auth/nav/device/history/push/API refresh).
+- `archive/`: Legacy copies (`archive/mobile_workdir/`, `archive/node_modules_old_unused_backup/`, `archive/logs/`) kept isolated.
+- `docs/`: Repo notes and screenshots (moved `emulator-screen.png` and `screenshot.png` here).
+- `logs/`: Git-ignored runtime logs. A few dev logs remain under root/backend while locked by running node processes.
+- Helpers: root `dev.ps1`/`dev.sh`, `scripts/prepare-openai-image.js`, backend `scripts/init-local-db.js`, `src/scripts/backfillDeviceSnapshots.ts`, `src/scripts/debugHeatPumpHistory.ts`.
 
-## Backend (API)
-- **Entry points**: `src/index.ts` (Express app), `src/workers/mqttIngest.ts` (telemetry ingest), `src/workers/alertsWorker.ts` (alert evaluation). Script entries: `src/scripts/backfillDeviceSnapshots.ts` and `src/scripts/debugHeatPumpHistory.ts`. Runtime compiled to `dist/`.
-- **Source layout**:
-  - `src/config/` – env loaders and wiring (`config/db.ts`, CORS settings).
-  - `src/middleware/` – auth guard, CORS builder, error handler.
-  - `src/controllers/` – `authController`, `siteController`, `deviceController`, `alertController`, `healthController`, `telemetryController`.
-  - `src/routes/` – Express routers that wire controllers for health/auth/site/device/alert/telemetry.
-  - `src/services/` – auth/refresh token logic, site/device orchestration, telemetry ingest/parser, telemetry read API, control channel orchestration + status recording, alerts CRUD, push notifications + health check, user context helpers.
-  - `src/repositories/` – DB accessors for users/refresh tokens, sites/devices, telemetry points/snapshots, alerts, control commands, push tokens, system_status.
-  - `src/integrations/` – MQTT ingest client, HTTP control client, Expo push wrapper.
-  - `src/workers/` – `mqttIngest` wires MQTT messages into telemetry ingest service; `alertsWorker` does offline/high-temp checks and heartbeats.
-  - `src/domain/` – shared types (alerts, status, telemetry).
-  - `src/utils/` – helpers (organisation resolution, etc.).
-  - `src/scripts/` – `backfillDeviceSnapshots` utility and `debugHeatPumpHistory` payload probe.
-- **SQL**: `backend/sql/*.sql` for telemetry, alerts, control commands, push tokens, refresh tokens, system status schemas. `scripts/init-local-db.js` seeds demo org/site/device, telemetry history, snapshots, and alerts.
-- **External APIs**: control HTTP provider (`CONTROL_API_URL`/`CONTROL_API_KEY`), Expo push (`EXPO_ACCESS_TOKEN`), heat pump history (`HEATPUMP_HISTORY_URL` defaulting to the Azure endpoint + `HEATPUMP_HISTORY_API_KEY` for secure calls; Azure accepts the vendor payload with top-level `aggregation/from/to/mode/fields/mac` and responds with `series[].data` pairs that the client normalizes).
-- **npm scripts (backend/package.json)**: `dev`, `dev:mqtt`, `dev:alerts`, `script:backfill-snapshots`, `script:debug:heat-pump-history`, `build`, `start`, `typecheck`, `lint`, `test`, `test:watch`.
-- **Tests**: Vitest in `backend/test/**/*.test.ts` covering auth routes/config, site/device scoping, telemetry ingest parsing (MQTT + HTTP helper), telemetry read API, device control API/service, alerts worker (offline/high-temp) and ack/mute flows, push service, health-plus, app bootstrap. Coverage focuses on business logic and request handling; DB mocked in most suites.
+## Backend
+- Entrypoint: `src/index.ts` mounts CORS, JSON parsing, routers, and error handler; server start is skipped in tests.
+- Layering: controllers mostly call services; `healthController` directly queries the DB and `mqttClient` health helpers; `heatPumpHistoryController` calls the integration client directly; HTTP telemetry route is an intentional 501 stub pointing to MQTT ingest.
+- Config/env notes: JWT secret throws if unset in non-dev; CORS allowlist required in prod and allow-all only in non-prod with an empty list; heat-pump client supports both `HEATPUMP_*` and legacy `HEAT_PUMP_*` env names (standardise later); HTTP telemetry API key env exists but route stays disabled.
+- Integrations: MQTT ingest on `greenbro/+/+/telemetry`; control channel over HTTP (or MQTT) depending on env; Expo push with optional health sample; Azure heat-pump history client with timeout handling.
+- Health (2025-12-04 local): `npm install` ✅ (npm audit reports 7 vulns: 6 moderate, 1 high); `npm run typecheck` ✅; `npm run lint` ✅; `npm test` ✅ (vitest; expected mock upstream error log + Vite CJS deprecation warning); `npm run build` ✅.
+- Security/reliability/observability: auth uses JWT + refresh rotation, signup gated by env, reset-password returns 501; control/telemetry status recorded to `system_status` but workers run via long-lived MQTT client and `setInterval` without distributed lock/backoff; health-plus surfaces DB/MQTT/control/push/alerts worker signals; logging is console-based (no structured logs/metrics).
 
-## Mobile (Expo app)
-- **Entry**: `index.js` → `App.tsx`; App hydrates auth store, fetches `/auth/me`, registers push token, then renders `RootNavigator`.
-- **Layout**:
-  - `app/navigation/RootNavigator.tsx` – auth vs app stacks, tabs for Dashboard/Alerts/Profile, detail screens for Site/Device/Alert.
-  - `app/screens/` – Auth (Login/Signup/ForgotPassword stubs), Dashboard, Site overview, Device detail (telemetry + commands), Alerts list/detail, Profile.
-  - `app/components/` – shared primitives (`Screen`, `Card`, `PillTab`, `PrimaryButton`, `IconButton`, `surfaceStyles`).
-  - `app/api/` – `client.ts` (axios with refresh interceptor), `types.ts`, domain hook modules (`auth/hooks.ts`, `sites/hooks.ts`, `devices/hooks.ts`, `alerts/hooks.ts`, `control/hooks.ts`) with `hooks.ts` re-export.
-  - `app/store/authStore.ts` – zustand + SecureStore/AsyncStorage auth persistence.
-  - `app/hooks/useRegisterPushToken.ts` – expo-notifications token registration + backend POST.
-  - `app/theme/` – colors/spacing/typography tokens (UI primitives moved to `app/components/`).
-  - `app/constants/pushTokens.ts`, `app/__tests__/` for component/hooks/API tests; structure notes moved to `docs/mobile-structure-notes.md`.
-- **npm scripts (mobile/package.json)**: `start`, `android`, `ios`, `web`, `typecheck`, `lint`, `test`, `test:watch`.
-- **Tests**: Jest/Jest-Expo suites in `app/__tests__`: App hydration/auth fetch, axios refresh interceptor, navigation flow, device detail telemetry rendering, hooks (React Query) and push-token hook behaviour. Uses jest mocks for React Native/Expo.
+## Mobile
+- Navigation: RootNavigator swaps Auth vs App stacks; App tabs = Dashboard, Alerts, Profile; stack detail screens for Site, Device (telemetry charts, control commands, Azure history graph), Alert.
+- API/data: axios client with refresh interceptor; React Query hooks per domain; auth store hydrates from SecureStore and registers an Expo push token once per user.
+- Auth screens: Login is live; Signup/ForgotPassword are locked-down stubs with guidance.
+- Health (2025-12-04 local): `npm install` ✅ (npm audit reports 3 low vulns); `npm run typecheck` ✅; `npm run lint` ✅; `npm test -- --runInBand` ✅ (jest-expo; noisy console logs by design).
+- UX robustness: loading/error states are basic; control command errors show inline but limited retry cues; no offline handling; push token registration does not re-run on permission changes.
 
-## Archive, docs, logs
-- `archive/mobile_workdir/` is a legacy Expo app copy with its own node_modules; not imported anywhere (confirmed via ripgrep).
-- `archive/logs/` and `logs/` contain historical/local logs; not referenced by code.
-- `docs/` holds screenshots and `dev-setup.md`; no code imports.
+## Cleanup actions
+- Moved root screenshots (`emulator-screen.png`, `screenshot.png`) into `docs/`.
+- Tried to consolidate stray logs; two root runtime logs and backend dev logs are locked by active node processes, so left in place (all git-ignored). `logs/` remains the intended sink.
+- No code deletions this pass; HTTP telemetry stub kept intentionally.
 
-## CI
-- `.github/workflows/ci.yml` runs on push/PR:
-  - Backend job (`working-directory: backend`): `npm ci`, `npm run typecheck`, `npm run lint`, `npm test -- --runInBand`, `npm run build`.
-  - Mobile job (`working-directory: mobile`): `npm ci`, `npm run typecheck`, `npm run lint`, `npm test -- --runInBand` with `EXPO_PUBLIC_API_URL` set.
-
-## Health matrix (latest run: 2025-12-04 local)
-- Backend: typecheck – pass, lint – pass, tests – pass (`npm test`), build – pass.
-- Mobile: typecheck – pass, lint – pass, tests – pass (`npm test -- --runInBand`), build – not defined (Expo handles bundling).
-
-## Known vulnerabilities / audit
-- No npm audit config or advisory files present; no documented vulnerabilities in repo. Dependencies rely on upstream; rerun `npm audit` per package when ready.
-
-## Dead code / redundancy status
-- Backend:
-  - `statusService.getStatus`/`StatusRecord` removed as unused; status access goes through repositories/services only.
-  - HTTP telemetry ingest route kept as an explicit `501` stub for future HTTP providers (tests retained).
-- Mobile:
-  - `app/api/fakeData.ts` deleted.
-  - Unused `useSignup`/`useResetPassword` hooks removed from `app/api/hooks.ts`.
-  - `structure-notes.ts` moved to `docs/mobile-structure-notes.md`.
-  - `empty_tmp_for_delete/` already absent.
-- Archive/legacy: `archive/mobile_workdir/` and `archive/node_modules_old_unused_backup/` remain unused; keep quarantined.
-- Assets: root-level logs/XML moved to `logs/`; root PNGs/screenshots moved to `docs/`.
-
-## Refactor status
-- Phase 1 (file moves + path cleanups): **done 2025-12-04** – backend split into config/controllers/services/repositories/integrations/domain/utils; routes now delegate to controllers; mobile UI primitives moved to `app/components/`; API hooks split by domain; root logs/screenshots relocated.
-- Phase 2 (prune dead code/assets): **done 2025-12-04** – removed unused status accessor, deleted `app/api/fakeData.ts` and unused signup/reset hooks, moved structure notes to docs, cleaned root artefacts. HTTP telemetry stub retained intentionally as a 501 placeholder.
-- Phase 3+: planned – tighten typing and repository boundaries, richer status/push/control error reporting, improved mobile loading/error/command UX, and optional infra/tooling upgrades (CI caching, devcontainer/docker, env parity checks, stricter lint rules).
-
-## Upcoming refactor plan (Phase 3+)
-- Backend: tighten repository/domain typing, add error normalization and richer status/push/control health signals, and improve observability/backoff around MQTT/control/alerts.
-- Mobile: improve loading/error/empty states, surface control command failures, and refresh push tokens on permission changes.
-- Infra/CI/tooling: optional additions such as CI caching/coverage, npm audit/snyk, devcontainer/docker-compose for Postgres+MQTT, env parity checks, and stricter lint/TS rules.
-
-## Application Health (current snapshot)
-- Backend:
-  - **Type safety**: `tsconfig` strict + rootDir/outDir set; uses explicit types in services. DB layer relies on `process.env.DATABASE_URL` throw at import time (can break tests without env), and widespread `any` allowed by ESLint rule downgrade.
-  - **Linting**: ESLint recommended + @typescript-eslint; unused vars only warn (may hide dead code); no prettier formatting.
-  - **Tests**: Good coverage of auth tokens/routes, site/device scoping, telemetry ingest validation, health-plus, device control API/service, alerts worker logic, push health. Gaps: no integration/e2e against real Postgres or MQTT; limited coverage of error paths in control HTTP client and CORS config.
-  - **Known risks**: security – CORS allows all in non-prod; JWT secret default `dev-secret` unless env set; password reset unimplemented; control HTTP path trusts env without mTLS; refresh tokens stored but no IP/device binding. Reliability – MQTT ingest depends on env with minimal reconnect/backoff logic; alerts worker uses setInterval without job lock; HTTP telemetry stub disabled; status recording may silently swallow errors. Observability – limited logging/metrics; no structured logs.
-- Mobile:
-  - **Type safety**: strict TS; axios types; React Query hooks typed. Some any leakage via mocked data.
-  - **Linting**: ESLint recommended rules; React/React Hooks plugins enabled; minimal custom rules (react-in-jsx-scope off). No automatic formatting enforcement.
-  - **Tests**: Covers auth hydration and refresh retry, navigation gating, device detail rendering (telemetry + commands), push token hook. Gaps: no coverage for Alerts detail interactions (ack/mute), Dashboard metrics formatting, error/empty states, network failure handling, control command error UX.
-  - **Known risks**: security – no biometric/session timeout; push token registration skips device checks on simulator; API base URL baked via env, no runtime override UI. UX/reliability – loading/error states basic; control command UI may not surface backend errors; forgot password/signup screens are stubs; offline handling absent.
-
-### Traffic lights
-- Auth: 🟡 – JWT + refresh rotation exist, but no password reset and signup generally disabled; mobile lacks session expiry UX.
-- Telemetry ingest: 🟡 – MQTT path validated/tested; HTTP ingest disabled; no backpressure/duplicate handling; status health depends on system_status row presence.
-- Alerts/worker: 🟡 – worker logic tested; no distributed lock/cron guard; heartbeat only in DB.
-- Control/commands: 🟡 – supports HTTP or MQTT but relies on env; limited error surfacing to clients; no audit trail beyond control_commands.
-- Mobile navigation/auth gating: ✅ – clear auth gate with hydration and state-driven navigator; tested.
-- Mobile telemetry UI: 🟡 – renders charts/cards but limited error/empty handling and no retry/backoff cues.
-- Push notifications: 🟡 – Expo send path and health sample exist; requires EXPO_ACCESS_TOKEN/PUSH_HEALTHCHECK_* env; client registers token once and never refreshes on permission changes.
-
-## Phased refactor plan (forward-looking)
-- **Phase 3: Small internal refactors**
-  - Tighten repository typing; introduce/expand shared domain types; normalize errors in control/telemetry paths; improve status/push health reporting and observability.
-  - Add richer UI states (errors/empty/loading) and control command error toasts; refresh push token on permission change.
-  - Re-run full lint/typecheck/test.
-- **Phase 4: Optional improvements**
-  - CI: add backend lint/typecheck caching, coverage upload, mobile detox/e2e placeholder; add npm audit or snyk job.
-  - Tooling: devcontainer/docker-compose for Postgres + MQTT, add `.env.example` parity checks, stricter ESLint (no-explicit-any on), TS path aliases; consider observability (structured logging, health metrics), durable job scheduling, and feature flags for telemetry provider selection.
-
-## Vision assets / OpenAI guard
-- Fixed corrupted PNG screenshots (`docs/login.png`, `docs/tmp-login.png`, `mobile/emulator-screen.png`, `mobile/screen-1.png` and root copies) that were UTF-16/text-encoded and tripped OpenAI vision with `invalid_value` ("image data ... not valid").
-- Added `scripts/prepare-openai-image.js` to validate image signatures/extensions and emit a `data:<mime>;base64,...` `image_url` string before calling OpenAI; use it to sanity-check new screenshots before uploading.
+## Open risks / TODOs before more API work
+- Standardise heat-pump env naming (`HEATPUMP_*` vs `HEAT_PUMP_*`) and document the chosen scheme in code and `.env.example`.
+- Consider moving DB/integration calls in `healthController`/`heatPumpHistoryController` behind services to keep the layering strict.
+- Harden MQTT/alerts/control workers (reconnect/backoff, job locking/visibility) and add structured logs/metrics that feed health-plus.
+- Improve mobile error/offline states and control-command feedback; add retry/backoff patterns for data fetching.
+- Address or formally waive npm audit findings (backend: 6 moderate/1 high; mobile: 3 low).
