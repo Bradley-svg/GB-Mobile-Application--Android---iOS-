@@ -13,6 +13,9 @@ export type ApiDevice = {
   site_id: string;
   name: string;
   type: string;
+  external_id?: string | null;
+  mac?: string | null;
+  controller?: string | null;
   status?: string;
   last_seen_at?: string;
 };

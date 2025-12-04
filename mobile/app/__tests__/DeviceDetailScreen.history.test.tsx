@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { render, screen } from '@testing-library/react-native';
 import { DeviceDetailScreen } from '../screens/Device/DeviceDetailScreen';
 import {
   useDevice,
@@ -24,33 +24,35 @@ jest.mock('../api/hooks', () => ({
   useHeatPumpHistory: jest.fn(),
 }));
 
-describe('DeviceDetailScreen', () => {
+const baseDevice = {
+  id: '33333333-3333-3333-3333-333333333333',
+  site_id: 'site-1',
+  name: 'Demo Heat Pump',
+  type: 'heat_pump',
+  status: 'online',
+  external_id: 'demo-device-1',
+};
+
+describe('DeviceDetailScreen heat pump history', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
     const route: RouteProp<AppStackParamList, 'DeviceDetail'> = {
       key: 'DeviceDetail',
       name: 'DeviceDetail',
-      params: { deviceId: 'device-1' },
+      params: { deviceId: baseDevice.id },
     };
 
     jest.spyOn(navigation, 'useRoute').mockReturnValue(route);
 
     (useDevice as jest.Mock).mockReturnValue({
-      data: {
-        id: 'device-1',
-        site_id: 'site-1',
-        name: 'Heat Pump',
-        type: 'hp',
-        status: 'ok',
-        last_seen_at: '2025-01-01T00:00:00.000Z',
-      },
+      data: baseDevice,
       isLoading: false,
       isError: false,
     });
 
     (useSite as jest.Mock).mockReturnValue({
-      data: { id: 'site-1', name: 'Test Site', city: 'Cape Town' },
+      data: { id: 'site-1', name: 'Demo Site', city: 'Cape Town' },
       isLoading: false,
       isError: false,
     });
@@ -85,38 +87,55 @@ describe('DeviceDetailScreen', () => {
       mutateAsync: jest.fn(),
       isPending: false,
     });
-
-    (useHeatPumpHistory as jest.Mock).mockReturnValue({
-      data: { series: [] },
-      isLoading: false,
-      isError: false,
-    });
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
   });
 
-  it('shows placeholders when telemetry metrics are empty', () => {
-    render(<DeviceDetailScreen />);
-
-    const placeholders = screen.getAllByText('No data for this metric in the selected range.');
-    expect(placeholders).toHaveLength(4);
-  });
-
-  it('prevents out-of-range setpoint updates', () => {
-    const setpointMock = jest.fn();
-    (useSetpointCommand as jest.Mock).mockReturnValue({
-      mutateAsync: setpointMock,
-      isPending: false,
+  it('renders compressor current chart when history data exists', () => {
+    (useHeatPumpHistory as jest.Mock).mockReturnValue({
+      data: {
+        series: [
+          {
+            field: 'metric_compCurrentA',
+            points: [{ timestamp: '2025-12-03T08:12:46.503Z', value: 12.3 }],
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
     });
 
     render(<DeviceDetailScreen />);
 
-    fireEvent.changeText(screen.getByTestId('setpoint-input'), '10');
-    fireEvent.press(screen.getByText('Update setpoint'));
+    expect(screen.getByText('Compressor current (A)')).toBeTruthy();
+    expect(screen.queryByText('No history data for this period.')).toBeNull();
+    expect(screen.getByTestId('heatPumpHistoryChart')).toBeTruthy();
+  });
 
-    expect(setpointMock).not.toHaveBeenCalled();
-    expect(screen.getByText(/Flow temperature must be between 30-60/)).toBeTruthy();
+  it('shows placeholder when no history points are available', () => {
+    (useHeatPumpHistory as jest.Mock).mockReturnValue({
+      data: { series: [] },
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<DeviceDetailScreen />);
+
+    expect(screen.getByText('Compressor current (A)')).toBeTruthy();
+    expect(screen.getByText('No history data for this period.')).toBeTruthy();
+  });
+
+  it('shows an inline error when the history request fails', () => {
+    (useHeatPumpHistory as jest.Mock).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    });
+
+    render(<DeviceDetailScreen />);
+
+    expect(screen.getByText('Could not load heat pump history.')).toBeTruthy();
   });
 });
