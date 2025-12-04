@@ -110,3 +110,7 @@
 - **Phase 4: Optional improvements**
   - CI: add backend lint/typecheck caching, coverage upload, mobile detox/e2e placeholder; add npm audit or snyk job.
   - Tooling: devcontainer/docker-compose for Postgres + MQTT, add `.env.example` parity checks, stricter ESLint (no-explicit-any on), TS path aliases; consider observability (structured logging, health metrics), durable job scheduling, and feature flags for telemetry provider selection.
+
+## Vision assets / OpenAI guard
+- Fixed corrupted PNG screenshots (`docs/login.png`, `docs/tmp-login.png`, `mobile/emulator-screen.png`, `mobile/screen-1.png` and root copies) that were UTF-16/text-encoded and tripped OpenAI vision with `invalid_value` ("image data ... not valid").
+- Added `scripts/prepare-openai-image.js` to validate image signatures/extensions and emit a `data:<mime>;base64,...` `image_url` string before calling OpenAI; use it to sanity-check new screenshots before uploading.
