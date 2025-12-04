@@ -3,7 +3,13 @@ import { query } from '../config/db';
 export type DeviceRow = {
   id: string;
   site_id: string;
+  name?: string;
+  type?: string;
   external_id?: string | null;
+  mac?: string | null;
+  status?: string | null;
+  last_seen_at?: Date;
+  controller?: string | null;
 };
 
 export type OfflineDeviceRow = {
@@ -29,12 +35,12 @@ export async function getDeviceById(id: string, organisationId?: string) {
   `;
 
   const params = organisationId ? [id, organisationId] : [id];
-  const result = await query(baseSql, params);
+  const result = await query<DeviceRow>(baseSql, params);
   return result.rows[0] || null;
 }
 
 export async function getDevicesForSite(siteId: string, organisationId: string) {
-  const result = await query(
+  const result = await query<DeviceRow>(
     `
     select d.*
     from devices d

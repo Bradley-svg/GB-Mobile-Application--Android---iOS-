@@ -31,6 +31,7 @@ const baseDevice = {
   type: 'heat_pump',
   status: 'online',
   external_id: 'demo-device-1',
+  mac: '38:18:2B:60:A9:94',
 };
 
 describe('DeviceDetailScreen heat pump history', () => {
@@ -137,5 +138,29 @@ describe('DeviceDetailScreen heat pump history', () => {
     render(<DeviceDetailScreen />);
 
     expect(screen.getByText('Could not load heat pump history.')).toBeTruthy();
+  });
+
+  it('disables history when mac is missing', () => {
+    (useDevice as jest.Mock).mockReturnValue({
+      data: { ...baseDevice, mac: null },
+      isLoading: false,
+      isError: false,
+    });
+
+    (useHeatPumpHistory as jest.Mock).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<DeviceDetailScreen />);
+
+    expect(useHeatPumpHistory).toHaveBeenCalled();
+    const [, options] = (useHeatPumpHistory as jest.Mock).mock.calls[0] as [
+      unknown,
+      { enabled: boolean }
+    ];
+    expect(options.enabled).toBe(false);
+    expect(screen.getByText('No history data for this period.')).toBeTruthy();
   });
 });

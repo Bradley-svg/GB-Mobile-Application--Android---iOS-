@@ -11,6 +11,7 @@ vi.mock('../src/config/db', () => ({
 
 let app: Express;
 let token: string;
+const DEMO_HEATPUMP_MAC = '38:18:2B:60:A9:94';
 
 beforeAll(async () => {
   process.env.NODE_ENV = 'test';
@@ -58,6 +59,7 @@ describe('device and site scoping', () => {
             site_id: 'site-1',
             name: 'Heat Pump',
             external_id: 'ext-1',
+            mac: DEMO_HEATPUMP_MAC,
           },
         ],
         rowCount: 1,
@@ -69,6 +71,7 @@ describe('device and site scoping', () => {
       .expect(200);
 
     expect(res.body.id).toBe('device-1');
+    expect(res.body.mac).toBe(DEMO_HEATPUMP_MAC);
   });
 
   it('filters site devices by organisation', async () => {
@@ -78,7 +81,7 @@ describe('device and site scoping', () => {
         rowCount: 1,
       })
       .mockResolvedValueOnce({
-        rows: [{ id: 'device-2', site_id: 'site-2', name: 'Boiler' }],
+        rows: [{ id: 'device-2', site_id: 'site-2', name: 'Boiler', mac: null }],
         rowCount: 1,
       });
 
@@ -87,6 +90,8 @@ describe('device and site scoping', () => {
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(res.body).toEqual([{ id: 'device-2', site_id: 'site-2', name: 'Boiler' }]);
+    expect(res.body).toEqual([
+      { id: 'device-2', site_id: 'site-2', name: 'Boiler', mac: null },
+    ]);
   });
 });

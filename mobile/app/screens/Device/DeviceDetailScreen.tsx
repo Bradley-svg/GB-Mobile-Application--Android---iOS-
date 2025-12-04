@@ -27,9 +27,6 @@ type Navigation = NativeStackNavigationProp<AppStackParamList>;
 const SETPOINT_MIN = 30;
 const SETPOINT_MAX = 60;
 const DEFAULT_SETPOINT = '45';
-const DEMO_DEVICE_ID = '33333333-3333-3333-3333-333333333333';
-const DEMO_DEVICE_EXTERNAL_ID = 'demo-device-1';
-const DEMO_HEATPUMP_MAC = '38:18:2B:60:A9:94'; // TODO: replace with real per-device MAC from backend
 
 export const DeviceDetailScreen: React.FC = () => {
   const route = useRoute<Route>();
@@ -53,15 +50,7 @@ export const DeviceDetailScreen: React.FC = () => {
   const setpointMutation = useSetpointCommand(deviceId);
   const modeMutation = useModeCommand(deviceId);
   const refetchTelemetry = telemetryQuery.refetch;
-  const mac = useMemo(() => {
-    const deviceData = deviceQuery.data;
-    if (!deviceData) return null;
-    if (deviceData.mac) return deviceData.mac;
-    if (deviceData.id === DEMO_DEVICE_ID || deviceData.external_id === DEMO_DEVICE_EXTERNAL_ID) {
-      return DEMO_HEATPUMP_MAC;
-    }
-    return null;
-  }, [deviceQuery.data]);
+  const mac = deviceQuery.data?.mac ?? null;
 
   const now = new Date();
   const fromDate =
@@ -88,9 +77,19 @@ export const DeviceDetailScreen: React.FC = () => {
       }
     : null;
 
-  const heatPumpHistoryQuery = useHeatPumpHistory(historyRequest as HeatPumpHistoryRequest, {
-    enabled: !!historyRequest,
-  });
+  const heatPumpHistoryQuery = useHeatPumpHistory(
+    historyRequest ?? {
+      mac: '',
+      from: fromDate.toISOString(),
+      to: now.toISOString(),
+      aggregation: 'raw',
+      mode: 'live',
+      fields: [],
+    },
+    {
+      enabled: !!historyRequest,
+    }
+  );
 
   const siteName = useMemo(() => siteQuery.data?.name || 'Unknown site', [siteQuery.data]);
   const activeDeviceAlerts = useMemo(

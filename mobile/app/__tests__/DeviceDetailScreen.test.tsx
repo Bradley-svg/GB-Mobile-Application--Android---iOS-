@@ -43,6 +43,7 @@ describe('DeviceDetailScreen', () => {
         name: 'Heat Pump',
         type: 'hp',
         status: 'ok',
+        mac: '38:18:2B:60:A9:94',
         last_seen_at: '2025-01-01T00:00:00.000Z',
       },
       isLoading: false,
