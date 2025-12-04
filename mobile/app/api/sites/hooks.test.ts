@@ -11,7 +11,7 @@ describe('useSites retry config', () => {
     let receivedOptions: {
       retry: (failureCount: number, error: unknown) => boolean;
       retryDelay: (attempt: number) => number;
-    };
+    } | undefined;
     (useQuery as jest.Mock).mockImplementation((options) => {
       receivedOptions = options;
       return mockReturn;
@@ -19,14 +19,17 @@ describe('useSites retry config', () => {
 
     useSites();
 
-    expect(receivedOptions.retryDelay(2)).toBe(2000);
+    expect(receivedOptions).toBeDefined();
+    const options = receivedOptions!;
+
+    expect(options.retryDelay(2)).toBe(2000);
 
     const serverError = { isAxiosError: true, response: { status: 500 } };
-    expect(receivedOptions.retry(1, serverError)).toBe(true);
+    expect(options.retry(1, serverError)).toBe(true);
 
     const clientError = { isAxiosError: true, response: { status: 404 } };
-    expect(receivedOptions.retry(1, clientError)).toBe(false);
+    expect(options.retry(1, clientError)).toBe(false);
 
-    expect(receivedOptions.retry(3, serverError)).toBe(false);
+    expect(options.retry(3, serverError)).toBe(false);
   });
 });

@@ -15,17 +15,20 @@ export const LoginScreen: React.FC = () => {
   const loginMutation = useLogin();
 
   const onLogin = async () => {
-    if (!email || !password) {
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedEmail || !trimmedPassword) {
       Alert.alert('Error', 'Email and password are required');
       return;
     }
 
     try {
       setError(null);
-      console.log('LoginScreen: submitting login', { email, password });
+      console.log('LoginScreen: submitting login', { email: trimmedEmail });
       await loginMutation.mutateAsync({
-        email,
-        password,
+        email: trimmedEmail,
+        password: trimmedPassword,
       });
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
