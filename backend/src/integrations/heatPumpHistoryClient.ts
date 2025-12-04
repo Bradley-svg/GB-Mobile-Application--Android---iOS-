@@ -1,6 +1,6 @@
 const DEFAULT_HEATPUMP_HISTORY_URL =
   'https://za-iot-dev-api.azurewebsites.net/api/HeatPumpHistory/historyHeatPump';
-const REQUEST_TIMEOUT_MS = 10_000;
+const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
 
 export type HeatPumpHistoryField = {
   field: string;
@@ -35,8 +35,20 @@ export type HeatPumpHistoryResponse = {
 
 function resolveConfig() {
   const nodeEnv = process.env.NODE_ENV || 'development';
-  const url = process.env.HEATPUMP_HISTORY_URL?.trim() || DEFAULT_HEATPUMP_HISTORY_URL;
-  const apiKey = process.env.HEATPUMP_HISTORY_API_KEY?.trim();
+  const url =
+    process.env.HEATPUMP_HISTORY_URL?.trim() ||
+    process.env.HEAT_PUMP_HISTORY_URL?.trim() ||
+    DEFAULT_HEATPUMP_HISTORY_URL;
+  const apiKey =
+    process.env.HEATPUMP_HISTORY_API_KEY?.trim() ||
+    process.env.HEAT_PUMP_HISTORY_API_KEY?.trim();
+  const timeoutEnv =
+    process.env.HEATPUMP_HISTORY_TIMEOUT_MS || process.env.HEAT_PUMP_HISTORY_TIMEOUT_MS;
+  const parsedTimeout = timeoutEnv ? Number(timeoutEnv) : DEFAULT_REQUEST_TIMEOUT_MS;
+  const requestTimeoutMs =
+    Number.isFinite(parsedTimeout) && parsedTimeout > 0
+      ? parsedTimeout
+      : DEFAULT_REQUEST_TIMEOUT_MS;
 
   if (!url && nodeEnv !== 'development') {
     throw new Error('HEATPUMP_HISTORY_URL is required when NODE_ENV is not development');
@@ -46,7 +58,7 @@ function resolveConfig() {
     throw new Error('HEATPUMP_HISTORY_API_KEY is required when NODE_ENV is not development');
   }
 
-  return { url, apiKey };
+  return { url, apiKey, requestTimeoutMs };
 }
 
 function safeParseJson(text: string) {
@@ -134,10 +146,10 @@ function normalizeHeatPumpHistoryResponse(raw: unknown): HeatPumpHistoryResponse
 export async function fetchHeatPumpHistory(
   req: HeatPumpHistoryRequest
 ): Promise<HeatPumpHistoryResponse> {
-  const { url, apiKey } = resolveConfig();
+  const { url, apiKey, requestTimeoutMs } = resolveConfig();
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
 
   try {
     const res = await fetch(url, {
