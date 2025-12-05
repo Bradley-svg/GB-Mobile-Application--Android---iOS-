@@ -14,6 +14,10 @@ android
 # Logs & temp
 logs/
 *.log
+*.err
+android-*.err
+android-dumpsys*.txt
+ui.xml
 .codex-logs/
 *.tmp
 

@@ -1,6 +1,6 @@
-**Greenbro Build Status (post-5-maintenance tasks)**
+**Greenbro Build Status (full audit sweep – 2025-12-05)**
 
-Greenbro combines an Express/TypeScript API plus workers (MQTT ingest, alerts, control, push, heat-pump history) and an Expo React Native mobile app for monitoring and controlling heat pumps. This report reflects the state after the five recent refactor/maintenance prompts (env naming, new services, hardened workers, richer mobile states, npm audit fixes). Overall state: CI now provisions Postgres 16 for backend tests, so builds are **green** (typecheck/lint/build are green, mobile fully green; backend `npm test` runs against `greenbro_test` via TEST_DATABASE_URL + ALLOW_TEST_DB_RESET and still fails fast with a clear message if the test DB is missing).
+CI configuration is unchanged (see below), but local verification could not be re-run in this environment because Node/npm are unavailable and outbound package mirrors are blocked by the proxy (403 during `apt-get update`, `npm`/`node` not installed). No code was changed during the initial snapshot; hygiene clean-up removed committed Android log/dumpsys/UI artifacts and tightened ignore rules. The historical status from the previous maintenance cycle remains below for reference until checks can be re-run in a normal environment.
 
 **Repo Structure Snapshot (current)**
 - `backend/`: Layered Express API with config/controllers/services/repositories/integrations/middleware/routes/workers/scripts/sql/test plus compiled `dist/`.
