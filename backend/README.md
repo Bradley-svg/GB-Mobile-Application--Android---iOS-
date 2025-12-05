@@ -7,6 +7,7 @@ Node/Express API that powers the Greenbro mobile app. Includes authentication, s
 - `DATABASE_URL` should point to your Postgres database.
 - `JWT_SECRET` must be a long random string.
 - `APP_VERSION` can be set to surface a release identifier via `/health-plus`.
+- `LOG_LEVEL` controls the structured JSON logger level (info by default).
 - `MQTT_*` are required if MQTT ingest is enabled.
 - `ALERT_OFFLINE_MINUTES` / `ALERT_OFFLINE_CRITICAL_MINUTES` set the warning vs critical thresholds for offline alerts (only critical sends push); `ALERT_HIGH_TEMP_THRESHOLD` controls high-temp alerts.
 - `TELEMETRY_*` and `CONTROL_*` are only needed if using HTTP providers.
@@ -26,14 +27,14 @@ Node/Express API that powers the Greenbro mobile app. Includes authentication, s
 
 Environment files `.env.development`, `.env.staging`, and `.env.production` should **not** be committed; only `.env.example` is tracked as the template. CORS can be tightened per-environment later (e.g., restrict allowed origins in staging/prod while keeping local development more permissive).
 
+## Database migrations
+- Schema is managed via `node-pg-migrate` under `backend/migrations/`. Run `npm run migrate:dev` (or `npm run migrate` with `DATABASE_URL` set) to apply migrations locally, and `npm run migrate:test` against `TEST_DATABASE_URL` for test databases.
+- The legacy `sql/*.sql` files remain as references, but new changes should be captured as migrations.
+- `scripts/init-local-db.js` now seeds demo data and expects the migrations to have already run.
+
 ## Telemetry storage
 
-SQL to create telemetry tables (run against your Postgres instance):
-
-- `sql/telemetry_schema.sql` - creates `telemetry_points` (time series) and `device_snapshots` (latest view) with indexes.
-- `sql/alerts_schema.sql` - creates alert tables with indexes for status and severity.
-- `sql/push_tokens_schema.sql` - stores Expo push tokens per user for notifications.
-- `sql/refresh_tokens_schema.sql` - keeps refresh token rotation/revocation records.
+Telemetry data lives in `telemetry_points` (time series) and `device_snapshots` (latest view), created via migrations with supporting indexes. `alerts`, `control_commands`, `push_tokens`, `refresh_tokens`, and `system_status` are also migration-managed.
 
 ## Telemetry Ingest & Schema
 
@@ -115,6 +116,10 @@ Alerts logic and the mobile UI depend on these metric names (`supply_temp`, `ret
 
 ```bash
 npm install
+# Apply migrations
+npm run migrate:dev
+# Seed demo data (sites/devices/sample telemetry)
+node scripts/init-local-db.js
 # API server
 npm run dev
 # MQTT ingest worker (requires MQTT_* env vars)

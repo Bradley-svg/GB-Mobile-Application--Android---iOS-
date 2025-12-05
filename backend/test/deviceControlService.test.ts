@@ -25,11 +25,13 @@ vi.mock('../src/services/statusService', () => ({
   markControlCommandError: (...args: unknown[]) => markControlCommandErrorMock(...args),
 }));
 
-vi.mock('../src/utils/logger', () => ({
+vi.mock('../src/config/logger', () => ({
   logger: {
-    info: (...args: unknown[]) => loggerInfoMock(...args),
-    warn: (...args: unknown[]) => loggerWarnMock(...args),
-    error: (...args: unknown[]) => loggerErrorMock(...args),
+    child: () => ({
+      info: (...args: unknown[]) => loggerInfoMock(...args),
+      warn: (...args: unknown[]) => loggerWarnMock(...args),
+      error: (...args: unknown[]) => loggerErrorMock(...args),
+    }),
   },
 }));
 
@@ -227,14 +229,12 @@ describe('deviceControlService', () => {
     expect(updateCall[0]).toContain('update control_commands');
     expect(updateCall[1]).toEqual(['cmd-1', 'publish failed', 'SEND_FAILED']);
     expect(loggerInfoMock).toHaveBeenCalledWith(
-      'command',
-      'attempting setpoint command',
-      expect.objectContaining({ deviceId: 'device-1', deviceExternalId: 'ext-1' })
+      expect.objectContaining({ deviceId: 'device-1', deviceExternalId: 'ext-1' }),
+      'attempting setpoint command'
     );
     expect(loggerErrorMock).toHaveBeenCalledWith(
-      'command',
-      'setpoint publish failed',
-      expect.objectContaining({ deviceExternalId: 'ext-1' })
+      expect.objectContaining({ deviceExternalId: 'ext-1' }),
+      'setpoint publish failed'
     );
   });
 

@@ -1,8 +1,10 @@
 import { Expo, ExpoPushMessage, ExpoPushTicket } from 'expo-server-sdk';
+import { logger } from '../../config/logger';
 
 const expo = new Expo({
   accessToken: process.env.EXPO_ACCESS_TOKEN,
 });
+const log = logger.child({ module: 'push' });
 
 export function isExpoPushToken(token: string) {
   return Expo.isExpoPushToken(token);
@@ -17,7 +19,7 @@ export async function sendPushNotifications(messages: ExpoPushMessage[]): Promis
       const result = await expo.sendPushNotificationsAsync(chunk);
       tickets.push(...(result ?? []));
     } catch (err) {
-      console.error('Error sending push notifications', err);
+      log.error({ err }, 'error sending push notifications');
       throw err;
     }
   }

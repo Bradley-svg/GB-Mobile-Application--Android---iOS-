@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { QueryResultRow } from 'pg';
 import { query } from '../config/db';
+import { logger } from '../config/logger';
 
 type SnapshotMetrics = {
   supply_temp: number | null;
@@ -16,6 +17,7 @@ type SnapshotRow = QueryResultRow & {
 };
 
 const METRIC_KEYS = ['supply_temp', 'return_temp', 'power_kw', 'flow_rate', 'cop'] as const;
+const log = logger.child({ module: 'backfillDeviceSnapshots' });
 
 const isNumber = (value: unknown): value is number =>
   typeof value === 'number' && !Number.isNaN(value);
@@ -113,12 +115,12 @@ async function main() {
     updated += 1;
   }
 
-  console.log(`[backfill] updated ${updated} of ${res.rows.length} device_snapshots rows`);
+  log.info({ updated, total: res.rows.length }, 'backfill completed');
 }
 
 main()
   .catch((err) => {
-    console.error('[backfill] error', err);
+    log.error({ err }, 'backfill error');
     process.exitCode = 1;
   })
   .finally(() => process.exit());

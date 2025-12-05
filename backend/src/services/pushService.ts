@@ -13,6 +13,7 @@ import {
   upsertUserPushToken,
 } from '../repositories/pushTokensRepository';
 import { markPushSampleResult } from './statusService';
+import { logger } from '../config/logger';
 
 const PUSH_HEALTHCHECK_ENABLED = process.env.PUSH_HEALTHCHECK_ENABLED === 'true';
 const PUSH_HEALTHCHECK_INTERVAL_MINUTES = Number(
@@ -33,12 +34,13 @@ export type PushHealthStatus = {
 };
 
 let lastPushSample: PushHealthSample | null = null;
+const log = logger.child({ module: 'push' });
 
 async function recordPushSample(now: Date, err: unknown) {
   try {
     await markPushSampleResult(now, err);
   } catch (statusErr) {
-    console.warn('[push] failed to record push health sample', statusErr);
+    log.warn({ err: statusErr }, 'failed to record push health sample');
   }
 }
 
@@ -76,15 +78,16 @@ export async function sendAlertNotification(alert: AlertRow) {
 
   const mutedUntil = alert.muted_until ? new Date(alert.muted_until) : null;
   if (mutedUntil && mutedUntil > new Date()) {
-    console.log(
-      `[push] skipping notification for alert=${alert.id} muted_until=${mutedUntil.toISOString()}`
+    log.info(
+      { alertId: alert.id, mutedUntil: mutedUntil.toISOString() },
+      'skipping notification for muted alert'
     );
     return;
   }
 
   const organisationId = await resolveOrganisationIdForAlert(alert);
   if (!organisationId) {
-    console.warn(`[push] skipping alert=${alert.id} because organisation is unknown`);
+    log.warn({ alertId: alert.id }, 'skipping alert push because organisation is unknown');
     return;
   }
 
@@ -97,7 +100,7 @@ export async function sendAlertNotification(alert: AlertRow) {
 
   for (const token of tokens) {
     if (!isExpoPushToken(token)) {
-      console.warn(`Invalid Expo push token: ${token}`);
+      log.warn({ token: maskToken(token) }, 'invalid Expo push token');
       continue;
     }
 
@@ -117,9 +120,9 @@ export async function sendAlertNotification(alert: AlertRow) {
 
   try {
     const tickets = await sendPushNotifications(messages);
-    console.log('Push tickets sent:', (tickets ?? []).length);
+    log.info({ tickets: (tickets ?? []).length }, 'push tickets sent');
   } catch (e) {
-    console.error('Error sending push notifications', e);
+    log.error({ err: e }, 'error sending push notifications');
   }
 }
 

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { getDeviceByExternalId } from '../repositories/devicesRepository';
 import { insertTelemetryBatch, upsertDeviceSnapshot } from '../repositories/telemetryRepository';
+import { logger } from '../config/logger';
 
 type ParsedTopic = {
   siteExternalId: string;
@@ -32,6 +33,7 @@ export const telemetryPayloadSchema = z
   .strict();
 
 export type TelemetryPayload = z.infer<typeof telemetryPayloadSchema>;
+const log = logger.child({ module: 'telemetry' });
 
 function parseTopic(topic: string): ParsedTopic | null {
   const parts = topic.split('/');
@@ -50,17 +52,14 @@ function parsePayload(raw: Buffer | unknown, source: string): TelemetryPayload |
     try {
       decoded = JSON.parse(raw.toString('utf8'));
     } catch (e) {
-      console.error('Failed to parse MQTT payload', { source, error: e });
+      log.error({ err: e, source }, 'failed to parse MQTT payload');
       return null;
     }
   }
 
   const parsed = telemetryPayloadSchema.safeParse(decoded);
   if (!parsed.success) {
-    console.warn('[telemetry] payload validation failed', {
-      source,
-      issues: parsed.error.flatten().fieldErrors,
-    });
+    log.warn({ source, issues: parsed.error.flatten().fieldErrors }, 'payload validation failed');
     return null;
   }
 
@@ -87,7 +86,7 @@ async function storeTelemetry(deviceId: string, payload: TelemetryPayload, sourc
   );
 
   if (entries.length === 0) {
-    console.log('[telemetry] payload had no numeric metrics; skipping insert');
+    log.info({ deviceId, source }, 'payload had no numeric metrics; skipping insert');
     return false;
   }
 
@@ -105,8 +104,9 @@ async function storeTelemetry(deviceId: string, payload: TelemetryPayload, sourc
 
   await upsertDeviceSnapshot(deviceId, ts, snapshotData);
 
-  console.log(
-    `[telemetry] stored telemetry device=${deviceId} metrics=${entries.length} ts=${ts.toISOString()} source=${source}`
+  log.info(
+    { deviceId, metrics: entries.length, ts: ts.toISOString(), source },
+    'stored telemetry'
   );
 
   return true;
@@ -115,20 +115,25 @@ async function storeTelemetry(deviceId: string, payload: TelemetryPayload, sourc
 export async function handleTelemetryMessage(topic: string, payload: Buffer) {
   const parsedTopic = parseTopic(topic);
   if (!parsedTopic) {
-    console.warn('Ignoring unknown topic', topic);
+    log.warn({ topic }, 'ignoring unknown topic');
     return false;
   }
 
   const { deviceExternalId, siteExternalId } = parsedTopic;
   const device = await getDeviceByExternalId(deviceExternalId);
   if (!device) {
-    console.warn('No device mapped for external id', deviceExternalId);
+    log.warn({ deviceExternalId }, 'no device mapped for external id');
     return false;
   }
 
   if (device.site_external_id && device.site_external_id !== siteExternalId) {
-    console.warn(
-      `[telemetry] topic site ${siteExternalId} does not match device site ${device.site_external_id} for ${deviceExternalId}`
+    log.warn(
+      {
+        topicSite: siteExternalId,
+        deviceSite: device.site_external_id,
+        deviceExternalId,
+      },
+      'telemetry topic site does not match device site'
     );
     return false;
   }
@@ -147,7 +152,7 @@ export async function handleHttpTelemetryIngest(params: {
 }) {
   const device = await getDeviceByExternalId(params.deviceExternalId);
   if (!device) {
-    console.warn('No device mapped for external id', params.deviceExternalId);
+    log.warn({ deviceExternalId: params.deviceExternalId }, 'no device mapped for external id');
     return false;
   }
 

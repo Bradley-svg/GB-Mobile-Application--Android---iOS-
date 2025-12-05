@@ -4,11 +4,13 @@ import { getMqttHealth } from '../integrations/mqttClient';
 import { runPushHealthCheck, type PushHealthStatus } from './pushService';
 import { SystemStatus } from '../domain/status';
 import { getSystemStatus } from './statusService';
+import { logger } from '../config/logger';
 
 const MQTT_INGEST_STALE_MS = 5 * 60 * 1000;
 const MQTT_ERROR_WINDOW_MS = 5 * 60 * 1000;
 const CONTROL_ERROR_WINDOW_MS = 10 * 60 * 1000;
 const HEAT_PUMP_HISTORY_STALE_MS = 6 * 60 * 60 * 1000;
+const log = logger.child({ module: 'health' });
 
 function toIso(value: Date | string | null | undefined) {
   if (!value) return null;
@@ -92,7 +94,7 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
     try {
       pushHealth = await runPushHealthCheck();
     } catch (pushErr) {
-      console.error('[health-plus] push health check failed', pushErr);
+      log.error({ err: pushErr }, 'push health check failed');
     }
 
     let systemStatus: SystemStatus | null = null;
@@ -101,7 +103,7 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
       systemStatus = await getSystemStatus();
     } catch (statusErr) {
       statusLoadFailed = true;
-      console.error('[health-plus] failed to load system_status', statusErr);
+      log.error({ err: statusErr }, 'failed to load system_status');
     }
 
     const mqttLastIngestAt = systemStatus?.mqtt_last_ingest_at ?? null;
@@ -206,6 +208,7 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
 
     return { status: 200, body };
   } catch (error) {
+    log.error({ err: error }, 'health-plus failed');
     const fallback: HealthPlusPayload = {
       ok: false,
       env,

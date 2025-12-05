@@ -37,6 +37,9 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
+      - run: npm run migrate:test
+        env:
+          TEST_DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
       - run: npm test -- --runInBand
         env:
           NODE_ENV: test

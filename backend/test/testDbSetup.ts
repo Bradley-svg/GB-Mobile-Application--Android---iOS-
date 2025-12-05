@@ -1,19 +1,10 @@
-import fs from 'fs/promises';
 import path from 'path';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import { Client } from 'pg';
+import { run as runMigrations, RunnerOption } from 'node-pg-migrate';
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
-
-const SCHEMA_FILES = [
-  'sql/telemetry_schema.sql',
-  'sql/alerts_schema.sql',
-  'sql/control_commands_schema.sql',
-  'sql/push_tokens_schema.sql',
-  'sql/refresh_tokens_schema.sql',
-  'sql/system_status_schema.sql',
-] as const;
 
 const DEFAULT_IDS = {
   organisation: '11111111-1111-1111-1111-111111111111',
@@ -23,9 +14,10 @@ const DEFAULT_IDS = {
 };
 
 const DEMO_HEATPUMP_MAC = '38:18:2B:60:A9:94';
+const MIGRATIONS_DIR = path.resolve(__dirname, '../migrations');
 
 let adminClient: Client | null = null;
-let schemaPrepared = false;
+let migrationsApplied = false;
 
 function getTestDatabaseUrl(): string {
   const url = process.env.TEST_DATABASE_URL;
@@ -78,70 +70,26 @@ async function getClient(): Promise<Client> {
   }
 }
 
-async function applyBaseSchema(client: Client) {
-  await client.query('create extension if not exists "uuid-ossp";');
-  await client.query('create extension if not exists "pgcrypto";');
+async function ensureMigrations(connectionString: string) {
+  if (migrationsApplied) return;
+  process.env.NODE_ENV = process.env.NODE_ENV || 'test';
 
-  await client.query(`
-    create table if not exists organisations (
-      id uuid primary key,
-      name text not null,
-      created_at timestamptz not null default now()
-    );
+  const options: RunnerOption = {
+    databaseUrl: connectionString,
+    dir: MIGRATIONS_DIR,
+    direction: 'up',
+    migrationsTable: 'pgmigrations',
+    count: Infinity,
+    singleTransaction: true,
+    logger: {
+      info: () => {},
+      warn: (msg: string) => console.warn(msg),
+      error: (msg: string) => console.error(msg),
+    },
+  };
 
-    create table if not exists users (
-      id uuid primary key default uuid_generate_v4(),
-      organisation_id uuid not null references organisations(id),
-      email text not null unique,
-      password_hash text not null,
-      name text not null,
-      created_at timestamptz not null default now()
-    );
-
-    create table if not exists sites (
-      id uuid primary key default uuid_generate_v4(),
-      organisation_id uuid not null references organisations(id),
-      name text not null,
-      city text,
-      status text default 'healthy',
-      last_seen_at timestamptz default now(),
-      online_devices integer default 0,
-      device_count_online integer default 0,
-      external_id text,
-      created_at timestamptz not null default now()
-    );
-
-    alter table sites
-      add column if not exists external_id text;
-
-    create table if not exists devices (
-      id uuid primary key default uuid_generate_v4(),
-      site_id uuid not null references sites(id) on delete cascade,
-      name text not null,
-      type text default 'heat_pump',
-      external_id text,
-      mac text,
-      status text default 'online',
-      last_seen_at timestamptz default now(),
-      controller text,
-      created_at timestamptz not null default now()
-    );
-  `);
-}
-
-async function applySqlFiles(client: Client) {
-  for (const file of SCHEMA_FILES) {
-    const filePath = path.resolve(__dirname, '..', file);
-    const sql = await fs.readFile(filePath, 'utf8');
-    await client.query(sql);
-  }
-}
-
-async function ensureSchema(client: Client) {
-  if (schemaPrepared) return;
-  await applyBaseSchema(client);
-  await applySqlFiles(client);
-  schemaPrepared = true;
+  await runMigrations(options);
+  migrationsApplied = true;
 }
 
 async function seedBaseData(client: Client) {
@@ -258,7 +206,8 @@ async function resetTables(client: Client) {
         sites,
         users,
         organisations,
-        system_status
+        system_status,
+        worker_locks
       restart identity cascade
     `);
 
@@ -266,14 +215,14 @@ async function resetTables(client: Client) {
 }
 
 export async function setupTestDb() {
+  await ensureMigrations(getTestDatabaseUrl());
   const client = await getClient();
-  await ensureSchema(client);
   await resetTables(client);
 }
 
 export async function resetTestDb() {
+  await ensureMigrations(getTestDatabaseUrl());
   const client = await getClient();
-  await ensureSchema(client);
   await resetTables(client);
 }
 
@@ -291,6 +240,6 @@ export async function teardownTestDb() {
   } catch (err) {
     // Ignore teardown errors to avoid masking test failures
   } finally {
-    schemaPrepared = false;
+    migrationsApplied = false;
   }
 }

@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { logger } from '../config/logger';
 
 /**
  * Debug helper to probe Azure's heat pump history API payload shape.
@@ -12,6 +13,8 @@ type CandidatePayload = {
   label: string;
   body: unknown;
 };
+
+const log = logger.child({ module: 'debugHeatPumpHistory' });
 
 function resolveConfig() {
   const nodeEnv = process.env.NODE_ENV || 'development';
@@ -107,8 +110,7 @@ async function sendPayload(label: string, body: unknown) {
     headers['x-api-key'] = apiKey;
   }
 
-  console.log(`\n[${label}] Sending payload:`);
-  console.log(JSON.stringify(body, null, 2));
+  log.info({ label, payload: body }, 'sending payload to heat pump history');
 
   try {
     const res = await fetch(url, {
@@ -119,17 +121,20 @@ async function sendPayload(label: string, body: unknown) {
     });
 
     const responseText = await res.text().catch(() => '');
-    console.log(`[${label}] Status: ${res.status} ${res.statusText ?? ''}`.trim());
-    console.log(
-      `[${label}] Response preview (first 500 chars): ${
-        responseText ? responseText.slice(0, 500) : '<empty>'
-      }`
+    log.info(
+      {
+        label,
+        status: res.status,
+        statusText: res.statusText ?? '',
+        bodyPreview: responseText ? responseText.slice(0, 500) : '<empty>',
+      },
+      'received response'
     );
   } catch (err) {
     if ((err as Error).name === 'AbortError') {
-      console.error(`[${label}] Request aborted after ${requestTimeoutMs}ms`);
+      log.error({ label, err, requestTimeoutMs }, 'request aborted');
     } else {
-      console.error(`[${label}] Error`, err);
+      log.error({ label, err }, 'request failed');
     }
   } finally {
     clearTimeout(timeout);
@@ -143,22 +148,18 @@ export async function run() {
   const candidates = buildCandidatePayloads(from, to);
   const { url, apiKey, requestTimeoutMs } = resolveConfig();
 
-  console.log('Debugging heat pump history payloads...', {
-    url,
-    hasApiKey: Boolean(apiKey),
-    requestTimeoutMs,
-  });
+  log.info({ url, hasApiKey: Boolean(apiKey), requestTimeoutMs }, 'debugging heat pump history payloads');
 
   for (const candidate of candidates) {
     await sendPayload(candidate.label, candidate.body);
   }
 
-  console.log('\nDone probing payload shapes.');
+  log.info('done probing payload shapes');
 }
 
 if (require.main === module) {
   run().catch((err) => {
-    console.error(err);
+    log.error({ err }, 'debug heat pump history script failed');
     process.exit(1);
   });
 }

@@ -28,11 +28,13 @@ vi.mock('mqtt', () => ({
   connect: (...args: unknown[]) => connectMock(...args),
 }));
 
-vi.mock('../src/utils/logger', () => ({
+vi.mock('../src/config/logger', () => ({
   logger: {
-    info: (...args: unknown[]) => loggerInfoMock(...args),
-    warn: (...args: unknown[]) => loggerWarnMock(...args),
-    error: (...args: unknown[]) => loggerErrorMock(...args),
+    child: () => ({
+      info: (...args: unknown[]) => loggerInfoMock(...args),
+      warn: (...args: unknown[]) => loggerWarnMock(...args),
+      error: (...args: unknown[]) => loggerErrorMock(...args),
+    }),
   },
 }));
 
@@ -74,7 +76,7 @@ describe('mqttClient backoff', () => {
 
     lastClient.emit('close');
 
-    expect(loggerWarnMock).toHaveBeenCalledWith('mqttIngest', 'connection closed');
+    expect(loggerWarnMock).toHaveBeenCalledWith('connection closed');
     expect(setTimeoutSpy).toHaveBeenCalled();
     const delay = setTimeoutSpy.mock.calls[0][1] as number;
     expect(delay).toBeGreaterThan(0);

@@ -1,7 +1,7 @@
 import mqtt, { MqttClient } from 'mqtt';
 import { handleTelemetryMessage } from '../services/telemetryIngestService';
 import { markMqttIngestError, markMqttIngestSuccess } from '../services/statusService';
-import { logger } from '../utils/logger';
+import { logger } from '../config/logger';
 
 let client: MqttClient | null = null;
 let messageCount = 0;
@@ -14,12 +14,13 @@ const BASE_RECONNECT_MS = 1000;
 const MAX_RECONNECT_MS = 30_000;
 let reconnectDelayMs = BASE_RECONNECT_MS;
 const COMPONENT = 'mqttIngest';
+const log = logger.child({ module: COMPONENT });
 
 async function safeMarkMqttSuccess(now: Date) {
   try {
     await markMqttIngestSuccess(now);
   } catch (statusErr) {
-    logger.warn(COMPONENT, 'failed to record ingest success', { error: statusErr });
+    log.warn({ err: statusErr }, 'failed to record ingest success');
   }
 }
 
@@ -27,7 +28,7 @@ async function safeMarkMqttError(now: Date, err: unknown) {
   try {
     await markMqttIngestError(now, err);
   } catch (statusErr) {
-    logger.warn(COMPONENT, 'failed to record ingest error', { error: statusErr });
+    log.warn({ err: statusErr }, 'failed to record ingest error');
   }
 }
 
@@ -76,7 +77,7 @@ function scheduleReconnect(reason: string) {
   if (reconnectTimer) return;
   const delay = reconnectDelayMs;
   reconnectDelayMs = Math.min(reconnectDelayMs * 2, MAX_RECONNECT_MS);
-  logger.warn(COMPONENT, 'scheduling reconnect', { reason, delayMs: delay });
+  log.warn({ reason, delayMs: delay }, 'scheduling reconnect');
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null;
     initConnection(true);
@@ -94,7 +95,7 @@ function initConnection(isRetry: boolean) {
   const password = process.env.MQTT_PASSWORD;
 
   if (!url) {
-    logger.warn(COMPONENT, 'MQTT_URL not set; MQTT ingest is disabled');
+    log.warn({ reason: 'missing-url' }, 'MQTT_URL not set; MQTT ingest is disabled');
     return null;
   }
 
@@ -106,27 +107,27 @@ function initConnection(isRetry: boolean) {
 
   client.on('connect', () => {
     resetBackoff();
-    logger.info(COMPONENT, 'connected to broker', { broker: formatBroker(url), retry: isRetry });
+    log.info({ broker: formatBroker(url), retry: isRetry }, 'connected to broker');
     lastConnectAt = new Date();
     lastError = null;
     client!.subscribe('greenbro/+/+/telemetry', (err) => {
       if (err) {
-        logger.error(COMPONENT, 'subscribe error', { error: err });
+        log.error({ err }, 'subscribe error');
       } else {
-        logger.info(COMPONENT, 'subscribed to telemetry topics');
+        log.info('subscribed to telemetry topics');
       }
     });
   });
 
   client.on('reconnect', () => {
-    logger.info(COMPONENT, 'reconnecting to broker', { broker: formatBroker(url) });
+    log.info({ broker: formatBroker(url) }, 'reconnecting to broker');
   });
 
   client.on('message', async (topic, payload) => {
     messageCount += 1;
     const now = new Date();
     lastMessageAt = now;
-    logger.info(COMPONENT, 'message received', { count: messageCount, topic });
+    log.info({ count: messageCount, topic }, 'message received');
 
     try {
       const ok = await handleTelemetryMessage(topic, payload);
@@ -136,20 +137,20 @@ function initConnection(isRetry: boolean) {
         await safeMarkMqttError(now, 'telemetry ingest returned false');
       }
     } catch (e) {
-      logger.error(COMPONENT, 'failed to handle MQTT message', { error: e });
+      log.error({ err: e, topic }, 'failed to handle MQTT message');
       await safeMarkMqttError(new Date(), e);
     }
   });
 
   client.on('error', (err) => {
-    logger.error(COMPONENT, 'client error', { error: err });
+    log.error({ err }, 'client error');
     lastError = err?.message || 'MQTT error';
     safeMarkMqttError(new Date(), err);
     scheduleReconnect('error');
   });
 
   client.on('close', () => {
-    logger.warn(COMPONENT, 'connection closed');
+    log.warn('connection closed');
     lastDisconnectAt = new Date();
     scheduleReconnect('close');
   });

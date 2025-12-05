@@ -24,9 +24,11 @@ Pragmatic notes for getting the backend, worker, and Expo app running locally.
 ## Database
 From `backend/` run:
 ```bash
+npm run migrate:dev
 node scripts/init-local-db.js
 ```
-This creates/updates tables (including `system_status` for health reporting) and seeds a demo org/site/device plus telemetry and a sample alert.
+Migrations create/align the schema; the seed script populates a demo org/site/device plus telemetry and a sample alert.
+Tests run migrations automatically against `TEST_DATABASE_URL`, but you can run `npm run migrate:test` yourself when preparing a fresh test database.
 
 ## Running services
 - Backend API: `cd backend && npm run dev`

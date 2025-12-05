@@ -32,11 +32,13 @@ vi.mock('../src/services/statusService', () => ({
   upsertStatus: (...args: unknown[]) => upsertStatusMock(...args),
 }));
 
-vi.mock('../src/utils/logger', () => ({
+vi.mock('../src/config/logger', () => ({
   logger: {
-    info: (...args: unknown[]) => loggerInfoMock(...args),
-    warn: (...args: unknown[]) => loggerWarnMock(...args),
-    error: (...args: unknown[]) => loggerErrorMock(...args),
+    child: () => ({
+      info: (...args: unknown[]) => loggerInfoMock(...args),
+      warn: (...args: unknown[]) => loggerWarnMock(...args),
+      error: (...args: unknown[]) => loggerErrorMock(...args),
+    }),
   },
 }));
 
@@ -71,9 +73,8 @@ describe('alertsWorker robustness', () => {
     await runOnce(new Date('2025-01-01T00:00:00.000Z'));
 
     expect(loggerErrorMock).toHaveBeenCalledWith(
-      'alertsWorker',
-      'cycle failed',
-      expect.anything()
+      { err: expect.anything() },
+      'cycle failed'
     );
     expect(getAlertsWorkerState().inProgress).toBe(false);
   });

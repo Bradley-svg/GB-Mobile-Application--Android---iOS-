@@ -16,7 +16,7 @@ import {
   validateModeCommand,
   validateSetpointCommand,
 } from './deviceControlValidationService';
-import { logger } from '../utils/logger';
+import { logger } from '../config/logger';
 
 let commandClient: MqttClient | null = null;
 const controlHttpUrl = () => process.env.CONTROL_API_URL;
@@ -26,6 +26,7 @@ let lastControlError: string | null = null;
 let lastControlAttemptAt: Date | null = null;
 const COMMAND_SOURCE = 'api';
 const COMMAND_THROTTLE_WINDOW_MS = Number(process.env.CONTROL_COMMAND_THROTTLE_MS || 5000);
+const log = logger.child({ module: 'command' });
 
 export class ControlThrottleError extends Error {
   type = 'THROTTLED' as const;
@@ -64,7 +65,7 @@ async function safeMarkControlSuccess(now: Date) {
   try {
     await markControlCommandSuccess(now);
   } catch (statusErr) {
-    logger.warn('command', 'failed to record control success', { error: statusErr });
+    log.warn({ err: statusErr }, 'failed to record control success');
   }
 }
 
@@ -72,7 +73,7 @@ async function safeMarkControlError(now: Date, err: unknown) {
   try {
     await markControlCommandError(now, err);
   } catch (statusErr) {
-    logger.warn('command', 'failed to record control error', { error: statusErr });
+    log.warn({ err: statusErr }, 'failed to record control error');
   }
 }
 
@@ -148,11 +149,11 @@ function getCommandClient(config?: Extract<ControlConfig, { type: 'mqtt' }>) {
   commandClient = mqtt.connect(url, { username, password });
 
   commandClient.on('connect', () => {
-    logger.info('command', 'MQTT command client connected', { broker: formatTarget(url) });
+    log.info({ broker: formatTarget(url) }, 'MQTT command client connected');
   });
 
   commandClient.on('error', (err) => {
-    logger.error('command', 'MQTT command error', { error: err });
+    log.error({ err }, 'MQTT command error');
   });
 
   return commandClient;
@@ -192,23 +193,29 @@ async function sendSetpointToExternal(
   };
 
   if (controlConfig.type === 'http') {
-    logger.info('command', 'sending setpoint over HTTP', {
-      deviceExternalId,
-      metric: payload.metric,
-      value: payload.value,
-      transport: 'http',
-    });
+    log.info(
+      {
+        deviceExternalId,
+        metric: payload.metric,
+        value: payload.value,
+        transport: 'http',
+      },
+      'sending setpoint over HTTP'
+    );
     try {
       await sendControlOverHttp(deviceExternalId, body, controlConfig);
       lastControlError = null;
       return;
     } catch (err) {
-      logger.error('command', 'setpoint HTTP send failed', {
-        deviceExternalId,
-        metric: payload.metric,
-        value: payload.value,
-        error: err,
-      });
+      log.error(
+        {
+          deviceExternalId,
+          metric: payload.metric,
+          value: payload.value,
+          err,
+        },
+        'setpoint HTTP send failed'
+      );
       recordControlError(err);
       throw err;
     }
@@ -217,19 +224,22 @@ async function sendSetpointToExternal(
   const topic = `greenbro/${deviceExternalId}/commands`;
   const message = JSON.stringify(body);
 
-  logger.info('command', 'publishing setpoint', {
-    deviceExternalId,
-    metric: payload.metric,
-    value: payload.value,
-    transport: 'mqtt',
-  });
+  log.info(
+    {
+      deviceExternalId,
+      metric: payload.metric,
+      value: payload.value,
+      transport: 'mqtt',
+    },
+    'publishing setpoint'
+  );
 
   try {
     await publishCommand(topic, message, controlConfig);
-    logger.info('command', 'setpoint publish success', { deviceExternalId });
+    log.info({ deviceExternalId }, 'setpoint publish success');
     lastControlError = null;
   } catch (err) {
-    logger.error('command', 'setpoint publish failed', { deviceExternalId, error: err });
+    log.error({ deviceExternalId, err }, 'setpoint publish failed');
     recordControlError(err);
     throw err instanceof Error ? err : new Error('Failed to publish setpoint command');
   }
@@ -250,21 +260,13 @@ async function sendModeToExternal(
   };
 
   if (controlConfig.type === 'http') {
-    logger.info('command', 'sending mode over HTTP', {
-      deviceExternalId,
-      mode: payload.mode,
-      transport: 'http',
-    });
+    log.info({ deviceExternalId, mode: payload.mode, transport: 'http' }, 'sending mode over HTTP');
     try {
       await sendControlOverHttp(deviceExternalId, body, controlConfig);
       lastControlError = null;
       return;
     } catch (err) {
-      logger.error('command', 'mode HTTP send failed', {
-        deviceExternalId,
-        mode: payload.mode,
-        error: err,
-      });
+      log.error({ deviceExternalId, mode: payload.mode, err }, 'mode HTTP send failed');
       recordControlError(err);
       throw err;
     }
@@ -273,18 +275,14 @@ async function sendModeToExternal(
   const topic = `greenbro/${deviceExternalId}/commands`;
   const message = JSON.stringify(body);
 
-  logger.info('command', 'publishing mode', {
-    deviceExternalId,
-    mode: payload.mode,
-    transport: 'mqtt',
-  });
+  log.info({ deviceExternalId, mode: payload.mode, transport: 'mqtt' }, 'publishing mode');
 
   try {
     await publishCommand(topic, message, controlConfig);
-    logger.info('command', 'mode publish success', { deviceExternalId });
+    log.info({ deviceExternalId }, 'mode publish success');
     lastControlError = null;
   } catch (err) {
-    logger.error('command', 'mode publish failed', { deviceExternalId, error: err });
+    log.error({ deviceExternalId, err }, 'mode publish failed');
     recordControlError(err);
     throw err instanceof Error ? err : new Error('Failed to publish mode command');
   }
@@ -323,13 +321,16 @@ export async function setDeviceSetpoint(
     throw new ControlValidationError(validation.reason, validation.message);
   }
 
-  logger.info('command', 'attempting setpoint command', {
-    deviceId: device.id,
-    deviceExternalId: device.external_id,
-    mac: device.mac ?? null,
-    commandType: 'setpoint',
-    payload,
-  });
+  log.info(
+    {
+      deviceId: device.id,
+      deviceExternalId: device.external_id,
+      mac: device.mac ?? null,
+      commandType: 'setpoint',
+      payload,
+    },
+    'attempting setpoint command'
+  );
 
   let controlConfig: ControlConfig;
   try {
@@ -347,11 +348,14 @@ export async function setDeviceSetpoint(
     requestedValue
   );
   if (throttleError) {
-    logger.warn('command', 'setpoint command throttled', {
-      deviceId: device.id,
-      deviceExternalId: device.external_id,
-      windowMs: COMMAND_THROTTLE_WINDOW_MS,
-    });
+    log.warn(
+      {
+        deviceId: device.id,
+        deviceExternalId: device.external_id,
+        windowMs: COMMAND_THROTTLE_WINDOW_MS,
+      },
+      'setpoint command throttled'
+    );
     throw throttleError;
   }
   const commandRow = await insertCommandRow({
@@ -456,13 +460,16 @@ export async function setDeviceMode(
     throw new ControlValidationError(validation.reason, validation.message);
   }
 
-  logger.info('command', 'attempting mode command', {
-    deviceId: device.id,
-    deviceExternalId: device.external_id,
-    mac: device.mac ?? null,
-    commandType: 'mode',
-    payload,
-  });
+  log.info(
+    {
+      deviceId: device.id,
+      deviceExternalId: device.external_id,
+      mac: device.mac ?? null,
+      commandType: 'mode',
+      payload,
+    },
+    'attempting mode command'
+  );
 
   let controlConfig: ControlConfig;
   try {
@@ -480,11 +487,14 @@ export async function setDeviceMode(
     requestedValue
   );
   if (throttleError) {
-    logger.warn('command', 'mode command throttled', {
-      deviceId: device.id,
-      deviceExternalId: device.external_id,
-      windowMs: COMMAND_THROTTLE_WINDOW_MS,
-    });
+    log.warn(
+      {
+        deviceId: device.id,
+        deviceExternalId: device.external_id,
+        windowMs: COMMAND_THROTTLE_WINDOW_MS,
+      },
+      'mode command throttled'
+    );
     throw throttleError;
   }
   const commandRow = await insertCommandRow({

@@ -1,4 +1,5 @@
 import { markHeatPumpHistoryError, markHeatPumpHistorySuccess } from '../services/statusService';
+import { logger } from '../config/logger';
 
 const DEFAULT_HEATPUMP_HISTORY_URL =
   'https://za-iot-dev-api.azurewebsites.net/api/HeatPumpHistory/historyHeatPump';
@@ -6,6 +7,7 @@ const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
 
 const MAX_FAILURES = 3;
 const OPEN_WINDOW_MS = 60_000;
+const log = logger.child({ module: 'heatPumpHistory' });
 
 let consecutiveFailures = 0;
 let circuitOpenedAt: Date | null = null;
@@ -81,7 +83,7 @@ function buildAzureRequest(payload: HeatPumpHistoryRequest): AzureHeatPumpHistor
 
 function logLegacyEnvWarning() {
   if (legacyEnvWarningLogged) return;
-  console.warn(
+  log.warn(
     'HEAT_PUMP_* env vars are deprecated; please use HEATPUMP_HISTORY_URL, HEATPUMP_HISTORY_API_KEY, and HEATPUMP_HISTORY_TIMEOUT_MS instead.'
   );
   legacyEnvWarningLogged = true;
@@ -116,7 +118,7 @@ function resolveTimeoutMs() {
   const parsedTimeout = Number(timeoutEnv);
   if (!Number.isFinite(parsedTimeout) || parsedTimeout <= 0) {
     if (!invalidTimeoutWarningLogged) {
-      console.warn(
+      log.warn(
         'Invalid HEATPUMP_HISTORY_TIMEOUT_MS (or HEAT_PUMP_HISTORY_TIMEOUT_MS) value; falling back to default of 10000ms.'
       );
       invalidTimeoutWarningLogged = true;
@@ -260,11 +262,14 @@ export async function fetchHeatPumpHistory(req: HeatPumpHistoryRequest): Promise
     const responseText = await res.text().catch(() => '');
 
     if (!res.ok) {
-      console.error('Heat pump history upstream error', {
-        status: res.status,
-        statusText: res.statusText,
-        bodyPreview: responseText.slice(0, 200),
-      });
+      log.error(
+        {
+          status: res.status,
+          statusText: res.statusText,
+          bodyPreview: responseText.slice(0, 200),
+        },
+        'heat pump history upstream error'
+      );
       const message = `Heat pump history upstream error (${res.status})`;
       recordFailure();
       await markHeatPumpHistoryError(new Date(), message);
@@ -279,12 +284,14 @@ export async function fetchHeatPumpHistory(req: HeatPumpHistoryRequest): Promise
   } catch (err) {
     if ((err as Error).name === 'AbortError') {
       const message = 'Heat pump history request timed out';
+      log.error({ err }, message);
       recordFailure();
       await markHeatPumpHistoryError(new Date(), message);
       return { ok: false, kind: 'UPSTREAM_ERROR', message };
     }
 
     const message = 'Heat pump history request failed';
+    log.error({ err }, message);
     recordFailure();
     await markHeatPumpHistoryError(new Date(), (err as Error)?.message ?? message);
     return { ok: false, kind: 'UPSTREAM_ERROR', message };

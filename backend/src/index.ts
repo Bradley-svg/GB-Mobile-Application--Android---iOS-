@@ -9,8 +9,7 @@ import telemetryRoutes from './routes/telemetryRoutes';
 import heatPumpHistoryRoutes from './routes/heatPumpHistoryRoutes';
 import { errorHandler } from './middleware/errorHandler';
 import { createCorsMiddleware } from './middleware/corsConfig';
-
-// TODO: Swap console.log/error for JSON logger (e.g. pino) and integrate with central log sink.
+import { logger } from './config/logger';
 
 const app = express();
 
@@ -29,7 +28,10 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 4000;
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
-    console.log(`Backend listening on port ${PORT}`);
+    logger.info(
+      { module: 'server', port: PORT, env: process.env.NODE_ENV || 'development' },
+      'backend listening'
+    );
   });
 }
 

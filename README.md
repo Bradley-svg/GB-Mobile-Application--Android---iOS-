@@ -26,4 +26,4 @@ npm install
 npm run dev
 ```
 
-Environment variables for backend and mobile (dev/staging/prod) are summarised in `docs/envs.md`.
+Environment variables for backend and mobile (dev/staging/prod) are summarised in `docs/envs.md`. Deployment notes for staging/production live in `docs/deploy.md`.

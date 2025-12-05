@@ -1,4 +1,5 @@
 import { Pool, QueryResult, QueryResultRow } from 'pg';
+import { logger } from './logger';
 
 const nodeEnv = process.env.NODE_ENV || 'development';
 const isTest = nodeEnv === 'test';
@@ -12,6 +13,7 @@ if (!connectionString) {
 }
 
 const pool = new Pool({ connectionString });
+const log = logger.child({ module: 'db' });
 
 export async function query<T extends QueryResultRow = QueryResultRow>(
   text: string,
@@ -21,7 +23,7 @@ export async function query<T extends QueryResultRow = QueryResultRow>(
     const result = await pool.query<T>(text, params);
     return result;
   } catch (err) {
-    console.error('DB error:', err);
+    log.error({ err, text }, 'database query failed');
     throw err;
   }
 }
