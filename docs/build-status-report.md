@@ -1,6 +1,6 @@
 **Greenbro Build Status (full audit sweep – 2025-12-05)**
 
-CI configuration is unchanged (see below), but local verification could not be re-run in this environment because Node/npm are unavailable and outbound package mirrors are blocked by the proxy (403 during `apt-get update`, `npm`/`node` not installed). No code was changed during the initial snapshot; hygiene clean-up removed committed Android log/dumpsys/UI artifacts and tightened ignore rules. The historical status from the previous maintenance cycle remains below for reference until checks can be re-run in a normal environment.
+**Environment note:** This container cannot run Node/npm (blocked package mirrors, no runtime installed). Status below reflects CI plus the last known green local runs; no commands were re-executed here.
 
 **Repo Structure Snapshot (current)**
 - `backend/`: Layered Express API with config/controllers/services/repositories/integrations/middleware/routes/workers/scripts/sql/test plus compiled `dist/`.
@@ -15,10 +15,10 @@ CI configuration is unchanged (see below), but local verification could not be r
 - Layering confirmed: `src/config`, `controllers`, `services`, `repositories`, `integrations`, `middleware`, `routes`, `workers`, `scripts`, `sql`, `test`.
 - Entrypoints: `src/index.ts` (HTTP API), `src/workers/mqttIngest.ts`, `src/workers/alertsWorker.ts`.
 - Key integrations: MQTT ingest/backoff client, control HTTP client, Expo push, Azure heatPumpHistory client.
-- Commands (run in `backend/`):
+- Commands (run in `backend/`, matching CI):
   - OK npm run typecheck
   - OK npm run lint
-  - OK npm test (green in CI via Postgres 16 `greenbro_test` using TEST_DATABASE_URL + ALLOW_TEST_DB_RESET; still fails fast with a clear error if the Postgres instance is missing/unreachable)
+  - OK npm test -- --runInBand (green in CI via Postgres 16 `greenbro_test` using TEST_DATABASE_URL + ALLOW_TEST_DB_RESET; still fails fast with a clear error if the Postgres instance is missing/unreachable)
   - OK npm run build
 - npm audit (post-fix): 6 moderate dev-only issues (vitest/vite/esbuild chain). Runtime deps already uplifted (e.g., jsonwebtoken); remaining moderates accepted pending major toolchain upgrades (per repo-overview).
 
@@ -30,10 +30,10 @@ CI configuration is unchanged (see below), but local verification could not be r
 - Layout confirmed: `app/screens` grouped by Auth/Dashboard/Site/Device/Alerts/Profile; shared UI in `app/components`; domain APIs in `app/api/{auth,sites,devices,alerts,control,heatPumpHistory,types}`; `app/store`, `app/hooks`, `app/theme`, `app/__tests__/`.
 - DeviceDetailScreen uses `device.mac` to request heat-pump history and renders the “Compressor current (A)” chart via `useHeatPumpHistory`.
 - Error/empty states present on Dashboard, SiteOverview, DeviceDetail, Alerts, with retry hooks.
-- Commands (run in `mobile/`):
+- Commands (run in `mobile/`, matching CI):
   - OK npm run typecheck
   - OK npm run lint
-  - OK npm test (green with the harness when TEST_DATABASE_URL is set; fails fast with a clear error if the Postgres instance is missing/unreachable)
+  - OK npm test -- --runInBand (uses EXPO_PUBLIC_API_URL stub; no Postgres dependency)
 - npm audit (post-fix): 3 low issues from Expo CLI toolchain; accepted until next Expo major upgrade (per repo-overview).
 
 **Functional Integration Notes**
@@ -56,3 +56,7 @@ CI configuration is unchanged (see below), but local verification could not be r
 - Add offline caching/error queuing for mobile and broaden alerts/device interaction tests (e2e/device-level).
 - Plan dependency upgrades: vitest/vite/esbuild major for backend tooling, Expo major to clear CLI advisories.
 - Prepare staging checklist (env vars, DB schema, Azure heat-pump keys, push config) and document health expectations.
+
+**This pass:** document-only updates to reflect the non-Node environment, added missing env/docs alignment, and removed unused HTTP telemetry ingest code.
+
+**Needs live verification:** rerun `npm run typecheck`, `npm run lint`, `npm test -- --runInBand`, and `npm run build` for backend and mobile in a normal Node environment.

@@ -17,7 +17,7 @@ _2025-12-05 audit note: local verification could not be re-run in this environme
 ## Backend
 - Entrypoint: `src/index.ts` mounts CORS, JSON parsing, routers, and error handler; server start is skipped in tests.
 - Layering: controllers mostly call services; `healthController` directly queries the DB and `mqttClient` health helpers; `heatPumpHistoryController` calls the integration client directly; HTTP telemetry route is an intentional 501 stub pointing to MQTT ingest.
-- Config/env notes: JWT secret throws if unset in non-dev; CORS allowlist required in prod and allow-all only in non-prod with an empty list; heat-pump client prefers `HEATPUMP_*` env names with deprecated `HEAT_PUMP_*` fallbacks; HTTP telemetry API key env exists but route stays disabled.
+- Config/env notes: JWT secret throws if unset in non-dev; refresh token lifetime tunable via `REFRESH_TOKEN_DAYS`; alerts worker can be disabled via `ALERT_WORKER_ENABLED` (defaults true) with interval set by `ALERT_WORKER_INTERVAL_SEC`; CORS allowlist required in prod and allow-all only in non-prod with an empty list; heat-pump client prefers `HEATPUMP_*` env names with deprecated `HEAT_PUMP_*` fallbacks; HTTP telemetry route remains disabled.
 - Integrations: MQTT ingest on `greenbro/+/+/telemetry`; control channel over HTTP (or MQTT) depending on env; Expo push with optional health sample; Azure heat-pump history client with timeout handling.
 - Health (2025-12-05 local): `npm install` OK (npm audit reports 7 vulns: 6 moderate, 1 high); `npm run typecheck` OK; `npm run lint` OK; `npm test` OK (vitest with test DB harness; fails fast with a clear TEST_DATABASE_URL error if the DB is missing); `npm run build` OK.
 - Test harness: Vitest global setup (test/globalSetup.ts -> test/testDbSetup.ts) requires TEST_DATABASE_URL, prepares schema/seed data (demo org/site/device/user plus status row), and ends the test pool; truncation/seeding runs when the DB name includes "test" or ALLOW_TEST_DB_RESET=true, otherwise it seeds only to avoid wiping a shared dev DB. `npm test` now fails fast with a clear missing/connection error instead of timing out.
@@ -34,7 +34,7 @@ _2025-12-05 audit note: local verification could not be re-run in this environme
 ## Cleanup actions
 - Moved root screenshots (`emulator-screen.png`, `screenshot.png`) into `docs/`.
 - Tried to consolidate stray logs; two root runtime logs and backend dev logs are locked by active node processes, so left in place (all git-ignored). `logs/` remains the intended sink.
-- No code deletions this pass; HTTP telemetry stub kept intentionally.
+- Removed the unused HTTP telemetry ingest helper and aligned env examples with actual usage (refresh token days, alerts worker toggle; removed unused TELEMETRY_API_KEY stub).
 
 ## Open risks / TODOs before more API work
 - Legacy `HEAT_PUMP_*` heat-pump envs are still accepted but deprecated; `HEATPUMP_*` is the canonical scheme.
