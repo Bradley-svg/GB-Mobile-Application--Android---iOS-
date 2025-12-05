@@ -1,7 +1,14 @@
 import { NextFunction, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
-import { issueTokens, loginUser, registerUser, verifyRefreshToken } from '../services/authService';
+import {
+  issueTokens,
+  loginUser,
+  registerUser,
+  revokeAllRefreshTokensForUser,
+  revokeRefreshTokenForSession,
+  verifyRefreshToken,
+} from '../services/authService';
 import { registerPushTokenForUser } from '../services/pushService';
 import { getUserContext } from '../services/userService';
 
@@ -61,6 +68,10 @@ export async function login(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+/**
+ * Password reset is intentionally not implemented. Do not wire this route
+ * until a full token/email-based reset flow is designed and approved.
+ */
 export async function resetPassword(req: Request, res: Response) {
   const schema = z.object({
     email: z.string().email(),
@@ -69,7 +80,7 @@ export async function resetPassword(req: Request, res: Response) {
   if (!parsed.success) return res.status(400).json({ message: 'Invalid body' });
 
   res.status(501).json({
-    error: 'Password reset not implemented yet.',
+    error: 'Password reset is not yet implemented; contact support or an administrator.',
   });
 }
 
@@ -110,6 +121,44 @@ export async function me(req: Request, res: Response, next: NextFunction) {
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     res.json(user);
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function logout(req: Request, res: Response, next: NextFunction) {
+  const userId = req.user!.id;
+  const schema = z.object({ refreshToken: z.string().min(10) });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: 'Invalid body' });
+
+  try {
+    await revokeRefreshTokenForSession(userId, parsed.data.refreshToken);
+    res.status(204).send();
+  } catch (e: any) {
+    const invalidReasons = [
+      'INVALID_TOKEN_TYPE',
+      'REFRESH_TOKEN_NOT_FOUND',
+      'REFRESH_TOKEN_USER_MISMATCH',
+      'REFRESH_TOKEN_REVOKED',
+      'REFRESH_TOKEN_EXPIRED',
+      'MISSING_TOKEN_ID',
+    ];
+    if (invalidReasons.includes(e?.message)) {
+      return res.status(401).json({ message: 'Invalid refresh token' });
+    }
+    if (e?.name === 'JsonWebTokenError' || e?.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Invalid refresh token' });
+    }
+    next(e);
+  }
+}
+
+export async function logoutAll(req: Request, res: Response, next: NextFunction) {
+  const userId = req.user!.id;
+  try {
+    await revokeAllRefreshTokensForUser(userId);
+    res.status(204).send();
   } catch (e) {
     next(e);
   }

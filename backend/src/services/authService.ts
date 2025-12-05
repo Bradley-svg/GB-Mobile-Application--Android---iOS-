@@ -1,7 +1,12 @@
 import { randomUUID } from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { findRefreshTokenById, insertRefreshToken, revokeRefreshToken } from '../repositories/refreshTokensRepository';
+import {
+  findRefreshTokenById,
+  insertRefreshToken,
+  revokeAllRefreshTokensForUser as revokeAllTokensForUser,
+  revokeRefreshToken,
+} from '../repositories/refreshTokensRepository';
 import { findUserByEmail, insertUser } from '../repositories/usersRepository';
 
 export function resolveJwtSecret() {
@@ -99,4 +104,17 @@ export async function verifyRefreshToken(token: string) {
   }
 
   return { userId: decoded.sub, tokenId: decoded.jti };
+}
+
+export async function revokeRefreshTokenForSession(userId: string, refreshToken: string) {
+  const { userId: tokenUserId, tokenId } = await verifyRefreshToken(refreshToken);
+  if (tokenUserId !== userId) {
+    throw new Error('REFRESH_TOKEN_USER_MISMATCH');
+  }
+
+  await revokeRefreshToken(tokenId, 'user_logout');
+}
+
+export async function revokeAllRefreshTokensForUser(userId: string) {
+  await revokeAllTokensForUser(userId, 'user_logout_all');
 }

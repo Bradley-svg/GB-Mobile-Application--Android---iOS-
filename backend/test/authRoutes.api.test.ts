@@ -72,15 +72,8 @@ describe('/auth/me/push-tokens', () => {
 });
 
 describe('/auth/reset-password', () => {
-  it('returns explicit stub response', async () => {
-    const res = await request(app)
-      .post('/auth/reset-password')
-      .send({ email: 'person@example.com' })
-      .expect(501);
-
-    expect(res.body).toEqual({
-      error: 'Password reset not implemented yet.',
-    });
+  it('is intentionally not exposed until a proper flow is designed', async () => {
+    await request(app).post('/auth/reset-password').send({ email: 'person@example.com' }).expect(404);
   });
 });
 
@@ -133,6 +126,101 @@ describe('/auth/refresh', () => {
 
     // Old token now revoked
     await request(app).post('/auth/refresh').send({ refreshToken }).expect(401);
+  });
+});
+
+describe('/auth/logout', () => {
+  it('revokes the provided refresh token', async () => {
+    let revoked = false;
+    queryMock.mockImplementation(async (text: string, params?: any[]) => {
+      if (text.includes('from refresh_tokens')) {
+        return {
+          rows: [
+            {
+              id: params?.[0],
+              user_id: 'user-1',
+              revoked,
+              replaced_by: null,
+              expires_at: new Date(Date.now() + 1000 * 60 * 60),
+            },
+          ],
+          rowCount: 1,
+        };
+      }
+
+      if (text.startsWith('\n    update refresh_tokens') && text.includes('where id = $1')) {
+        revoked = true;
+        return { rows: [], rowCount: 1 };
+      }
+
+      throw new Error(`Unexpected query: ${text}`);
+    });
+
+    const refreshToken = jwt.sign(
+      { sub: 'user-1', type: 'refresh', jti: 'rt-logout' },
+      process.env.JWT_SECRET!,
+      { expiresIn: '30d' }
+    );
+
+    await request(app)
+      .post('/auth/logout')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ refreshToken })
+      .expect(204);
+
+    await request(app).post('/auth/refresh').send({ refreshToken }).expect(401);
+  });
+});
+
+describe('/auth/logout-all', () => {
+  it('revokes all refresh tokens for the current user', async () => {
+    const tokenState: Record<string, boolean> = {
+      'rt-a': false,
+      'rt-b': false,
+    };
+
+    queryMock.mockImplementation(async (text: string, params?: any[]) => {
+      if (text.includes('from refresh_tokens')) {
+        const id = params?.[0];
+        return {
+          rows: [
+            {
+              id,
+              user_id: 'user-1',
+              revoked: tokenState[id as keyof typeof tokenState],
+              replaced_by: null,
+              expires_at: new Date(Date.now() + 1000 * 60 * 60),
+            },
+          ],
+          rowCount: 1,
+        };
+      }
+
+      if (text.startsWith('\n    update refresh_tokens') && text.includes('where user_id = $1')) {
+        Object.keys(tokenState).forEach((key) => {
+          tokenState[key] = true;
+        });
+        return { rows: [], rowCount: Object.keys(tokenState).length };
+      }
+
+      throw new Error(`Unexpected query: ${text}`);
+    });
+
+    const refreshTokenA = jwt.sign(
+      { sub: 'user-1', type: 'refresh', jti: 'rt-a' },
+      process.env.JWT_SECRET!,
+      { expiresIn: '30d' }
+    );
+    const refreshTokenB = jwt.sign(
+      { sub: 'user-1', type: 'refresh', jti: 'rt-b' },
+      process.env.JWT_SECRET!,
+      { expiresIn: '30d' }
+    );
+
+    await request(app).post('/auth/logout-all').set('Authorization', `Bearer ${token}`).expect(204);
+
+    await request(app).post('/auth/refresh').send({ refreshToken: refreshTokenA }).expect(401);
+    await request(app).post('/auth/refresh').send({ refreshToken: refreshTokenB }).expect(401);
   });
 });
 

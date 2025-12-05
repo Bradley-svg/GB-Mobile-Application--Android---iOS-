@@ -43,3 +43,16 @@ export async function revokeRefreshToken(id: string, reason: string, replacedBy?
     [id, reason, replacedBy || null]
   );
 }
+
+export async function revokeAllRefreshTokensForUser(userId: string, reason: string) {
+  await query(
+    `
+    update refresh_tokens
+    set revoked = true,
+        revoked_reason = $2,
+        revoked_at = now()
+    where user_id = $1 and revoked = false
+  `,
+    [userId, reason]
+  );
+}
