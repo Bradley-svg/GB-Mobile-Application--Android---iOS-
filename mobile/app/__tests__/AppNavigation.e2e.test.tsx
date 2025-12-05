@@ -66,6 +66,7 @@ const mockLogin = jest.fn(async () => {
 });
 
 jest.mock('../api/hooks', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const actual = jest.requireActual('../api/hooks');
   return {
     ...actual,
@@ -94,15 +95,19 @@ jest.mock('../hooks/useRegisterPushToken', () => ({
 }));
 
 jest.mock('../screens/Alerts/AlertsScreen', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require('react');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View, Text } = require('react-native');
   return {
     AlertsScreen: () => {
-      const alerts = [{ id: 'alert-1', message: 'Demo alert message' }];
+      const alerts: { id: string; message: string }[] = [
+        { id: 'alert-1', message: 'Demo alert message' },
+      ];
       return (
         <View>
           <Text>Alerts Screen</Text>
-          {alerts.map((alert: any) => (
+          {alerts.map((alert) => (
             <Text key={alert.id}>{alert.message}</Text>
           ))}
         </View>
@@ -112,14 +117,19 @@ jest.mock('../screens/Alerts/AlertsScreen', () => {
 });
 
 jest.mock('../screens/Alerts/AlertDetailScreen', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require('react');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View, Text } = require('react-native');
-  const { useRoute } = require('@react-navigation/native');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const nav = require('@react-navigation/native');
   return {
     AlertDetailScreen: () => {
-      const route = useRoute();
-      const alerts = [{ id: 'alert-1', message: 'Demo alert message' }];
-      const alert = alerts.find((a: any) => a.id === route.params?.alertId) ?? alerts[0];
+      const route = nav.useRoute();
+      const alerts: { id: string; message: string }[] = [
+        { id: 'alert-1', message: 'Demo alert message' },
+      ];
+      const alert = alerts.find((a) => a.id === route.params?.alertId) ?? alerts[0];
       return (
         <View>
           <Text>Alert Detail</Text>
@@ -131,7 +141,9 @@ jest.mock('../screens/Alerts/AlertDetailScreen', () => {
 });
 
 jest.mock('../screens/Device/DeviceDetailScreen', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require('react');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View, Text } = require('react-native');
   return {
     DeviceDetailScreen: () => (
@@ -144,7 +156,9 @@ jest.mock('../screens/Device/DeviceDetailScreen', () => {
 });
 
 jest.mock('../screens/Profile/ProfileScreen', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require('react');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View, Text } = require('react-native');
   return {
     ProfileScreen: () => (
@@ -165,15 +179,17 @@ describe('AppNavigation flow', () => {
         user: null,
         isHydrated: true,
         sessionExpired: false,
+        notificationPreferences: { alertsEnabled: true },
+        preferencesHydrated: false,
       });
     });
 
     jest.spyOn(navigation, 'useRoute').mockReturnValue({
       params: { siteId: demoSite.id, deviceId: demoDevice.id, alertId: demoAlert.id },
-    } as any);
+    } as ReturnType<typeof navigation.useRoute>);
     jest.spyOn(api, 'get').mockResolvedValue({
       data: { id: 'user-1', email: 'demo@greenbro.com', name: 'Demo User' },
-    } as any);
+    } as Awaited<ReturnType<typeof api.get>>);
   });
 
   afterEach(() => {
@@ -185,6 +201,8 @@ describe('AppNavigation flow', () => {
         user: null,
         isHydrated: true,
         sessionExpired: false,
+        notificationPreferences: { alertsEnabled: true },
+        preferencesHydrated: false,
       });
     });
   });

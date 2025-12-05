@@ -33,6 +33,9 @@ describe('api client refresh interceptor', () => {
       refreshToken: null,
       user: null,
       isHydrated: true,
+      sessionExpired: false,
+      notificationPreferences: { alertsEnabled: true },
+      preferencesHydrated: false,
     });
   });
 
@@ -57,6 +60,9 @@ describe('api client refresh interceptor', () => {
       refreshToken: 'refresh-token',
       user: { id: 'user-1', email: 'user@test.com', name: 'Test User', organisation_id: null },
       isHydrated: true,
+      sessionExpired: false,
+      notificationPreferences: { alertsEnabled: true },
+      preferencesHydrated: false,
     });
 
     const res = await api.get('/sites');
@@ -79,6 +85,9 @@ describe('api client refresh interceptor', () => {
       refreshToken: 'refresh-token',
       user: { id: 'user-2', email: 'user2@test.com', name: 'Another User', organisation_id: null },
       isHydrated: true,
+      sessionExpired: false,
+      notificationPreferences: { alertsEnabled: true },
+      preferencesHydrated: false,
     });
 
     await expect(api.get('/sites')).rejects.toBeInstanceOf(Error);

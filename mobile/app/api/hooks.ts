@@ -5,3 +5,7 @@ export { useDevices, useDevice, useDeviceTelemetry } from './devices/hooks';
 export { useAlerts, useDeviceAlerts, useAcknowledgeAlert, useMuteAlert } from './alerts/hooks';
 export { useSetpointCommand, useModeCommand } from './control/hooks';
 export { useHeatPumpHistory } from './heatPumpHistory/hooks';
+export {
+  useNotificationPreferences,
+  useUpdateNotificationPreferences,
+} from './preferences/hooks';

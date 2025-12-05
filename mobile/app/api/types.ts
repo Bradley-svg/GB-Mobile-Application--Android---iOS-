@@ -93,3 +93,8 @@ export type ControlFailureReason =
   | 'THROTTLED'
   | 'DEVICE_NOT_CAPABLE'
   | 'VALIDATION_ERROR';
+
+export type NotificationPreferences = {
+  alertsEnabled: boolean;
+  // TODO: align with backend preferences model when available.
+};

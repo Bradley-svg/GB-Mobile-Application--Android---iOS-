@@ -1,12 +1,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
+import { NotificationPreferences } from '../api/types';
 import {
   LAST_REGISTERED_PUSH_TOKEN_KEY,
   LAST_REGISTERED_USER_ID_KEY,
   LEGACY_PUSH_TOKEN_KEY,
   PUSH_TOKEN_STORAGE_PREFIX,
 } from '../constants/pushTokens';
+import {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  NOTIFICATION_PREFERENCES_KEY_PREFIX,
+  readNotificationPreferences,
+} from '../api/preferences/hooks';
 
 type AuthUser = {
   id: string;
@@ -21,9 +27,13 @@ type AuthState = {
   user: AuthUser | null;
   isHydrated: boolean;
   sessionExpired: boolean;
+  preferencesHydrated: boolean;
+  notificationPreferences: NotificationPreferences;
   setAuth: (data: { accessToken: string; refreshToken: string; user: AuthUser }) => Promise<void>;
   updateTokens: (tokens: { accessToken: string; refreshToken: string }) => Promise<void>;
   setUser: (user: AuthUser | null) => void;
+  setNotificationPreferences: (prefs: NotificationPreferences) => void;
+  hydrateNotificationPreferences: (userId: string | null) => Promise<NotificationPreferences>;
   setSessionExpired: (expired: boolean) => void;
   clearAuth: () => Promise<void>;
   hydrateFromSecureStore: () => Promise<void>;
@@ -32,17 +42,25 @@ type AuthState = {
 const ACCESS_KEY = 'greenbro_access_token';
 const REFRESH_KEY = 'greenbro_refresh_token';
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   accessToken: null,
   refreshToken: null,
   user: null,
   isHydrated: false,
   sessionExpired: false,
+  preferencesHydrated: false,
+  notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES,
 
   setAuth: async ({ accessToken, refreshToken, user }) => {
     await SecureStore.setItemAsync(ACCESS_KEY, accessToken);
     await SecureStore.setItemAsync(REFRESH_KEY, refreshToken);
-    set({ accessToken, refreshToken, user, sessionExpired: false });
+    set({
+      accessToken,
+      refreshToken,
+      user,
+      sessionExpired: false,
+      preferencesHydrated: false,
+    });
   },
 
   updateTokens: async ({ accessToken, refreshToken }) => {
@@ -52,11 +70,32 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   setUser: (user: AuthUser | null) => {
-    set({ user });
+    set((state) => ({
+      user,
+      preferencesHydrated:
+        user && state.user && user.id === state.user.id ? state.preferencesHydrated : false,
+    }));
   },
 
   setSessionExpired: (expired: boolean) => {
     set({ sessionExpired: expired });
+  },
+
+  setNotificationPreferences: (prefs: NotificationPreferences) => {
+    set({ notificationPreferences: prefs });
+  },
+
+  hydrateNotificationPreferences: async (userId: string | null) => {
+    if (!userId) {
+      set({
+        notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES,
+        preferencesHydrated: true,
+      });
+      return DEFAULT_NOTIFICATION_PREFERENCES;
+    }
+    const prefs = await readNotificationPreferences(userId);
+    set({ notificationPreferences: prefs, preferencesHydrated: true });
+    return prefs;
   },
 
   clearAuth: async () => {
@@ -72,12 +111,20 @@ export const useAuthStore = create<AuthState>((set) => ({
           key === LAST_REGISTERED_PUSH_TOKEN_KEY ||
           key === LAST_REGISTERED_USER_ID_KEY
       );
+      const preferenceKeys = allKeys.filter((key) =>
+        key.startsWith(NOTIFICATION_PREFERENCES_KEY_PREFIX)
+      );
+      const currentUserPreferenceKey = get().user?.id
+        ? `${NOTIFICATION_PREFERENCES_KEY_PREFIX}${get().user?.id}`
+        : null;
       const uniqueKeys = Array.from(
         new Set([
           ...pushTokenKeys,
+          ...preferenceKeys,
           LAST_REGISTERED_PUSH_TOKEN_KEY,
           LAST_REGISTERED_USER_ID_KEY,
           LEGACY_PUSH_TOKEN_KEY,
+          ...(currentUserPreferenceKey ? [currentUserPreferenceKey] : []),
         ])
       );
       if (uniqueKeys.length) {
@@ -87,7 +134,14 @@ export const useAuthStore = create<AuthState>((set) => ({
       console.error('Failed to clear push token flags on logout', err);
     }
 
-    set({ accessToken: null, refreshToken: null, user: null, sessionExpired: false });
+    set({
+      accessToken: null,
+      refreshToken: null,
+      user: null,
+      sessionExpired: false,
+      preferencesHydrated: false,
+      notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES,
+    });
   },
 
   hydrateFromSecureStore: async () => {

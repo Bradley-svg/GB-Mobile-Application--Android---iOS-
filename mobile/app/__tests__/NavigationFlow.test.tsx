@@ -42,6 +42,9 @@ describe('RootNavigator', () => {
         refreshToken: 'refresh',
         user: { id: 'user-1', email: 'test@example.com', name: 'Test User' },
         isHydrated: true,
+        sessionExpired: false,
+        notificationPreferences: { alertsEnabled: true },
+        preferencesHydrated: false,
       });
     });
   });
@@ -53,6 +56,9 @@ describe('RootNavigator', () => {
         refreshToken: null,
         user: null,
         isHydrated: true,
+        sessionExpired: false,
+        notificationPreferences: { alertsEnabled: true },
+        preferencesHydrated: false,
       });
     });
   });

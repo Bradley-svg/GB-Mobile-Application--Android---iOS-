@@ -77,7 +77,7 @@ export const AlertsScreen: React.FC = () => {
     };
   }, [isOffline]);
 
-  const alertsList = alerts ?? cachedAlerts ?? [];
+  const alertsList = useMemo(() => alerts ?? cachedAlerts ?? [], [alerts, cachedAlerts]);
   const hasCachedAlerts = (cachedAlerts?.length ?? 0) > 0;
   const showLoading = isLoading && alertsList.length === 0;
   const shouldShowError = isError && !isOffline && alertsList.length === 0;

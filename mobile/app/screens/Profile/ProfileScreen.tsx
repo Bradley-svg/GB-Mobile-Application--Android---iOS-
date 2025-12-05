@@ -1,17 +1,33 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Linking, TouchableOpacity, View, Text, StyleSheet } from 'react-native';
+import { Linking, TouchableOpacity, View, Text, StyleSheet, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { Screen, Card, PrimaryButton, IconButton } from '../../components';
 import { getNotificationPermissionStatus } from '../../hooks/useRegisterPushToken';
+import {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  useNotificationPreferences,
+  useUpdateNotificationPreferences,
+} from '../../api/preferences/hooks';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 
 export const ProfileScreen: React.FC = () => {
-  const clearAuth = useAuthStore((s) => s.clearAuth);
-  const user = useAuthStore((s) => s.user);
+  const { clearAuth, user, setNotificationPreferences, notificationPreferences } = useAuthStore(
+    (s) => ({
+      clearAuth: s.clearAuth,
+      user: s.user,
+      setNotificationPreferences: s.setNotificationPreferences,
+      notificationPreferences: s.notificationPreferences,
+    })
+  );
+  const { data: storedPreferences, isFetching: preferencesLoading } = useNotificationPreferences(
+    user?.id
+  );
+  const updatePreferences = useUpdateNotificationPreferences(user?.id);
   const [notificationPermission, setNotificationPermission] = useState<string | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
   const initials = useMemo(() => {
     const name = user?.name || 'G B';
     return name
@@ -30,6 +46,12 @@ export const ProfileScreen: React.FC = () => {
     loadPermissionStatus();
   }, []);
 
+  useEffect(() => {
+    if (storedPreferences) {
+      setNotificationPreferences(storedPreferences);
+    }
+  }, [setNotificationPreferences, storedPreferences]);
+
   const onLogout = async () => {
     await clearAuth();
   };
@@ -43,6 +65,33 @@ export const ProfileScreen: React.FC = () => {
   };
 
   const notificationDenied = notificationPermission === 'denied';
+  const alertsEnabled =
+    notificationPreferences?.alertsEnabled ??
+    storedPreferences?.alertsEnabled ??
+    DEFAULT_NOTIFICATION_PREFERENCES.alertsEnabled;
+  const toggleDisabled = notificationDenied || preferencesLoading || updatePreferences.isPending;
+
+  const onToggleNotifications = () => {
+    if (!user?.id || toggleDisabled) return;
+
+    const previous = {
+      alertsEnabled,
+    };
+    const next = { alertsEnabled: !alertsEnabled };
+
+    setUpdateError(null);
+    setNotificationPreferences(next);
+
+    updatePreferences.mutate(next, {
+      onError: () => {
+        setNotificationPreferences(previous);
+        setUpdateError('Could not update notification preference. Please try again.');
+      },
+      onSuccess: (prefs) => {
+        setNotificationPreferences(prefs);
+      },
+    });
+  };
 
   return (
     <Screen scroll={false}>
@@ -63,9 +112,14 @@ export const ProfileScreen: React.FC = () => {
             <Ionicons name="notifications-outline" size={18} color={colors.primary} />
             <Text style={[typography.body, styles.title, { marginLeft: spacing.sm }]}>Notifications</Text>
           </View>
-          <View style={styles.toggleShell}>
-            <View style={styles.toggleThumb} />
-          </View>
+          <Switch
+            testID="notification-preference-toggle"
+            value={alertsEnabled}
+            onValueChange={onToggleNotifications}
+            disabled={toggleDisabled}
+            trackColor={{ false: colors.borderSoft, true: colors.primary }}
+            thumbColor={colors.white}
+          />
         </View>
         {notificationDenied ? (
           <View style={styles.permissionHint} testID="notification-permission-warning">
@@ -76,6 +130,14 @@ export const ProfileScreen: React.FC = () => {
               <Text style={[typography.caption, styles.title]}>Open Settings</Text>
             </TouchableOpacity>
           </View>
+        ) : null}
+        {updateError ? (
+          <Text
+            style={[typography.caption, styles.errorText]}
+            testID="notification-preference-error"
+          >
+            {updateError}
+          </Text>
         ) : null}
         <View style={styles.separator} />
         <View style={styles.listRow}>
@@ -134,25 +196,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  toggleShell: {
-    width: 44,
-    height: 26,
-    borderRadius: 16,
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    padding: spacing.xs,
-    justifyContent: 'center',
-  },
-  toggleThumb: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    alignSelf: 'flex-end',
-  },
   permissionHint: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
@@ -165,6 +208,11 @@ const styles = StyleSheet.create({
   settingsLink: {
     alignSelf: 'flex-start',
     paddingVertical: spacing.xs,
+  },
+  errorText: {
+    color: colors.danger,
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.lg,
   },
   separator: {
     height: 1,

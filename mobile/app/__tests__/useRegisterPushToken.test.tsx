@@ -36,6 +36,9 @@ describe('useRegisterPushToken', () => {
       accessToken: null,
       refreshToken: null,
       isHydrated: true,
+      notificationPreferences: { alertsEnabled: true },
+      preferencesHydrated: false,
+      sessionExpired: false,
     });
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
     (AsyncStorage.multiSet as jest.Mock).mockResolvedValue(undefined);
@@ -86,6 +89,9 @@ describe('useRegisterPushToken', () => {
       accessToken: 'access',
       refreshToken: 'refresh',
       isHydrated: true,
+      notificationPreferences: { alertsEnabled: true },
+      preferencesHydrated: false,
+      sessionExpired: false,
     });
 
     render(<TestComponent />);
@@ -108,6 +114,9 @@ describe('useRegisterPushToken', () => {
       accessToken: 'access',
       refreshToken: 'refresh',
       isHydrated: true,
+      notificationPreferences: { alertsEnabled: true },
+      preferencesHydrated: false,
+      sessionExpired: false,
     });
 
     render(<TestComponent />);
@@ -128,6 +137,9 @@ describe('useRegisterPushToken', () => {
       accessToken: 'access',
       refreshToken: 'refresh',
       isHydrated: true,
+      notificationPreferences: { alertsEnabled: true },
+      preferencesHydrated: false,
+      sessionExpired: false,
     });
 
     render(<TestComponent />);
@@ -137,5 +149,54 @@ describe('useRegisterPushToken', () => {
     });
     expect(Notifications.requestPermissionsAsync).not.toHaveBeenCalled();
     expect(AsyncStorage.multiSet).not.toHaveBeenCalled();
+  });
+
+  it('skips backend registration when preferences disable alerts', async () => {
+    (AsyncStorage.getItem as jest.Mock).mockImplementation(async (key: string) => {
+      if (key.startsWith('notificationPreferences:')) {
+        return JSON.stringify({ alertsEnabled: false });
+      }
+      return null;
+    });
+    useAuthStore.setState({
+      user: { id: 'user-4', email: 'pref@example.com', name: 'Pref User', organisation_id: null },
+      accessToken: 'access',
+      refreshToken: 'refresh',
+      isHydrated: true,
+      notificationPreferences: { alertsEnabled: true },
+      preferencesHydrated: false,
+      sessionExpired: false,
+    });
+
+    render(<TestComponent />);
+
+    await waitFor(() => {
+      expect(apiPostSpy).not.toHaveBeenCalled();
+    });
+    expect(Notifications.getExpoPushTokenAsync).not.toHaveBeenCalled();
+  });
+
+  it('registers push token when alerts are enabled in preferences', async () => {
+    (AsyncStorage.getItem as jest.Mock).mockImplementation(async (key: string) => {
+      if (key.startsWith('notificationPreferences:')) {
+        return JSON.stringify({ alertsEnabled: true });
+      }
+      return null;
+    });
+    useAuthStore.setState({
+      user: { id: 'user-5', email: 'pref-on@example.com', name: 'Pref On', organisation_id: null },
+      accessToken: 'access',
+      refreshToken: 'refresh',
+      isHydrated: true,
+      notificationPreferences: { alertsEnabled: false },
+      preferencesHydrated: false,
+      sessionExpired: false,
+    });
+
+    render(<TestComponent />);
+
+    await waitFor(() => {
+      expect(apiPostSpy).toHaveBeenCalledWith('/auth/me/push-tokens', { token: 'push-token' });
+    });
   });
 });

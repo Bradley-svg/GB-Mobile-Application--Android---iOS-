@@ -40,6 +40,7 @@ const Button = ({ title, onPress, ...rest }) =>
   React.createElement('Button', { onClick: onPress, 'data-title': title, ...rest });
 const ActivityIndicator = createComponent('ActivityIndicator');
 const TouchableOpacity = createComponent('TouchableOpacity');
+const Switch = createComponent('Switch');
 
 const Alert = {
   alert: jest.fn(),
@@ -61,6 +62,7 @@ module.exports = {
   Button,
   ActivityIndicator,
   TouchableOpacity,
+  Switch,
   StyleSheet,
   Alert,
 };

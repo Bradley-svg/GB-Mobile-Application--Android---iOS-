@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { api } from '../api/client';
 import { useAuthStore } from '../store/authStore';
+import { DEFAULT_NOTIFICATION_PREFERENCES } from '../api/preferences/hooks';
 import {
   LAST_REGISTERED_PUSH_TOKEN_KEY,
   LAST_REGISTERED_USER_ID_KEY,
@@ -56,12 +57,26 @@ async function getPushToken(): Promise<string | null> {
 
 export function useRegisterPushToken() {
   const userId = useAuthStore((s) => s.user?.id);
+  const preferences = useAuthStore((s) => s.notificationPreferences);
+  const preferencesHydrated = useAuthStore((s) => s.preferencesHydrated);
+  const hydrateNotificationPreferences = useAuthStore((s) => s.hydrateNotificationPreferences);
+
+  useEffect(() => {
+    if (!userId || preferencesHydrated) return;
+    hydrateNotificationPreferences(userId);
+  }, [hydrateNotificationPreferences, preferencesHydrated, userId]);
 
   useEffect(() => {
     let cancelled = false;
 
     const run = async () => {
-      if (!userId) return;
+      if (!userId || !preferencesHydrated) return;
+
+      const loadedPreferences = preferences ?? DEFAULT_NOTIFICATION_PREFERENCES;
+      if (!loadedPreferences.alertsEnabled) {
+        console.log('Notification alerts disabled; skipping push registration');
+        return;
+      }
 
       const token = await getPushToken();
       if (!token) return;
@@ -92,5 +107,5 @@ export function useRegisterPushToken() {
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [preferences, preferencesHydrated, userId]);
 }

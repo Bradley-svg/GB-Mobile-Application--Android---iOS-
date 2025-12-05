@@ -33,10 +33,11 @@ _2025-12-05 sweep: backend and mobile npm install/typecheck/lint/test/build all 
 
 ## Mobile
 - Navigation: RootNavigator swaps Auth vs App stacks; App tabs = Dashboard, Alerts, Profile; stack detail screens for Site, Device (telemetry charts, control commands, Azure history graph), Alert.
-- API/data: axios client with refresh interceptor; React Query hooks per domain; auth store hydrates from SecureStore and registers an Expo push token once per user.
+- API/data: axios client with refresh interceptor; React Query hooks per domain; shared `TimeRange` type reused by telemetry + history queries; auth store hydrates from SecureStore and registers an Expo push token once per user.
 - Auth screens: Login is live; Signup/ForgotPassword are locked-down stubs with guidance.
 - Health (2025-12-05 local): `npm install` OK (npm audit reports 3 low vulns); `npm run typecheck` OK; `npm run lint` OK; `npm test -- --runInBand` OK (jest-expo; noisy console logs by design).
-- UX robustness: offline banner plus cached Dashboard sites (read-only) when disconnected; control flows include pending + throttling messaging; heat-pump history error mapping and alerts flows covered in tests; session-expired UX verified. Push token registration rotates on user/token changes.
+- UX robustness: offline banner plus cached Dashboard, Site, Device, and Alerts views (read-only with commands/ack/mute disabled); telemetry shows stale-data banners; control flows include pending + throttling messaging; heat-pump history error mapping and session-expired UX covered in tests.
+- Push/notifications: Profile screen now persists notification preferences (alertsEnabled) with OS-denied warning + Settings link; `useRegisterPushToken` respects alertsEnabled + granted OS permission and rotates registration on user/token changes.
 
 ## Cleanup actions
 - Moved root screenshots (`emulator-screen.png`, `screenshot.png`) into `docs/`.
@@ -45,5 +46,6 @@ _2025-12-05 sweep: backend and mobile npm install/typecheck/lint/test/build all 
 
 ## Open risks / TODOs before more API work
 - No 2FA or trusted-device protections yet; password reset flow still absent (manual resets only).
+- Offline UX partially covered via cached Dashboard/Site/Device/Alerts views; deeper sync/retry and cache invalidation still open.
 - Observability still leans on health-plus; no metrics/alerting pipeline yet.
 - npm audit waivers in place (backend: 6 moderate + 2 high in dev tooling; mobile: 3 low Expo CLI) pending upstream major upgrades.

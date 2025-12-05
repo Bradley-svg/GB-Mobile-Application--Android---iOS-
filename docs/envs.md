@@ -33,3 +33,4 @@ Centralised reference for backend and mobile environment variables across dev/st
   - Staging: staging API host once available
   - Production: production API host once available
 - Expo push: configure the Expo project and push notification credentials per environment; ensure staging devices use staging backends to avoid cross-environment pushes.
+- Notification preferences: currently cached locally (alertsEnabled toggle); backend `/user/preferences` wiring TBD, so no additional env vars yet.
