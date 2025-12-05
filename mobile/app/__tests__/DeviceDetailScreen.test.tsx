@@ -13,6 +13,8 @@ import {
 import * as navigation from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { AppStackParamList } from '../navigation/RootNavigator';
+import { useNetworkBanner } from '../hooks/useNetworkBanner';
+import { loadJson } from '../utils/storage';
 
 jest.mock('../api/hooks', () => ({
   useDevice: jest.fn(),
@@ -24,9 +26,21 @@ jest.mock('../api/hooks', () => ({
   useHeatPumpHistory: jest.fn(),
 }));
 
+jest.mock('../hooks/useNetworkBanner', () => ({
+  useNetworkBanner: jest.fn(),
+}));
+
+jest.mock('../utils/storage', () => ({
+  loadJson: jest.fn(),
+  saveJson: jest.fn(),
+}));
+
 describe('DeviceDetailScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+
+    (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: false });
+    (loadJson as jest.Mock).mockResolvedValue(null);
 
     const route: RouteProp<AppStackParamList, 'DeviceDetail'> = {
       key: 'DeviceDetail',
@@ -137,5 +151,74 @@ describe('DeviceDetailScreen', () => {
     fireEvent.press(retryButton);
     expect(refetchMock).toHaveBeenCalled();
     expect(screen.getByTestId('telemetry-error')).toBeTruthy();
+  });
+
+  it('renders cached data when offline and disables commands', async () => {
+    (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: true });
+    const cachedTelemetry = {
+      range: '24h',
+      metrics: {
+        supply_temp: [{ ts: '2025-01-01T00:00:00.000Z', value: 48 }],
+        return_temp: [],
+        power_kw: [],
+        flow_rate: [],
+        cop: [],
+      },
+    };
+    (loadJson as jest.Mock).mockResolvedValue({
+      device: {
+        id: 'device-1',
+        site_id: 'site-1',
+        name: 'Cached Device',
+        type: 'hp',
+        status: 'ok',
+        mac: '38:18:2B:60:A9:94',
+      },
+      telemetry: cachedTelemetry,
+      lastUpdatedAt: '2025-01-01T00:00:00.000Z',
+      cachedAt: '2025-01-01T01:00:00.000Z',
+    });
+    (useDevice as jest.Mock).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+    });
+    (useDeviceTelemetry as jest.Mock).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+    });
+    (useHeatPumpHistory as jest.Mock).mockReturnValue({
+      data: { series: [] },
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<DeviceDetailScreen />);
+
+    expect(await screen.findByText('Offline - showing cached data (read-only).')).toBeTruthy();
+    expect(screen.getByText('Cached Device')).toBeTruthy();
+    expect(screen.getByText('Commands unavailable while offline.')).toBeTruthy();
+    const setpointButton = screen.getByTestId('setpoint-button');
+    expect(setpointButton.props.disabled).toBe(true);
+  });
+
+  it('shows offline empty state when no cached device exists', async () => {
+    (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: true });
+    (loadJson as jest.Mock).mockResolvedValue(null);
+    (useDevice as jest.Mock).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+    });
+    (useDeviceTelemetry as jest.Mock).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<DeviceDetailScreen />);
+
+    expect(await screen.findByText('Offline and no cached data for this device.')).toBeTruthy();
   });
 });

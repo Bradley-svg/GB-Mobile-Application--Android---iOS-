@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAcknowledgeAlert, useAlerts, useMuteAlert } from '../../api/hooks';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { Screen, Card, PrimaryButton, IconButton } from '../../components';
+import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
@@ -21,6 +22,7 @@ export const AlertDetailScreen: React.FC = () => {
   const { data: alerts, isLoading, isError } = useAlerts();
   const acknowledge = useAcknowledgeAlert();
   const mute = useMuteAlert();
+  const { isOffline } = useNetworkBanner();
 
   if (isLoading || !alerts) {
     return (
@@ -50,6 +52,7 @@ export const AlertDetailScreen: React.FC = () => {
   }
 
   const onAcknowledge = async () => {
+    if (isOffline) return;
     try {
       await acknowledge.mutateAsync(alertItem.id);
       Alert.alert('Acknowledged', 'Alert marked as acknowledged');
@@ -59,6 +62,7 @@ export const AlertDetailScreen: React.FC = () => {
   };
 
   const onMute = async () => {
+    if (isOffline) return;
     try {
       await mute.mutateAsync({ alertId: alertItem.id, minutes: 60 });
       Alert.alert('Muted', 'Alert muted for 60 minutes');
@@ -113,15 +117,22 @@ export const AlertDetailScreen: React.FC = () => {
         <PrimaryButton
           label={acknowledge.isPending ? 'Acknowledging...' : 'Acknowledge'}
           onPress={onAcknowledge}
-          disabled={acknowledge.isPending}
+          testID="acknowledge-button"
+          disabled={acknowledge.isPending || isOffline}
         />
         <PrimaryButton
           label={mute.isPending ? 'Muting...' : 'Mute 60 minutes'}
           onPress={onMute}
-          disabled={mute.isPending}
+          testID="mute-button"
+          disabled={mute.isPending || isOffline}
           variant="outline"
           style={{ marginTop: spacing.sm }}
         />
+        {isOffline ? (
+          <Text style={[typography.caption, styles.offlineNote]}>
+            Requires network connection to acknowledge or mute alerts.
+          </Text>
+        ) : null}
       </View>
     </Screen>
   );
@@ -175,4 +186,5 @@ const styles = StyleSheet.create({
   actions: {
     marginBottom: spacing.xl,
   },
+  offlineNote: { color: colors.textSecondary, marginTop: spacing.sm },
 });

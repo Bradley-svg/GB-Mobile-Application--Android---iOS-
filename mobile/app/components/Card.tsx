@@ -8,22 +8,28 @@ type CardProps = {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   onPress?: () => void;
+  testID?: string;
 };
 
-export const Card: React.FC<CardProps> = ({ children, style, onPress }) => {
+export const Card: React.FC<CardProps> = ({ children, style, onPress, testID }) => {
   if (onPress) {
     return (
       <TouchableOpacity
         style={[styles.card, style]}
         onPress={onPress}
         activeOpacity={0.9}
+        testID={testID}
       >
         {children}
       </TouchableOpacity>
     );
   }
 
-  return <View style={[styles.card, style]}>{children}</View>;
+  return (
+    <View style={[styles.card, style]} testID={testID}>
+      {children}
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({

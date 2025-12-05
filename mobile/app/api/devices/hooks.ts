@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../client';
-import type { ApiDevice, DeviceTelemetry } from '../types';
+import type { ApiDevice, DeviceTelemetry, TimeRange } from '../types';
 
 const shouldRetry = (failureCount: number, error: unknown) => {
   if (axios.isAxiosError(error)) {
@@ -39,7 +39,7 @@ export function useDevice(deviceId: string) {
   });
 }
 
-export function useDeviceTelemetry(deviceId: string, range: '24h' | '7d') {
+export function useDeviceTelemetry(deviceId: string, range: TimeRange) {
   return useQuery<DeviceTelemetry>({
     queryKey: ['devices', deviceId, 'telemetry', range],
     queryFn: async () => {

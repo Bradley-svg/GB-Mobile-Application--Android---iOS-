@@ -1,11 +1,14 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useAlerts } from '../../api/hooks';
 import { AppStackParamList } from '../../navigation/RootNavigator';
-import { Screen, Card, PillTab, IconButton, ErrorCard, EmptyState } from '../../components';
+import { Screen, Card, PillTabGroup, IconButton, ErrorCard, EmptyState } from '../../components';
+import { useNetworkBanner } from '../../hooks/useNetworkBanner';
+import { loadJson, saveJson } from '../../utils/storage';
+import type { Alert } from '../../api/types';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
@@ -29,28 +32,68 @@ const severityColor = (severity: string) => {
   }
 };
 
+const ALERTS_CACHE_KEY = 'alerts-cache:all';
+
 export const AlertsScreen: React.FC = () => {
   const [severityFilter, setSeverityFilter] = useState<'all' | 'warning' | 'critical'>('all');
-  const filterOptions: Array<'all' | 'warning' | 'critical'> = ['all', 'warning', 'critical'];
   const { data: alerts, isLoading, isError, refetch } = useAlerts({
     status: 'active',
     severity: severityFilter === 'all' ? undefined : severityFilter,
   });
 
   const navigation = useNavigation<Navigation>();
+  const { isOffline } = useNetworkBanner();
+  const [cachedAlerts, setCachedAlerts] = useState<Alert[] | null>(null);
+
+  useEffect(() => {
+    if (!alerts || isOffline) return;
+
+    setCachedAlerts((prev) => {
+      const isSame =
+        prev &&
+        prev.length === alerts.length &&
+        prev.every((a, idx) => a.id === alerts[idx].id && a.status === alerts[idx].status);
+      if (isSame) return prev;
+      saveJson(ALERTS_CACHE_KEY, alerts);
+      return alerts;
+    });
+  }, [alerts, isOffline]);
+
+  useEffect(() => {
+    if (!isOffline) return;
+    let cancelled = false;
+
+    const loadCache = async () => {
+      const cached = await loadJson<Alert[]>(ALERTS_CACHE_KEY);
+      if (!cancelled) {
+        setCachedAlerts(cached);
+      }
+    };
+
+    loadCache();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOffline]);
+
+  const alertsList = alerts ?? cachedAlerts ?? [];
+  const hasCachedAlerts = (cachedAlerts?.length ?? 0) > 0;
+  const showLoading = isLoading && alertsList.length === 0;
+  const shouldShowError = isError && !isOffline && alertsList.length === 0;
 
   const sortedAlerts = useMemo(
     () =>
-      (alerts || []).slice().sort((a, b) => {
+      (alertsList || []).slice().sort((a, b) => {
         const sA = SEVERITY_ORDER[a.severity] ?? 99;
         const sB = SEVERITY_ORDER[b.severity] ?? 99;
         if (sA !== sB) return sA - sB;
         return new Date(b.last_seen_at).getTime() - new Date(a.last_seen_at).getTime();
       }),
-    [alerts]
+    [alertsList]
   );
 
-  if (isLoading) {
+  if (showLoading) {
     return (
       <Screen scroll={false} contentContainerStyle={styles.center}>
         <ActivityIndicator color={colors.primary} />
@@ -59,7 +102,7 @@ export const AlertsScreen: React.FC = () => {
     );
   }
 
-  if (isError) {
+  if (shouldShowError) {
     return (
       <Screen scroll={false} contentContainerStyle={styles.center}>
         <ErrorCard
@@ -74,6 +117,11 @@ export const AlertsScreen: React.FC = () => {
 
   return (
     <Screen scroll={false} contentContainerStyle={{ paddingBottom: spacing.xxl }}>
+      {isOffline ? (
+        <Text style={[typography.caption, styles.offlineNote]}>
+          {hasCachedAlerts ? 'Offline - showing cached alerts (read-only).' : 'Offline and no cached alerts.'}
+        </Text>
+      ) : null}
       <FlatList
         data={sortedAlerts}
         keyExtractor={(item) => item.id}
@@ -88,11 +136,15 @@ export const AlertsScreen: React.FC = () => {
               <IconButton icon={<Ionicons name="filter-outline" size={20} color={colors.dark} />} />
             </View>
             <View style={styles.filterRow}>
-              {filterOptions.map((s) => (
-                <View key={s} style={{ marginRight: spacing.sm }}>
-                  <PillTab label={s.toUpperCase()} selected={severityFilter === s} onPress={() => setSeverityFilter(s)} />
-                </View>
-              ))}
+              <PillTabGroup
+                value={severityFilter}
+                options={[
+                  { value: 'all', label: 'ALL' },
+                  { value: 'warning', label: 'WARNING' },
+                  { value: 'critical', label: 'CRITICAL' },
+                ]}
+                onChange={(value) => setSeverityFilter(value)}
+              />
             </View>
           </Card>
         }
@@ -123,7 +175,18 @@ export const AlertsScreen: React.FC = () => {
             </View>
           </Card>
         )}
-        ListEmptyComponent={<EmptyState message="No active alerts." testID="alerts-empty" />}
+        ListEmptyComponent={
+          <EmptyState
+            message={
+              isOffline
+                ? hasCachedAlerts
+                  ? 'Offline - showing cached alerts (read-only).'
+                  : 'Offline and no cached alerts.'
+                : 'No active alerts.'
+            }
+            testID="alerts-empty"
+          />
+        }
       />
     </Screen>
   );
@@ -133,6 +196,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   title: { color: colors.dark },
   muted: { color: colors.textSecondary },
+  offlineNote: { color: colors.textSecondary, marginBottom: spacing.sm },
   headerCard: { marginTop: spacing.xl, marginBottom: spacing.lg },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md },
   filterRow: { flexDirection: 'row', alignItems: 'center' },

@@ -6,11 +6,16 @@ import type { RouteProp } from '@react-navigation/native';
 import { AlertDetailScreen } from '../screens/Alerts/AlertDetailScreen';
 import { useAlerts, useAcknowledgeAlert, useMuteAlert } from '../api/hooks';
 import type { AppStackParamList } from '../navigation/RootNavigator';
+import { useNetworkBanner } from '../hooks/useNetworkBanner';
 
 jest.mock('../api/hooks', () => ({
   useAlerts: jest.fn(),
   useAcknowledgeAlert: jest.fn(),
   useMuteAlert: jest.fn(),
+}));
+
+jest.mock('../hooks/useNetworkBanner', () => ({
+  useNetworkBanner: jest.fn(),
 }));
 
 describe('AlertDetailScreen', () => {
@@ -35,6 +40,8 @@ describe('AlertDetailScreen', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: false });
 
     const route: RouteProp<AppStackParamList, 'AlertDetail'> = {
       key: 'AlertDetail',
@@ -93,5 +100,17 @@ describe('AlertDetailScreen', () => {
 
     expect(screen.getByText('Acknowledging...')).toBeTruthy();
     expect(screen.getByText('Muting...')).toBeTruthy();
+  });
+
+  it('disables acknowledge and mute when offline', () => {
+    (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: true });
+
+    render(<AlertDetailScreen />);
+
+    const ackButton = screen.getByTestId('acknowledge-button');
+    const muteButton = screen.getByTestId('mute-button');
+    expect(ackButton.props.disabled).toBe(true);
+    expect(muteButton.props.disabled).toBe(true);
+    expect(screen.getByText(/requires network connection/i)).toBeTruthy();
   });
 });

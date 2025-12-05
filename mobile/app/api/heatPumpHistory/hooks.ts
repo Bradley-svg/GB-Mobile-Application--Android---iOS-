@@ -7,6 +7,7 @@ export type HeatPumpHistoryError = {
   status?: number;
   message?: string;
   original?: unknown;
+  kind?: 'unavailable' | 'otherError';
 };
 
 const HEAT_PUMP_HISTORY_QUERY_KEY = ['heatPumpHistory'];
@@ -40,9 +41,11 @@ export function useHeatPumpHistory(
         if (axios.isAxiosError(err)) {
           const status = err.response?.status;
           const message = err.response?.data?.message || err.message;
-          throw { status, message, original: err } as HeatPumpHistoryError;
+          const kind: HeatPumpHistoryError['kind'] =
+            status === 502 || status === 503 ? 'unavailable' : 'otherError';
+          throw { status, message, original: err, kind } as HeatPumpHistoryError;
         }
-        throw { original: err } as HeatPumpHistoryError;
+        throw { original: err, kind: 'otherError' } as HeatPumpHistoryError;
       }
     },
     retry: shouldRetry,

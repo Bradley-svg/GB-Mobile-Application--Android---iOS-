@@ -1,0 +1,49 @@
+import React from 'react';
+import { render, screen } from '@testing-library/react-native';
+import { FlatList } from 'react-native';
+import { DashboardScreen } from '../screens/Dashboard/DashboardScreen';
+import { useAlerts, useSites } from '../api/hooks';
+import { useNetworkBanner } from '../hooks/useNetworkBanner';
+import { loadJson } from '../utils/storage';
+
+jest.mock('../api/hooks');
+jest.mock('../hooks/useNetworkBanner', () => ({
+  useNetworkBanner: jest.fn(),
+}));
+jest.mock('../utils/storage', () => ({
+  loadJson: jest.fn(),
+  saveJson: jest.fn(),
+}));
+
+describe('Dashboard large list rendering', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: false });
+    (loadJson as jest.Mock).mockResolvedValue(null);
+    (useAlerts as jest.Mock).mockReturnValue({ data: [], isLoading: false, isError: false });
+  });
+
+  it('renders a large list of sites without mounting every item', () => {
+    const sites = Array.from({ length: 800 }).map((_, idx) => ({
+      id: `site-${idx}`,
+      name: `Site ${idx}`,
+      city: 'Demo City',
+      status: 'online',
+      last_seen_at: '2025-01-01T00:00:00.000Z',
+    }));
+    (useSites as jest.Mock).mockReturnValue({
+      data: sites,
+      isLoading: false,
+      isError: false,
+      refetch: jest.fn(),
+    });
+
+    render(<DashboardScreen />);
+
+    const list = screen.UNSAFE_getByType(FlatList);
+    expect(list.props.data.length).toBe(sites.length);
+    expect(list.props.initialNumToRender).toBeLessThan(sites.length);
+    const renderedCards = screen.getAllByTestId('site-card');
+    expect(renderedCards.length).toBeGreaterThan(0);
+  });
+});

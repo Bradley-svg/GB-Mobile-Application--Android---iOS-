@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { View, Text, ActivityIndicator, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
@@ -14,10 +14,17 @@ import {
   useSite,
   useHeatPumpHistory,
 } from '../../api/hooks';
-import type { ControlFailureReason, HeatPumpHistoryRequest } from '../../api/types';
+import type {
+  ApiDevice,
+  ControlFailureReason,
+  DeviceTelemetry,
+  HeatPumpHistoryRequest,
+  TimeRange,
+} from '../../api/types';
 import type { HeatPumpHistoryError } from '../../api/heatPumpHistory/hooks';
-import { Screen, Card, PillTab, PrimaryButton, IconButton, ErrorCard } from '../../components';
+import { Screen, Card, PrimaryButton, IconButton, ErrorCard, PillTabGroup } from '../../components';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
+import { loadJson, saveJson } from '../../utils/storage';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
@@ -29,12 +36,30 @@ type Navigation = NativeStackNavigationProp<AppStackParamList>;
 const SETPOINT_MIN = 30;
 const SETPOINT_MAX = 60;
 const DEFAULT_SETPOINT = '45';
+const STALE_THRESHOLD_MS = 15 * 60 * 1000;
+const DEVICE_CACHE_KEY = (deviceId: string) => `device-cache:${deviceId}`;
+const RANGE_TO_WINDOW_MS: Record<TimeRange, number> = {
+  '1h': 60 * 60 * 1000,
+  '24h': 24 * 60 * 60 * 1000,
+  '7d': 7 * 24 * 60 * 60 * 1000,
+};
+
+type CachedDeviceDetail = {
+  device: ApiDevice;
+  telemetry: DeviceTelemetry;
+  lastUpdatedAt: string | null;
+  cachedAt: string;
+};
+
+type HistoryStatus = 'ok' | 'noData' | 'unavailable' | 'otherError';
 
 export const DeviceDetailScreen: React.FC = () => {
   const route = useRoute<Route>();
   const { deviceId } = route.params;
   const navigation = useNavigation<Navigation>();
-  const [range, setRange] = useState<'24h' | '7d'>('24h');
+  const [range, setRange] = useState<TimeRange>('24h');
+  const [cachedDeviceDetail, setCachedDeviceDetail] = useState<CachedDeviceDetail | null>(null);
+  const [cacheLoading, setCacheLoading] = useState(false);
 
   const [setpointInput, setSetpointInput] = useState(DEFAULT_SETPOINT);
   const [lastSetpoint, setLastSetpoint] = useState(DEFAULT_SETPOINT);
@@ -47,7 +72,7 @@ export const DeviceDetailScreen: React.FC = () => {
   const [isModePending, setIsModePending] = useState(false);
 
   const deviceQuery = useDevice(deviceId);
-  const siteId = deviceQuery.data?.site_id;
+  const siteId = deviceQuery.data?.site_id ?? cachedDeviceDetail?.device.site_id;
   const siteQuery = useSite(siteId || '');
   const alertsQuery = useDeviceAlerts(deviceId);
   const telemetryQuery = useDeviceTelemetry(deviceId, range);
@@ -56,14 +81,31 @@ export const DeviceDetailScreen: React.FC = () => {
   const setpointPending = isSetpointPending || setpointMutation.isPending;
   const modePending = isModePending || modeMutation.isPending;
   const refetchTelemetry = telemetryQuery.refetch;
-  const mac = deviceQuery.data?.mac ?? null;
+  const mac = deviceQuery.data?.mac ?? cachedDeviceDetail?.device.mac ?? null;
   const { isOffline } = useNetworkBanner();
 
+  useEffect(() => {
+    if (!isOffline) return;
+    let cancelled = false;
+    setCacheLoading(true);
+
+    const loadCache = async () => {
+      const cached = await loadJson<CachedDeviceDetail>(DEVICE_CACHE_KEY(deviceId));
+      if (!cancelled) {
+        setCachedDeviceDetail(cached);
+        setCacheLoading(false);
+      }
+    };
+
+    loadCache();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [deviceId, isOffline]);
+
   const now = new Date();
-  const fromDate =
-    range === '24h'
-      ? new Date(now.getTime() - 24 * 60 * 60 * 1000)
-      : new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const fromDate = new Date(now.getTime() - RANGE_TO_WINDOW_MS[range]);
 
   const historyRequest: HeatPumpHistoryRequest | null = mac
     ? {
@@ -94,22 +136,25 @@ export const DeviceDetailScreen: React.FC = () => {
       fields: [],
     },
     {
-      enabled: !!historyRequest,
+      enabled: !!historyRequest && !isOffline,
     }
   );
   const refetchHistory = heatPumpHistoryQuery.refetch;
 
+  const device = deviceQuery.data ?? cachedDeviceDetail?.device ?? null;
+  const telemetryFromQuery = telemetryQuery.data;
+  const telemetryData = telemetryFromQuery ?? cachedDeviceDetail?.telemetry ?? null;
   const siteName = useMemo(() => siteQuery.data?.name || 'Unknown site', [siteQuery.data]);
   const activeDeviceAlerts = useMemo(
     () => (alertsQuery.data || []).filter((a) => a.status === 'active'),
     [alertsQuery.data]
   );
 
-  const supplyPoints = telemetryQuery.data?.metrics['supply_temp'] || [];
-  const returnPoints = telemetryQuery.data?.metrics['return_temp'] || [];
-  const powerPoints = telemetryQuery.data?.metrics['power_kw'] || [];
-  const flowPoints = telemetryQuery.data?.metrics['flow_rate'] || [];
-  const copPoints = telemetryQuery.data?.metrics['cop'] || [];
+  const supplyPoints = telemetryData?.metrics['supply_temp'] || [];
+  const returnPoints = telemetryData?.metrics['return_temp'] || [];
+  const powerPoints = telemetryData?.metrics['power_kw'] || [];
+  const flowPoints = telemetryData?.metrics['flow_rate'] || [];
+  const copPoints = telemetryData?.metrics['cop'] || [];
   const currentTemp = Math.round(supplyPoints[supplyPoints.length - 1]?.value ?? 20);
 
   const toSeries = (points: typeof supplyPoints) =>
@@ -120,22 +165,40 @@ export const DeviceDetailScreen: React.FC = () => {
   const powerData = toSeries(powerPoints);
   const flowData = toSeries(flowPoints);
   const copData = toSeries(copPoints);
-  const lastUpdatedAt = useMemo(() => {
-    const metrics = telemetryQuery.data?.metrics;
-    if (!metrics) return null;
+  const lastUpdatedAt = useMemo(() => computeLastUpdatedAt(telemetryData), [telemetryData]);
+  const liveLastUpdatedAt = useMemo(
+    () => computeLastUpdatedAt(telemetryFromQuery),
+    [telemetryFromQuery]
+  );
+  const hasAnyTelemetryPoints = useMemo(() => {
+    const metrics = telemetryData?.metrics;
+    if (!metrics) return false;
+    return Object.values(metrics).some((points) => points.length > 0);
+  }, [telemetryData]);
+  const hasAnyHistoryPoints = useMemo(() => {
+    const series = heatPumpHistoryQuery.data?.series ?? [];
+    return series.some((s) => (s.points ?? []).length > 0);
+  }, [heatPumpHistoryQuery.data]);
+  const isStale = useMemo(() => {
+    if (!lastUpdatedAt) return false;
+    const ts = new Date(lastUpdatedAt).getTime();
+    if (Number.isNaN(ts)) return false;
+    return Date.now() - ts > STALE_THRESHOLD_MS;
+  }, [lastUpdatedAt]);
 
-    const timestamps = Object.values(metrics).reduce<number[]>((acc, points) => {
-      points.forEach((p) => {
-        const ts = new Date(p.ts).getTime();
-        if (!Number.isNaN(ts)) {
-          acc.push(ts);
-        }
-      });
-      return acc;
-    }, []);
-    if (timestamps.length === 0) return null;
-    return new Date(Math.max(...timestamps)).toISOString();
-  }, [telemetryQuery.data]);
+  useEffect(() => {
+    if (isOffline) return;
+    if (!deviceQuery.data || !telemetryFromQuery) return;
+
+    const snapshot: CachedDeviceDetail = {
+      device: deviceQuery.data,
+      telemetry: telemetryFromQuery,
+      lastUpdatedAt: liveLastUpdatedAt,
+      cachedAt: new Date().toISOString(),
+    };
+    setCachedDeviceDetail(snapshot);
+    saveJson(DEVICE_CACHE_KEY(deviceId), snapshot);
+  }, [deviceId, deviceQuery.data, telemetryFromQuery, isOffline, liveLastUpdatedAt]);
 
   const xTickCount = range === '7d' ? 5 : 6;
   const formatAxisTick = useMemo(
@@ -167,20 +230,38 @@ export const DeviceDetailScreen: React.FC = () => {
       }));
   }, [heatPumpHistoryQuery.data]);
 
-  const isLoading = deviceQuery.isLoading;
-  const deviceNotFound = (deviceQuery.isError || !deviceQuery.data) && !deviceQuery.isLoading;
-  const telemetryLoading = telemetryQuery.isLoading;
-  const telemetryError = telemetryQuery.isError;
-  const telemetryErrorObj = telemetryQuery.error;
   const historyErrorObj = heatPumpHistoryQuery.error;
-  const historyErrorMessage = mapHistoryError(historyErrorObj as HeatPumpHistoryError | undefined);
+  const historyStatus = useMemo<HistoryStatus>(() => {
+    if (heatPumpHistoryQuery.isError) {
+      return deriveHistoryStatus(historyErrorObj as HeatPumpHistoryError | undefined);
+    }
+    if (!heatPumpHistoryQuery.isLoading && heatPumpSeries.length === 0) {
+      return 'noData';
+    }
+    return 'ok';
+  }, [
+    heatPumpHistoryQuery.isError,
+    heatPumpHistoryQuery.isLoading,
+    heatPumpSeries.length,
+    historyErrorObj,
+  ]);
+  const showLoading = (deviceQuery.isLoading || cacheLoading) && !device;
+  const deviceNotFound = !device && !showLoading;
+  const telemetryLoading = telemetryQuery.isLoading && !telemetryData;
+  const telemetryError = telemetryQuery.isError && !telemetryLoading && !telemetryData && !isOffline;
+  const telemetryErrorObj = telemetryQuery.error;
+  const historyErrorMessage =
+    mapHistoryError(historyErrorObj as HeatPumpHistoryError | undefined) ||
+    'Failed to load history. Try again or contact support.';
+  const isOfflineWithCache = isOffline && !!cachedDeviceDetail;
+  const showUnknownLastUpdated = !lastUpdatedAt && (hasAnyTelemetryPoints || hasAnyHistoryPoints);
 
   if (__DEV__) {
     if (telemetryErrorObj) console.log('Telemetry load error', telemetryErrorObj);
     if (historyErrorObj) console.log('Heat pump history load error', historyErrorObj);
   }
 
-  if (isLoading) {
+  if (showLoading) {
     return (
       <Screen scroll={false} contentContainerStyle={styles.center}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -192,15 +273,19 @@ export const DeviceDetailScreen: React.FC = () => {
   if (deviceNotFound) {
     return (
       <Screen scroll={false} contentContainerStyle={styles.center}>
-        <Text style={[typography.title2, styles.title, { marginBottom: spacing.xs }]}>Device not found</Text>
+        <Text style={[typography.title2, styles.title, { marginBottom: spacing.xs }]}>
+          {isOffline ? 'Offline and no cached data for this device.' : 'Device not found'}
+        </Text>
         <Text style={[typography.body, styles.muted]}>
-          The device you are looking for could not be retrieved.
+          {isOffline
+            ? 'Reconnect to refresh this device.'
+            : 'The device you are looking for could not be retrieved.'}
         </Text>
       </Screen>
     );
   }
 
-  const device = deviceQuery.data!;
+  if (!device) return null;
 
   const hasSupplyData = supplyData.length > 0;
   const hasReturnData = returnData.length > 0;
@@ -300,6 +385,16 @@ export const DeviceDetailScreen: React.FC = () => {
               ? `Last updated at ${new Date(lastUpdatedAt).toLocaleString()}`
               : 'No telemetry yet'}
           </Text>
+          {isStale ? (
+            <Text style={[typography.caption, styles.staleText]}>
+              Data is older than 15 minutes. Values may not reflect current site conditions.
+            </Text>
+          ) : null}
+          {showUnknownLastUpdated ? (
+            <Text style={[typography.caption, styles.staleText]}>
+              Last updated time unavailable - data may be stale.
+            </Text>
+          ) : null}
         </View>
 
         <View style={styles.dialWrapper}>
@@ -320,12 +415,24 @@ export const DeviceDetailScreen: React.FC = () => {
         </View>
       </Card>
 
+      {isOffline ? (
+        <Text style={[typography.caption, styles.offlineNote, { marginBottom: spacing.md }]}>
+          {isOfflineWithCache
+            ? 'Offline - showing cached data (read-only).'
+            : 'Offline and no cached data for this device.'}
+        </Text>
+      ) : null}
+
       <View style={styles.rangeTabs}>
-        {(['24h', '7d'] as const).map((label) => (
-          <View key={label} style={{ marginRight: spacing.sm }}>
-            <PillTab label={label} selected={range === label} onPress={() => setRange(label)} />
-          </View>
-        ))}
+        <PillTabGroup
+          value={range}
+          options={[
+            { value: '1h', label: '1h' },
+            { value: '24h', label: '24h' },
+            { value: '7d', label: '7d' },
+          ]}
+          onChange={setRange}
+        />
       </View>
 
       {telemetryLoading && (
@@ -413,25 +520,24 @@ export const DeviceDetailScreen: React.FC = () => {
           <Text style={[typography.caption, styles.cardPlaceholder]}>Loading history...</Text>
         )}
 
-        {heatPumpHistoryQuery.isError && !heatPumpHistoryQuery.isLoading && (
-          <ErrorCard
-            title="Could not load heat pump history."
-            message={historyErrorMessage}
-            onRetry={() => refetchHistory()}
-            testID="history-error"
-          />
+        {!heatPumpHistoryQuery.isLoading &&
+          (historyStatus === 'unavailable' || historyStatus === 'otherError') && (
+            <ErrorCard
+              title="Could not load heat pump history."
+              message={historyErrorMessage}
+              onRetry={() => refetchHistory()}
+              testID="history-error"
+            />
+          )}
+
+        {!heatPumpHistoryQuery.isLoading && historyStatus === 'noData' && (
+          <Text style={[typography.caption, styles.cardPlaceholder]}>
+            No history data in this period.
+          </Text>
         )}
 
         {!heatPumpHistoryQuery.isLoading &&
-          !heatPumpHistoryQuery.isError &&
-          heatPumpSeries.length === 0 && (
-            <Text style={[typography.caption, styles.cardPlaceholder]}>
-              No history data for this period.
-            </Text>
-          )}
-
-        {!heatPumpHistoryQuery.isLoading &&
-          !heatPumpHistoryQuery.isError &&
+          historyStatus === 'ok' &&
           heatPumpSeries.length > 0 && (
             <View testID="heatPumpHistoryChart" style={styles.chartWrapper}>
               <VictoryChart scale={{ x: 'time' }}>
@@ -468,6 +574,7 @@ export const DeviceDetailScreen: React.FC = () => {
         <PrimaryButton
           label={setpointPending ? 'Sending...' : 'Update setpoint'}
           onPress={onSetpointSave}
+          testID="setpoint-button"
           disabled={setpointPending || isOffline}
         />
         {setpointPending ? (
@@ -580,6 +687,31 @@ const renderStatusPill = (status?: string | null) => {
   );
 };
 
+function computeLastUpdatedAt(telemetry?: DeviceTelemetry | null) {
+  const metrics = telemetry?.metrics;
+  if (!metrics) return null;
+
+  const timestamps = Object.values(metrics).reduce<number[]>((acc, points) => {
+    points.forEach((p) => {
+      const ts = new Date(p.ts).getTime();
+      if (!Number.isNaN(ts)) {
+        acc.push(ts);
+      }
+    });
+    return acc;
+  }, []);
+
+  if (timestamps.length === 0) return null;
+  return new Date(Math.max(...timestamps)).toISOString();
+}
+
+function deriveHistoryStatus(error?: HeatPumpHistoryError): HistoryStatus {
+  if (!error) return 'otherError';
+  return error.kind === 'unavailable' || error.status === 503 || error.status === 502
+    ? 'unavailable'
+    : 'otherError';
+}
+
 function mapControlFailureReason(reason?: ControlFailureReason | string, fallbackMessage?: string) {
   const normalized = (reason || '').toUpperCase();
   switch (normalized) {
@@ -600,13 +732,10 @@ function mapControlFailureReason(reason?: ControlFailureReason | string, fallbac
 
 function mapHistoryError(error?: HeatPumpHistoryError) {
   if (!error) return undefined;
-  if (error.status === 503) {
-    return 'Heat pump history is temporarily unavailable. Please try again soon.';
+  if (deriveHistoryStatus(error) === 'unavailable') {
+    return 'History temporarily unavailable. Please try again later.';
   }
-  if (error.status === 502) {
-    return 'Failed to load history from the upstream service.';
-  }
-  return error.message || 'Could not load history.';
+  return 'Failed to load history. Try again or contact support.';
 }
 
 const renderMetricCard = (
@@ -641,6 +770,13 @@ const styles = StyleSheet.create({
     color: colors.dark,
   },
   muted: {
+    color: colors.textSecondary,
+  },
+  staleText: {
+    color: colors.warning,
+    marginTop: spacing.xs,
+  },
+  offlineNote: {
     color: colors.textSecondary,
   },
   topBar: {

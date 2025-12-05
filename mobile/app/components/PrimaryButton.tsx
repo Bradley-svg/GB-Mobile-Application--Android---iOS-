@@ -10,6 +10,7 @@ type PrimaryButtonProps = {
   variant?: 'solid' | 'outline';
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
+  testID?: string;
 };
 
 export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
@@ -18,6 +19,7 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
   variant = 'solid',
   disabled,
   style,
+  testID,
 }) => {
   const isOutline = variant === 'outline';
   return (
@@ -25,6 +27,7 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
       onPress={onPress}
       activeOpacity={0.9}
       disabled={disabled}
+      testID={testID}
       style={[
         styles.primaryButton,
         isOutline

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, FlatList } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -86,19 +86,8 @@ export const DashboardScreen: React.FC = () => {
     );
   }
 
-  if (!showLoading && !shouldShowError && (sites?.length ?? 0) === 0) {
-    return (
-      <Screen scroll={false} contentContainerStyle={styles.center}>
-        <EmptyState
-          message={isOffline ? 'Offline - no cached sites available yet.' : 'No sites available yet.'}
-          testID="dashboard-empty"
-        />
-      </Screen>
-    );
-  }
-
-  return (
-    <Screen>
+  const listHeader = (
+    <View>
       <View style={styles.heroCard}>
         <View>
           <Text style={[typography.caption, styles.muted, { marginBottom: spacing.xs }]}>Portfolio</Text>
@@ -115,7 +104,7 @@ export const DashboardScreen: React.FC = () => {
       </View>
 
       {isOffline ? (
-        <Text style={[typography.caption, styles.offlineNote]}>Offline — showing last known data.</Text>
+        <Text style={[typography.caption, styles.offlineNote]}>Offline - showing last known data.</Text>
       ) : null}
 
       <Card style={styles.metricsCard}>
@@ -138,11 +127,30 @@ export const DashboardScreen: React.FC = () => {
       </Card>
 
       <Text style={[typography.subtitle, styles.sectionTitle]}>Sites</Text>
-      <View style={styles.grid}>
-        {sites.map((item) => (
+    </View>
+  );
+
+  return (
+    <Screen scroll={false}>
+      <FlatList
+        data={sites}
+        keyExtractor={(item) => item.id}
+        numColumns={2}
+        columnWrapperStyle={styles.gridRow}
+        initialNumToRender={8}
+        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        ListHeaderComponent={listHeader}
+        ListEmptyComponent={
+          <EmptyState
+            message={isOffline ? 'Offline - no cached sites available yet.' : 'No sites available yet.'}
+            testID="dashboard-empty"
+          />
+        }
+        contentContainerStyle={{ paddingBottom: spacing.xl }}
+        renderItem={({ item }) => (
           <Card
-            key={item.id}
             style={styles.siteCard}
+            testID="site-card"
             onPress={() => navigation.navigate('SiteOverview', { siteId: item.id })}
           >
             <View style={styles.siteHeader}>
@@ -174,8 +182,8 @@ export const DashboardScreen: React.FC = () => {
               </View>
             </View>
           </Card>
-        ))}
-      </View>
+        )}
+      />
     </Screen>
   );
 };
@@ -250,9 +258,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     color: colors.dark,
   },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  gridRow: {
+    flex: 1,
     justifyContent: 'space-between',
   },
   siteCard: {

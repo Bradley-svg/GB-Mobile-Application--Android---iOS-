@@ -13,6 +13,7 @@ import {
 import * as navigation from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { AppStackParamList } from '../navigation/RootNavigator';
+import { useNetworkBanner } from '../hooks/useNetworkBanner';
 
 jest.mock('../api/hooks', () => ({
   useDevice: jest.fn(),
@@ -22,6 +23,10 @@ jest.mock('../api/hooks', () => ({
   useSetpointCommand: jest.fn(),
   useSite: jest.fn(),
   useHeatPumpHistory: jest.fn(),
+}));
+
+jest.mock('../hooks/useNetworkBanner', () => ({
+  useNetworkBanner: jest.fn(),
 }));
 
 const baseDevice = {
@@ -37,6 +42,8 @@ const baseDevice = {
 describe('DeviceDetailScreen heat pump history', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+
+    (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: false });
 
     const route: RouteProp<AppStackParamList, 'DeviceDetail'> = {
       key: 'DeviceDetail',
@@ -88,6 +95,12 @@ describe('DeviceDetailScreen heat pump history', () => {
       mutateAsync: jest.fn(),
       isPending: false,
     });
+
+    (useHeatPumpHistory as jest.Mock).mockReturnValue({
+      data: { series: [] },
+      isLoading: false,
+      isError: false,
+    });
   });
 
   afterEach(() => {
@@ -111,7 +124,7 @@ describe('DeviceDetailScreen heat pump history', () => {
     render(<DeviceDetailScreen />);
 
     expect(screen.getByText('Compressor current (A)')).toBeTruthy();
-    expect(screen.queryByText('No history data for this period.')).toBeNull();
+    expect(screen.queryByText('No history data in this period.')).toBeNull();
     expect(screen.getByTestId('heatPumpHistoryChart')).toBeTruthy();
   });
 
@@ -125,7 +138,7 @@ describe('DeviceDetailScreen heat pump history', () => {
     render(<DeviceDetailScreen />);
 
     expect(screen.getByText('Compressor current (A)')).toBeTruthy();
-    expect(screen.getByText('No history data for this period.')).toBeTruthy();
+    expect(screen.getByText('No history data in this period.')).toBeTruthy();
   });
 
   it('shows an inline error when the history request fails', () => {
@@ -141,6 +154,7 @@ describe('DeviceDetailScreen heat pump history', () => {
     render(<DeviceDetailScreen />);
 
     expect(screen.getByText('Could not load heat pump history.')).toBeTruthy();
+    expect(screen.getByText(/failed to load history/i)).toBeTruthy();
     const retry = screen.getByText('Retry');
     fireEvent.press(retry);
     expect(refetchMock).toHaveBeenCalled();
@@ -169,7 +183,7 @@ describe('DeviceDetailScreen heat pump history', () => {
 
     render(<DeviceDetailScreen />);
 
-    expect(screen.getByText(/upstream service/i)).toBeTruthy();
+    expect(screen.getByText(/history temporarily unavailable/i)).toBeTruthy();
   });
 
   it('disables history when mac is missing', () => {
@@ -193,6 +207,83 @@ describe('DeviceDetailScreen heat pump history', () => {
       { enabled: boolean }
     ];
     expect(options.enabled).toBe(false);
-    expect(screen.getByText('No history data for this period.')).toBeTruthy();
+    expect(screen.getByText('No history data in this period.')).toBeTruthy();
+  });
+
+  it('allows selecting 1h, 24h, and 7d ranges for telemetry and history', () => {
+    render(<DeviceDetailScreen />);
+
+    expect((useDeviceTelemetry as jest.Mock).mock.calls[0][1]).toBe('24h');
+
+    fireEvent.press(screen.getByText(/1h/i));
+    fireEvent.press(screen.getByText(/7d/i));
+
+    const ranges = (useDeviceTelemetry as jest.Mock).mock.calls.map(([, r]: [string, string]) => r);
+    expect(ranges).toContain('1h');
+    expect(ranges).toContain('24h');
+    expect(ranges).toContain('7d');
+  });
+
+  it('shows a stale warning when telemetry is older than fifteen minutes', () => {
+    jest.spyOn(Date, 'now').mockReturnValue(new Date('2025-01-01T12:00:00Z').getTime());
+    (useDeviceTelemetry as jest.Mock).mockReturnValue({
+      data: {
+        range: '24h',
+        metrics: {
+          supply_temp: [{ ts: '2025-01-01T11:00:00Z', value: 40 }],
+          return_temp: [],
+          power_kw: [],
+          flow_rate: [],
+          cop: [],
+        },
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<DeviceDetailScreen />);
+
+    expect(screen.getByText(/older than 15 minutes/i)).toBeTruthy();
+  });
+
+  it('does not show the stale warning when telemetry is recent', () => {
+    jest.spyOn(Date, 'now').mockReturnValue(new Date('2025-01-01T12:00:00Z').getTime());
+    (useDeviceTelemetry as jest.Mock).mockReturnValue({
+      data: {
+        range: '24h',
+        metrics: {
+          supply_temp: [{ ts: '2025-01-01T11:55:00Z', value: 42 }],
+          return_temp: [],
+          power_kw: [],
+          flow_rate: [],
+          cop: [],
+        },
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<DeviceDetailScreen />);
+
+    expect(screen.queryByText(/older than 15 minutes/i)).toBeNull();
+  });
+
+  it('shows an unknown last updated message when telemetry timestamps are missing but history exists', () => {
+    (useHeatPumpHistory as jest.Mock).mockReturnValue({
+      data: {
+        series: [
+          {
+            field: 'metric_compCurrentA',
+            points: [{ timestamp: '2025-12-03T08:12:46.503Z', value: 12.3 }],
+          },
+        ],
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<DeviceDetailScreen />);
+
+    expect(screen.getByText(/Last updated time unavailable/i)).toBeTruthy();
   });
 });
