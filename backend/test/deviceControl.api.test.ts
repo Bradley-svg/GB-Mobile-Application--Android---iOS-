@@ -10,10 +10,16 @@ const getUserContextMock = vi.fn();
 const getDeviceByIdMock = vi.fn();
 const getLastCommandForDeviceMock = vi.fn();
 
-vi.mock('../src/services/deviceControlService', () => ({
-  setDeviceSetpoint: (...args: unknown[]) => setDeviceSetpointMock(...(args as [any])),
-  setDeviceMode: (...args: unknown[]) => setDeviceModeMock(...(args as [any])),
-}));
+vi.mock('../src/services/deviceControlService', async () => {
+  const actual = await vi.importActual<typeof import('../src/services/deviceControlService')>(
+    '../src/services/deviceControlService'
+  );
+  return {
+    ...actual,
+    setDeviceSetpoint: (...args: unknown[]) => setDeviceSetpointMock(...(args as [any])),
+    setDeviceMode: (...args: unknown[]) => setDeviceModeMock(...(args as [any])),
+  };
+});
 
 vi.mock('../src/services/deviceService', () => ({
   getDeviceById: (...args: unknown[]) => getDeviceByIdMock(...(args as [any])),
@@ -187,7 +193,7 @@ describe('control endpoints', () => {
       requested_value: { mode: 'AUTO' },
       failure_reason: 'SEND_FAILED',
       failure_message: 'publish failed',
-      created_at: new Date('2025-01-02T00:00:00.000Z'),
+      created_at: '2025-01-02T00:00:00.000Z',
     });
   });
 

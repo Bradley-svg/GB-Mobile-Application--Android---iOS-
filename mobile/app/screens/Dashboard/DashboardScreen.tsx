@@ -46,9 +46,8 @@ export const DashboardScreen: React.FC = () => {
     };
   }, [isOffline]);
 
-  const sites = data ?? cachedSites ?? [];
+  const sites = useMemo(() => data ?? cachedSites ?? [], [data, cachedSites]);
   const hasCachedSites = (cachedSites?.length ?? 0) > 0;
-  const usingCachedSites = !data && hasCachedSites;
   const showLoading = isLoading && !hasCachedSites;
   const shouldShowError = isError && !isOffline && !hasCachedSites;
 

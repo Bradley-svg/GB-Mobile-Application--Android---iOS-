@@ -18,12 +18,11 @@ const controlLimiter = rateLimit({
   keyGenerator: (req) => req.user?.id || req.ip || 'unknown',
   message: { message: 'Too many control commands. Please retry in a few minutes.' },
 });
-router.use(requireAuth);
 
-router.get('/devices/:id', getDevice);
-router.get('/devices/:id/telemetry', getDeviceTelemetryHandler);
-router.get('/devices/:id/last-command', getLastCommand);
-router.post('/devices/:id/commands/setpoint', controlLimiter, sendSetpointCommand);
-router.post('/devices/:id/commands/mode', controlLimiter, sendModeCommand);
+router.get('/devices/:id', requireAuth, getDevice);
+router.get('/devices/:id/telemetry', requireAuth, getDeviceTelemetryHandler);
+router.get('/devices/:id/last-command', requireAuth, getLastCommand);
+router.post('/devices/:id/commands/setpoint', requireAuth, controlLimiter, sendSetpointCommand);
+router.post('/devices/:id/commands/mode', requireAuth, controlLimiter, sendModeCommand);
 
 export default router;

@@ -8,11 +8,10 @@ import {
 import { requireAuth } from '../middleware/requireAuth';
 
 const router = Router();
-router.use(requireAuth);
 
-router.get('/alerts', listAlerts);
-router.get('/devices/:id/alerts', listDeviceAlerts);
-router.post('/alerts/:id/acknowledge', acknowledgeAlertHandler);
-router.post('/alerts/:id/mute', muteAlertHandler);
+router.get('/alerts', requireAuth, listAlerts);
+router.get('/devices/:id/alerts', requireAuth, listDeviceAlerts);
+router.post('/alerts/:id/acknowledge', requireAuth, acknowledgeAlertHandler);
+router.post('/alerts/:id/mute', requireAuth, muteAlertHandler);
 
 export default router;

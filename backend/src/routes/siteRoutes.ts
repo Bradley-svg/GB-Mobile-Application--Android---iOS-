@@ -3,10 +3,9 @@ import { getSite, getSiteDevices, listSites } from '../controllers/siteControlle
 import { requireAuth } from '../middleware/requireAuth';
 
 const router = Router();
-router.use(requireAuth);
 
-router.get('/sites', listSites);
-router.get('/sites/:id', getSite);
-router.get('/sites/:id/devices', getSiteDevices);
+router.get('/sites', requireAuth, listSites);
+router.get('/sites/:id', requireAuth, getSite);
+router.get('/sites/:id/devices', requireAuth, getSiteDevices);
 
 export default router;

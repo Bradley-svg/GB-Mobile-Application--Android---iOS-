@@ -212,8 +212,6 @@ describe('deviceControlService', () => {
       source: 'api',
     };
     queryMock.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-    queryMock.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-    queryMock.mockResolvedValueOnce({ rows: [], rowCount: 0 });
     queryMock.mockResolvedValueOnce({ rows: [commandRow], rowCount: 1 });
     queryMock.mockResolvedValueOnce({ rows: [], rowCount: 1 });
     publishMock.mockImplementation((_topic, _message, _options, cb) => {
@@ -327,6 +325,7 @@ describe('deviceControlService', () => {
       failure_message: null,
       source: 'api',
     };
+    queryMock.mockResolvedValueOnce({ rows: [], rowCount: 0 });
     queryMock.mockResolvedValueOnce({ rows: [commandRow], rowCount: 1 });
     queryMock.mockResolvedValueOnce({ rows: [], rowCount: 1 });
     publishMock.mockImplementation((_topic, _message, _options, cb) => {
@@ -369,6 +368,7 @@ describe('deviceControlService', () => {
       failure_message: null,
       source: 'api',
     };
+    queryMock.mockResolvedValueOnce({ rows: [], rowCount: 0 });
     queryMock.mockResolvedValueOnce({ rows: [commandRow], rowCount: 1 });
     queryMock.mockResolvedValueOnce({ rows: [], rowCount: 1 });
 
