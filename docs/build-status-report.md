@@ -1,6 +1,6 @@
 **Greenbro Build Status (post-5-maintenance tasks)**
 
-Greenbro combines an Express/TypeScript API plus workers (MQTT ingest, alerts, control, push, heat-pump history) and an Expo React Native mobile app for monitoring and controlling heat pumps. This report reflects the state after the five recent refactor/maintenance prompts (env naming, new services, hardened workers, richer mobile states, npm audit fixes). Overall state: builds are **green when backend tests point to a running TEST_DATABASE_URL** (typecheck/lint/build are green, mobile fully green; `npm test` now fails fast with a clear message if the test DB is missing).
+Greenbro combines an Express/TypeScript API plus workers (MQTT ingest, alerts, control, push, heat-pump history) and an Expo React Native mobile app for monitoring and controlling heat pumps. This report reflects the state after the five recent refactor/maintenance prompts (env naming, new services, hardened workers, richer mobile states, npm audit fixes). Overall state: CI now provisions Postgres 16 for backend tests, so builds are **green** (typecheck/lint/build are green, mobile fully green; backend `npm test` runs against `greenbro_test` via TEST_DATABASE_URL + ALLOW_TEST_DB_RESET and still fails fast with a clear message if the test DB is missing).
 
 **Repo Structure Snapshot (current)**
 - `backend/`: Layered Express API with config/controllers/services/repositories/integrations/middleware/routes/workers/scripts/sql/test plus compiled `dist/`.
@@ -18,7 +18,7 @@ Greenbro combines an Express/TypeScript API plus workers (MQTT ingest, alerts, c
 - Commands (run in `backend/`):
   - OK npm run typecheck
   - OK npm run lint
-  - OK npm test (green with the harness when TEST_DATABASE_URL is set; fails fast with a clear error if the Postgres instance is missing/unreachable)
+  - OK npm test (green in CI via Postgres 16 `greenbro_test` using TEST_DATABASE_URL + ALLOW_TEST_DB_RESET; still fails fast with a clear error if the Postgres instance is missing/unreachable)
   - OK npm run build
 - npm audit (post-fix): 6 moderate dev-only issues (vitest/vite/esbuild chain). Runtime deps already uplifted (e.g., jsonwebtoken); remaining moderates accepted pending major toolchain upgrades (per repo-overview).
 
@@ -46,10 +46,10 @@ Greenbro combines an Express/TypeScript API plus workers (MQTT ingest, alerts, c
 - Backend: Worker resilience/observability still limited (single-instance intervals, relies on local state despite structured logger); rate limiting/CORS hardening/password reset remain basic; heat-pump integration depends on Azure schema/topic consistency and time-window assumptions.
 - Mobile: Offline handling is minimal; telemetry/alert visualisation could struggle with noisy data; control command flows have limited confidence/rollback cues; no device/e2e automation.
 - Dependencies: Known npm audit items remain (backend: 6 moderate dev-tooling; mobile: 3 low Expo CLI) awaiting major upgrades.
-- Infrastructure: CI (`.github/workflows/ci.yml`) runs typecheck/lint/test/build for both apps but no integration env/provisioning; no Docker/devcontainer checked in.
+- Infrastructure: CI (`.github/workflows/ci.yml`) runs typecheck/lint/test/build for both apps and now provisions Postgres 16 (`greenbro_test` via TEST_DATABASE_URL + ALLOW_TEST_DB_RESET) for backend integration/API tests; no Docker/devcontainer checked in.
 
 **Next Steps**
-- Keep CI/local runners wired with `TEST_DATABASE_URL` for integration coverage and monitor harness reset/seed needs as tests evolve.
+- Monitor the CI Postgres harness (`greenbro_test` + ALLOW_TEST_DB_RESET) and keep local runners wired with `TEST_DATABASE_URL`; adjust seeds as tests evolve.
 - Instrument workers with structured logging/metrics and bounded retries/backoff plus visibility in `/health-plus`.
 - Implement full password reset (or remove stub) and tighten rate limiting/CORS defaults for prod.
 - Improve telemetry/control UX: clearer command state, retries, and noisy-data handling/aggregation on charts.

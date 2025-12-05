@@ -19,6 +19,7 @@
 - Integrations: MQTT ingest on `greenbro/+/+/telemetry`; control channel over HTTP (or MQTT) depending on env; Expo push with optional health sample; Azure heat-pump history client with timeout handling.
 - Health (2025-12-05 local): `npm install` OK (npm audit reports 7 vulns: 6 moderate, 1 high); `npm run typecheck` OK; `npm run lint` OK; `npm test` OK (vitest with test DB harness; fails fast with a clear TEST_DATABASE_URL error if the DB is missing); `npm run build` OK.
 - Test harness: Vitest global setup (test/globalSetup.ts -> test/testDbSetup.ts) requires TEST_DATABASE_URL, prepares schema/seed data (demo org/site/device/user plus status row), and ends the test pool; truncation/seeding runs when the DB name includes "test" or ALLOW_TEST_DB_RESET=true, otherwise it seeds only to avoid wiping a shared dev DB. `npm test` now fails fast with a clear missing/connection error instead of timing out.
+- CI: GitHub Actions provisions Postgres 16 (`greenbro_test`) and sets TEST_DATABASE_URL + ALLOW_TEST_DB_RESET for backend API tests.
 - Security/reliability/observability: auth uses JWT + refresh rotation, signup gated by env, reset-password returns 501; control/telemetry status recorded to `system_status` but workers run via long-lived MQTT client and `setInterval` without distributed lock/backoff; health-plus surfaces DB/MQTT/control/push/alerts worker signals; logging is console-based (no structured logs/metrics).
 
 ## Mobile
