@@ -2,12 +2,17 @@
 
 Centralised reference for backend and mobile environment variables across dev/staging/production.
 
-## Backend ƒ?" shared variables
+## Backend shared variables
+- `PORT`: HTTP listen port (default 4000).
 - `DATABASE_URL`: Primary Postgres connection string for runtime.
 - `TEST_DATABASE_URL`: Postgres connection string used by automated tests.
+- `ALLOW_TEST_DB_RESET`: Allow destructive truncation in tests when DB name is not obviously test-only (keep false outside dedicated test DBs).
 - `JWT_SECRET`: Secret for signing JWT access tokens. Use a long, random value in non-dev environments.
+- `REFRESH_TOKEN_DAYS`: Refresh token lifetime (days).
+- `AUTH_ALLOW_PUBLIC_SIGNUP`: Toggle for open signup (`false` by default).
 - `CORS_ALLOWED_ORIGINS`: Comma-separated allowlist for browser origins (prod/staging should be explicit; dev can allow-all).
 - `LOG_LEVEL`: Structured JSON logger level (`info` default).
+- `APP_VERSION`: Optional version string surfaced on `/health-plus`.
 - `HEATPUMP_HISTORY_URL`: Base URL for the Azure heat-pump history API.
 - `HEATPUMP_HISTORY_API_KEY`: API key for the history API.
 - `HEATPUMP_HISTORY_TIMEOUT_MS`: Request timeout for the history API client (milliseconds).
@@ -15,11 +20,13 @@ Centralised reference for backend and mobile environment variables across dev/st
 - `MQTT_USERNAME` / `MQTT_PASSWORD`: Optional MQTT credentials when brokers require auth.
 - `CONTROL_API_URL`: Optional HTTP control endpoint; when unset, control may fall back to MQTT.
 - `CONTROL_API_KEY`: API key for the HTTP control endpoint (when enabled).
+- `ALERT_WORKER_ENABLED`: Toggle alerts worker on/off (defaults true) plus `ALERT_WORKER_INTERVAL_SEC`/`ALERT_OFFLINE_MINUTES`/`ALERT_OFFLINE_CRITICAL_MINUTES`/`ALERT_HIGH_TEMP_THRESHOLD` to tune cadence/thresholds.
 - `PUSH_HEALTHCHECK_ENABLED`: Toggle for sample push health check endpoint.
 - `PUSH_HEALTHCHECK_TOKEN`: Token used to authorize sample push checks.
+- `EXPO_ACCESS_TOKEN`: Expo push token for production push delivery (optional in dev).
 - `WORKER_LOCK_TTL_SEC`: TTL for DB-backed worker locks (alerts worker + MQTT ingest).
 
-## Backend ƒ?" staging vs production
+## Backend staging vs production
 - `CORS_ALLOWED_ORIGINS`: Must list trusted app/web origins; avoid wildcard in staging/prod.
 - `JWT_SECRET`: Use a unique, high-entropy secret per environment; rotate on compromise or before cutovers.
 - `DATABASE_URL` / `TEST_DATABASE_URL`: Point to isolated databases per environment; tests should only touch test DBs with `ALLOW_TEST_DB_RESET=true` when destructive operations are allowed.
@@ -33,4 +40,4 @@ Centralised reference for backend and mobile environment variables across dev/st
   - Staging: staging API host once available
   - Production: production API host once available
 - Expo push: configure the Expo project and push notification credentials per environment; ensure staging devices use staging backends to avoid cross-environment pushes.
-- Notification preferences: currently cached locally (alertsEnabled toggle); backend `/user/preferences` wiring TBD, so no additional env vars yet.
+- Notification preferences: persisted via backend `/user/preferences` (alertsEnabled toggle) and cached locally via AsyncStorage; no extra mobile envs beyond the API URL.

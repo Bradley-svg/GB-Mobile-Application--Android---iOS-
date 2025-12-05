@@ -50,6 +50,7 @@ export function useNotificationPreferencesQuery() {
   const setNotificationPreferences = useAuthStore((s) => s.setNotificationPreferences);
   const queryClient = useQueryClient();
   const previousUserId = useRef<string | null>(null);
+  const lastPersisted = useRef<NotificationPreferences | null>(null);
 
   useEffect(() => {
     const previous = previousUserId.current;
@@ -88,7 +89,7 @@ export function useNotificationPreferencesQuery() {
     };
   }, [queryClient, setNotificationPreferences, userId]);
 
-  return useQuery<NotificationPreferences>({
+  const query = useQuery<NotificationPreferences>({
     queryKey: NOTIFICATION_PREFERENCES_QUERY_KEY,
     enabled: !!userId,
     initialData: () =>
@@ -98,19 +99,41 @@ export function useNotificationPreferencesQuery() {
       const response = await client.get('/user/preferences');
       return response.data as NotificationPreferences;
     },
-    onSuccess: async (data) => {
-      if (userId) {
-        await persistNotificationPreferences(userId, data);
-      }
-      setNotificationPreferences(data);
-    },
-    onError: async () => {
-      if (!userId) return;
+  });
+
+  useEffect(() => {
+    if (!userId) return;
+    if (!query.isError) return;
+
+    (async () => {
       const cached = await readNotificationPreferences(userId);
       queryClient.setQueryData(NOTIFICATION_PREFERENCES_QUERY_KEY, cached);
       setNotificationPreferences(cached);
-    },
-  });
+    })();
+  }, [query.isError, queryClient, setNotificationPreferences, userId]);
+
+  useEffect(() => {
+    if (!query.data) return;
+    if (!query.isSuccess) return;
+
+    setNotificationPreferences(query.data);
+
+    if (!userId) return;
+
+    const hasChanged =
+      !lastPersisted.current ||
+      lastPersisted.current.alertsEnabled !== query.data.alertsEnabled;
+
+    lastPersisted.current = query.data;
+
+    if (hasChanged) {
+      persistNotificationPreferences(userId, query.data).catch((err) => {
+        console.error('Failed to persist notification preferences', err);
+      });
+    }
+  }, [query.data, query.isSuccess, setNotificationPreferences, userId]);
+
+  return query;
 }
 
 export function useUpdateNotificationPreferencesMutation() {

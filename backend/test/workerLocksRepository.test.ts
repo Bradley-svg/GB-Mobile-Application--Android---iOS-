@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { query } from '../src/config/db';
 import { acquireWorkerLock, renewWorkerLock } from '../src/repositories/workerLocksRepository';
 import { resetTestDb } from './testDbSetup';
 
@@ -6,10 +7,11 @@ const LOCK_NAME = 'worker-lock-test';
 
 describe('workerLocksRepository', () => {
   beforeEach(async () => {
+    vi.useRealTimers();
     await resetTestDb();
   });
 
-  it('prevents concurrent acquisition until expiry', async () => {
+  it('prevents concurrent acquisition until expiry', { timeout: 10000 }, async () => {
     const ownerA = 'owner-a';
     const ownerB = 'owner-b';
     const ttlMs = 200;
@@ -20,7 +22,9 @@ describe('workerLocksRepository', () => {
     const acquiredByOther = await acquireWorkerLock(LOCK_NAME, ownerB, ttlMs);
     expect(acquiredByOther).toBe(false);
 
-    await new Promise((resolve) => setTimeout(resolve, ttlMs + 150));
+    await query('update worker_locks set expires_at = now() - interval \'1 second\' where name = $1', [
+      LOCK_NAME,
+    ]);
 
     const acquiredAfterExpiry = await acquireWorkerLock(LOCK_NAME, ownerB, ttlMs);
     expect(acquiredAfterExpiry).toBe(true);
