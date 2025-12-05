@@ -7,22 +7,15 @@ import {
 } from '../repositories/controlCommandsRepository';
 import { getDeviceById } from './deviceService';
 import { markControlCommandError, markControlCommandSuccess } from './statusService';
+import {
+  ControlValidationError,
+  DeviceCapabilities,
+  ModeCommandPayload,
+  SetpointCommandPayload,
+  validateModeCommand,
+  validateSetpointCommand,
+} from './deviceControlValidationService';
 import { logger } from '../utils/logger';
-
-type SetpointCommandPayload = {
-  metric: 'flow_temp';
-  value: number;
-};
-
-type Mode = 'OFF' | 'HEATING' | 'COOLING' | 'AUTO';
-
-type ModeCommandPayload = {
-  mode: Mode;
-};
-
-const SAFE_BOUNDS = {
-  flow_temp: { min: 30, max: 60 },
-};
 
 let commandClient: MqttClient | null = null;
 const controlHttpUrl = () => process.env.CONTROL_API_URL;
@@ -30,6 +23,7 @@ const controlHttpKey = () => process.env.CONTROL_API_KEY;
 export const CONTROL_CHANNEL_UNCONFIGURED = 'CONTROL_CHANNEL_UNCONFIGURED';
 let lastControlError: string | null = null;
 let lastControlAttemptAt: Date | null = null;
+const COMMAND_SOURCE = 'api';
 
 type ControlConfig =
   | { type: 'http'; url: string; apiKey: string }
@@ -265,13 +259,22 @@ export async function setDeviceSetpoint(
     throw new Error('DEVICE_NOT_CONTROLLABLE');
   }
 
-  if (payload.metric !== 'flow_temp') {
-    throw new Error('UNSUPPORTED_METRIC');
-  }
-
-  const bounds = SAFE_BOUNDS.flow_temp;
-  if (payload.value < bounds.min || payload.value > bounds.max) {
-    throw new Error('OUT_OF_RANGE');
+  const validation = validateSetpointCommand(device as DeviceCapabilities, payload);
+  if (!validation.ok) {
+    await insertCommandRow({
+      deviceId,
+      userId,
+      commandType: 'setpoint',
+      payload,
+      requestedValue: { metric: payload.metric, value: payload.value },
+      status: 'failed',
+      errorMessage: validation.message,
+      failureReason: validation.reason,
+      failureMessage: validation.message,
+      source: COMMAND_SOURCE,
+    });
+    await safeMarkControlError(new Date(), validation.message);
+    throw new ControlValidationError(validation.reason, validation.message);
   }
 
   logger.info('command', 'attempting setpoint command', {
@@ -289,7 +292,15 @@ export async function setDeviceSetpoint(
     await safeMarkControlError(new Date(), err);
     throw err;
   }
-  const commandRow = await insertCommandRow(deviceId, userId, 'setpoint', payload, 'pending');
+  const commandRow = await insertCommandRow({
+    deviceId,
+    userId,
+    commandType: 'setpoint',
+    payload,
+    requestedValue: { metric: payload.metric, value: payload.value },
+    status: 'pending',
+    source: COMMAND_SOURCE,
+  });
 
   try {
     await sendSetpointToExternal(device.external_id as string, payload, controlConfig);
@@ -297,9 +308,20 @@ export async function setDeviceSetpoint(
     await markCommandSuccessRow(commandRow.id);
 
     await safeMarkControlSuccess(new Date());
-    return { ...commandRow, status: 'success', completed_at: new Date() };
+    return {
+      ...commandRow,
+      status: 'success',
+      completed_at: new Date(),
+      failure_reason: null,
+      failure_message: null,
+      error_message: null,
+    };
   } catch (e: any) {
-    await markCommandFailure(commandRow.id, e.message || 'External command failed');
+    const failureMessage = e?.message || 'External command failed';
+    const failureReason = e?.message?.startsWith('CONTROL_HTTP_FAILED')
+      ? 'EXTERNAL_ERROR'
+      : 'SEND_FAILED';
+    await markCommandFailure(commandRow.id, failureMessage, failureReason);
     await safeMarkControlError(new Date(), e);
     throw new Error('COMMAND_FAILED');
   }
@@ -354,9 +376,22 @@ export async function setDeviceMode(
     throw new Error('DEVICE_NOT_CONTROLLABLE');
   }
 
-  const allowedModes: Mode[] = ['OFF', 'HEATING', 'COOLING', 'AUTO'];
-  if (!allowedModes.includes(payload.mode)) {
-    throw new Error('UNSUPPORTED_MODE');
+  const validation = validateModeCommand(device as DeviceCapabilities, payload);
+  if (!validation.ok) {
+    await insertCommandRow({
+      deviceId,
+      userId,
+      commandType: 'mode',
+      payload,
+      requestedValue: { mode: payload.mode },
+      status: 'failed',
+      errorMessage: validation.message,
+      failureReason: validation.reason,
+      failureMessage: validation.message,
+      source: COMMAND_SOURCE,
+    });
+    await safeMarkControlError(new Date(), validation.message);
+    throw new ControlValidationError(validation.reason, validation.message);
   }
 
   logger.info('command', 'attempting mode command', {
@@ -374,7 +409,15 @@ export async function setDeviceMode(
     await safeMarkControlError(new Date(), err);
     throw err;
   }
-  const commandRow = await insertCommandRow(deviceId, userId, 'mode', payload, 'pending');
+  const commandRow = await insertCommandRow({
+    deviceId,
+    userId,
+    commandType: 'mode',
+    payload,
+    requestedValue: { mode: payload.mode },
+    status: 'pending',
+    source: COMMAND_SOURCE,
+  });
 
   try {
     await sendModeToExternal(device.external_id as string, payload, controlConfig);
@@ -382,9 +425,20 @@ export async function setDeviceMode(
     await markCommandSuccessRow(commandRow.id);
 
     await safeMarkControlSuccess(new Date());
-    return { ...commandRow, status: 'success', completed_at: new Date() };
+    return {
+      ...commandRow,
+      status: 'success',
+      completed_at: new Date(),
+      failure_reason: null,
+      failure_message: null,
+      error_message: null,
+    };
   } catch (e: any) {
-    await markCommandFailure(commandRow.id, e.message || 'External command failed');
+    const failureMessage = e?.message || 'External command failed';
+    const failureReason = e?.message?.startsWith('CONTROL_HTTP_FAILED')
+      ? 'EXTERNAL_ERROR'
+      : 'SEND_FAILED';
+    await markCommandFailure(commandRow.id, failureMessage, failureReason);
     await safeMarkControlError(new Date(), e);
     throw new Error('COMMAND_FAILED');
   }

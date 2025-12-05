@@ -5,10 +5,14 @@ create table if not exists control_commands (
   user_id uuid not null references users(id),
   command_type text not null,
   payload jsonb not null,
+  requested_value jsonb,
   status text not null,
   requested_at timestamptz not null default now(),
   completed_at timestamptz,
-  error_message text
+  error_message text,
+  failure_reason text,
+  failure_message text,
+  source text default 'unknown'
 );
 
 create index if not exists control_commands_device_idx

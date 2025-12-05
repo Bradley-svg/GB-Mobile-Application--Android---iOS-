@@ -141,3 +141,21 @@ export async function handleTelemetryMessage(topic: string, payload: Buffer) {
   return storeTelemetry(device.id, parsedPayload, 'mqtt');
 }
 
+export async function handleHttpTelemetryIngest(params: {
+  deviceExternalId: string;
+  payload: unknown;
+}) {
+  const device = await getDeviceByExternalId(params.deviceExternalId);
+  if (!device) {
+    console.warn('No device mapped for external id', params.deviceExternalId);
+    return false;
+  }
+
+  const parsedPayload = parsePayload(params.payload, 'http');
+  if (!parsedPayload) {
+    return false;
+  }
+
+  return storeTelemetry(device.id, parsedPayload, 'http');
+}
+

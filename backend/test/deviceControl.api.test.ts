@@ -2,6 +2,7 @@ import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import type { Express } from 'express';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ControlValidationError } from '../src/services/deviceControlValidationService';
 
 const setDeviceSetpointMock = vi.fn();
 const setDeviceModeMock = vi.fn();
@@ -59,8 +60,10 @@ describe('control endpoints', () => {
     expect(setDeviceSetpointMock).not.toHaveBeenCalled();
   });
 
-  it('maps OUT_OF_RANGE error from control service', async () => {
-    setDeviceSetpointMock.mockRejectedValueOnce(new Error('OUT_OF_RANGE'));
+  it('maps validation errors from control service', async () => {
+    setDeviceSetpointMock.mockRejectedValueOnce(
+      new ControlValidationError('ABOVE_MAX', 'Setpoint above maximum of 60C')
+    );
 
     const res = await request(app)
       .post('/devices/00000000-0000-0000-0000-000000000111/commands/setpoint')
@@ -68,7 +71,7 @@ describe('control endpoints', () => {
       .send({ metric: 'flow_temp', value: 99 })
       .expect(400);
 
-    expect(res.body).toEqual({ message: 'Value outside allowed range for this metric' });
+    expect(res.body).toEqual({ message: 'Setpoint above maximum of 60C' });
   });
 
   it('returns 503 when control channel is not configured for setpoint', async () => {
@@ -118,6 +121,20 @@ describe('control endpoints', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({ mode: 'OFF' })
       .expect(404);
+  });
+
+  it('returns validation error when mode is not supported by device', async () => {
+    setDeviceModeMock.mockRejectedValueOnce(
+      new ControlValidationError('DEVICE_NOT_CAPABLE', 'Device does not support COOLING mode')
+    );
+
+    const res = await request(app)
+      .post('/devices/00000000-0000-0000-0000-000000000333/commands/mode')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ mode: 'COOLING' })
+      .expect(400);
+
+    expect(res.body).toEqual({ message: 'Device does not support COOLING mode' });
   });
 
   it('returns 503 when control channel is not configured for mode', async () => {

@@ -114,6 +114,58 @@ describe('deviceControlService', () => {
     expect(queryMock).not.toHaveBeenCalled();
   });
 
+  it('records a failed command when setpoint validation fails', async () => {
+    getDeviceByIdMock.mockResolvedValue({ ...baseDevice, min_setpoint: 40 });
+    queryMock.mockResolvedValueOnce({ rows: [{ id: 'cmd-invalid' }], rowCount: 1 });
+
+    await expect(
+      setDeviceSetpoint('device-1', 'user-1', { metric: 'flow_temp', value: 35 })
+    ).rejects.toThrow('Setpoint below minimum of 40C');
+
+    expect(publishMock).not.toHaveBeenCalled();
+    const insertCall = queryMock.mock.calls[0];
+    expect(insertCall[0]).toContain('insert into control_commands');
+    expect(insertCall[1]).toEqual([
+      'device-1',
+      'user-1',
+      'setpoint',
+      JSON.stringify({ metric: 'flow_temp', value: 35 }),
+      JSON.stringify({ metric: 'flow_temp', value: 35 }),
+      'failed',
+      'Setpoint below minimum of 40C',
+      'BELOW_MIN',
+      'Setpoint below minimum of 40C',
+      'api',
+    ]);
+    expect(markControlCommandErrorMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('records a failed command when mode validation fails', async () => {
+    getDeviceByIdMock.mockResolvedValue({ ...baseDevice, allowed_modes: ['OFF'] });
+    queryMock.mockResolvedValueOnce({ rows: [{ id: 'cmd-invalid-mode' }], rowCount: 1 });
+
+    await expect(setDeviceMode('device-1', 'user-1', { mode: 'COOLING' })).rejects.toThrow(
+      'Device does not support COOLING mode'
+    );
+
+    expect(publishMock).not.toHaveBeenCalled();
+    const insertCall = queryMock.mock.calls[0];
+    expect(insertCall[0]).toContain('insert into control_commands');
+    expect(insertCall[1]).toEqual([
+      'device-1',
+      'user-1',
+      'mode',
+      JSON.stringify({ mode: 'COOLING' }),
+      JSON.stringify({ mode: 'COOLING' }),
+      'failed',
+      'Device does not support COOLING mode',
+      'DEVICE_NOT_CAPABLE',
+      'Device does not support COOLING mode',
+      'api',
+    ]);
+    expect(markControlCommandErrorMock).toHaveBeenCalledTimes(1);
+  });
+
   it('marks setpoint command as failed when publishing throws', async () => {
     getDeviceByIdMock.mockResolvedValue(baseDevice);
     const commandRow = {
@@ -126,6 +178,10 @@ describe('deviceControlService', () => {
       requested_at: new Date(),
       completed_at: null,
       error_message: null,
+      requested_value: { metric: 'flow_temp', value: 45 },
+      failure_reason: null,
+      failure_message: null,
+      source: 'api',
     };
     queryMock.mockResolvedValueOnce({ rows: [commandRow], rowCount: 1 });
     queryMock.mockResolvedValueOnce({ rows: [], rowCount: 1 });
@@ -140,7 +196,7 @@ describe('deviceControlService', () => {
     expect(queryMock).toHaveBeenCalledTimes(2);
     const updateCall = queryMock.mock.calls[1];
     expect(updateCall[0]).toContain('update control_commands');
-    expect(updateCall[1]).toEqual(['cmd-1', 'publish failed']);
+    expect(updateCall[1]).toEqual(['cmd-1', 'publish failed', 'SEND_FAILED']);
     expect(loggerInfoMock).toHaveBeenCalledWith(
       'command',
       'attempting setpoint command',
@@ -165,6 +221,10 @@ describe('deviceControlService', () => {
       requested_at: new Date(),
       completed_at: null,
       error_message: null,
+      requested_value: { mode: 'AUTO' },
+      failure_reason: null,
+      failure_message: null,
+      source: 'api',
     };
     queryMock.mockResolvedValueOnce({ rows: [commandRow], rowCount: 1 });
     queryMock.mockResolvedValueOnce({ rows: [], rowCount: 1 });
@@ -179,7 +239,7 @@ describe('deviceControlService', () => {
     expect(queryMock).toHaveBeenCalledTimes(2);
     const updateCall = queryMock.mock.calls[1];
     expect(updateCall[0]).toContain('status = \'failed\'');
-    expect(updateCall[1]).toEqual(['cmd-2', 'publish failed']);
+    expect(updateCall[1]).toEqual(['cmd-2', 'publish failed', 'SEND_FAILED']);
   });
 
   it('marks mode command as success when publishing succeeds', async () => {
@@ -194,6 +254,10 @@ describe('deviceControlService', () => {
       requested_at: new Date(),
       completed_at: null,
       error_message: null,
+      requested_value: { mode: 'HEATING' },
+      failure_reason: null,
+      failure_message: null,
+      source: 'api',
     };
     queryMock.mockResolvedValueOnce({ rows: [commandRow], rowCount: 1 });
     queryMock.mockResolvedValueOnce({ rows: [], rowCount: 1 });
@@ -232,6 +296,10 @@ describe('deviceControlService', () => {
       requested_at: new Date(),
       completed_at: null,
       error_message: null,
+      requested_value: { metric: 'flow_temp', value: 42 },
+      failure_reason: null,
+      failure_message: null,
+      source: 'api',
     };
     queryMock.mockResolvedValueOnce({ rows: [commandRow], rowCount: 1 });
     queryMock.mockResolvedValueOnce({ rows: [], rowCount: 1 });

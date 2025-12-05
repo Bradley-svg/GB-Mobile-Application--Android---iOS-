@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getDeviceById } from '../services/deviceService';
 import { setDeviceMode, setDeviceSetpoint } from '../services/deviceControlService';
 import { getDeviceTelemetry } from '../services/telemetryService';
+import { ControlValidationError } from '../services/deviceControlValidationService';
 import { resolveOrganisationId } from '../utils/organisation';
 
 const deviceIdSchema = z.object({ id: z.string().uuid() });
@@ -80,6 +81,9 @@ export async function sendSetpointCommand(req: Request, res: Response, next: Nex
     const command = await setDeviceSetpoint(paramsResult.data.id, userId, parsed.data, organisationId);
     res.json(command);
   } catch (e: any) {
+    if (e instanceof ControlValidationError) {
+      return res.status(400).json({ message: e.message });
+    }
     switch (e.message) {
       case 'DEVICE_NOT_FOUND':
         return res.status(404).json({ message: 'Device not found' });
@@ -122,6 +126,9 @@ export async function sendModeCommand(req: Request, res: Response, next: NextFun
     const command = await setDeviceMode(paramsResult.data.id, userId, parsed.data, organisationId);
     res.json(command);
   } catch (e: any) {
+    if (e instanceof ControlValidationError) {
+      return res.status(400).json({ message: e.message });
+    }
     switch (e.message) {
       case 'DEVICE_NOT_FOUND':
         return res.status(404).json({ message: 'Device not found' });
