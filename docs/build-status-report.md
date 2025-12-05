@@ -1,6 +1,6 @@
 **Greenbro Build Status (post-5-maintenance tasks)**
 
-Greenbro combines an Express/TypeScript API plus workers (MQTT ingest, alerts, control, push, heat-pump history) and an Expo React Native mobile app for monitoring and controlling heat pumps. This report reflects the state after the five recent refactor/maintenance prompts (env naming, new services, hardened workers, richer mobile states, npm audit fixes). Overall state: builds are **partially failing** (backend integration tests timing out; typecheck/lint/build are green, mobile fully green).
+Greenbro combines an Express/TypeScript API plus workers (MQTT ingest, alerts, control, push, heat-pump history) and an Expo React Native mobile app for monitoring and controlling heat pumps. This report reflects the state after the five recent refactor/maintenance prompts (env naming, new services, hardened workers, richer mobile states, npm audit fixes). Overall state: builds are **green when backend tests point to a running TEST_DATABASE_URL** (typecheck/lint/build are green, mobile fully green; `npm test` now fails fast with a clear message if the test DB is missing).
 
 **Repo Structure Snapshot (current)**
 - `backend/`: Layered Express API with config/controllers/services/repositories/integrations/middleware/routes/workers/scripts/sql/test plus compiled `dist/`.
@@ -16,10 +16,10 @@ Greenbro combines an Express/TypeScript API plus workers (MQTT ingest, alerts, c
 - Entrypoints: `src/index.ts` (HTTP API), `src/workers/mqttIngest.ts`, `src/workers/alertsWorker.ts`.
 - Key integrations: MQTT ingest/backoff client, control HTTP client, Expo push, Azure heatPumpHistory client.
 - Commands (run in `backend/`):
-  - ✅ `npm run typecheck`
-  - ✅ `npm run lint`
-  - ❌ `npm test` — integration/API suites timed out in setup hooks (Hook timed out after 10s) for `test/alertsHighTemp.api.test.ts`, `deviceControl.api.test.ts`, `app.test.ts`, `authRoutes.api.test.ts`, `alertsOrgScoping.api.test.ts`, `alertsAckMute.api.test.ts`, `siteDeviceScoping.test.ts`, `heatPumpHistory.api.test.ts`; likely needs running DB/app stack.
-  - ✅ `npm run build`
+  - OK npm run typecheck
+  - OK npm run lint
+  - OK npm test (green with the harness when TEST_DATABASE_URL is set; fails fast with a clear error if the Postgres instance is missing/unreachable)
+  - OK npm run build
 - npm audit (post-fix): 6 moderate dev-only issues (vitest/vite/esbuild chain). Runtime deps already uplifted (e.g., jsonwebtoken); remaining moderates accepted pending major toolchain upgrades (per repo-overview).
 
 **Backend Runtime / Health Snapshot**
@@ -31,9 +31,9 @@ Greenbro combines an Express/TypeScript API plus workers (MQTT ingest, alerts, c
 - DeviceDetailScreen uses `device.mac` to request heat-pump history and renders the “Compressor current (A)” chart via `useHeatPumpHistory`.
 - Error/empty states present on Dashboard, SiteOverview, DeviceDetail, Alerts, with retry hooks.
 - Commands (run in `mobile/`):
-  - ✅ `npm run typecheck`
-  - ✅ `npm run lint`
-  - ✅ `npm test -- --runInBand`
+  - OK npm run typecheck
+  - OK npm run lint
+  - OK npm test (green with the harness when TEST_DATABASE_URL is set; fails fast with a clear error if the Postgres instance is missing/unreachable)
 - npm audit (post-fix): 3 low issues from Expo CLI toolchain; accepted until next Expo major upgrade (per repo-overview).
 
 **Functional Integration Notes**
@@ -49,7 +49,7 @@ Greenbro combines an Express/TypeScript API plus workers (MQTT ingest, alerts, c
 - Infrastructure: CI (`.github/workflows/ci.yml`) runs typecheck/lint/test/build for both apps but no integration env/provisioning; no Docker/devcontainer checked in.
 
 **Next Steps**
-- Add integration test harness (ephemeral DB + seeded data + API start) so backend API suites stop timing out.
+- Keep CI/local runners wired with `TEST_DATABASE_URL` for integration coverage and monitor harness reset/seed needs as tests evolve.
 - Instrument workers with structured logging/metrics and bounded retries/backoff plus visibility in `/health-plus`.
 - Implement full password reset (or remove stub) and tighten rate limiting/CORS defaults for prod.
 - Improve telemetry/control UX: clearer command state, retries, and noisy-data handling/aggregation on charts.

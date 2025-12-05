@@ -1,6 +1,12 @@
 import { Pool, QueryResult, QueryResultRow } from 'pg';
 
-const connectionString = process.env.DATABASE_URL;
+const nodeEnv = process.env.NODE_ENV || 'development';
+const isTest = nodeEnv === 'test';
+const connectionString = isTest ? process.env.TEST_DATABASE_URL : process.env.DATABASE_URL;
+
+if (isTest && !process.env.TEST_DATABASE_URL) {
+  throw new Error('TEST_DATABASE_URL must be set to run integration tests');
+}
 if (!connectionString) {
   throw new Error('DATABASE_URL not set');
 }
@@ -18,4 +24,8 @@ export async function query<T extends QueryResultRow = QueryResultRow>(
     console.error('DB error:', err);
     throw err;
   }
+}
+
+export async function closePool() {
+  await pool.end();
 }
