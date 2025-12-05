@@ -20,6 +20,7 @@
   - OK npm run lint
   - OK npm test -- --runInBand (green in CI via Postgres 16 `greenbro_test` using TEST_DATABASE_URL + ALLOW_TEST_DB_RESET; still fails fast with a clear error if the Postgres instance is missing/unreachable)
   - OK npm run build
+- CI spins up a Postgres 16 service with TEST_DATABASE_URL and ALLOW_TEST_DB_RESET configured for backend API tests.
 - npm audit (post-fix): 6 moderate dev-only issues (vitest/vite/esbuild chain). Runtime deps already uplifted (e.g., jsonwebtoken); remaining moderates accepted pending major toolchain upgrades (per repo-overview).
 
 **Backend Runtime / Health Snapshot**

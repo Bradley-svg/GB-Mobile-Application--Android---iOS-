@@ -1,0 +1,23 @@
+{
+  "name": "Greenbro Dev",
+  "dockerComposeFile": "../docker-compose.dev.yml",
+  "service": "backend",
+  "runServices": ["postgres", "mqtt", "backend"],
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+  "overrideCommand": true,
+  "remoteUser": "node",
+  "postCreateCommand": "cd backend && npm install",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      },
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-vscode.vscode-typescript-next"
+      ]
+    }
+  }
+}

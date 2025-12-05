@@ -7,6 +7,7 @@ Pragmatic notes for getting the backend, worker, and Expo app running locally.
 - Postgres 14+ running locally (or a remote connection string).
 - Android Studio + emulator (Pixel/Android 14 works) or a physical device with Expo Go.
 - Optional: bash/PowerShell if you want to use the helper scripts.
+- Optional: VS Code Dev Containers; opening the repo will launch the devcontainer defined in `.devcontainer/devcontainer.json` using `docker-compose.dev.yml` to start Postgres + MQTT alongside a Node 20 workspace.
 
 ## Environment files
 - `backend/.env` – copy from `.env.example` and set:

@@ -11,7 +11,7 @@ import { sendAlertNotification } from '../services/pushService';
 import { markAlertsWorkerHeartbeat, upsertStatus } from '../services/statusService';
 import { logger } from '../utils/logger';
 
-// TODO: Migrate to structured JSON logging (e.g. pino) for production observability.
+// TODO: Swap console.log/error for JSON logger (e.g. pino) and integrate with central log sink.
 
 const OFFLINE_MINUTES = Number(process.env.ALERT_OFFLINE_MINUTES || 10);
 const OFFLINE_CRITICAL_MINUTES = Number(process.env.ALERT_OFFLINE_CRITICAL_MINUTES || 60);
