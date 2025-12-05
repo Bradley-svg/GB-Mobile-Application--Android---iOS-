@@ -15,9 +15,9 @@
     "lint": "eslint src --ext .ts",
     "test": "vitest run",
     "test:watch": "vitest watch",
-    "migrate": "node-pg-migrate -j 1 -m ./migrations -d $DATABASE_URL",
-    "migrate:test": "node-pg-migrate -j 1 -m ./migrations -d $TEST_DATABASE_URL",
-    "migrate:dev": "node-pg-migrate -j 1 -m ./migrations -d $DATABASE_URL"
+    "migrate": "node-pg-migrate up -m ./migrations -d DATABASE_URL",
+    "migrate:test": "node-pg-migrate up -m ./migrations -d TEST_DATABASE_URL",
+    "migrate:dev": "node-pg-migrate up -m ./migrations -d DATABASE_URL"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

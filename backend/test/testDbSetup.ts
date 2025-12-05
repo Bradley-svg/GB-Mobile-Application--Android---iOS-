@@ -2,7 +2,7 @@ import path from 'path';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import { Client } from 'pg';
-import { run as runMigrations, RunnerOption } from 'node-pg-migrate';
+import runMigrations, { RunnerOption } from 'node-pg-migrate';
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 

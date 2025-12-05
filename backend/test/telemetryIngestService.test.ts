@@ -1,12 +1,26 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const queryMock = vi.fn();
-const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+const loggerInfoSpy = vi.fn();
+const loggerWarnSpy = vi.fn();
+const loggerErrorSpy = vi.fn();
+const loggerChildSpy = vi.fn(() => ({
+  info: loggerInfoSpy,
+  warn: loggerWarnSpy,
+  error: loggerErrorSpy,
+  child: loggerChildSpy,
+}));
 
 vi.mock('../src/config/db', () => ({
   query: (...args: unknown[]) => queryMock(...(args as [string, unknown[]?])),
+}));
+vi.mock('../src/config/logger', () => ({
+  logger: {
+    info: loggerInfoSpy,
+    warn: loggerWarnSpy,
+    error: loggerErrorSpy,
+    child: loggerChildSpy,
+  },
 }));
 
 let handleTelemetryMessage: typeof import('../src/services/telemetryIngestService').handleTelemetryMessage;
@@ -20,15 +34,10 @@ beforeAll(async () => {
 
 beforeEach(() => {
   queryMock.mockReset();
-  consoleWarnSpy.mockClear();
-  consoleErrorSpy.mockClear();
-  consoleLogSpy.mockClear();
-});
-
-afterAll(() => {
-  consoleWarnSpy.mockRestore();
-  consoleErrorSpy.mockRestore();
-  consoleLogSpy.mockRestore();
+  loggerInfoSpy.mockClear();
+  loggerWarnSpy.mockClear();
+  loggerErrorSpy.mockClear();
+  loggerChildSpy.mockClear();
 });
 
 describe('telemetry ingest', () => {
@@ -91,7 +100,7 @@ describe('telemetry ingest', () => {
 
     expect(ok).toBe(false);
     expect(queryMock).toHaveBeenCalledTimes(1);
-    expect(consoleWarnSpy).toHaveBeenCalled();
+    expect(loggerWarnSpy).toHaveBeenCalled();
   });
 
   it('stores only present metrics when payload is partial', async () => {

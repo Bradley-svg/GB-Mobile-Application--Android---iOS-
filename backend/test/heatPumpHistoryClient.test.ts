@@ -6,6 +6,15 @@ const originalFetch = global.fetch;
 const originalEnv = { ...process.env };
 const markHeatPumpHistorySuccessMock = vi.fn();
 const markHeatPumpHistoryErrorMock = vi.fn();
+const loggerInfoSpy = vi.fn();
+const loggerWarnSpy = vi.fn();
+const loggerErrorSpy = vi.fn();
+const loggerChildSpy = vi.fn(() => ({
+  info: loggerInfoSpy,
+  warn: loggerWarnSpy,
+  error: loggerErrorSpy,
+  child: loggerChildSpy,
+}));
 
 vi.mock('../src/services/statusService', () => ({
   markHeatPumpHistorySuccess: (...args: unknown[]) =>
@@ -13,9 +22,16 @@ vi.mock('../src/services/statusService', () => ({
   markHeatPumpHistoryError: (...args: unknown[]) =>
     markHeatPumpHistoryErrorMock(...(args as [Date | undefined, unknown])),
 }));
+vi.mock('../src/config/logger', () => ({
+  logger: {
+    info: loggerInfoSpy,
+    warn: loggerWarnSpy,
+    error: loggerErrorSpy,
+    child: loggerChildSpy,
+  },
+}));
 
 let fetchHeatPumpHistory: typeof import('../src/integrations/heatPumpHistoryClient').fetchHeatPumpHistory;
-let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
 
 const baseRequest: HeatPumpHistoryRequest = {
   mac: '38:18:2B:60:A9:94',
@@ -46,8 +62,11 @@ beforeEach(async () => {
   fetchMock.mockReset();
   markHeatPumpHistorySuccessMock.mockReset();
   markHeatPumpHistoryErrorMock.mockReset();
+  loggerInfoSpy.mockClear();
+  loggerWarnSpy.mockClear();
+  loggerErrorSpy.mockClear();
+  loggerChildSpy.mockClear();
   (global as any).fetch = fetchMock;
-  consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
   await loadClient();
 });
 
@@ -74,7 +93,7 @@ describe('heatPumpHistoryClient', () => {
       'x-api-key': 'test-key',
     });
     expect(JSON.parse(options.body)).toEqual(baseRequest);
-    expect(consoleWarnSpy).not.toHaveBeenCalled();
+    expect(loggerWarnSpy).not.toHaveBeenCalled();
     expect(result).toEqual({ ok: true, series: [] });
     expect(markHeatPumpHistorySuccessMock).toHaveBeenCalledTimes(1);
     expect(markHeatPumpHistoryErrorMock).not.toHaveBeenCalled();
@@ -106,7 +125,7 @@ describe('heatPumpHistoryClient', () => {
     });
     const timeoutCall = setTimeoutSpy.mock.calls.find(([, delay]) => typeof delay === 'number');
     expect(timeoutCall?.[1]).toBe(15000);
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
+    expect(loggerWarnSpy).toHaveBeenCalledWith(
       expect.stringContaining('HEAT_PUMP_* env vars are deprecated')
     );
     expect(result.ok).toBe(true);
@@ -132,7 +151,7 @@ describe('heatPumpHistoryClient', () => {
     const [url, options] = fetchMock.mock.calls[0] as [string, any];
     expect(url).toBe('https://canonical.example.com/history');
     expect(options.headers).toMatchObject({ 'x-api-key': 'canonical-key' });
-    expect(consoleWarnSpy).not.toHaveBeenCalled();
+    expect(loggerWarnSpy).not.toHaveBeenCalled();
     expect(result.ok).toBe(true);
   });
 
@@ -151,7 +170,7 @@ describe('heatPumpHistoryClient', () => {
 
     const timeoutCall = setTimeoutSpy.mock.calls.find(([, delay]) => typeof delay === 'number');
     expect(timeoutCall?.[1]).toBe(10_000);
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
+    expect(loggerWarnSpy).toHaveBeenCalledWith(
       expect.stringContaining('Invalid HEATPUMP_HISTORY_TIMEOUT_MS')
     );
     expect(result.ok).toBe(true);

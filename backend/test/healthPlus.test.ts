@@ -8,10 +8,26 @@ const getControlStatusMock = vi.fn();
 const getMqttHealthMock = vi.fn();
 const runPushHealthCheckMock = vi.fn();
 const getSystemStatusMock = vi.fn();
-const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+const loggerInfoSpy = vi.fn();
+const loggerWarnSpy = vi.fn();
+const loggerErrorSpy = vi.fn();
+const loggerChildSpy = vi.fn(() => ({
+  info: loggerInfoSpy,
+  warn: loggerWarnSpy,
+  error: loggerErrorSpy,
+  child: loggerChildSpy,
+}));
 
 vi.mock('../src/config/db', () => ({
   query: (...args: unknown[]) => queryMock(...(args as [string, unknown[]?])),
+}));
+vi.mock('../src/config/logger', () => ({
+  logger: {
+    info: loggerInfoSpy,
+    warn: loggerWarnSpy,
+    error: loggerErrorSpy,
+    child: loggerChildSpy,
+  },
 }));
 vi.mock('../src/services/deviceControlService', () => ({
   getControlChannelStatus: (...args: unknown[]) => getControlStatusMock(...args),
@@ -71,7 +87,10 @@ beforeAll(async () => {
 
 beforeEach(() => {
   queryMock.mockReset();
-  consoleErrorSpy.mockClear();
+  loggerInfoSpy.mockClear();
+  loggerWarnSpy.mockClear();
+  loggerErrorSpy.mockClear();
+  loggerChildSpy.mockClear();
   getControlStatusMock.mockReset();
   getMqttHealthMock.mockReset();
   runPushHealthCheckMock.mockReset();
@@ -83,10 +102,6 @@ beforeEach(() => {
   getMqttHealthMock.mockReturnValue(defaultMqtt);
   runPushHealthCheckMock.mockResolvedValue(defaultPushHealth);
   getSystemStatusMock.mockResolvedValue(baseSystemStatus());
-});
-
-afterAll(() => {
-  consoleErrorSpy.mockRestore();
 });
 
 describe('GET /health-plus (baseline)', () => {
@@ -138,7 +153,10 @@ describe('GET /health-plus (baseline)', () => {
 
     const res = await request(app).get('/health-plus').expect(500);
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith('health-plus error', expect.any(Error));
+    expect(loggerErrorSpy).toHaveBeenCalledWith(
+      { module: 'health', err: expect.any(Error) },
+      'health-plus error'
+    );
     expect(res.body).toEqual({
       ok: false,
       env: process.env.NODE_ENV,
