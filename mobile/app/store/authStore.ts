@@ -1,7 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
-import { LEGACY_PUSH_TOKEN_KEY, PUSH_TOKEN_STORAGE_PREFIX } from '../constants/pushTokens';
+import {
+  LAST_REGISTERED_PUSH_TOKEN_KEY,
+  LAST_REGISTERED_USER_ID_KEY,
+  LEGACY_PUSH_TOKEN_KEY,
+  PUSH_TOKEN_STORAGE_PREFIX,
+} from '../constants/pushTokens';
 
 type AuthUser = {
   id: string;
@@ -61,10 +66,22 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const allKeys = await AsyncStorage.getAllKeys();
       const pushTokenKeys = allKeys.filter(
-        (key) => key === LEGACY_PUSH_TOKEN_KEY || key.startsWith(PUSH_TOKEN_STORAGE_PREFIX)
+        (key) =>
+          key === LEGACY_PUSH_TOKEN_KEY ||
+          key.startsWith(PUSH_TOKEN_STORAGE_PREFIX) ||
+          key === LAST_REGISTERED_PUSH_TOKEN_KEY ||
+          key === LAST_REGISTERED_USER_ID_KEY
       );
-      if (pushTokenKeys.length) {
-        await AsyncStorage.multiRemove(pushTokenKeys);
+      const uniqueKeys = Array.from(
+        new Set([
+          ...pushTokenKeys,
+          LAST_REGISTERED_PUSH_TOKEN_KEY,
+          LAST_REGISTERED_USER_ID_KEY,
+          LEGACY_PUSH_TOKEN_KEY,
+        ])
+      );
+      if (uniqueKeys.length) {
+        await AsyncStorage.multiRemove(uniqueKeys);
       }
     } catch (err) {
       console.error('Failed to clear push token flags on logout', err);

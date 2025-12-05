@@ -1,11 +1,14 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useAlerts, useSites } from '../../api/hooks';
+import type { ApiSite } from '../../api/types';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { Screen, Card, IconButton, ErrorCard, EmptyState } from '../../components';
+import { useNetworkBanner } from '../../hooks/useNetworkBanner';
+import { loadJson, saveJson } from '../../utils/storage';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
@@ -16,10 +19,42 @@ export const DashboardScreen: React.FC = () => {
   const navigation = useNavigation<Navigation>();
   const { data, isLoading, isError, refetch } = useSites();
   const { data: alerts } = useAlerts({ status: 'active' });
+  const { isOffline } = useNetworkBanner();
+  const [cachedSites, setCachedSites] = useState<ApiSite[] | null>(null);
+
+  useEffect(() => {
+    if (data) {
+      saveJson('dashboardSites', data);
+    }
+  }, [data]);
+
+  useEffect(() => {
+    if (!isOffline) return;
+    let cancelled = false;
+
+    const loadCache = async () => {
+      const cached = await loadJson<ApiSite[]>('dashboardSites');
+      if (!cancelled) {
+        setCachedSites(cached);
+      }
+    };
+
+    loadCache();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOffline]);
+
+  const sites = data ?? cachedSites ?? [];
+  const hasCachedSites = (cachedSites?.length ?? 0) > 0;
+  const usingCachedSites = !data && hasCachedSites;
+  const showLoading = isLoading && !hasCachedSites;
+  const shouldShowError = isError && !isOffline && !hasCachedSites;
 
   const metrics = useMemo(() => {
-    const totalSites = data?.length ?? 0;
-    const onlineDevices = (data || []).reduce((acc, site) => {
+    const totalSites = sites.length;
+    const onlineDevices = sites.reduce((acc, site) => {
       const onlineCount = site.online_devices ?? site.device_count_online ?? 0;
       return acc + onlineCount;
     }, 0);
@@ -28,9 +63,9 @@ export const DashboardScreen: React.FC = () => {
       { label: 'Online devices', value: onlineDevices },
       { label: 'Active alerts', value: alerts?.length ?? 0, color: colors.danger },
     ];
-  }, [alerts?.length, data]);
+  }, [alerts?.length, sites]);
 
-  if (isLoading) {
+  if (showLoading) {
     return (
       <Screen scroll={false} contentContainerStyle={styles.center}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -39,7 +74,7 @@ export const DashboardScreen: React.FC = () => {
     );
   }
 
-  if (isError) {
+  if (shouldShowError) {
     return (
       <Screen scroll={false} contentContainerStyle={styles.center}>
         <ErrorCard
@@ -52,10 +87,13 @@ export const DashboardScreen: React.FC = () => {
     );
   }
 
-  if (!isLoading && !isError && (data?.length ?? 0) === 0) {
+  if (!showLoading && !shouldShowError && (sites?.length ?? 0) === 0) {
     return (
       <Screen scroll={false} contentContainerStyle={styles.center}>
-        <EmptyState message="No sites available yet." testID="dashboard-empty" />
+        <EmptyState
+          message={isOffline ? 'Offline - no cached sites available yet.' : 'No sites available yet.'}
+          testID="dashboard-empty"
+        />
       </Screen>
     );
   }
@@ -76,6 +114,10 @@ export const DashboardScreen: React.FC = () => {
           <IconButton icon={<Ionicons name="settings-outline" size={20} color={colors.dark} />} />
         </View>
       </View>
+
+      {isOffline ? (
+        <Text style={[typography.caption, styles.offlineNote]}>Offline — showing last known data.</Text>
+      ) : null}
 
       <Card style={styles.metricsCard}>
         <View style={styles.metricsRow}>
@@ -98,7 +140,7 @@ export const DashboardScreen: React.FC = () => {
 
       <Text style={[typography.subtitle, styles.sectionTitle]}>Sites</Text>
       <View style={styles.grid}>
-        {(data || []).map((item) => (
+        {sites.map((item) => (
           <Card
             key={item.id}
             style={styles.siteCard}
@@ -190,6 +232,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: spacing.xl,
     marginBottom: spacing.lg,
+  },
+  offlineNote: {
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
   },
   metricsCard: {
     marginBottom: spacing.xl,

@@ -14,8 +14,10 @@ import {
   useSite,
   useHeatPumpHistory,
 } from '../../api/hooks';
-import type { HeatPumpHistoryRequest } from '../../api/types';
+import type { ControlFailureReason, HeatPumpHistoryRequest } from '../../api/types';
+import type { HeatPumpHistoryError } from '../../api/heatPumpHistory/hooks';
 import { Screen, Card, PillTab, PrimaryButton, IconButton, ErrorCard } from '../../components';
+import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
@@ -41,6 +43,8 @@ export const DeviceDetailScreen: React.FC = () => {
   const [selectedMode, setSelectedMode] = useState<'OFF' | 'HEATING' | 'COOLING' | 'AUTO'>(
     'HEATING'
   );
+  const [isSetpointPending, setIsSetpointPending] = useState(false);
+  const [isModePending, setIsModePending] = useState(false);
 
   const deviceQuery = useDevice(deviceId);
   const siteId = deviceQuery.data?.site_id;
@@ -49,8 +53,11 @@ export const DeviceDetailScreen: React.FC = () => {
   const telemetryQuery = useDeviceTelemetry(deviceId, range);
   const setpointMutation = useSetpointCommand(deviceId);
   const modeMutation = useModeCommand(deviceId);
+  const setpointPending = isSetpointPending || setpointMutation.isPending;
+  const modePending = isModePending || modeMutation.isPending;
   const refetchTelemetry = telemetryQuery.refetch;
   const mac = deviceQuery.data?.mac ?? null;
+  const { isOffline } = useNetworkBanner();
 
   const now = new Date();
   const fromDate =
@@ -166,6 +173,7 @@ export const DeviceDetailScreen: React.FC = () => {
   const telemetryError = telemetryQuery.isError;
   const telemetryErrorObj = telemetryQuery.error;
   const historyErrorObj = heatPumpHistoryQuery.error;
+  const historyErrorMessage = mapHistoryError(historyErrorObj as HeatPumpHistoryError | undefined);
 
   if (__DEV__) {
     if (telemetryErrorObj) console.log('Telemetry load error', telemetryErrorObj);
@@ -217,34 +225,52 @@ export const DeviceDetailScreen: React.FC = () => {
 
     setSetpointError(null);
     setCommandError(null);
+    if (isOffline) {
+      setCommandError('Commands are unavailable while offline.');
+      return;
+    }
     const previousValue = lastSetpoint;
 
     try {
+      setIsSetpointPending(true);
       await setpointMutation.mutateAsync(value);
       const nextValue = value.toString();
       setLastSetpoint(nextValue);
       setSetpointInput(nextValue);
     } catch (err) {
       setSetpointInput(previousValue);
-      const message = axios.isAxiosError(err)
-        ? err.response?.data?.message ?? 'Failed to update setpoint'
-        : 'Failed to update setpoint';
+      const failureReason = axios.isAxiosError(err) ? err.response?.data?.failure_reason : undefined;
+      const backendMessage = axios.isAxiosError(err)
+        ? err.response?.data?.message ?? err.response?.data?.error
+        : undefined;
+      const message = mapControlFailureReason(failureReason, backendMessage);
       setCommandError(message);
+    } finally {
+      setIsSetpointPending(false);
     }
   };
 
   const onModeChange = async (mode: 'OFF' | 'HEATING' | 'COOLING' | 'AUTO') => {
+    if (isOffline) {
+      setCommandError('Commands are unavailable while offline.');
+      return;
+    }
     const previousMode = selectedMode;
     setSelectedMode(mode);
     setCommandError(null);
     try {
+      setIsModePending(true);
       await modeMutation.mutateAsync(mode);
     } catch (err) {
       setSelectedMode(previousMode);
-      const message = axios.isAxiosError(err)
-        ? err.response?.data?.message ?? 'Failed to change mode'
-        : 'Failed to change mode';
+      const failureReason = axios.isAxiosError(err) ? err.response?.data?.failure_reason : undefined;
+      const backendMessage = axios.isAxiosError(err)
+        ? err.response?.data?.message ?? err.response?.data?.error
+        : undefined;
+      const message = mapControlFailureReason(failureReason, backendMessage);
       setCommandError(message);
+    } finally {
+      setIsModePending(false);
     }
   };
 
@@ -390,6 +416,7 @@ export const DeviceDetailScreen: React.FC = () => {
         {heatPumpHistoryQuery.isError && !heatPumpHistoryQuery.isLoading && (
           <ErrorCard
             title="Could not load heat pump history."
+            message={historyErrorMessage}
             onRetry={() => refetchHistory()}
             testID="history-error"
           />
@@ -439,10 +466,18 @@ export const DeviceDetailScreen: React.FC = () => {
           <Text style={[typography.caption, styles.errorText]}>{setpointError}</Text>
         ) : null}
         <PrimaryButton
-          label={setpointMutation.isPending ? 'Updating...' : 'Update setpoint'}
+          label={setpointPending ? 'Sending...' : 'Update setpoint'}
           onPress={onSetpointSave}
-          disabled={setpointMutation.isPending}
+          disabled={setpointPending || isOffline}
         />
+        {setpointPending ? (
+          <Text style={[typography.caption, styles.muted, styles.pendingText]}>Sending setpoint...</Text>
+        ) : null}
+        {isOffline ? (
+          <Text style={[typography.caption, styles.muted, styles.pendingText]}>
+            Commands unavailable while offline.
+          </Text>
+        ) : null}
       </Card>
 
       {commandError ? (
@@ -467,7 +502,7 @@ export const DeviceDetailScreen: React.FC = () => {
                 ]}
                 onPress={() => onModeChange(mode)}
                 activeOpacity={0.9}
-                disabled={modeMutation.isPending}
+                disabled={modePending || isOffline}
               >
                 <Text
                   style={[
@@ -481,6 +516,9 @@ export const DeviceDetailScreen: React.FC = () => {
             );
           })}
         </View>
+        {modePending ? (
+          <Text style={[typography.caption, styles.muted, styles.pendingText]}>Sending mode change...</Text>
+        ) : null}
       </Card>
 
       {activeDeviceAlerts.length > 0 && (
@@ -541,6 +579,35 @@ const renderStatusPill = (status?: string | null) => {
     </View>
   );
 };
+
+function mapControlFailureReason(reason?: ControlFailureReason | string, fallbackMessage?: string) {
+  const normalized = (reason || '').toUpperCase();
+  switch (normalized) {
+    case 'ABOVE_MAX':
+      return 'Setpoint above allowed range.';
+    case 'BELOW_MIN':
+      return 'Setpoint below allowed range.';
+    case 'THROTTLED':
+      return 'Too many commands in a short time. Try again shortly.';
+    case 'DEVICE_NOT_CAPABLE':
+      return "This device doesn't support that mode.";
+    case 'VALIDATION_ERROR':
+      return 'Command validation failed. Please check the values and retry.';
+    default:
+      return fallbackMessage || 'Command failed, please try again.';
+  }
+}
+
+function mapHistoryError(error?: HeatPumpHistoryError) {
+  if (!error) return undefined;
+  if (error.status === 503) {
+    return 'Heat pump history is temporarily unavailable. Please try again soon.';
+  }
+  if (error.status === 502) {
+    return 'Failed to load history from the upstream service.';
+  }
+  return error.message || 'Could not load history.';
+}
 
 const renderMetricCard = (
   title: string,
@@ -711,6 +778,9 @@ const styles = StyleSheet.create({
   errorCard: {
     marginBottom: spacing.md,
     padding: spacing.md,
+  },
+  pendingText: {
+    marginTop: spacing.xs,
   },
   modeCard: {
     marginBottom: spacing.md,

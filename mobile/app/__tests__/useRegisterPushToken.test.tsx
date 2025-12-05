@@ -4,7 +4,10 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../api/client';
-import { getPushTokenStorageKey } from '../constants/pushTokens';
+import {
+  LAST_REGISTERED_PUSH_TOKEN_KEY,
+  LAST_REGISTERED_USER_ID_KEY,
+} from '../constants/pushTokens';
 import { useRegisterPushToken } from '../hooks/useRegisterPushToken';
 import { useAuthStore } from '../store/authStore';
 
@@ -35,7 +38,7 @@ describe('useRegisterPushToken', () => {
       isHydrated: true,
     });
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
-    (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
+    (AsyncStorage.multiSet as jest.Mock).mockResolvedValue(undefined);
     (Notifications.getExpoPushTokenAsync as jest.Mock).mockResolvedValue({ data: 'push-token' });
     Object.defineProperty(deviceModule, 'isDevice', { value: true, writable: true });
   });
@@ -72,8 +75,12 @@ describe('useRegisterPushToken', () => {
     expect(AsyncStorage.getItem).not.toHaveBeenCalled();
   });
 
-  it('does not re-register when token was already stored', async () => {
-    (AsyncStorage.getItem as jest.Mock).mockResolvedValue('1');
+  it('does not re-register when token and user match cached values', async () => {
+    (AsyncStorage.getItem as jest.Mock).mockImplementation(async (key: string) => {
+      if (key === LAST_REGISTERED_PUSH_TOKEN_KEY) return 'push-token';
+      if (key === LAST_REGISTERED_USER_ID_KEY) return 'user-1';
+      return null;
+    });
     useAuthStore.setState({
       user: { id: 'user-1', email: 'test@example.com', name: 'Test User', organisation_id: null },
       accessToken: 'access',
@@ -84,13 +91,18 @@ describe('useRegisterPushToken', () => {
     render(<TestComponent />);
 
     await waitFor(() => {
-      expect(AsyncStorage.getItem).toHaveBeenCalledWith(getPushTokenStorageKey('user-1'));
+      expect(Notifications.getExpoPushTokenAsync).toHaveBeenCalled();
     });
-    expect(Notifications.getExpoPushTokenAsync).not.toHaveBeenCalled();
     expect(apiPostSpy).not.toHaveBeenCalled();
+    expect(AsyncStorage.multiSet).not.toHaveBeenCalled();
   });
 
-  it('registers token once and sets the stored flag when user is present', async () => {
+  it('registers token when token or user changed', async () => {
+    (AsyncStorage.getItem as jest.Mock).mockImplementation(async (key: string) => {
+      if (key === LAST_REGISTERED_PUSH_TOKEN_KEY) return 'old-token';
+      if (key === LAST_REGISTERED_USER_ID_KEY) return 'someone-else';
+      return null;
+    });
     useAuthStore.setState({
       user: { id: 'user-2', email: 'user@example.com', name: 'User Two', organisation_id: null },
       accessToken: 'access',
@@ -101,16 +113,29 @@ describe('useRegisterPushToken', () => {
     render(<TestComponent />);
 
     await waitFor(() => {
-      expect(AsyncStorage.getItem).toHaveBeenCalledWith(getPushTokenStorageKey('user-2'));
-    });
-
-    await waitFor(() => {
-      expect(Notifications.getExpoPushTokenAsync).toHaveBeenCalled();
-    });
-
-    await waitFor(() => {
       expect(apiPostSpy).toHaveBeenCalledWith('/auth/me/push-tokens', { token: 'push-token' });
     });
-    expect(AsyncStorage.setItem).toHaveBeenCalledWith(getPushTokenStorageKey('user-2'), '1');
+    expect(AsyncStorage.multiSet).toHaveBeenCalledWith([
+      [LAST_REGISTERED_PUSH_TOKEN_KEY, 'push-token'],
+      [LAST_REGISTERED_USER_ID_KEY, 'user-2'],
+    ]);
+  });
+
+  it('skips backend registration when permission is denied', async () => {
+    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: 'denied' });
+    useAuthStore.setState({
+      user: { id: 'user-3', email: 'user3@example.com', name: 'User Three', organisation_id: null },
+      accessToken: 'access',
+      refreshToken: 'refresh',
+      isHydrated: true,
+    });
+
+    render(<TestComponent />);
+
+    await waitFor(() => {
+      expect(apiPostSpy).not.toHaveBeenCalled();
+    });
+    expect(Notifications.requestPermissionsAsync).not.toHaveBeenCalled();
+    expect(AsyncStorage.multiSet).not.toHaveBeenCalled();
   });
 });

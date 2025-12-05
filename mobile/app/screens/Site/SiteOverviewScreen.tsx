@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { useDevices, useSite } from '../../api/hooks';
+import type { ApiDevice, ApiSite } from '../../api/types';
 import { Screen, Card, IconButton, ErrorCard, EmptyState } from '../../components';
+import { useNetworkBanner } from '../../hooks/useNetworkBanner';
+import { loadJson, saveJson } from '../../utils/storage';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
@@ -30,8 +33,51 @@ export const SiteOverviewScreen: React.FC = () => {
     isError: devicesError,
     refetch: refetchDevices,
   } = useDevices(siteId);
+  const { isOffline } = useNetworkBanner();
+  const [cachedSite, setCachedSite] = useState<ApiSite | null>(null);
+  const [cachedDevices, setCachedDevices] = useState<ApiDevice[] | null>(null);
 
-  if (siteLoading || devicesLoading) {
+  useEffect(() => {
+    if (site) {
+      saveJson(`site:${siteId}`, site);
+    }
+  }, [site, siteId]);
+
+  useEffect(() => {
+    if (devices) {
+      saveJson(`siteDevices:${siteId}`, devices);
+    }
+  }, [devices, siteId]);
+
+  useEffect(() => {
+    if (!isOffline) return;
+    let cancelled = false;
+
+    const loadCache = async () => {
+      const [siteCache, deviceCache] = await Promise.all([
+        loadJson<ApiSite>(`site:${siteId}`),
+        loadJson<ApiDevice[]>(`siteDevices:${siteId}`),
+      ]);
+      if (!cancelled) {
+        setCachedSite(siteCache);
+        setCachedDevices(deviceCache);
+      }
+    };
+
+    loadCache();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOffline, siteId]);
+
+  const siteData = site ?? cachedSite;
+  const devicesData = devices ?? cachedDevices ?? [];
+  const hasCachedData = !!cachedSite || (cachedDevices?.length ?? 0) > 0;
+  const showLoading = (siteLoading || devicesLoading) && !hasCachedData;
+  const shouldShowError = (siteError || devicesError) && !isOffline && !hasCachedData;
+
+  if (showLoading) {
     return (
       <Screen scroll={false} contentContainerStyle={styles.center}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -40,7 +86,7 @@ export const SiteOverviewScreen: React.FC = () => {
     );
   }
 
-  if (siteError || devicesError) {
+  if (shouldShowError) {
     return (
       <Screen scroll={false} contentContainerStyle={styles.center}>
         <ErrorCard
@@ -56,12 +102,14 @@ export const SiteOverviewScreen: React.FC = () => {
     );
   }
 
-  if (!site) {
+  if (!siteData) {
     return (
       <Screen scroll={false} contentContainerStyle={styles.center}>
-        <Text style={[typography.title2, styles.title, { marginBottom: spacing.xs }]}>Site not found</Text>
+        <Text style={[typography.title2, styles.title, { marginBottom: spacing.xs }]}>
+          {isOffline ? 'Site data unavailable offline' : 'Site not found'}
+        </Text>
         <Text style={[typography.body, styles.muted]}>
-          The site you are looking for could not be found.
+          {isOffline ? 'Reconnect to refresh this site.' : 'The site you are looking for could not be found.'}
         </Text>
       </Screen>
     );
@@ -81,18 +129,22 @@ export const SiteOverviewScreen: React.FC = () => {
       <Card style={styles.headerCard}>
         <View style={{ flex: 1 }}>
           <Text style={[typography.caption, styles.muted, { marginBottom: spacing.xs }]}>Site</Text>
-          <Text style={[typography.title1, styles.title]}>{site.name}</Text>
-          <Text style={[typography.body, styles.muted]}>{site.city || 'Unknown location'}</Text>
+          <Text style={[typography.title1, styles.title]}>{siteData.name}</Text>
+          <Text style={[typography.body, styles.muted]}>{siteData.city || 'Unknown location'}</Text>
           <Text style={[typography.caption, styles.muted, { marginTop: spacing.sm }]}>
-            Last seen: {site.last_seen_at ? new Date(site.last_seen_at).toLocaleString() : 'Unknown'}
+            Last seen: {siteData.last_seen_at ? new Date(siteData.last_seen_at).toLocaleString() : 'Unknown'}
           </Text>
         </View>
-        {renderStatusPill(site.status)}
+        {renderStatusPill(siteData.status)}
       </Card>
+
+      {isOffline ? (
+        <Text style={[typography.caption, styles.muted, styles.offlineNote]}>Offline — showing last known data.</Text>
+      ) : null}
 
       <Text style={[typography.subtitle, styles.sectionTitle]}>Devices</Text>
       <FlatList
-        data={devices || []}
+        data={devicesData}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: spacing.xl }}
         renderItem={({ item }) => (
@@ -122,7 +174,12 @@ export const SiteOverviewScreen: React.FC = () => {
             </View>
           </Card>
         )}
-        ListEmptyComponent={<EmptyState message="No devices available yet." testID="site-empty" />}
+        ListEmptyComponent={
+          <EmptyState
+            message={isOffline ? 'Offline - no cached devices available yet.' : 'No devices available yet.'}
+            testID="site-empty"
+          />
+        }
       />
     </Screen>
   );
@@ -182,6 +239,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: spacing.sm,
+  },
+  offlineNote: {
+    marginBottom: spacing.md,
   },
   sectionTitle: {
     marginBottom: spacing.md,

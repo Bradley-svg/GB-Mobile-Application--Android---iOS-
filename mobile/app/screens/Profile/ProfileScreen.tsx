@@ -1,8 +1,9 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Linking, TouchableOpacity, View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { Screen, Card, PrimaryButton, IconButton } from '../../components';
+import { getNotificationPermissionStatus } from '../../hooks/useRegisterPushToken';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
@@ -10,6 +11,7 @@ import { spacing } from '../../theme/spacing';
 export const ProfileScreen: React.FC = () => {
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const user = useAuthStore((s) => s.user);
+  const [notificationPermission, setNotificationPermission] = useState<string | null>(null);
   const initials = useMemo(() => {
     const name = user?.name || 'G B';
     return name
@@ -19,9 +21,28 @@ export const ProfileScreen: React.FC = () => {
       .join('');
   }, [user?.name]);
 
+  useEffect(() => {
+    const loadPermissionStatus = async () => {
+      const status = await getNotificationPermissionStatus();
+      setNotificationPermission(status);
+    };
+
+    loadPermissionStatus();
+  }, []);
+
   const onLogout = async () => {
     await clearAuth();
   };
+
+  const onOpenSettings = async () => {
+    try {
+      await Linking.openSettings();
+    } catch (err) {
+      console.error('Failed to open notification settings', err);
+    }
+  };
+
+  const notificationDenied = notificationPermission === 'denied';
 
   return (
     <Screen scroll={false}>
@@ -46,6 +67,16 @@ export const ProfileScreen: React.FC = () => {
             <View style={styles.toggleThumb} />
           </View>
         </View>
+        {notificationDenied ? (
+          <View style={styles.permissionHint} testID="notification-permission-warning">
+            <Text style={[typography.caption, styles.warningText]}>
+              Notifications are disabled in system settings.
+            </Text>
+            <TouchableOpacity onPress={onOpenSettings} style={styles.settingsLink}>
+              <Text style={[typography.caption, styles.title]}>Open Settings</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
         <View style={styles.separator} />
         <View style={styles.listRow}>
           <View style={styles.rowLeft}>
@@ -121,6 +152,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderSoft,
     alignSelf: 'flex-end',
+  },
+  permissionHint: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+  warningText: {
+    color: colors.warning,
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  settingsLink: {
+    alignSelf: 'flex-start',
+    paddingVertical: spacing.xs,
   },
   separator: {
     height: 1,

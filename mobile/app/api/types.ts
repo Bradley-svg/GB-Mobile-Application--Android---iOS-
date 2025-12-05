@@ -84,3 +84,10 @@ export type AuthTokens = {
 };
 
 export type AuthResponse = AuthTokens & { user: AuthUser };
+
+export type ControlFailureReason =
+  | 'ABOVE_MAX'
+  | 'BELOW_MIN'
+  | 'THROTTLED'
+  | 'DEVICE_NOT_CAPABLE'
+  | 'VALIDATION_ERROR';

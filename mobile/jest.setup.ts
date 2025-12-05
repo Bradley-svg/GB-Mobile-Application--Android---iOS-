@@ -31,11 +31,13 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 
 jest.mock('@react-navigation/native', () => {
   const React = require('react');
+  const useNavigation = jest.fn(() => ({ navigate: jest.fn(), goBack: jest.fn() }));
+  const useRoute = jest.fn(() => ({ params: {} }));
   return {
     NavigationContainer: ({ children }: { children: React.ReactNode }) =>
       React.createElement(React.Fragment, {}, children),
-    useNavigation: () => ({ navigate: jest.fn(), goBack: jest.fn() }),
-    useRoute: () => ({ params: {} }),
+    useNavigation,
+    useRoute,
   };
 });
 
@@ -50,7 +52,11 @@ jest.mock('@react-navigation/native-stack', () => {
       }: {
         component?: React.ComponentType<any>;
         children?: React.ReactNode;
-      }) => (Component ? React.createElement(Component, rest) : children ?? null);
+      }) => {
+        if (Component) return React.createElement(Component, rest);
+        if (typeof children === 'function') return (children as Function)(rest);
+        return children ?? null;
+      };
       const Navigator = ({ children }: { children: React.ReactNode }) =>
         React.createElement(React.Fragment, {}, children);
       return { Navigator, Screen };
@@ -69,7 +75,11 @@ jest.mock('@react-navigation/bottom-tabs', () => {
       }: {
         component?: React.ComponentType<any>;
         children?: React.ReactNode;
-      }) => (Component ? React.createElement(Component, rest) : children ?? null);
+      }) => {
+        if (Component) return React.createElement(Component, rest);
+        if (typeof children === 'function') return (children as Function)(rest);
+        return children ?? null;
+      };
       const Navigator = ({ children }: { children: React.ReactNode }) =>
         React.createElement(React.Fragment, {}, children);
       return { Navigator, Screen };
@@ -99,3 +109,15 @@ jest.mock('victory-native', () => {
     VictoryLegend: Mock,
   };
 });
+
+jest.mock('@react-native-community/netinfo', () => ({
+  addEventListener: jest.fn(() => jest.fn()),
+  fetch: jest.fn(() =>
+    Promise.resolve({
+      isConnected: true,
+      isInternetReachable: true,
+      details: null,
+      type: 'wifi',
+    })
+  ),
+}));

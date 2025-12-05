@@ -135,6 +135,7 @@ describe('DeviceDetailScreen heat pump history', () => {
       isLoading: false,
       isError: true,
       refetch: refetchMock,
+      error: { status: 500, message: 'boom' },
     });
 
     render(<DeviceDetailScreen />);
@@ -143,6 +144,32 @@ describe('DeviceDetailScreen heat pump history', () => {
     const retry = screen.getByText('Retry');
     fireEvent.press(retry);
     expect(refetchMock).toHaveBeenCalled();
+  });
+
+  it('shows a temporary unavailable message when backend returns 503', () => {
+    (useHeatPumpHistory as jest.Mock).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: { status: 503, message: 'circuit open' },
+    });
+
+    render(<DeviceDetailScreen />);
+
+    expect(screen.getByText(/temporarily unavailable/i)).toBeTruthy();
+  });
+
+  it('shows an upstream failure message for 502 errors', () => {
+    (useHeatPumpHistory as jest.Mock).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: { status: 502, message: 'upstream failed' },
+    });
+
+    render(<DeviceDetailScreen />);
+
+    expect(screen.getByText(/upstream service/i)).toBeTruthy();
   });
 
   it('disables history when mac is missing', () => {

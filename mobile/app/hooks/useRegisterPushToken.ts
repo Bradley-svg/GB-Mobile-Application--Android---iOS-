@@ -5,10 +5,28 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { api } from '../api/client';
 import { useAuthStore } from '../store/authStore';
-import { getPushTokenStorageKey } from '../constants/pushTokens';
+import {
+  LAST_REGISTERED_PUSH_TOKEN_KEY,
+  LAST_REGISTERED_USER_ID_KEY,
+} from '../constants/pushTokens';
 
 async function registerTokenWithBackend(token: string) {
   await api.post('/auth/me/push-tokens', { token });
+}
+
+export async function getNotificationPermissionStatus() {
+  const { status } = await Notifications.getPermissionsAsync();
+  return status;
+}
+
+async function ensureNotificationPermission() {
+  const currentStatus = await getNotificationPermissionStatus();
+  if (currentStatus === 'granted' || currentStatus === 'denied') {
+    return currentStatus;
+  }
+
+  const { status } = await Notifications.requestPermissionsAsync();
+  return status;
 }
 
 async function getPushToken(): Promise<string | null> {
@@ -17,16 +35,9 @@ async function getPushToken(): Promise<string | null> {
     return null;
   }
 
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
-
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
-
-  if (finalStatus !== 'granted') {
-    console.log('Failed to get notification permissions');
+  const permissionStatus = await ensureNotificationPermission();
+  if (permissionStatus !== 'granted') {
+    console.log('Notification permission not granted; skipping push registration');
     return null;
   }
 
@@ -44,25 +55,32 @@ async function getPushToken(): Promise<string | null> {
 }
 
 export function useRegisterPushToken() {
-  const user = useAuthStore((s) => s.user);
+  const userId = useAuthStore((s) => s.user?.id);
 
   useEffect(() => {
-    const run = async () => {
-      const userId = user?.id;
-      if (!userId) return;
+    let cancelled = false;
 
-      const storageKey = getPushTokenStorageKey(userId);
-      const already = await AsyncStorage.getItem(storageKey);
-      if (already === '1') {
-        return;
-      }
+    const run = async () => {
+      if (!userId) return;
 
       const token = await getPushToken();
       if (!token) return;
 
+      const [lastToken, lastUserId] = await Promise.all([
+        AsyncStorage.getItem(LAST_REGISTERED_PUSH_TOKEN_KEY),
+        AsyncStorage.getItem(LAST_REGISTERED_USER_ID_KEY),
+      ]);
+
+      const alreadyRegistered = lastToken === token && lastUserId === userId;
+      if (alreadyRegistered) return;
+
       try {
         await registerTokenWithBackend(token);
-        await AsyncStorage.setItem(storageKey, '1');
+        if (cancelled) return;
+        await AsyncStorage.multiSet([
+          [LAST_REGISTERED_PUSH_TOKEN_KEY, token],
+          [LAST_REGISTERED_USER_ID_KEY, userId],
+        ]);
         console.log('Push token registered');
       } catch (e) {
         console.error('Failed to register push token', e);
@@ -70,5 +88,9 @@ export function useRegisterPushToken() {
     };
 
     run();
-  }, [user]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 }
