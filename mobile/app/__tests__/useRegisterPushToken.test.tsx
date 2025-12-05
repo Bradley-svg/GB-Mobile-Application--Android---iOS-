@@ -10,6 +10,8 @@ import {
 } from '../constants/pushTokens';
 import { useRegisterPushToken } from '../hooks/useRegisterPushToken';
 import { useAuthStore } from '../store/authStore';
+import { queryClient } from '../queryClient';
+import { NOTIFICATION_PREFERENCES_QUERY_KEY } from '../api/preferences/hooks';
 
 jest.mock('expo-device', () => ({ isDevice: true }));
 
@@ -28,6 +30,7 @@ describe('useRegisterPushToken', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    queryClient.clear();
     apiPostSpy.mockResolvedValue({ data: { ok: true } });
     (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: 'granted' });
     (Notifications.requestPermissionsAsync as jest.Mock).mockResolvedValue({ status: 'granted' });
@@ -152,19 +155,14 @@ describe('useRegisterPushToken', () => {
   });
 
   it('skips backend registration when preferences disable alerts', async () => {
-    (AsyncStorage.getItem as jest.Mock).mockImplementation(async (key: string) => {
-      if (key.startsWith('notificationPreferences:')) {
-        return JSON.stringify({ alertsEnabled: false });
-      }
-      return null;
-    });
+    queryClient.setQueryData(NOTIFICATION_PREFERENCES_QUERY_KEY, { alertsEnabled: false });
     useAuthStore.setState({
       user: { id: 'user-4', email: 'pref@example.com', name: 'Pref User', organisation_id: null },
       accessToken: 'access',
       refreshToken: 'refresh',
       isHydrated: true,
-      notificationPreferences: { alertsEnabled: true },
-      preferencesHydrated: false,
+      notificationPreferences: { alertsEnabled: false },
+      preferencesHydrated: true,
       sessionExpired: false,
     });
 
@@ -176,20 +174,15 @@ describe('useRegisterPushToken', () => {
     expect(Notifications.getExpoPushTokenAsync).not.toHaveBeenCalled();
   });
 
-  it('registers push token when alerts are enabled in preferences', async () => {
-    (AsyncStorage.getItem as jest.Mock).mockImplementation(async (key: string) => {
-      if (key.startsWith('notificationPreferences:')) {
-        return JSON.stringify({ alertsEnabled: true });
-      }
-      return null;
-    });
+  it('registers push token when backend preferences allow alerts', async () => {
+    queryClient.setQueryData(NOTIFICATION_PREFERENCES_QUERY_KEY, { alertsEnabled: true });
     useAuthStore.setState({
       user: { id: 'user-5', email: 'pref-on@example.com', name: 'Pref On', organisation_id: null },
       accessToken: 'access',
       refreshToken: 'refresh',
       isHydrated: true,
-      notificationPreferences: { alertsEnabled: false },
-      preferencesHydrated: false,
+      notificationPreferences: { alertsEnabled: true },
+      preferencesHydrated: true,
       sessionExpired: false,
     });
 

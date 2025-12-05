@@ -6,6 +6,6 @@ export { useAlerts, useDeviceAlerts, useAcknowledgeAlert, useMuteAlert } from '.
 export { useSetpointCommand, useModeCommand } from './control/hooks';
 export { useHeatPumpHistory } from './heatPumpHistory/hooks';
 export {
-  useNotificationPreferences,
-  useUpdateNotificationPreferences,
+  useNotificationPreferencesQuery,
+  useUpdateNotificationPreferencesMutation,
 } from './preferences/hooks';

@@ -1,14 +1,17 @@
 import React from 'react';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { ProfileScreen } from '../screens/Profile/ProfileScreen';
-import { useNotificationPreferences, useUpdateNotificationPreferences } from '../api/preferences/hooks';
+import {
+  useNotificationPreferencesQuery,
+  useUpdateNotificationPreferencesMutation,
+} from '../api/preferences/hooks';
 import { getNotificationPermissionStatus } from '../hooks/useRegisterPushToken';
 import { useAuthStore } from '../store/authStore';
 
 jest.mock('../api/preferences/hooks', () => ({
   DEFAULT_NOTIFICATION_PREFERENCES: { alertsEnabled: true },
-  useNotificationPreferences: jest.fn(),
-  useUpdateNotificationPreferences: jest.fn(),
+  useNotificationPreferencesQuery: jest.fn(),
+  useUpdateNotificationPreferencesMutation: jest.fn(),
 }));
 
 jest.mock('../hooks/useRegisterPushToken', () => ({
@@ -27,11 +30,12 @@ describe('ProfileScreen notifications', () => {
       notificationPreferences: { alertsEnabled: true },
       preferencesHydrated: true,
     });
-    (useNotificationPreferences as jest.Mock).mockReturnValue({
+    (useNotificationPreferencesQuery as jest.Mock).mockReturnValue({
       data: { alertsEnabled: true },
       isFetching: false,
+      isLoading: false,
     });
-    (useUpdateNotificationPreferences as jest.Mock).mockReturnValue({
+    (useUpdateNotificationPreferencesMutation as jest.Mock).mockReturnValue({
       mutate: jest.fn(),
       isPending: false,
     });
@@ -51,8 +55,11 @@ describe('ProfileScreen notifications', () => {
   });
 
   it('toggles off and calls update hook when permissions granted and prefs enabled', async () => {
-    const mutate = jest.fn((_prefs, options) => options?.onSuccess?.(_prefs));
-    (useUpdateNotificationPreferences as jest.Mock).mockReturnValue({
+    const mutate = jest.fn((prefs, options) => {
+      useAuthStore.setState({ notificationPreferences: prefs });
+      options?.onSuccess?.(prefs);
+    });
+    (useUpdateNotificationPreferencesMutation as jest.Mock).mockReturnValue({
       mutate,
       isPending: false,
     });
@@ -68,12 +75,21 @@ describe('ProfileScreen notifications', () => {
   });
 
   it('shows inline error and reverts when update fails', async () => {
-    (useNotificationPreferences as jest.Mock).mockReturnValue({
+    useAuthStore.setState((state) => ({
+      ...state,
+      notificationPreferences: { alertsEnabled: false },
+    }));
+    (useNotificationPreferencesQuery as jest.Mock).mockReturnValue({
       data: { alertsEnabled: false },
       isFetching: false,
+      isLoading: false,
     });
-    const mutate = jest.fn((_prefs, options) => options?.onError?.(new Error('boom')));
-    (useUpdateNotificationPreferences as jest.Mock).mockReturnValue({
+    const mutate = jest.fn((prefs, options) => {
+      useAuthStore.setState({ notificationPreferences: prefs });
+      options?.onError?.(new Error('boom'));
+      useAuthStore.setState({ notificationPreferences: { alertsEnabled: false } });
+    });
+    (useUpdateNotificationPreferencesMutation as jest.Mock).mockReturnValue({
       mutate,
       isPending: false,
     });

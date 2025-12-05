@@ -1,31 +1,30 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Linking, TouchableOpacity, View, Text, StyleSheet, Switch } from 'react-native';
+import { ActivityIndicator, Linking, TouchableOpacity, View, Text, StyleSheet, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { Screen, Card, PrimaryButton, IconButton } from '../../components';
 import { getNotificationPermissionStatus } from '../../hooks/useRegisterPushToken';
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
-  useNotificationPreferences,
-  useUpdateNotificationPreferences,
+  useNotificationPreferencesQuery,
+  useUpdateNotificationPreferencesMutation,
 } from '../../api/preferences/hooks';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 
 export const ProfileScreen: React.FC = () => {
-  const { clearAuth, user, setNotificationPreferences, notificationPreferences } = useAuthStore(
-    (s) => ({
-      clearAuth: s.clearAuth,
-      user: s.user,
-      setNotificationPreferences: s.setNotificationPreferences,
-      notificationPreferences: s.notificationPreferences,
-    })
-  );
-  const { data: storedPreferences, isFetching: preferencesLoading } = useNotificationPreferences(
-    user?.id
-  );
-  const updatePreferences = useUpdateNotificationPreferences(user?.id);
+  const { clearAuth, user, notificationPreferences } = useAuthStore((s) => ({
+    clearAuth: s.clearAuth,
+    user: s.user,
+    notificationPreferences: s.notificationPreferences,
+  }));
+  const {
+    data: storedPreferences,
+    isLoading: preferencesLoading,
+    isFetching: preferencesFetching,
+  } = useNotificationPreferencesQuery();
+  const updatePreferences = useUpdateNotificationPreferencesMutation();
   const [notificationPermission, setNotificationPermission] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const initials = useMemo(() => {
@@ -46,12 +45,6 @@ export const ProfileScreen: React.FC = () => {
     loadPermissionStatus();
   }, []);
 
-  useEffect(() => {
-    if (storedPreferences) {
-      setNotificationPreferences(storedPreferences);
-    }
-  }, [setNotificationPreferences, storedPreferences]);
-
   const onLogout = async () => {
     await clearAuth();
   };
@@ -69,26 +62,21 @@ export const ProfileScreen: React.FC = () => {
     notificationPreferences?.alertsEnabled ??
     storedPreferences?.alertsEnabled ??
     DEFAULT_NOTIFICATION_PREFERENCES.alertsEnabled;
-  const toggleDisabled = notificationDenied || preferencesLoading || updatePreferences.isPending;
+  const toggleDisabled =
+    notificationDenied || preferencesLoading || preferencesFetching || updatePreferences.isPending;
 
   const onToggleNotifications = () => {
     if (!user?.id || toggleDisabled) return;
 
-    const previous = {
-      alertsEnabled,
-    };
     const next = { alertsEnabled: !alertsEnabled };
 
     setUpdateError(null);
-    setNotificationPreferences(next);
-
     updatePreferences.mutate(next, {
       onError: () => {
-        setNotificationPreferences(previous);
         setUpdateError('Could not update notification preference. Please try again.');
       },
-      onSuccess: (prefs) => {
-        setNotificationPreferences(prefs);
+      onSuccess: () => {
+        setUpdateError(null);
       },
     });
   };
@@ -112,6 +100,9 @@ export const ProfileScreen: React.FC = () => {
             <Ionicons name="notifications-outline" size={18} color={colors.primary} />
             <Text style={[typography.body, styles.title, { marginLeft: spacing.sm }]}>Notifications</Text>
           </View>
+          {preferencesLoading || preferencesFetching ? (
+            <ActivityIndicator color={colors.primary} size="small" style={{ marginRight: spacing.sm }} />
+          ) : null}
           <Switch
             testID="notification-preference-toggle"
             value={alertsEnabled}

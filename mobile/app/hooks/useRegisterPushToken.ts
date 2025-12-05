@@ -5,11 +5,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { api } from '../api/client';
 import { useAuthStore } from '../store/authStore';
-import { DEFAULT_NOTIFICATION_PREFERENCES } from '../api/preferences/hooks';
+import {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  NOTIFICATION_PREFERENCES_QUERY_KEY,
+  readNotificationPreferences,
+} from '../api/preferences/hooks';
 import {
   LAST_REGISTERED_PUSH_TOKEN_KEY,
   LAST_REGISTERED_USER_ID_KEY,
 } from '../constants/pushTokens';
+import { queryClient } from '../queryClient';
+import { NotificationPreferences } from '../api/types';
 
 async function registerTokenWithBackend(token: string) {
   await api.post('/auth/me/push-tokens', { token });
@@ -56,10 +62,12 @@ async function getPushToken(): Promise<string | null> {
 }
 
 export function useRegisterPushToken() {
+  const isAuthHydrated = useAuthStore((s) => s.isHydrated);
   const userId = useAuthStore((s) => s.user?.id);
   const preferences = useAuthStore((s) => s.notificationPreferences);
   const preferencesHydrated = useAuthStore((s) => s.preferencesHydrated);
   const hydrateNotificationPreferences = useAuthStore((s) => s.hydrateNotificationPreferences);
+  const setNotificationPreferences = useAuthStore((s) => s.setNotificationPreferences);
 
   useEffect(() => {
     if (!userId || preferencesHydrated) return;
@@ -69,10 +77,47 @@ export function useRegisterPushToken() {
   useEffect(() => {
     let cancelled = false;
 
-    const run = async () => {
+    const primeQueryCache = async () => {
       if (!userId || !preferencesHydrated) return;
 
-      const loadedPreferences = preferences ?? DEFAULT_NOTIFICATION_PREFERENCES;
+      const existing = queryClient.getQueryData<NotificationPreferences>(
+        NOTIFICATION_PREFERENCES_QUERY_KEY
+      );
+      if (existing) {
+        return;
+      }
+
+      const cached = await readNotificationPreferences(userId);
+      if (!cancelled) {
+        queryClient.setQueryData(NOTIFICATION_PREFERENCES_QUERY_KEY, cached);
+        setNotificationPreferences(cached);
+      }
+    };
+
+    primeQueryCache();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [preferencesHydrated, setNotificationPreferences, userId]);
+
+  useEffect(() => {
+    if (userId) return;
+    queryClient.removeQueries({ queryKey: NOTIFICATION_PREFERENCES_QUERY_KEY });
+  }, [userId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      if (!isAuthHydrated || !userId || !preferencesHydrated) return;
+
+      const cachedPreferences =
+        queryClient.getQueryData<NotificationPreferences>(NOTIFICATION_PREFERENCES_QUERY_KEY);
+      const loadedPreferences = cachedPreferences ?? preferences ?? DEFAULT_NOTIFICATION_PREFERENCES;
+      if (preferences.alertsEnabled !== loadedPreferences.alertsEnabled) {
+        setNotificationPreferences(loadedPreferences);
+      }
       if (!loadedPreferences.alertsEnabled) {
         console.log('Notification alerts disabled; skipping push registration');
         return;
@@ -107,5 +152,5 @@ export function useRegisterPushToken() {
     return () => {
       cancelled = true;
     };
-  }, [preferences, preferencesHydrated, userId]);
+  }, [isAuthHydrated, preferences, preferencesHydrated, setNotificationPreferences, userId]);
 }

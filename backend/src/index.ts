@@ -7,6 +7,7 @@ import deviceRoutes from './routes/deviceRoutes';
 import alertRoutes from './routes/alertRoutes';
 import telemetryRoutes from './routes/telemetryRoutes';
 import heatPumpHistoryRoutes from './routes/heatPumpHistoryRoutes';
+import userPreferencesRoutes from './routes/userPreferencesRoutes';
 import { errorHandler } from './middleware/errorHandler';
 import { createCorsMiddleware } from './middleware/corsConfig';
 import { logger } from './config/logger';
@@ -23,6 +24,7 @@ app.use(deviceRoutes);
 app.use(alertRoutes);
 app.use(telemetryRoutes);
 app.use(heatPumpHistoryRoutes);
+app.use(userPreferencesRoutes);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 4000;

@@ -96,5 +96,5 @@ export type ControlFailureReason =
 
 export type NotificationPreferences = {
   alertsEnabled: boolean;
-  // TODO: align with backend preferences model when available.
+  // Mirror of backend /user/preferences response.
 };

@@ -82,7 +82,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   setNotificationPreferences: (prefs: NotificationPreferences) => {
-    set({ notificationPreferences: prefs });
+    set({ notificationPreferences: prefs, preferencesHydrated: true });
   },
 
   hydrateNotificationPreferences: async (userId: string | null) => {

@@ -200,6 +200,7 @@ async function resetTables(client: Client) {
         device_snapshots,
         refresh_tokens,
         push_tokens,
+        user_preferences,
         alerts,
         control_commands,
         devices,

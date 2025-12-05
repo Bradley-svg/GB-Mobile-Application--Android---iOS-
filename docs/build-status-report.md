@@ -3,6 +3,7 @@
 - **Backend**
   - npm install, npm run migrate:test (tests/CI), npm run typecheck, npm run lint, TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm test, npm run build; all green locally on Node 20 / Postgres 16.
   - Migrations: node-pg-migrate baseline under `backend/migrations/` (includes `worker_locks`); `npm run migrate:dev` / `npm run migrate:test` wire to DATABASE_URL/TEST_DATABASE_URL; test harness runs migrations before seeding.
+  - Preferences: new `/user/preferences` GET/PUT backed by `user_preferences` (`alerts_enabled` default true) with API coverage for auth/validation/default/update paths.
   - Logging: pino JSON logger to stdout with `LOG_LEVEL` (default info) and service/env fields; console.* replaced across API/workers/scripts.
   - Workers: MQTT ingest + alerts worker take DB locks (`worker_locks`) with configurable TTL (`WORKER_LOCK_TTL_SEC`); non-owners log and exit/idle rather than double-run.
   - Auth: login/refresh/me plus logout and logout-all are live; password reset endpoint remains intentionally absent.
@@ -12,11 +13,14 @@
   - Health-plus sample (`curl http://localhost:4000/health-plus`): `{ ok:true, env:"development", db:"ok", mqtt:{configured:false, healthy:true}, control:{configured:false, lastError:"CONTROL_CHANNEL_UNCONFIGURED", healthy:true}, heatPumpHistory:{configured:true, healthy:false}, alertsWorker:{healthy:true}, push:{enabled:false, lastSampleAt:"2025-12-05T11:26:24.318Z"} }`.
 
 - **Mobile**
-  - npm run typecheck, npm run lint, npm test -- --runInBand all green locally.
+  - npm run typecheck, npm run lint, npm test -- --runInBand all green locally after wiring preferences to `/user/preferences`.
   - Device Detail supports 1h/24h/7d ranges with stale-data banners for cached/lagging telemetry.
   - Offline caching: Dashboard, Site, Device detail, and Alerts show cached read-only data with commands/ack/mute disabled when offline.
   - Added AppNavigation and Dashboard large-list regression tests alongside history/push suites.
-  - Profile push notification preferences: OS-denied warning + "Open Settings" link and a toggle that persists prefs and gates push registration.
+  - Profile push notification preferences now round-trip to the backend with React Query + AsyncStorage cache, keeping the OS-denied warning and push registration gating.
+
+- **Functional Integration Notes**
+  - Profile toggle → `/user/preferences` → prefs cache (React Query + AsyncStorage) → `useRegisterPushToken`.
 
 - **CI**
   - Backend job: Node 20, Postgres 16 service, TEST_DATABASE_URL provided, ALLOW_TEST_DB_RESET=true set for API tests, `npm run migrate:test` before tests.

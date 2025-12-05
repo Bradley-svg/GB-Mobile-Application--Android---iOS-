@@ -19,6 +19,7 @@ _2025-12-05 sweep: backend and mobile npm install/typecheck/lint/test/build all 
 - Layering: controllers mostly call services; `healthController` directly queries the DB and `mqttClient` health helpers; `heatPumpHistoryController` calls the integration client directly; HTTP telemetry route is an intentional 501 stub pointing to MQTT ingest.
 - Config/env notes: JWT secret throws if unset in non-dev; refresh token lifetime via `REFRESH_TOKEN_DAYS`; alerts worker toggle `ALERT_WORKER_ENABLED` (defaults true) with `ALERT_WORKER_INTERVAL_SEC`; CORS allowlist required in prod; heat-pump client prefers `HEATPUMP_*` envs with deprecated `HEAT_PUMP_*` fallbacks; control channel set by MQTT or CONTROL_API_URL/CONTROL_API_KEY; telemetry HTTP ingest intentionally disabled.
 - Control: throttling enforced via last control command; `/devices/:id/last-command` returns the most recent control attempt; logout and logout-all endpoints revoke refresh tokens.
+- Preferences: `/user/preferences` (GET/PUT) backed by `user_preferences` (unique per user, default `alerts_enabled=true`); service returns default `alertsEnabled=true` until updated.
 - Integrations: MQTT ingest on `greenbro/+/+/telemetry`; control over HTTP or MQTT; Expo push with optional health sample; Azure heat-pump history client with timeout and circuit breaker.
 - Workers & concurrency: long-running workers (MQTT ingest, alerts) now take a DB-backed lease via `worker_locks` (configurable TTL with `WORKER_LOCK_TTL_SEC`); extra instances log and idle/exit.
 - Health (2025-12-05 local): npm install/typecheck/lint/test/build all green with TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test and ALLOW_TEST_DB_RESET=true against Postgres 16. `/health-plus` curl showed db ok, mqtt configured:false/healthy:true, control configured:false lastError CONTROL_CHANNEL_UNCONFIGURED, heatPumpHistory configured:true/healthy:false (no upstream data yet), alertsWorker healthy:true, push enabled:false with last sample timestamp.
@@ -37,7 +38,7 @@ _2025-12-05 sweep: backend and mobile npm install/typecheck/lint/test/build all 
 - Auth screens: Login is live; Signup/ForgotPassword are locked-down stubs with guidance.
 - Health (2025-12-05 local): `npm install` OK (npm audit reports 3 low vulns); `npm run typecheck` OK; `npm run lint` OK; `npm test -- --runInBand` OK (jest-expo; noisy console logs by design).
 - UX robustness: offline banner plus cached Dashboard, Site, Device, and Alerts views (read-only with commands/ack/mute disabled); telemetry shows stale-data banners; control flows include pending + throttling messaging; heat-pump history error mapping and session-expired UX covered in tests.
-- Push/notifications: Profile screen now persists notification preferences (alertsEnabled) with OS-denied warning + Settings link; `useRegisterPushToken` respects alertsEnabled + granted OS permission and rotates registration on user/token changes.
+- Push/notifications: Profile toggle now backed by `/user/preferences` with React Query + AsyncStorage cache; keeps the OS-denied warning + Open Settings link, and `useRegisterPushToken` skips registration when backend prefs disable alerts.
 
 ## Cleanup actions
 - Moved root screenshots (`emulator-screen.png`, `screenshot.png`) into `docs/`.
