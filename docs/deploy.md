@@ -29,6 +29,41 @@
 5) Point the production EAS build at the production API (`EXPO_PUBLIC_API_URL`).
 6) Verify `/health-plus` shows `ok:true`, `mqtt.configured:true`/`control.configured:true` when wired, recent `alertsWorker.lastHeartbeatAt`, and heatPumpHistory config/health aligned with upstream.
 
+## Staging 0.1.0 promotion checklist
+
+Prereqs (outside this repo)
+- DNS: `staging-api.greenbro.co.za` points at your staging backend host.
+- DB: managed Postgres with a database named `greenbro_staging`.
+
+One-time staging bootstrap
+```
+cd backend
+export STAGING_DATABASE_URL=postgres://<user>:<pass>@<host>:<port>/greenbro_staging?sslmode=require
+npm install
+npm run staging:bootstrap
+```
+
+Check health
+```
+HEALTH_BASE_URL=https://staging-api.greenbro.co.za npm run health:check
+```
+
+Expect:
+- HTTP 200
+- `ok:true`
+- `env:"production"`, `version:"0.1.0"`
+- `db:"ok"`
+- Known values for mqtt/control/heatPumpHistory based on your staging env.
+
+Mobile staging build
+```
+cd mobile
+npm install
+npx eas build --platform android --profile staging
+```
+
+Install the artifact on a device and follow the smoke path in `docs/mobile-ux-notes.md`.
+
 ## Health expectations
 - Staging without control/MQTT: `/health-plus` should report `configured:false` but `healthy:true` for MQTT/control, alerts worker heartbeat present if enabled.
 - Production with integrations wired: `/health-plus` should show `configured:true` for MQTT/control/heatPumpHistory with `lastSuccessAt` timestamps within expected windows (MQTT ingest within ~5m of traffic, alerts worker heartbeat within ~2x `ALERT_WORKER_INTERVAL_SEC`), and no recent errors.
