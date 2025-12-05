@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
+import { View, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -129,9 +129,10 @@ function AppNavigator() {
 
 interface RootNavigatorProps {
   isAuthenticated: boolean;
+  sessionExpired?: boolean;
 }
 
-export const RootNavigator: React.FC<RootNavigatorProps> = ({ isAuthenticated }) => {
+export const RootNavigator: React.FC<RootNavigatorProps> = ({ isAuthenticated, sessionExpired }) => {
   console.log('RootNavigator: rendering', {
     stack: isAuthenticated ? 'App' : 'Auth',
   });
@@ -142,7 +143,26 @@ export const RootNavigator: React.FC<RootNavigatorProps> = ({ isAuthenticated })
         {isAuthenticated ? (
           <RootStack.Screen name="App" component={AppNavigator} />
         ) : (
-          <RootStack.Screen name="Auth" component={AuthNavigator} />
+          <RootStack.Screen name="Auth">
+            {() => (
+              <View style={{ flex: 1 }}>
+                {sessionExpired ? (
+                  <View
+                    style={{
+                      backgroundColor: colors.surfaceMuted,
+                      paddingVertical: spacing.sm,
+                      paddingHorizontal: spacing.md,
+                    }}
+                  >
+                    <Text style={[typography.caption, { color: colors.textPrimary }]}> 
+                      Your session has expired. Please log in again.
+                    </Text>
+                  </View>
+                ) : null}
+                <AuthNavigator />
+              </View>
+            )}
+          </RootStack.Screen>
         )}
       </RootStack.Navigator>
     </NavigationContainer>

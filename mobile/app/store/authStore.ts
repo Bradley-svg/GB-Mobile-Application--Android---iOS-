@@ -15,9 +15,11 @@ type AuthState = {
   refreshToken: string | null;
   user: AuthUser | null;
   isHydrated: boolean;
+  sessionExpired: boolean;
   setAuth: (data: { accessToken: string; refreshToken: string; user: AuthUser }) => Promise<void>;
   updateTokens: (tokens: { accessToken: string; refreshToken: string }) => Promise<void>;
   setUser: (user: AuthUser | null) => void;
+  setSessionExpired: (expired: boolean) => void;
   clearAuth: () => Promise<void>;
   hydrateFromSecureStore: () => Promise<void>;
 };
@@ -30,11 +32,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   refreshToken: null,
   user: null,
   isHydrated: false,
+  sessionExpired: false,
 
   setAuth: async ({ accessToken, refreshToken, user }) => {
     await SecureStore.setItemAsync(ACCESS_KEY, accessToken);
     await SecureStore.setItemAsync(REFRESH_KEY, refreshToken);
-    set({ accessToken, refreshToken, user });
+    set({ accessToken, refreshToken, user, sessionExpired: false });
   },
 
   updateTokens: async ({ accessToken, refreshToken }) => {
@@ -45,6 +48,10 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   setUser: (user: AuthUser | null) => {
     set({ user });
+  },
+
+  setSessionExpired: (expired: boolean) => {
+    set({ sessionExpired: expired });
   },
 
   clearAuth: async () => {
@@ -63,7 +70,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       console.error('Failed to clear push token flags on logout', err);
     }
 
-    set({ accessToken: null, refreshToken: null, user: null });
+    set({ accessToken: null, refreshToken: null, user: null, sessionExpired: false });
   },
 
   hydrateFromSecureStore: async () => {
@@ -77,6 +84,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         refreshToken,
         user: null,
         isHydrated: true,
+        sessionExpired: false,
       });
     } catch (e) {
       console.error('Failed to hydrate auth', e);

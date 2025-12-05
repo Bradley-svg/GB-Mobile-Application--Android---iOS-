@@ -44,10 +44,11 @@ api.interceptors.response.use(
     }
 
     originalRequest._retry = true;
-    const { refreshToken, updateTokens, clearAuth } = useAuthStore.getState();
+    const { refreshToken, updateTokens, clearAuth, setSessionExpired } = useAuthStore.getState();
 
     if (!refreshToken) {
       await clearAuth();
+      setSessionExpired(true);
       return Promise.reject(error);
     }
 
@@ -57,6 +58,12 @@ api.interceptors.response.use(
       return api(originalRequest);
     } catch (refreshError) {
       await clearAuth();
+      const refreshStatus = axios.isAxiosError(refreshError)
+        ? refreshError.response?.status
+        : undefined;
+      if (refreshStatus === 401) {
+        setSessionExpired(true);
+      }
       return Promise.reject(refreshError);
     }
   }

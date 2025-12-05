@@ -3,6 +3,7 @@ import { View, Text, TextInput, Alert, StyleSheet, Image } from 'react-native';
 import axios from 'axios';
 import { useLogin } from '../../api/hooks';
 import { Screen, Card, PrimaryButton } from '../../components';
+import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
@@ -13,6 +14,7 @@ export const LoginScreen: React.FC = () => {
   const [password, setPassword] = useState('password');
   const [error, setError] = useState<string | null>(null);
   const loginMutation = useLogin();
+  const setSessionExpired = useAuthStore((s) => s.setSessionExpired);
 
   const onLogin = async () => {
     const trimmedEmail = email.trim();
@@ -25,6 +27,7 @@ export const LoginScreen: React.FC = () => {
 
     try {
       setError(null);
+      setSessionExpired(false);
       console.log('LoginScreen: submitting login', { email: trimmedEmail });
       await loginMutation.mutateAsync({
         email: trimmedEmail,
@@ -33,7 +36,14 @@ export const LoginScreen: React.FC = () => {
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
         console.error(err.response?.data ?? err.message);
-        setError(err.response?.data?.message ?? 'Login failed. Check your credentials.');
+        const status = err.response?.status;
+        if (status === 401) {
+          setError('Incorrect email or password.');
+        } else if (status && status >= 500) {
+          setError('Server unavailable, please try again.');
+        } else {
+          setError(err.response?.data?.message ?? 'Login failed. Check your credentials.');
+        }
       } else {
         console.error(err);
         setError('Login failed. Please try again.');

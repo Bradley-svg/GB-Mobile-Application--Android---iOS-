@@ -8,6 +8,7 @@ import { useAuthStore } from './app/store/authStore';
 import { api } from './app/api/client';
 import { useRegisterPushToken } from './app/hooks/useRegisterPushToken';
 import { colors } from './app/theme/colors';
+import { useNetworkBanner } from './app/hooks/useNetworkBanner';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -30,10 +31,11 @@ const queryClient = new QueryClient({
 
 export default function App() {
   console.log('App: render start');
-  const { isHydrated, user, accessToken, hydrateFromSecureStore, setUser, clearAuth } =
+  const { isHydrated, user, accessToken, hydrateFromSecureStore, setUser, clearAuth, sessionExpired } =
     useAuthStore();
   const [authChecked, setAuthChecked] = useState(false);
   const isAuthenticated = !!user;
+  const { isOffline } = useNetworkBanner();
 
   useEffect(() => {
     console.log('App: hydrateFromSecureStore invoked');
@@ -104,7 +106,20 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <View style={{ flex: 1, backgroundColor: colors.background }}>
-        <RootNavigator isAuthenticated={isAuthenticated} />
+        {isOffline ? (
+          <View
+            style={{
+              backgroundColor: colors.surfaceMuted,
+              paddingVertical: 8,
+              paddingHorizontal: 12,
+            }}
+          >
+            <Text style={{ color: colors.textSecondary }}>
+              You’re offline. Showing last known data where available.
+            </Text>
+          </View>
+        ) : null}
+        <RootNavigator isAuthenticated={isAuthenticated} sessionExpired={sessionExpired} />
       </View>
     </QueryClientProvider>
   );
