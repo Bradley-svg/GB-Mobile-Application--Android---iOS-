@@ -33,3 +33,10 @@
 - **Outstanding risks**
   - No 2FA or full password-reset flow yet.
   - No metrics/alerting stack beyond health-plus and logs.
+
+- **Staging 0.1.0 (blocked)**
+  - Target host `https://staging-api.greenbro.co.za` does not currently resolve, so no staging backend is reachable to deploy to or to run migrations/seeds against (`Invoke-RestMethod` fails DNS lookup).
+  - Database: no managed Postgres connection string available for `greenbro_staging`, so `npm run migrate:dev` and `node scripts/init-local-db.js` have not been run against staging.
+  - Backend deployment: awaiting host/DNS + DATABASE_URL; intended envs per checklist (`NODE_ENV=production`, `PORT=4000`, `APP_VERSION=0.1.0`, CORS allowlist, JWT secret, ALERT_WORKER_ENABLED=true, optional HEATPUMP_* and CONTROL_*).
+  - Mobile: staging EAS profile exists with `EXPO_PUBLIC_API_URL=https://staging-api.greenbro.co.za`; staging build not triggered because backend endpoint is unresolved.
+  - Next steps once DNS/DB exist: provision Postgres (`greenbro_staging`), set envs on staging backend, deploy (`npm install && npm run build` / `npm run start`), run migrations + seed against staging DB, verify `/health-plus`, then generate staging mobile build and perform the smoke (login→dashboard→site→device→alerts→profile→logout) with screenshots.

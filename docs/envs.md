@@ -33,11 +33,17 @@ Centralised reference for backend and mobile environment variables across dev/st
 - Logging/audit: Pino JSON logs by default; prefer centralized aggregation and immutable audit trails in staging/prod.
 - `HEATPUMP_*`, `MQTT_*`, and `CONTROL_*` values should reference staging/prod services with stronger credentials and restricted network access.
 
+## Staging URLs
+- `STAGING_API_URL=https://staging-api.greenbro.co.za` (staging backend host; DNS/host must exist and be included in `CORS_ALLOWED_ORIGINS`).
+- `STAGING_WEB_URL=https://staging.greenbro.co.za` (staging web/app domain if exposed; keep aligned with CORS).
+- `HEATPUMP_* in staging`: leave unset to show `configured:false`/`healthy:true` on `/health-plus`, or set Azure URL/key/timeout for real compressor-history data.
+- `CONTROL_* in staging`: may stay empty initially (UI will report `CONTROL_CHANNEL_UNCONFIGURED` but remain healthy); production should point at the live control provider.
+
 ## Mobile
 - `EXPO_PUBLIC_API_URL`: Base URL for the backend API.
   - Dev (Android emulator): `http://10.0.2.2:4000`
   - Dev (LAN/real devices): `http://<your-lan-ip>:4000`
-  - Staging: staging API host once available
-  - Production: production API host once available
+  - Staging: `https://staging-api.greenbro.co.za` (pending DNS/host bring-up)
+  - Production: `https://api.greenbro.co.za`
 - Expo push: configure the Expo project and push notification credentials per environment; ensure staging devices use staging backends to avoid cross-environment pushes.
 - Notification preferences: persisted via backend `/user/preferences` (alertsEnabled toggle) and cached locally via AsyncStorage; no extra mobile envs beyond the API URL.
