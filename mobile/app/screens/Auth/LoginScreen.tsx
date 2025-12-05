@@ -52,7 +52,7 @@ export const LoginScreen: React.FC = () => {
   };
 
   return (
-    <Screen>
+    <Screen testID="LoginScreen">
       <View style={styles.hero}>
         <View style={styles.logoBadge}>
           <Image source={logo} style={styles.logo} resizeMode="contain" />
@@ -71,6 +71,7 @@ export const LoginScreen: React.FC = () => {
           autoCapitalize="none"
           keyboardType="email-address"
           style={styles.input}
+          testID="login-email"
           placeholder="you@example.com"
           placeholderTextColor={colors.textMuted}
         />
@@ -81,6 +82,7 @@ export const LoginScreen: React.FC = () => {
           onChangeText={setPassword}
           secureTextEntry
           style={styles.input}
+          testID="login-password"
           placeholder="********"
           placeholderTextColor={colors.textMuted}
         />
@@ -95,6 +97,7 @@ export const LoginScreen: React.FC = () => {
           label={loginMutation.isPending ? 'Logging in...' : 'Login'}
           onPress={onLogin}
           disabled={loginMutation.isPending}
+          testID="login-button"
         />
         <View style={styles.notice}>
           <Text style={[typography.body, styles.noticePrimary]}>

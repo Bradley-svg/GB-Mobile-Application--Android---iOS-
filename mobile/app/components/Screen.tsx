@@ -8,6 +8,7 @@ type ScreenProps = {
   scroll?: boolean;
   style?: StyleProp<ViewStyle>;
   contentContainerStyle?: StyleProp<ViewStyle>;
+  testID?: string;
 };
 
 export const Screen: React.FC<ScreenProps> = ({
@@ -15,10 +16,11 @@ export const Screen: React.FC<ScreenProps> = ({
   scroll = true,
   style,
   contentContainerStyle,
+  testID,
 }) => {
   if (scroll) {
     return (
-      <SafeAreaView style={[styles.screen, style]}>
+      <SafeAreaView style={[styles.screen, style]} testID={testID}>
         <ScrollView
           contentContainerStyle={[styles.screenContent, contentContainerStyle]}
           showsVerticalScrollIndicator={false}
@@ -30,7 +32,7 @@ export const Screen: React.FC<ScreenProps> = ({
   }
 
   return (
-    <SafeAreaView style={[styles.screen, style]}>
+    <SafeAreaView style={[styles.screen, style]} testID={testID}>
       <View style={[styles.screenContent, contentContainerStyle]}>{children}</View>
     </SafeAreaView>
   );

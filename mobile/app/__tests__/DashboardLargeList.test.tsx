@@ -41,8 +41,12 @@ describe('Dashboard large list rendering', () => {
     render(<DashboardScreen />);
 
     const list = screen.UNSAFE_getByType(FlatList);
-    expect(list.props.data.length).toBe(sites.length);
-    expect(list.props.initialNumToRender).toBeLessThan(sites.length);
+    const listProps: FlatList['props'] = list.props;
+    expect(listProps.data?.length).toBe(sites.length);
+    expect(listProps.initialNumToRender).toBeLessThan(sites.length);
+    expect(listProps.maxToRenderPerBatch).toBeGreaterThan(0);
+    expect(listProps.windowSize).toBeGreaterThan(0);
+
     const renderedCards = screen.getAllByTestId('site-card');
     expect(renderedCards.length).toBeGreaterThan(0);
   });

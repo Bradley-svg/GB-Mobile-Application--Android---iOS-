@@ -82,14 +82,16 @@ export const ProfileScreen: React.FC = () => {
   };
 
   return (
-    <Screen scroll={false}>
+    <Screen scroll={false} testID="ProfileScreen">
       <Card style={styles.heroCard}>
         <View style={styles.avatar}>
           <Text style={[typography.title2, { color: colors.white }]}>{initials}</Text>
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[typography.title1, styles.title]}>{user?.name ?? 'User'}</Text>
-          <Text style={[typography.body, styles.muted]}>{user?.email ?? ''}</Text>
+          <Text style={[typography.body, styles.muted]} testID="profile-email">
+            {user?.email ?? ''}
+          </Text>
         </View>
         <IconButton icon={<Ionicons name="settings-outline" size={20} color={colors.dark} />} />
       </Card>
@@ -148,7 +150,7 @@ export const ProfileScreen: React.FC = () => {
         </View>
       </Card>
 
-      <PrimaryButton label="Log out" onPress={onLogout} />
+      <PrimaryButton label="Log out" onPress={onLogout} testID="logout-button" />
     </Screen>
   );
 };

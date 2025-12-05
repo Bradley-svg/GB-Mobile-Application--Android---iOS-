@@ -95,7 +95,7 @@ export const AlertsScreen: React.FC = () => {
 
   if (showLoading) {
     return (
-      <Screen scroll={false} contentContainerStyle={styles.center}>
+      <Screen scroll={false} contentContainerStyle={styles.center} testID="AlertsScreen">
         <ActivityIndicator color={colors.primary} />
         <Text style={[typography.body, styles.muted, { marginTop: spacing.sm }]}>Loading alerts...</Text>
       </Screen>
@@ -104,7 +104,7 @@ export const AlertsScreen: React.FC = () => {
 
   if (shouldShowError) {
     return (
-      <Screen scroll={false} contentContainerStyle={styles.center}>
+      <Screen scroll={false} contentContainerStyle={styles.center} testID="AlertsScreen">
         <ErrorCard
           title="Couldn't load alerts"
           message="Please try again in a moment."
@@ -116,7 +116,7 @@ export const AlertsScreen: React.FC = () => {
   }
 
   return (
-    <Screen scroll={false} contentContainerStyle={{ paddingBottom: spacing.xxl }}>
+    <Screen scroll={false} contentContainerStyle={{ paddingBottom: spacing.xxl }} testID="AlertsScreen">
       {isOffline ? (
         <Text style={[typography.caption, styles.offlineNote]}>
           {hasCachedAlerts ? 'Offline - showing cached alerts (read-only).' : 'Offline and no cached alerts.'}
@@ -126,6 +126,11 @@ export const AlertsScreen: React.FC = () => {
         data={sortedAlerts}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: spacing.xl }}
+        initialNumToRender={12}
+        maxToRenderPerBatch={16}
+        windowSize={6}
+        removeClippedSubviews
+        testID="alerts-list"
         ListHeaderComponent={
           <Card style={styles.headerCard}>
             <View style={styles.headerRow}>
@@ -153,6 +158,7 @@ export const AlertsScreen: React.FC = () => {
           <Card
             style={styles.alertCard}
             onPress={() => navigation.navigate('AlertDetail', { alertId: item.id })}
+            testID="alert-card"
           >
             <View style={styles.alertRow}>
               <View style={[styles.severityPill, { backgroundColor: severityColor(item.severity) }]}>

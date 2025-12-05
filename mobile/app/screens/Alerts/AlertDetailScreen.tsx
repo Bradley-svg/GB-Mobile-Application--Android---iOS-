@@ -26,7 +26,7 @@ export const AlertDetailScreen: React.FC = () => {
 
   if (isLoading || !alerts) {
     return (
-      <Screen scroll={false} contentContainerStyle={styles.center}>
+      <Screen scroll={false} contentContainerStyle={styles.center} testID="AlertDetailScreen">
         <ActivityIndicator color={colors.primary} />
         <Text style={[typography.body, styles.muted, { marginTop: spacing.sm }]}>Loading alert...</Text>
       </Screen>
@@ -35,7 +35,7 @@ export const AlertDetailScreen: React.FC = () => {
 
   if (isError) {
     return (
-      <Screen scroll={false} contentContainerStyle={styles.center}>
+      <Screen scroll={false} contentContainerStyle={styles.center} testID="AlertDetailScreen">
         <Text style={[typography.title2, styles.title, { marginBottom: spacing.xs }]}>Failed to load alert</Text>
         <Text style={[typography.body, styles.muted]}>Please try again.</Text>
       </Screen>
@@ -45,7 +45,7 @@ export const AlertDetailScreen: React.FC = () => {
   const alertItem = alerts.find((a) => a.id === alertId);
   if (!alertItem) {
     return (
-      <Screen scroll={false} contentContainerStyle={styles.center}>
+      <Screen scroll={false} contentContainerStyle={styles.center} testID="AlertDetailScreen">
         <Text style={[typography.body, styles.title]}>Alert not found</Text>
       </Screen>
     );
@@ -72,11 +72,12 @@ export const AlertDetailScreen: React.FC = () => {
   };
 
   return (
-    <Screen scroll={false} contentContainerStyle={{ paddingBottom: spacing.xxl }}>
+    <Screen scroll={false} contentContainerStyle={{ paddingBottom: spacing.xxl }} testID="AlertDetailScreen">
       <View style={styles.topBar}>
         <IconButton
           icon={<Ionicons name="chevron-back" size={20} color={colors.dark} />}
           onPress={() => navigation.goBack()}
+          testID="alert-back-button"
         />
       </View>
 
@@ -85,7 +86,7 @@ export const AlertDetailScreen: React.FC = () => {
           <Text style={[typography.label, { color: colors.white }]}>{alertItem.severity.toUpperCase()}</Text>
         </View>
         <Text style={[typography.title1, styles.title, { marginBottom: spacing.xs }]}>{alertItem.message}</Text>
-        <Text style={[typography.caption, styles.muted, { marginBottom: spacing.sm }]}>
+        <Text style={[typography.caption, styles.muted, { marginBottom: spacing.sm }]} testID="alert-detail-meta">
           {alertItem.site_id ? `Site ${alertItem.site_id}` : 'No site'} |{' '}
           {alertItem.device_id ? `Device ${alertItem.device_id}` : 'No device'}
         </Text>

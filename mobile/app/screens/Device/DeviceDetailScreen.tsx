@@ -263,7 +263,7 @@ export const DeviceDetailScreen: React.FC = () => {
 
   if (showLoading) {
     return (
-      <Screen scroll={false} contentContainerStyle={styles.center}>
+      <Screen scroll={false} contentContainerStyle={styles.center} testID="DeviceDetailScreen">
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={[typography.body, styles.muted, { marginTop: spacing.sm }]}>Loading device...</Text>
       </Screen>
@@ -272,7 +272,7 @@ export const DeviceDetailScreen: React.FC = () => {
 
   if (deviceNotFound) {
     return (
-      <Screen scroll={false} contentContainerStyle={styles.center}>
+      <Screen scroll={false} contentContainerStyle={styles.center} testID="DeviceDetailScreen">
         <Text style={[typography.title2, styles.title, { marginBottom: spacing.xs }]}>
           {isOffline ? 'Offline and no cached data for this device.' : 'Device not found'}
         </Text>
@@ -360,11 +360,12 @@ export const DeviceDetailScreen: React.FC = () => {
   };
 
   return (
-    <Screen>
+    <Screen testID="DeviceDetailScreen">
       <View style={styles.topBar}>
         <IconButton
           icon={<Ionicons name="chevron-back" size={20} color={colors.dark} />}
           onPress={() => navigation.goBack()}
+          testID="device-back-button"
         />
         <IconButton icon={<Ionicons name="notifications-outline" size={20} color={colors.dark} />} />
       </View>
@@ -451,7 +452,7 @@ export const DeviceDetailScreen: React.FC = () => {
       ) : null}
 
       {!telemetryLoading && !telemetryError && (
-        <View>
+        <View testID="telemetry-section">
           {renderMetricCard(
             'Flow temperatures (C)',
             colors.info,
@@ -513,7 +514,7 @@ export const DeviceDetailScreen: React.FC = () => {
         </View>
       )}
 
-      <Card style={styles.historyCard}>
+      <Card style={styles.historyCard} testID="compressor-current-card">
         <Text style={[typography.subtitle, styles.title]}>Compressor current (A)</Text>
 
         {heatPumpHistoryQuery.isLoading && (

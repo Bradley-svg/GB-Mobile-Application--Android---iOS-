@@ -51,11 +51,14 @@
     ```
 
 - **Mobile**
-  - npm run typecheck, npm run lint, npm test -- --runInBand all green locally after wiring preferences to `/user/preferences`.
+  - npm run typecheck, npm run lint, npm test -- --runInBand all green locally after wiring preferences to `/user/preferences` (latest spot run: `npm test -- --runInBand app/__tests__/DashboardLargeList.test.tsx app/__tests__/AlertsLargeList.test.tsx`).
+  - Detox scaffolded for Android with `detox.config.js`, Jest circus runner under `e2e/`, Android instrumentation runner + DetoxButler (`android/app/src/androidTest/...`), and scripts `npm run e2e:build:android`, `npm run e2e:test:android` (headless).
+  - Core navigation E2E added (`e2e/appNavigation.e2e.ts`): Login → Dashboard → Site → Device (telemetry + compressor card) → Alerts list/detail → Profile → Logout. Test IDs added to root screens, tabs, and critical controls to keep selectors stable.
+  - Large-list sanity: Dashboard and Alerts tests ensure FlatList virtualization props are present with 600–800 item fixtures; offline alerts cache path covered.
   - Device Detail supports 1h/24h/7d ranges with stale-data banners for cached/lagging telemetry.
   - Offline caching: Dashboard, Site, Device detail, and Alerts show cached read-only data with commands/ack/mute disabled when offline.
-  - Added AppNavigation and Dashboard large-list regression tests alongside history/push suites.
   - Profile push notification preferences now round-trip to the backend with React Query + AsyncStorage cache, keeping the OS-denied warning and push registration gating.
+  - How to run E2E locally (requires Android SDK/emulator + backend dev server at http://10.0.2.2:4000): from `mobile/` run `npm run e2e:build:android` then `npm run e2e:test:android`.
 
 - **Manual smoke (2025-12-05)**
   - Flow to exercise on emulator/dev client: Login (demo@greenbro.com/password) ? Dashboard ? Site ? Device (telemetry 1h/24h/7d) ? Alerts list/detail (ack/mute) ? Profile toggle (/user/preferences) ? Logout.

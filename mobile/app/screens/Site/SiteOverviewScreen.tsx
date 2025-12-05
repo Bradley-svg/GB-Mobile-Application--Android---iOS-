@@ -79,7 +79,7 @@ export const SiteOverviewScreen: React.FC = () => {
 
   if (showLoading) {
     return (
-      <Screen scroll={false} contentContainerStyle={styles.center}>
+      <Screen scroll={false} contentContainerStyle={styles.center} testID="SiteOverviewScreen">
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={[typography.body, styles.muted, { marginTop: spacing.sm }]}>Loading site...</Text>
       </Screen>
@@ -88,7 +88,7 @@ export const SiteOverviewScreen: React.FC = () => {
 
   if (shouldShowError) {
     return (
-      <Screen scroll={false} contentContainerStyle={styles.center}>
+      <Screen scroll={false} contentContainerStyle={styles.center} testID="SiteOverviewScreen">
         <ErrorCard
           title="Couldn't load site details"
           message="Please check your connection and try again."
@@ -104,7 +104,7 @@ export const SiteOverviewScreen: React.FC = () => {
 
   if (!siteData) {
     return (
-      <Screen scroll={false} contentContainerStyle={styles.center}>
+      <Screen scroll={false} contentContainerStyle={styles.center} testID="SiteOverviewScreen">
         <Text style={[typography.title2, styles.title, { marginBottom: spacing.xs }]}>
           {isOffline ? 'Site data unavailable offline' : 'Site not found'}
         </Text>
@@ -116,11 +116,12 @@ export const SiteOverviewScreen: React.FC = () => {
   }
 
   return (
-    <Screen scroll={false} contentContainerStyle={{ paddingBottom: spacing.xxl }}>
+    <Screen scroll={false} contentContainerStyle={{ paddingBottom: spacing.xxl }} testID="SiteOverviewScreen">
       <View style={styles.topBar}>
         <IconButton
           icon={<Ionicons name="chevron-back" size={20} color={colors.dark} />}
           onPress={() => navigation.goBack()}
+          testID="site-back-button"
           style={{ marginRight: spacing.sm }}
         />
         <IconButton icon={<Ionicons name="ellipsis-horizontal" size={20} color={colors.dark} />} />
@@ -146,10 +147,12 @@ export const SiteOverviewScreen: React.FC = () => {
       <FlatList
         data={devicesData}
         keyExtractor={(item) => item.id}
+        testID="device-list"
         contentContainerStyle={{ paddingBottom: spacing.xl }}
         renderItem={({ item }) => (
           <Card
             style={styles.deviceCard}
+            testID="device-card"
             onPress={() => navigation.navigate('DeviceDetail', { deviceId: item.id })}
           >
             <View style={styles.deviceRow}>

@@ -1,8 +1,8 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { BottomTabBarButtonProps, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { LoginScreen } from '../screens/Auth/LoginScreen';
 import { SignupScreen } from '../screens/Auth/SignupScreen';
@@ -40,6 +40,10 @@ const RootStack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator();
 const AppStack = createNativeStackNavigator<AppStackParamList>();
 const Tab = createBottomTabNavigator<AppTabParamList>();
+
+const tabButton = (testID: string) => (props: BottomTabBarButtonProps) => (
+  <TouchableOpacity {...props} testID={testID} accessibilityLabel={testID} />
+);
 
 function AuthNavigator() {
   return (
@@ -109,9 +113,33 @@ function AppTabs() {
         },
       })}
     >
-      <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ tabBarLabel: 'Dashboard' }} />
-      <Tab.Screen name="Alerts" component={AlertsScreen} options={{ tabBarLabel: 'Alerts' }} />
-      <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'Profile' }} />
+      <Tab.Screen
+        name="Dashboard"
+        component={DashboardScreen}
+        options={{
+          tabBarLabel: 'Dashboard',
+          tabBarTestID: 'tab-dashboard',
+          tabBarButton: tabButton('tab-dashboard'),
+        }}
+      />
+      <Tab.Screen
+        name="Alerts"
+        component={AlertsScreen}
+        options={{
+          tabBarLabel: 'Alerts',
+          tabBarTestID: 'tab-alerts',
+          tabBarButton: tabButton('tab-alerts'),
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          tabBarLabel: 'Profile',
+          tabBarTestID: 'tab-profile',
+          tabBarButton: tabButton('tab-profile'),
+        }}
+      />
     </Tab.Navigator>
   );
 }

@@ -66,7 +66,7 @@ export const DashboardScreen: React.FC = () => {
 
   if (showLoading) {
     return (
-      <Screen scroll={false} contentContainerStyle={styles.center}>
+      <Screen scroll={false} contentContainerStyle={styles.center} testID="DashboardScreen">
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={[typography.body, styles.muted, { marginTop: spacing.sm }]}>Loading sites...</Text>
       </Screen>
@@ -75,7 +75,7 @@ export const DashboardScreen: React.FC = () => {
 
   if (shouldShowError) {
     return (
-      <Screen scroll={false} contentContainerStyle={styles.center}>
+      <Screen scroll={false} contentContainerStyle={styles.center} testID="DashboardScreen">
         <ErrorCard
           title="Couldn't load sites"
           message="Check your connection and try again."
@@ -131,13 +131,15 @@ export const DashboardScreen: React.FC = () => {
   );
 
   return (
-    <Screen scroll={false}>
+    <Screen scroll={false} testID="DashboardScreen">
       <FlatList
         data={sites}
         keyExtractor={(item) => item.id}
         numColumns={2}
         columnWrapperStyle={styles.gridRow}
         initialNumToRender={8}
+        maxToRenderPerBatch={10}
+        windowSize={5}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={
@@ -147,6 +149,7 @@ export const DashboardScreen: React.FC = () => {
           />
         }
         contentContainerStyle={{ paddingBottom: spacing.xl }}
+        testID="dashboard-site-list"
         renderItem={({ item }) => (
           <Card
             style={styles.siteCard}
