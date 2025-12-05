@@ -1,52 +1,58 @@
-# Build Status Report (Post-Maintenance)
+**Greenbro Build Status (post-5-maintenance tasks)**
 
-Greenbro is a monorepo with a Node/Express backend API and an Expo-based mobile app for managing sites/devices, telemetry, alerts, and heat-pump history. This report reflects the state after the last five refactor/maintenance prompts (env standardisation, new services, worker hardening, mobile UX/resilience, npm audit). Overall state: builds mostly green; backend fully passing, mobile typecheck currently failing due to a test typing issue while lint/tests pass.
+Greenbro combines an Express/TypeScript API plus workers (MQTT ingest, alerts, control, push, heat-pump history) and an Expo React Native mobile app for monitoring and controlling heat pumps. This report reflects the state after the five recent refactor/maintenance prompts (env naming, new services, hardened workers, richer mobile states, npm audit fixes). Overall state: builds are **partially failing** (backend integration tests timing out; typecheck/lint/build are green, mobile fully green).
 
-## Repo Structure Snapshot
-- `backend/`: Express API with config/controllers/services/repositories/integrations/middleware/routes/workers/scripts/sql/test. Entry at `src/index.ts`; workers `src/workers/mqttIngest.ts`, `src/workers/alertsWorker.ts`.
-- `mobile/`: Expo app with screens (Auth/Dashboard/Site/Device/Alerts/Profile), shared components, domain APIs (auth/sites/devices/alerts/control/heatPumpHistory), store/hooks/theme, and Jest tests.
-- `archive/`: Legacy copies kept isolated; not part of active builds.
-- `docs/`: Repo notes, screenshots, audit/build reports (this file).
-- `logs/`: Git-ignored runtime logs.
-- `.github/`: CI workflows (lint/test/build scripts as configured).
-- `scripts/`: Helper scripts for local/dev tasks.
+**Repo Structure Snapshot (current)**
+- `backend/`: Layered Express API with config/controllers/services/repositories/integrations/middleware/routes/workers/scripts/sql/test plus compiled `dist/`.
+- `mobile/`: Expo app (`app/screens`, `app/components`, `app/api`, `app/store`, `app/hooks`, `app/theme`, `app/__tests__`) with Android build artifacts and Expo configs.
+- `archive/`: Legacy backups (old mobile workdir, cached node_modules, logs); not part of active builds.
+- `docs/`: Repo notes, screenshots, and this build report.
+- `logs/`: Git-ignored runtime logs from local/dev runs.
+- `.github/`: CI workflow running typecheck/lint/test/build for backend and mobile.
+- `scripts/`: Helper scripts for local dev/startup and tooling.
 
-## Backend Status
-- Structure confirmed: config/, controllers/, services/, repositories/, integrations/, middleware/, routes/, workers/, scripts/, sql/, test/; key entrypoints `src/index.ts`, `src/workers/mqttIngest.ts`, `src/workers/alertsWorker.ts`; integrations include MQTT, control (HTTP/MQTT), Expo push, Azure heatPumpHistory client.
-- Commands (run from `backend/`):
-  - `npm run typecheck` — ✅
-  - `npm run lint` — ✅
-  - `npm test` — ✅ (vitest suite; expected upstream error log mock remains)
-  - `npm run build` — ✅
-- npm audit (post-fix): 6 moderates (0 low/0 high/0 critical) remaining, all in dev tooling (vitest/vite/esbuild) requiring major upgrades; runtime `jsonwebtoken` updated to 9.0.3. Risk accepted for remaining dev-only issues (documented in repo-overview).
+**Backend Status (code + build)**
+- Layering confirmed: `src/config`, `controllers`, `services`, `repositories`, `integrations`, `middleware`, `routes`, `workers`, `scripts`, `sql`, `test`.
+- Entrypoints: `src/index.ts` (HTTP API), `src/workers/mqttIngest.ts`, `src/workers/alertsWorker.ts`.
+- Key integrations: MQTT ingest/backoff client, control HTTP client, Expo push, Azure heatPumpHistory client.
+- Commands (run in `backend/`):
+  - ✅ `npm run typecheck`
+  - ✅ `npm run lint`
+  - ❌ `npm test` — integration/API suites timed out in setup hooks (Hook timed out after 10s) for `test/alertsHighTemp.api.test.ts`, `deviceControl.api.test.ts`, `app.test.ts`, `authRoutes.api.test.ts`, `alertsOrgScoping.api.test.ts`, `alertsAckMute.api.test.ts`, `siteDeviceScoping.test.ts`, `heatPumpHistory.api.test.ts`; likely needs running DB/app stack.
+  - ✅ `npm run build`
+- npm audit (post-fix): 6 moderate dev-only issues (vitest/vite/esbuild chain). Runtime deps already uplifted (e.g., jsonwebtoken); remaining moderates accepted pending major toolchain upgrades (per repo-overview).
 
-### Backend Health (/health-plus)
-- Dev server not started in this report. Expected behaviour from `healthService`: `/health-plus` returns JSON with `ok` flag, `db` status, env/version, and sections for mqtt/control/alertsWorker/push. Healthy when DB query succeeds and configured integrations are not stale/error; mqtt/control marked unconfigured = healthy. Alerts worker health depends on recent heartbeat; push health depends on samples/EXPO_ACCESS_TOKEN.
+**Backend Runtime / Health Snapshot**
+- Dev server not started in this pass to avoid hitting external DB/MQTT; no live curl captured.
+- Expected `/health-plus`: JSON with `ok`, `db`, `env`, `version`, `mqtt` (configured/lastIngestAt/lastError/healthy), `control` (configured/lastCommandAt/lastError/healthy), `alertsWorker` (lastHeartbeatAt/healthy), `push` (enabled/lastSampleAt/lastError). `ok` requires DB query success plus healthy/disabled MQTT, control, alerts worker (in prod), and push check when enabled.
 
-## Mobile Status
-- Layout confirmed: `app/screens` by feature (Auth, Dashboard, Site, Device, Alerts, Profile); shared UI in `app/components` (including new ErrorCard/EmptyState); domain APIs in `app/api` (auth/sites/devices/alerts/control/heatPumpHistory/types); store/hooks/theme; `app/__tests__`. DeviceDetail uses device.mac to drive heat pump history “Compressor current (A)” chart; error/empty components applied on Dashboard, SiteOverview, DeviceDetail, Alerts.
-- Commands (run from `mobile/`):
-  - `npm run typecheck` — ❌ `app/api/sites/hooks.test.ts`: TS2454 variable used before assignment (test typing guard missing).
-  - `npm run lint` — ✅
-  - `npm test -- --runInBand` — ✅ (Jest suites all passing)
-- npm audit (post-fix): 3 low (expo/@expo/cli via `send` advisory); fix requires Expo 54 major upgrade. Accepted until planned Expo upgrade.
+**Mobile Status (code + tests)**
+- Layout confirmed: `app/screens` grouped by Auth/Dashboard/Site/Device/Alerts/Profile; shared UI in `app/components`; domain APIs in `app/api/{auth,sites,devices,alerts,control,heatPumpHistory,types}`; `app/store`, `app/hooks`, `app/theme`, `app/__tests__/`.
+- DeviceDetailScreen uses `device.mac` to request heat-pump history and renders the “Compressor current (A)” chart via `useHeatPumpHistory`.
+- Error/empty states present on Dashboard, SiteOverview, DeviceDetail, Alerts, with retry hooks.
+- Commands (run in `mobile/`):
+  - ✅ `npm run typecheck`
+  - ✅ `npm run lint`
+  - ✅ `npm test -- --runInBand`
+- npm audit (post-fix): 3 low issues from Expo CLI toolchain; accepted until next Expo major upgrade (per repo-overview).
 
-## Functional Integration Notes
-- Backend exposes `/auth/*`, `/sites`, `/devices`, `/alerts`, `/heat-pump-history` plus MQTT/control workers.
-- Mobile uses `EXPO_PUBLIC_API_URL` for API base; flow: Login → Dashboard (sites/alerts) → SiteOverview (devices) → DeviceDetail (telemetry, commands, heat-pump history chart) → Alerts → Profile → Logout.
-- Heat pump history path: backend device.mac → POST `/heat-pump-history` (uses `HEATPUMP_*` envs with legacy fallback) → Azure client normalises series → `useHeatPumpHistory` hook → DeviceDetail “Compressor current (A)” chart. Local envs still required: `HEATPUMP_HISTORY_URL/API_KEY`, CORS allowlist, `EXPO_PUBLIC_API_URL`, MQTT/control credentials as applicable.
+**Functional Integration Notes**
+- Backend exposes `/auth/*`, `/sites`, `/devices`, `/alerts`, `/heat-pump-history`, plus `/health` and `/health-plus`; telemetry HTTP ingest remains a 501 stub directing clients to MQTT ingest.
+- Mobile uses `EXPO_PUBLIC_API_URL` as base; flow: Login → Dashboard (sites/devices summaries with empty/error handling) → Site → Device (telemetry charts, control commands, compressor-current history) → Alerts list/detail → Profile → Logout.
+- Heat-pump history path: device `mac` from backend → backend `/heat-pump-history` → Azure client → normalized series → `useHeatPumpHistory` hook → DeviceDetail “Compressor current (A)” chart.
+- Env assumptions: backend expects DB creds, MQTT/control config, `HEATPUMP_HISTORY_URL`/`HEATPUMP_HISTORY_API_KEY` (with deprecated `HEAT_PUMP_*` fallbacks), CORS allowlist; mobile needs `EXPO_PUBLIC_API_URL` (and push-related Expo config when enabled).
 
-## Outstanding Risks & Technical Debt
-- Backend: Workers improved but rely on in-process backoff; no structured log sink; rate limiting/CORS hardening still basic; password reset remains stub; Azure heat-pump schema assumptions (payload shape/time windows) remain implicit.
-- Mobile: No offline mode; telemetry/alert visualisation basic; control-command confidence/UX limited; no e2e/device-level tests for navigation/commands/alerts under failure.
-- Dependencies: Backend dev-tooling moderates (vitest/vite/esbuild) pending major upgrade; mobile low Expo advisories pending Expo 54 upgrade.
-- Infrastructure: CI limited to repo workflows; no Docker/devcontainer; log shipping/observability pipeline absent.
+**Outstanding Risks & Technical Debt**
+- Backend: Worker resilience/observability still limited (single-instance intervals, relies on local state despite structured logger); rate limiting/CORS hardening/password reset remain basic; heat-pump integration depends on Azure schema/topic consistency and time-window assumptions.
+- Mobile: Offline handling is minimal; telemetry/alert visualisation could struggle with noisy data; control command flows have limited confidence/rollback cues; no device/e2e automation.
+- Dependencies: Known npm audit items remain (backend: 6 moderate dev-tooling; mobile: 3 low Expo CLI) awaiting major upgrades.
+- Infrastructure: CI (`.github/workflows/ci.yml`) runs typecheck/lint/test/build for both apps but no integration env/provisioning; no Docker/devcontainer checked in.
 
-## Next Steps
-- Add e2e/device tests for core mobile flow (Login → Device detail → Commands/history → Alerts → Logout).
-- Resolve mobile typecheck error in `app/api/sites/hooks.test.ts` and consider tightening TS on tests.
-- Plan Vitest/Vite major upgrade to clear dev-tooling advisories; verify test suite stability afterward.
-- Schedule Expo 54 upgrade to address remaining mobile audit findings.
-- Add structured JSON logging and centralised sink for backend workers/APIs.
-- Implement full password reset or remove UI/API stubs; review rate limit/CORS policies.
-- Extend telemetry/history UI with better aggregation/zoom and clearer error handling for real-world data.
+**Next Steps**
+- Add integration test harness (ephemeral DB + seeded data + API start) so backend API suites stop timing out.
+- Instrument workers with structured logging/metrics and bounded retries/backoff plus visibility in `/health-plus`.
+- Implement full password reset (or remove stub) and tighten rate limiting/CORS defaults for prod.
+- Improve telemetry/control UX: clearer command state, retries, and noisy-data handling/aggregation on charts.
+- Add offline caching/error queuing for mobile and broaden alerts/device interaction tests (e2e/device-level).
+- Plan dependency upgrades: vitest/vite/esbuild major for backend tooling, Expo major to clear CLI advisories.
+- Prepare staging checklist (env vars, DB schema, Azure heat-pump keys, push config) and document health expectations.
