@@ -4,6 +4,7 @@ import {
   insertCommandRow,
   markCommandFailure,
   markCommandSuccess as markCommandSuccessRow,
+  getLastCommandForDevice,
 } from '../repositories/controlCommandsRepository';
 import { getDeviceById } from './deviceService';
 import { markControlCommandError, markControlCommandSuccess } from './statusService';
@@ -24,6 +25,16 @@ export const CONTROL_CHANNEL_UNCONFIGURED = 'CONTROL_CHANNEL_UNCONFIGURED';
 let lastControlError: string | null = null;
 let lastControlAttemptAt: Date | null = null;
 const COMMAND_SOURCE = 'api';
+const COMMAND_THROTTLE_WINDOW_MS = Number(process.env.CONTROL_COMMAND_THROTTLE_MS || 5000);
+
+export class ControlThrottleError extends Error {
+  type = 'THROTTLED' as const;
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'ControlThrottleError';
+  }
+}
 
 type ControlConfig =
   | { type: 'http'; url: string; apiKey: string }
@@ -63,6 +74,41 @@ async function safeMarkControlError(now: Date, err: unknown) {
   } catch (statusErr) {
     logger.warn('command', 'failed to record control error', { error: statusErr });
   }
+}
+
+async function enforceCommandThrottle(
+  deviceId: string,
+  userId: string,
+  commandType: 'setpoint' | 'mode',
+  payload: SetpointCommandPayload | ModeCommandPayload,
+  requestedValue: object
+): Promise<ControlThrottleError | null> {
+  const lastCommand = await getLastCommandForDevice(deviceId);
+  if (!lastCommand || !lastCommand.requested_at) return null;
+
+  const lastRequestedAt = new Date(lastCommand.requested_at);
+  if (Number.isNaN(lastRequestedAt.getTime())) return null;
+
+  const elapsedMs = Date.now() - lastRequestedAt.getTime();
+  if (elapsedMs >= COMMAND_THROTTLE_WINDOW_MS) return null;
+
+  const secondsAgo = Math.max(1, Math.round(elapsedMs / 1000));
+  const message = `Last ${commandType} command was ${secondsAgo}s ago; throttling repeat command.`;
+
+  await insertCommandRow({
+    deviceId,
+    userId,
+    commandType,
+    payload,
+    requestedValue,
+    status: 'failed',
+    errorMessage: message,
+    failureReason: 'THROTTLED',
+    failureMessage: message,
+    source: COMMAND_SOURCE,
+  });
+
+  return new ControlThrottleError(message);
 }
 
 function resolveControlConfig(): ControlConfig {
@@ -292,12 +338,28 @@ export async function setDeviceSetpoint(
     await safeMarkControlError(new Date(), err);
     throw err;
   }
+  const requestedValue = { metric: payload.metric, value: payload.value };
+  const throttleError = await enforceCommandThrottle(
+    deviceId,
+    userId,
+    'setpoint',
+    payload,
+    requestedValue
+  );
+  if (throttleError) {
+    logger.warn('command', 'setpoint command throttled', {
+      deviceId: device.id,
+      deviceExternalId: device.external_id,
+      windowMs: COMMAND_THROTTLE_WINDOW_MS,
+    });
+    throw throttleError;
+  }
   const commandRow = await insertCommandRow({
     deviceId,
     userId,
     commandType: 'setpoint',
     payload,
-    requestedValue: { metric: payload.metric, value: payload.value },
+    requestedValue,
     status: 'pending',
     source: COMMAND_SOURCE,
   });
@@ -409,12 +471,28 @@ export async function setDeviceMode(
     await safeMarkControlError(new Date(), err);
     throw err;
   }
+  const requestedValue = { mode: payload.mode };
+  const throttleError = await enforceCommandThrottle(
+    deviceId,
+    userId,
+    'mode',
+    payload,
+    requestedValue
+  );
+  if (throttleError) {
+    logger.warn('command', 'mode command throttled', {
+      deviceId: device.id,
+      deviceExternalId: device.external_id,
+      windowMs: COMMAND_THROTTLE_WINDOW_MS,
+    });
+    throw throttleError;
+  }
   const commandRow = await insertCommandRow({
     deviceId,
     userId,
     commandType: 'mode',
     payload,
-    requestedValue: { mode: payload.mode },
+    requestedValue,
     status: 'pending',
     source: COMMAND_SOURCE,
   });

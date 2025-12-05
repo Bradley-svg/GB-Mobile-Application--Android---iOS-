@@ -1,10 +1,15 @@
 import { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
 import { getDeviceById } from '../services/deviceService';
-import { setDeviceMode, setDeviceSetpoint } from '../services/deviceControlService';
+import {
+  ControlThrottleError,
+  setDeviceMode,
+  setDeviceSetpoint,
+} from '../services/deviceControlService';
 import { getDeviceTelemetry } from '../services/telemetryService';
 import { ControlValidationError } from '../services/deviceControlValidationService';
 import { resolveOrganisationId } from '../utils/organisation';
+import { getLastCommandForDevice } from '../repositories/controlCommandsRepository';
 
 const deviceIdSchema = z.object({ id: z.string().uuid() });
 const telemetryQuerySchema = z.object({
@@ -12,6 +17,10 @@ const telemetryQuerySchema = z.object({
     .union([z.literal('24h'), z.literal('7d')])
     .optional()
     .transform((val) => val ?? '24h'),
+  maxPoints: z.preprocess(
+    (val) => (val === undefined ? undefined : Number(val)),
+    z.number().int().positive().optional()
+  ),
 });
 
 export async function getDevice(req: Request, res: Response, next: NextFunction) {
@@ -50,8 +59,40 @@ export async function getDeviceTelemetryHandler(req: Request, res: Response, nex
     const device = await getDeviceById(parsedParams.data.id, organisationId);
     if (!device) return res.status(404).json({ message: 'Not found' });
 
-    const telemetry = await getDeviceTelemetry(device.id, parsedQuery.data.range);
+    const telemetry = await getDeviceTelemetry(
+      device.id,
+      parsedQuery.data.range,
+      parsedQuery.data.maxPoints
+    );
     res.json(telemetry);
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function getLastCommand(req: Request, res: Response, next: NextFunction) {
+  const parsedParams = deviceIdSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    return res.status(400).json({ message: 'Invalid device id' });
+  }
+
+  try {
+    const organisationId = await resolveOrganisationId(req.user!.id, res);
+    if (!organisationId) return;
+
+    const device = await getDeviceById(parsedParams.data.id, organisationId);
+    if (!device) return res.status(404).json({ message: 'Not found' });
+
+    const lastCommand = await getLastCommandForDevice(device.id);
+    if (!lastCommand) return res.status(404).json({ message: 'Not found' });
+
+    return res.status(200).json({
+      status: lastCommand.status,
+      requested_value: lastCommand.requested_value,
+      failure_reason: lastCommand.failure_reason,
+      failure_message: lastCommand.failure_message,
+      created_at: lastCommand.requested_at,
+    });
   } catch (e) {
     next(e);
   }
@@ -83,6 +124,9 @@ export async function sendSetpointCommand(req: Request, res: Response, next: Nex
   } catch (e: any) {
     if (e instanceof ControlValidationError) {
       return res.status(400).json({ message: e.message });
+    }
+    if (e instanceof ControlThrottleError || e?.type === 'THROTTLED') {
+      return res.status(429).json({ message: e.message });
     }
     switch (e.message) {
       case 'DEVICE_NOT_FOUND':
@@ -128,6 +172,9 @@ export async function sendModeCommand(req: Request, res: Response, next: NextFun
   } catch (e: any) {
     if (e instanceof ControlValidationError) {
       return res.status(400).json({ message: e.message });
+    }
+    if (e instanceof ControlThrottleError || e?.type === 'THROTTLED') {
+      return res.status(429).json({ message: e.message });
     }
     switch (e.message) {
       case 'DEVICE_NOT_FOUND':

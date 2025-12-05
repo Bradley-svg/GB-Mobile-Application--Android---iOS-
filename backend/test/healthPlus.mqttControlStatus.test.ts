@@ -77,6 +77,8 @@ beforeEach(() => {
   getMqttHealthMock.mockReset();
   runPushHealthCheckMock.mockReset();
   getSystemStatusMock.mockReset();
+  delete process.env.HEATPUMP_HISTORY_API_KEY;
+  delete process.env.HEAT_PUMP_HISTORY_API_KEY;
 
   queryMock.mockResolvedValue({ rows: [{ ok: 1 }], rowCount: 1 });
   getControlStatusMock.mockReturnValue(defaultControl);

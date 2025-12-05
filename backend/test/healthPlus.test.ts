@@ -76,6 +76,8 @@ beforeEach(() => {
   getMqttHealthMock.mockReset();
   runPushHealthCheckMock.mockReset();
   getSystemStatusMock.mockReset();
+  delete process.env.HEATPUMP_HISTORY_API_KEY;
+  delete process.env.HEAT_PUMP_HISTORY_API_KEY;
 
   getControlStatusMock.mockReturnValue(defaultControl);
   getMqttHealthMock.mockReturnValue(defaultMqtt);
@@ -185,5 +187,44 @@ describe('GET /health-plus (baseline)', () => {
 
     const second = await request(app).get('/health-plus').expect(200);
     expect(second.body.ok).toBe(true);
+  });
+});
+
+describe('GET /health-plus heat pump history', () => {
+  it('marks heat pump history healthy when configured with a recent success', async () => {
+    process.env.HEATPUMP_HISTORY_API_KEY = 'test-key';
+    const recentSuccess = new Date(Date.now() - 10 * 60 * 1000);
+    queryMock.mockResolvedValueOnce({ rows: [{ ok: 1 }], rowCount: 1 });
+    getSystemStatusMock.mockResolvedValue({
+      ...baseSystemStatus(),
+      heat_pump_history_last_success_at: recentSuccess,
+    });
+
+    const res = await request(app).get('/health-plus').expect(200);
+
+    expect(res.body.heatPumpHistory.configured).toBe(true);
+    expect(res.body.heatPumpHistory.lastSuccessAt).toBe(recentSuccess.toISOString());
+    expect(res.body.heatPumpHistory.healthy).toBe(true);
+    expect(res.body.ok).toBe(true);
+  });
+
+  it('marks heat pump history unhealthy when recent errors outnumber stale successes', async () => {
+    process.env.HEATPUMP_HISTORY_API_KEY = 'test-key';
+    const staleSuccess = new Date(Date.now() - 7 * 60 * 60 * 1000);
+    const recentError = new Date(Date.now() - 30 * 60 * 1000);
+    queryMock.mockResolvedValueOnce({ rows: [{ ok: 1 }], rowCount: 1 });
+    getSystemStatusMock.mockResolvedValue({
+      ...baseSystemStatus(),
+      heat_pump_history_last_success_at: staleSuccess,
+      heat_pump_history_last_error_at: recentError,
+      heat_pump_history_last_error: 'timeout',
+    });
+
+    const res = await request(app).get('/health-plus').expect(200);
+
+    expect(res.body.heatPumpHistory.configured).toBe(true);
+    expect(res.body.heatPumpHistory.lastErrorAt).toBe(recentError.toISOString());
+    expect(res.body.heatPumpHistory.healthy).toBe(false);
+    expect(res.body.ok).toBe(false);
   });
 });

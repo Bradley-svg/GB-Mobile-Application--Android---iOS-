@@ -31,6 +31,8 @@ export type InsertControlCommandInput = {
   source?: string | null;
 };
 
+export type ControlCommand = ControlCommandRow;
+
 export async function insertCommandRow(input: InsertControlCommandInput) {
   const res = await query<ControlCommandRow>(
     `
@@ -59,6 +61,23 @@ export async function insertCommandRow(input: InsertControlCommandInput) {
     ]
   );
   return res.rows[0];
+}
+
+export async function getLastCommandForDevice(
+  deviceId: string
+): Promise<ControlCommand | null> {
+  const res = await query<ControlCommandRow>(
+    `
+    select *
+    from control_commands
+    where device_id = $1
+    order by requested_at desc
+    limit 1
+  `,
+    [deviceId]
+  );
+
+  return res.rows[0] ?? null;
 }
 
 export async function markCommandSuccess(commandId: string) {

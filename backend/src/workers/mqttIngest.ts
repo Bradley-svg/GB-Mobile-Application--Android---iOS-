@@ -1,6 +1,10 @@
+// These workers are designed to run as a single instance. Running multiple instances without
+// coordination/locking may cause duplicate processing.
 import 'dotenv/config';
 import { initMqtt } from '../integrations/mqttClient';
 import { logger } from '../utils/logger';
+
+// TODO: Migrate to structured JSON logging (e.g. pino) for production observability.
 
 const env = process.env.NODE_ENV || 'development';
 const mqttUrl = process.env.MQTT_URL;

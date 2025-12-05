@@ -44,4 +44,33 @@ describe('getDeviceTelemetry', () => {
       'supply_temp',
     ]);
   });
+
+  it('downsamples series that exceed the maximum point count', async () => {
+    const now = Date.now();
+    const rows = Array.from({ length: 600 }, (_, idx) => ({
+      metric: 'supply_temp',
+      ts: new Date(now + idx * 1000),
+      value: idx,
+    }));
+    queryMock.mockResolvedValueOnce({ rows, rowCount: rows.length });
+
+    const result = await getDeviceTelemetry('device-1', '24h');
+
+    expect(result.metrics.supply_temp.length).toBeLessThanOrEqual(500);
+    expect(result.metrics.return_temp.length).toBe(0);
+  });
+
+  it('respects custom maxPoints and averages buckets', async () => {
+    const rows = Array.from({ length: 50 }, (_, idx) => ({
+      metric: 'power_kw',
+      ts: new Date(`2025-01-01T00:${String(idx).padStart(2, '0')}:00Z`),
+      value: idx,
+    }));
+    queryMock.mockResolvedValueOnce({ rows, rowCount: rows.length });
+
+    const result = await getDeviceTelemetry('device-2', '24h', 20);
+
+    expect(result.metrics.power_kw.length).toBeLessThanOrEqual(20);
+    expect(result.metrics.power_kw[0]).toEqual({ ts: rows[0].ts.toISOString(), value: 1 });
+  });
 });

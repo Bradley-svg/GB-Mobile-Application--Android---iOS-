@@ -61,6 +61,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   queryMock.mockReset();
+  queryMock.mockImplementation(() => Promise.resolve({ rows: [], rowCount: 0 }));
   getDeviceByIdMock.mockReset();
   publishMock.mockReset();
   connectMock.mockClear();
@@ -166,6 +167,33 @@ describe('deviceControlService', () => {
     expect(markControlCommandErrorMock).toHaveBeenCalledTimes(1);
   });
 
+  it('throttles setpoint commands when a recent command exists', async () => {
+    getDeviceByIdMock.mockResolvedValue(baseDevice);
+    const recent = new Date(Date.now() - 2000);
+    queryMock.mockResolvedValueOnce({
+      rows: [
+        {
+          id: 'last-cmd',
+          device_id: 'device-1',
+          requested_at: recent,
+        },
+      ],
+      rowCount: 1,
+    });
+    queryMock.mockResolvedValueOnce({ rows: [{ id: 'throttled' }], rowCount: 1 });
+
+    await expect(
+      setDeviceSetpoint('device-1', 'user-1', { metric: 'flow_temp', value: 45 })
+    ).rejects.toThrow('throttling');
+
+    expect(publishMock).not.toHaveBeenCalled();
+    expect(queryMock).toHaveBeenCalledTimes(2);
+    const insertCall = queryMock.mock.calls[1];
+    expect(insertCall[0]).toContain('insert into control_commands');
+    expect(insertCall[1][5]).toBe('failed');
+    expect(insertCall[1][7]).toBe('THROTTLED');
+  });
+
   it('marks setpoint command as failed when publishing throws', async () => {
     getDeviceByIdMock.mockResolvedValue(baseDevice);
     const commandRow = {
@@ -183,6 +211,9 @@ describe('deviceControlService', () => {
       failure_message: null,
       source: 'api',
     };
+    queryMock.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+    queryMock.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+    queryMock.mockResolvedValueOnce({ rows: [], rowCount: 0 });
     queryMock.mockResolvedValueOnce({ rows: [commandRow], rowCount: 1 });
     queryMock.mockResolvedValueOnce({ rows: [], rowCount: 1 });
     publishMock.mockImplementation((_topic, _message, _options, cb) => {
@@ -193,8 +224,8 @@ describe('deviceControlService', () => {
       setDeviceSetpoint('device-1', 'user-1', { metric: 'flow_temp', value: 45 })
     ).rejects.toThrow('COMMAND_FAILED');
 
-    expect(queryMock).toHaveBeenCalledTimes(2);
-    const updateCall = queryMock.mock.calls[1];
+    expect(queryMock).toHaveBeenCalledTimes(3);
+    const updateCall = queryMock.mock.calls[2];
     expect(updateCall[0]).toContain('update control_commands');
     expect(updateCall[1]).toEqual(['cmd-1', 'publish failed', 'SEND_FAILED']);
     expect(loggerInfoMock).toHaveBeenCalledWith(
@@ -207,6 +238,42 @@ describe('deviceControlService', () => {
       'setpoint publish failed',
       expect.objectContaining({ deviceExternalId: 'ext-1' })
     );
+  });
+
+  it('allows commands when the previous command is outside the throttle window', async () => {
+    getDeviceByIdMock.mockResolvedValue(baseDevice);
+    const oldCommandAt = new Date(Date.now() - 10000);
+    const commandRow = {
+      id: 'cmd-outside-window',
+      device_id: 'device-1',
+      user_id: 'user-1',
+      command_type: 'setpoint',
+      payload: { metric: 'flow_temp', value: 48 },
+      status: 'pending',
+      requested_at: new Date(),
+      completed_at: null,
+      error_message: null,
+      requested_value: { metric: 'flow_temp', value: 48 },
+      failure_reason: null,
+      failure_message: null,
+      source: 'api',
+    };
+    queryMock.mockResolvedValueOnce({ rows: [{ id: 'last', requested_at: oldCommandAt }], rowCount: 1 });
+    queryMock.mockResolvedValueOnce({ rows: [commandRow], rowCount: 1 });
+    queryMock.mockResolvedValueOnce({ rows: [], rowCount: 1 });
+
+    publishMock.mockImplementation((_topic, _message, _options, cb) => {
+      if (typeof cb === 'function') cb();
+    });
+
+    const result = await setDeviceSetpoint('device-1', 'user-1', {
+      metric: 'flow_temp',
+      value: 48,
+    });
+
+    expect(result.status).toBe('success');
+    expect(queryMock).toHaveBeenCalledTimes(3);
+    expect(queryMock.mock.calls[2][0]).toContain("status = 'success'");
   });
 
   it('marks mode command as failed when publishing throws', async () => {
@@ -226,6 +293,7 @@ describe('deviceControlService', () => {
       failure_message: null,
       source: 'api',
     };
+    queryMock.mockResolvedValueOnce({ rows: [], rowCount: 0 });
     queryMock.mockResolvedValueOnce({ rows: [commandRow], rowCount: 1 });
     queryMock.mockResolvedValueOnce({ rows: [], rowCount: 1 });
     publishMock.mockImplementation((_topic, _message, _options, cb) => {
@@ -236,8 +304,8 @@ describe('deviceControlService', () => {
       setDeviceMode('device-1', 'user-2', { mode: 'AUTO' })
     ).rejects.toThrow('COMMAND_FAILED');
 
-    expect(queryMock).toHaveBeenCalledTimes(2);
-    const updateCall = queryMock.mock.calls[1];
+    expect(queryMock).toHaveBeenCalledTimes(3);
+    const updateCall = queryMock.mock.calls[2];
     expect(updateCall[0]).toContain('status = \'failed\'');
     expect(updateCall[1]).toEqual(['cmd-2', 'publish failed', 'SEND_FAILED']);
   });
@@ -267,8 +335,8 @@ describe('deviceControlService', () => {
 
     const result = await setDeviceMode('device-1', 'user-3', { mode: 'HEATING' });
 
-    expect(queryMock).toHaveBeenCalledTimes(2);
-    expect(queryMock.mock.calls[1][0]).toContain('status = \'success\'');
+    expect(queryMock).toHaveBeenCalledTimes(3);
+    expect(queryMock.mock.calls[2][0]).toContain("status = 'success'");
     expect(publishMock).toHaveBeenCalledWith(
       'greenbro/ext-1/commands',
       expect.any(String),

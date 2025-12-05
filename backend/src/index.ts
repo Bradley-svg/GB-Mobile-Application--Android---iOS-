@@ -10,6 +10,8 @@ import heatPumpHistoryRoutes from './routes/heatPumpHistoryRoutes';
 import { errorHandler } from './middleware/errorHandler';
 import { createCorsMiddleware } from './middleware/corsConfig';
 
+// TODO: Migrate to structured JSON logging (e.g. pino) for production observability.
+
 const app = express();
 
 app.use(createCorsMiddleware());

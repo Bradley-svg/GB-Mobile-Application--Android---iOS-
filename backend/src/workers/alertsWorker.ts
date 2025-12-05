@@ -1,3 +1,5 @@
+// These workers are designed to run as a single instance. Running multiple instances without
+// coordination/locking may cause duplicate processing.
 import 'dotenv/config';
 import {
   findOfflineDevices,
@@ -8,6 +10,8 @@ import { clearAlertIfExists, upsertActiveAlert } from '../services/alertService'
 import { sendAlertNotification } from '../services/pushService';
 import { markAlertsWorkerHeartbeat, upsertStatus } from '../services/statusService';
 import { logger } from '../utils/logger';
+
+// TODO: Migrate to structured JSON logging (e.g. pino) for production observability.
 
 const OFFLINE_MINUTES = Number(process.env.ALERT_OFFLINE_MINUTES || 10);
 const OFFLINE_CRITICAL_MINUTES = Number(process.env.ALERT_OFFLINE_CRITICAL_MINUTES || 60);

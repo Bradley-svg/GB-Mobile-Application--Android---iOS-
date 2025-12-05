@@ -2,6 +2,7 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import {
   getDevice,
+  getLastCommand,
   getDeviceTelemetryHandler,
   sendModeCommand,
   sendSetpointCommand,
@@ -21,6 +22,7 @@ router.use(requireAuth);
 
 router.get('/devices/:id', getDevice);
 router.get('/devices/:id/telemetry', getDeviceTelemetryHandler);
+router.get('/devices/:id/last-command', getLastCommand);
 router.post('/devices/:id/commands/setpoint', controlLimiter, sendSetpointCommand);
 router.post('/devices/:id/commands/mode', controlLimiter, sendModeCommand);
 

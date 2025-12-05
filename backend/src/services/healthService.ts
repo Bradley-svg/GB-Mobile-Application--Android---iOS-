@@ -8,6 +8,7 @@ import { getSystemStatus } from './statusService';
 const MQTT_INGEST_STALE_MS = 5 * 60 * 1000;
 const MQTT_ERROR_WINDOW_MS = 5 * 60 * 1000;
 const CONTROL_ERROR_WINDOW_MS = 10 * 60 * 1000;
+const HEAT_PUMP_HISTORY_STALE_MS = 6 * 60 * 60 * 1000;
 
 function toIso(value: Date | string | null | undefined) {
   if (!value) return null;
@@ -79,6 +80,9 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
   const alertsWorkerEnabled =
     (process.env.ALERT_WORKER_ENABLED || 'true').toLowerCase() !== 'false';
   const alertsExpected = env === 'production' && alertsWorkerEnabled;
+  const heatPumpConfigured = Boolean(
+    process.env.HEATPUMP_HISTORY_API_KEY || process.env.HEAT_PUMP_HISTORY_API_KEY
+  );
 
   try {
     const dbRes = await query('select 1 as ok');
@@ -146,17 +150,17 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
       lastError: pushEnabled ? pushLastError : null,
     };
 
-    const heatPumpConfigured = Boolean(
-      process.env.HEATPUMP_HISTORY_API_KEY || process.env.HEAT_PUMP_HISTORY_API_KEY
-    );
     const heatPumpLastSuccessAt = systemStatus?.heat_pump_history_last_success_at ?? null;
     const heatPumpLastErrorAt = systemStatus?.heat_pump_history_last_error_at ?? null;
     const heatPumpLastError = systemStatus?.heat_pump_history_last_error ?? null;
+    const heatPumpSuccessRecent =
+      heatPumpConfigured && !isStale(heatPumpLastSuccessAt, HEAT_PUMP_HISTORY_STALE_MS, now);
+    const heatPumpErrorRecent =
+      heatPumpConfigured && isRecent(heatPumpLastErrorAt, HEAT_PUMP_HISTORY_STALE_MS, now);
     const heatPumpHealthy = statusLoadFailed
       ? !heatPumpConfigured
       : !heatPumpConfigured ||
-        !heatPumpLastErrorAt ||
-        (heatPumpLastSuccessAt != null && (heatPumpLastSuccessAt as Date) >= (heatPumpLastErrorAt as Date));
+        (heatPumpSuccessRecent && (!heatPumpErrorRecent || (heatPumpLastSuccessAt as Date) >= (heatPumpLastErrorAt as Date)));
 
     const ok = statusLoadFailed
       ? dbOk
@@ -222,11 +226,11 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
         healthy: !controlSnapshot.configured,
       },
       heatPumpHistory: {
-        configured: Boolean(process.env.HEATPUMP_HISTORY_API_KEY || process.env.HEAT_PUMP_HISTORY_API_KEY),
+        configured: heatPumpConfigured,
         lastSuccessAt: null,
         lastErrorAt: null,
         lastError: null,
-        healthy: true,
+        healthy: !heatPumpConfigured,
       },
       alertsWorker: {
         lastHeartbeatAt: null,

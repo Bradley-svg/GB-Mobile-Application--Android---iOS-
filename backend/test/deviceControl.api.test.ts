@@ -7,10 +7,20 @@ import { ControlValidationError } from '../src/services/deviceControlValidationS
 const setDeviceSetpointMock = vi.fn();
 const setDeviceModeMock = vi.fn();
 const getUserContextMock = vi.fn();
+const getDeviceByIdMock = vi.fn();
+const getLastCommandForDeviceMock = vi.fn();
 
 vi.mock('../src/services/deviceControlService', () => ({
   setDeviceSetpoint: (...args: unknown[]) => setDeviceSetpointMock(...(args as [any])),
   setDeviceMode: (...args: unknown[]) => setDeviceModeMock(...(args as [any])),
+}));
+
+vi.mock('../src/services/deviceService', () => ({
+  getDeviceById: (...args: unknown[]) => getDeviceByIdMock(...(args as [any])),
+}));
+
+vi.mock('../src/repositories/controlCommandsRepository', () => ({
+  getLastCommandForDevice: (...args: unknown[]) => getLastCommandForDeviceMock(...(args as [any])),
 }));
 
 vi.mock('../src/services/userService', () => ({
@@ -41,12 +51,15 @@ beforeEach(() => {
   setDeviceSetpointMock.mockReset();
   setDeviceModeMock.mockReset();
   getUserContextMock.mockReset();
+  getDeviceByIdMock.mockReset();
+  getLastCommandForDeviceMock.mockReset();
   getUserContextMock.mockResolvedValue({
     id: 'user-ctrl',
     organisation_id: 'org-ctrl',
     email: 'ctrl@test.com',
     name: 'Controller',
   });
+  getDeviceByIdMock.mockResolvedValue({ id: 'device-123', organisation_id: 'org-ctrl' });
 });
 
 describe('control endpoints', () => {
@@ -147,5 +160,43 @@ describe('control endpoints', () => {
       .expect(503);
 
     expect(res.body).toEqual({ message: 'Control channel not configured' });
+  });
+
+  it('returns the last control command for a device', async () => {
+    const lastCommand = {
+      status: 'failed',
+      requested_value: { mode: 'AUTO' },
+      failure_reason: 'SEND_FAILED',
+      failure_message: 'publish failed',
+      requested_at: new Date('2025-01-02T00:00:00.000Z'),
+    } as any;
+    getLastCommandForDeviceMock.mockResolvedValueOnce(lastCommand);
+
+    const res = await request(app)
+      .get('/devices/00000000-0000-0000-0000-000000000555/last-command')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(getDeviceByIdMock).toHaveBeenCalledWith(
+      '00000000-0000-0000-0000-000000000555',
+      'org-ctrl'
+    );
+    expect(getLastCommandForDeviceMock).toHaveBeenCalledWith('device-123');
+    expect(res.body).toEqual({
+      status: 'failed',
+      requested_value: { mode: 'AUTO' },
+      failure_reason: 'SEND_FAILED',
+      failure_message: 'publish failed',
+      created_at: new Date('2025-01-02T00:00:00.000Z'),
+    });
+  });
+
+  it('returns 404 when no last control command exists', async () => {
+    getLastCommandForDeviceMock.mockResolvedValueOnce(null);
+
+    await request(app)
+      .get('/devices/00000000-0000-0000-0000-000000000556/last-command')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(404);
   });
 });
