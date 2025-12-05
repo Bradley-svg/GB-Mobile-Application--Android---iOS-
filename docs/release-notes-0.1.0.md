@@ -16,6 +16,10 @@
 - No metrics/alerting pipeline beyond `/health-plus` and logs.
 - Push health-check disabled unless `EXPO_ACCESS_TOKEN` is configured; heat-pump history health depends on Azure availability.
 
+## Verification
+- Backend RC validation: `STAGING_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_staging npm run staging:bootstrap` (env guard dry-run) plus npm run typecheck, npm run lint, TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test npm test, npm run build, and HEALTH_BASE_URL=http://localhost:4000 npm run health:check against dev.
+- Mobile RC validation: npm run typecheck, npm run lint, npm test -- --runInBand.
+
 ## Staging verification (2025-12-05 attempt)
 - Status: blocked - staging backend host `https://staging-api.greenbro.co.za` does not resolve yet, so no staging smoke test was executed.
 - Pending when staging is reachable: seed demo data via `scripts/init-local-db.js`, then confirm Login -> Dashboard -> Site -> Device (telemetry/history) -> Alerts (ack/mute) -> Profile (preferences toggle) -> Logout against `/health-plus` showing env production and version 0.1.0.

@@ -1,16 +1,54 @@
 **Greenbro Build Status (local sweep 2025-12-05)**
 
 - **Backend**
-  - npm install, npm run migrate:test (tests/CI), npm run typecheck, npm run lint, TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm test, npm run build; all green locally on Node 20 / Postgres 16 (vitest forced single-thread/file-serial to avoid DB contention).
+  - npm install; npm run typecheck; npm run lint; TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm test; npm run build - all green locally on Node 20 / Postgres 16 after the structured logging, worker locks, migrations, staging bootstrap, and health:check additions (vitest held to single-thread/file-serial to avoid DB contention).
   - Migrations: node-pg-migrate baseline under `backend/migrations/` (includes `worker_locks`); `npm run migrate:dev` / `npm run migrate:test` wire to DATABASE_URL/TEST_DATABASE_URL; test harness runs migrations before seeding.
+  - `STAGING_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_staging npm run staging:bootstrap` (env guard) applied migrations and demo seed on a local staging DB for a dry-run; summary `{"stage":"staging","db":"ok","migrations":"applied","seed":"ok"}`.
   - Preferences: `/user/preferences` GET/PUT backed by `user_preferences` (`alerts_enabled` default true) with API coverage for auth/validation/default/update paths.
   - Logging: pino JSON logger to stdout with `LOG_LEVEL` (default info) and service/env fields; console.* replaced across API/workers/scripts.
   - Workers: MQTT ingest + alerts worker take DB locks (`worker_locks`) with configurable TTL (`WORKER_LOCK_TTL_SEC`); non-owners log and exit/idle rather than double-run.
   - Auth: login/refresh/me plus logout and logout-all are live; password reset endpoint remains intentionally absent.
   - Control: throttling enforced from the last command in DB; `/devices/:id/last-command` surfaces the latest control attempt; supports MQTT or HTTP control channel via env. Health-plus currently shows `configured:false` with lastError `CONTROL_CHANNEL_UNCONFIGURED` (dev run without control config).
   - Telemetry: HTTP ingest route stays a 501 stub; telemetry read path enforces maxPoints with downsampling and metric bounds.
-  - Heat-pump history: Azure client with retry/circuit breaker; health-plus includes `heatPumpHistory` block (current dev curl: `configured:true`, `healthy:false`, `lastSuccessAt:null` while upstream is idle).
-  - Health-plus sample (`curl http://localhost:4000/health-plus`): `{ ok:false, env:"development", db:"ok", version:"0.1.0-dev", mqtt:{configured:false, lastIngestAt:null, lastErrorAt:"2025-12-05T12:49:30.201Z", lastError:"", healthy:true}, control:{configured:false, lastCommandAt:null, lastErrorAt:null, lastError:"CONTROL_CHANNEL_UNCONFIGURED", healthy:true}, heatPumpHistory:{configured:true, lastSuccessAt:null, lastErrorAt:null, lastError:null, healthy:false}, alertsWorker:{lastHeartbeatAt:null, healthy:true}, push:{enabled:false, lastSampleAt:"2025-12-05T19:10:05.948Z", lastError:null} }`.
+  - Health: HEALTH_BASE_URL=http://localhost:4000 npm run health:check against dev exited non-zero because `ok:false` while Azure history is configured:true/healthy:false (dev keeps HEATPUMP_HISTORY_* set; upstream idle/unconfigured). Body:
+    ```json
+    {
+      "ok": false,
+      "env": "development",
+      "db": "ok",
+      "version": "0.1.0-dev",
+      "mqtt": {
+        "configured": false,
+        "lastIngestAt": null,
+        "lastErrorAt": "2025-12-05T12:49:30.201Z",
+        "lastError": "",
+        "healthy": true
+      },
+      "control": {
+        "configured": false,
+        "lastCommandAt": null,
+        "lastErrorAt": null,
+        "lastError": "CONTROL_CHANNEL_UNCONFIGURED",
+        "healthy": true
+      },
+      "heatPumpHistory": {
+        "configured": true,
+        "lastSuccessAt": null,
+        "lastErrorAt": null,
+        "lastError": null,
+        "healthy": false
+      },
+      "alertsWorker": {
+        "lastHeartbeatAt": null,
+        "healthy": true
+      },
+      "push": {
+        "enabled": false,
+        "lastSampleAt": "2025-12-05T21:11:14.538Z",
+        "lastError": null
+      }
+    }
+    ```
 
 - **Mobile**
   - npm run typecheck, npm run lint, npm test -- --runInBand all green locally after wiring preferences to `/user/preferences`.
