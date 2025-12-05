@@ -38,6 +38,9 @@ export async function getSystemStatus(key: string): Promise<SystemStatus | null>
            alerts_worker_last_heartbeat_at,
            push_last_sample_at,
            push_last_error,
+           heat_pump_history_last_success_at,
+           heat_pump_history_last_error_at,
+           heat_pump_history_last_error,
            updated_at
     from system_status
     where key = $1

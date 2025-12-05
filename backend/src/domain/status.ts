@@ -10,5 +10,8 @@ export type SystemStatus = {
   alerts_worker_last_heartbeat_at: Date | null;
   push_last_sample_at: Date | null;
   push_last_error: string | null;
+  heat_pump_history_last_success_at: Date | null;
+  heat_pump_history_last_error_at: Date | null;
+  heat_pump_history_last_error: string | null;
   updated_at: Date;
 };

@@ -39,6 +39,9 @@ const baseSystemStatus = (): SystemStatus => ({
   alerts_worker_last_heartbeat_at: null,
   push_last_sample_at: null,
   push_last_error: null,
+  heat_pump_history_last_success_at: null,
+  heat_pump_history_last_error_at: null,
+  heat_pump_history_last_error: null,
   updated_at: new Date('2025-01-01T00:00:00.000Z'),
 });
 const defaultControl = {
@@ -109,6 +112,13 @@ describe('GET /health-plus (baseline)', () => {
         lastError: null,
         healthy: true,
       },
+      heatPumpHistory: {
+        configured: false,
+        lastSuccessAt: null,
+        lastErrorAt: null,
+        lastError: null,
+        healthy: true,
+      },
       alertsWorker: {
         lastHeartbeatAt: null,
         healthy: true,
@@ -142,6 +152,13 @@ describe('GET /health-plus (baseline)', () => {
       control: {
         configured: false,
         lastCommandAt: null,
+        lastErrorAt: null,
+        lastError: null,
+        healthy: true,
+      },
+      heatPumpHistory: {
+        configured: false,
+        lastSuccessAt: null,
         lastErrorAt: null,
         lastError: null,
         healthy: true,

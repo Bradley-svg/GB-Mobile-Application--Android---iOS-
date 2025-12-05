@@ -10,6 +10,9 @@ create table if not exists system_status (
   alerts_worker_last_heartbeat_at timestamptz null,
   push_last_sample_at timestamptz null,
   push_last_error text null,
+  heat_pump_history_last_success_at timestamptz null,
+  heat_pump_history_last_error_at timestamptz null,
+  heat_pump_history_last_error text null,
   updated_at timestamptz not null default now()
 );
 
@@ -25,4 +28,7 @@ alter table system_status
   add column if not exists control_last_error text null,
   add column if not exists alerts_worker_last_heartbeat_at timestamptz null,
   add column if not exists push_last_sample_at timestamptz null,
-  add column if not exists push_last_error text null;
+  add column if not exists push_last_error text null,
+  add column if not exists heat_pump_history_last_success_at timestamptz null,
+  add column if not exists heat_pump_history_last_error_at timestamptz null,
+  add column if not exists heat_pump_history_last_error text null;

@@ -2,7 +2,7 @@ import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import type { Express } from 'express';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { HeatPumpHistoryResponse } from '../src/integrations/heatPumpHistoryClient';
+import type { HeatPumpHistoryResult } from '../src/integrations/heatPumpHistoryClient';
 
 const fetchHeatPumpHistoryMock = vi.fn();
 const queryMock = vi.fn();
@@ -51,7 +51,8 @@ describe('POST /heat-pump-history', () => {
   });
 
   it('returns normalized data from the integration client', async () => {
-    const historyResponse: HeatPumpHistoryResponse = {
+    const historyResponse: HeatPumpHistoryResult = {
+      ok: true,
       series: [
         {
           field: 'metric_compCurrentA',
@@ -68,7 +69,7 @@ describe('POST /heat-pump-history', () => {
       .expect(200);
 
     expect(fetchHeatPumpHistoryMock).toHaveBeenCalledWith(requestBody);
-    expect(res.body).toEqual(historyResponse);
+    expect(res.body).toEqual({ series: historyResponse.series });
   });
 
   it('returns 400 on invalid body', async () => {
@@ -80,5 +81,40 @@ describe('POST /heat-pump-history', () => {
 
     expect(res.body).toEqual({ message: 'Invalid body' });
     expect(fetchHeatPumpHistoryMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 502 when the upstream call fails', async () => {
+    fetchHeatPumpHistoryMock.mockResolvedValueOnce({
+      ok: false,
+      kind: 'UPSTREAM_ERROR',
+      message: 'Upstream failed',
+    });
+
+    const res = await request(app)
+      .post('/heat-pump-history')
+      .set('Authorization', `Bearer ${token}`)
+      .send(requestBody)
+      .expect(502);
+
+    expect(res.body).toEqual({ error: 'upstream_history_error', message: 'Upstream failed' });
+  });
+
+  it('returns 503 when the circuit is open', async () => {
+    fetchHeatPumpHistoryMock.mockResolvedValueOnce({
+      ok: false,
+      kind: 'CIRCUIT_OPEN',
+      message: 'Temporarily unavailable',
+    });
+
+    const res = await request(app)
+      .post('/heat-pump-history')
+      .set('Authorization', `Bearer ${token}`)
+      .send(requestBody)
+      .expect(503);
+
+    expect(res.body).toEqual({
+      error: 'history_temporarily_unavailable',
+      message: 'Temporarily unavailable',
+    });
   });
 });

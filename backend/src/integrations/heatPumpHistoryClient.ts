@@ -1,6 +1,37 @@
+import { markHeatPumpHistoryError, markHeatPumpHistorySuccess } from '../services/statusService';
+
 const DEFAULT_HEATPUMP_HISTORY_URL =
   'https://za-iot-dev-api.azurewebsites.net/api/HeatPumpHistory/historyHeatPump';
 const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
+
+const MAX_FAILURES = 3;
+const OPEN_WINDOW_MS = 60_000;
+
+let consecutiveFailures = 0;
+let circuitOpenedAt: Date | null = null;
+
+function isCircuitOpen(nowMs = Date.now()): boolean {
+  if (!circuitOpenedAt) return false;
+
+  const elapsed = nowMs - circuitOpenedAt.getTime();
+  if (elapsed < OPEN_WINDOW_MS) return true;
+
+  consecutiveFailures = 0;
+  circuitOpenedAt = null;
+  return false;
+}
+
+function recordFailure(now: Date = new Date()) {
+  consecutiveFailures += 1;
+  if (consecutiveFailures >= MAX_FAILURES && !circuitOpenedAt) {
+    circuitOpenedAt = now;
+  }
+}
+
+function recordSuccess() {
+  consecutiveFailures = 0;
+  circuitOpenedAt = null;
+}
 
 let legacyEnvWarningLogged = false;
 let invalidTimeoutWarningLogged = false;
@@ -35,6 +66,10 @@ export type HeatPumpHistorySeries = {
 export type HeatPumpHistoryResponse = {
   series: HeatPumpHistorySeries[];
 };
+
+export type HeatPumpHistoryResult =
+  | { ok: true; series: HeatPumpHistorySeries[] }
+  | { ok: false; kind: 'UPSTREAM_ERROR' | 'CIRCUIT_OPEN'; message: string };
 
 type AzureHeatPumpHistoryRequest = HeatPumpHistoryRequest;
 
@@ -195,9 +230,15 @@ function normalizeHeatPumpHistoryResponse(raw: unknown): HeatPumpHistoryResponse
   return { series: [] };
 }
 
-export async function fetchHeatPumpHistory(
-  req: HeatPumpHistoryRequest
-): Promise<HeatPumpHistoryResponse> {
+export async function fetchHeatPumpHistory(req: HeatPumpHistoryRequest): Promise<HeatPumpHistoryResult> {
+  if (isCircuitOpen()) {
+    return {
+      ok: false,
+      kind: 'CIRCUIT_OPEN',
+      message: 'Heat pump history is temporarily unavailable. Please try again shortly.',
+    };
+  }
+
   const azurePayload = buildAzureRequest(req);
   const { url, apiKey, requestTimeoutMs } = resolveConfig();
 
@@ -224,16 +265,29 @@ export async function fetchHeatPumpHistory(
         statusText: res.statusText,
         bodyPreview: responseText.slice(0, 200),
       });
-      throw new Error('HEATPUMP_HISTORY_UPSTREAM_ERROR');
+      const message = `Heat pump history upstream error (${res.status})`;
+      recordFailure();
+      await markHeatPumpHistoryError(new Date(), message);
+      return { ok: false, kind: 'UPSTREAM_ERROR', message };
     }
 
     const parsed = responseText ? safeParseJson(responseText) : {};
-    return normalizeHeatPumpHistoryResponse(parsed);
+    const normalized = normalizeHeatPumpHistoryResponse(parsed);
+    recordSuccess();
+    await markHeatPumpHistorySuccess(new Date());
+    return { ok: true, series: normalized.series };
   } catch (err) {
     if ((err as Error).name === 'AbortError') {
-      throw new Error('HEATPUMP_HISTORY_TIMEOUT');
+      const message = 'Heat pump history request timed out';
+      recordFailure();
+      await markHeatPumpHistoryError(new Date(), message);
+      return { ok: false, kind: 'UPSTREAM_ERROR', message };
     }
-    throw err;
+
+    const message = 'Heat pump history request failed';
+    recordFailure();
+    await markHeatPumpHistoryError(new Date(), (err as Error)?.message ?? message);
+    return { ok: false, kind: 'UPSTREAM_ERROR', message };
   } finally {
     clearTimeout(timeout);
   }

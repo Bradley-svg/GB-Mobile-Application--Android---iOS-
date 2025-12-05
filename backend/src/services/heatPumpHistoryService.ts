@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import {
   fetchHeatPumpHistory,
-  type HeatPumpHistoryResponse,
+  type HeatPumpHistoryResult,
 } from '../integrations/heatPumpHistoryClient';
 
 const isoString = z
@@ -47,7 +47,7 @@ type UserContext = {
 export async function getHistoryForRequest(
   _userContext: UserContext,
   payload: unknown
-): Promise<HeatPumpHistoryResponse> {
+): Promise<HeatPumpHistoryResult> {
   const parsed = heatPumpHistoryRequestSchema.safeParse(payload);
   if (!parsed.success) {
     throw new HeatPumpHistoryValidationError('Invalid body');

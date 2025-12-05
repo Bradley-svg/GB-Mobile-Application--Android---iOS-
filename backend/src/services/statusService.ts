@@ -17,6 +17,9 @@ const STATUS_COLUMNS = [
   'alerts_worker_last_heartbeat_at',
   'push_last_sample_at',
   'push_last_error',
+  'heat_pump_history_last_success_at',
+  'heat_pump_history_last_error_at',
+  'heat_pump_history_last_error',
 ] as const;
 
 type StatusPatch = Partial<Omit<SystemStatus, 'key' | 'payload' | 'updated_at'>>;
@@ -99,3 +102,20 @@ export async function markPushSampleResult(now: Date = new Date(), err: unknown)
     push_last_error: normalizeError(err),
   });
 }
+
+export async function markHeatPumpHistorySuccess(now: Date = new Date()) {
+  await updateStatusPatch({
+    heat_pump_history_last_success_at: now,
+    heat_pump_history_last_error_at: null,
+    heat_pump_history_last_error: null,
+  });
+}
+
+export async function markHeatPumpHistoryError(now: Date = new Date(), err: unknown) {
+  await updateStatusPatch({
+    heat_pump_history_last_error_at: now,
+    heat_pump_history_last_error: normalizeError(err),
+  });
+}
+
+export type { SystemStatus };

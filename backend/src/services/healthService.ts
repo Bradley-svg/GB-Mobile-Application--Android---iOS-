@@ -44,6 +44,13 @@ export type HealthPlusPayload = {
     lastError: string | null;
     healthy: boolean;
   };
+  heatPumpHistory: {
+    configured: boolean;
+    lastSuccessAt: string | null;
+    lastErrorAt: string | null;
+    lastError: string | null;
+    healthy: boolean;
+  };
   alertsWorker: {
     lastHeartbeatAt: string | null;
     healthy: boolean;
@@ -139,13 +146,26 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
       lastError: pushEnabled ? pushLastError : null,
     };
 
+    const heatPumpConfigured = Boolean(
+      process.env.HEATPUMP_HISTORY_API_KEY || process.env.HEAT_PUMP_HISTORY_API_KEY
+    );
+    const heatPumpLastSuccessAt = systemStatus?.heat_pump_history_last_success_at ?? null;
+    const heatPumpLastErrorAt = systemStatus?.heat_pump_history_last_error_at ?? null;
+    const heatPumpLastError = systemStatus?.heat_pump_history_last_error ?? null;
+    const heatPumpHealthy = statusLoadFailed
+      ? !heatPumpConfigured
+      : !heatPumpConfigured ||
+        !heatPumpLastErrorAt ||
+        (heatPumpLastSuccessAt != null && (heatPumpLastSuccessAt as Date) >= (heatPumpLastErrorAt as Date));
+
     const ok = statusLoadFailed
       ? dbOk
       : dbOk &&
         (!mqttSnapshot.configured || mqttHealthy) &&
         (!controlSnapshot.configured || controlHealthy) &&
         (!alertsExpected || alertsHealthy) &&
-        (!push.enabled || !push.lastError);
+        (!push.enabled || !push.lastError) &&
+        (!heatPumpConfigured || heatPumpHealthy);
 
     const body: HealthPlusPayload = {
       ok,
@@ -165,6 +185,13 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
         lastErrorAt: toIso(controlLastErrorAt),
         lastError: controlLastError,
         healthy: controlHealthy,
+      },
+      heatPumpHistory: {
+        configured: heatPumpConfigured,
+        lastSuccessAt: toIso(heatPumpLastSuccessAt),
+        lastErrorAt: toIso(heatPumpLastErrorAt),
+        lastError: heatPumpLastError,
+        healthy: heatPumpHealthy,
       },
       alertsWorker: {
         lastHeartbeatAt: toIso(alertsHeartbeat),
@@ -193,6 +220,13 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
         lastErrorAt: null,
         lastError: controlSnapshot.lastError ?? null,
         healthy: !controlSnapshot.configured,
+      },
+      heatPumpHistory: {
+        configured: Boolean(process.env.HEATPUMP_HISTORY_API_KEY || process.env.HEAT_PUMP_HISTORY_API_KEY),
+        lastSuccessAt: null,
+        lastErrorAt: null,
+        lastError: null,
+        healthy: true,
       },
       alertsWorker: {
         lastHeartbeatAt: null,

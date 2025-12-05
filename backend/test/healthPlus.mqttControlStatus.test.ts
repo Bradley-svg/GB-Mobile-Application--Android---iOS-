@@ -39,6 +39,9 @@ const baseSystemStatus = (): SystemStatus => ({
   alerts_worker_last_heartbeat_at: null,
   push_last_sample_at: null,
   push_last_error: null,
+  heat_pump_history_last_success_at: null,
+  heat_pump_history_last_error_at: null,
+  heat_pump_history_last_error: null,
   updated_at: new Date(),
 });
 const defaultControl = {
