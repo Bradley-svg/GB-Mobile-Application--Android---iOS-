@@ -75,7 +75,7 @@ function AppTabs() {
           paddingBottom: spacing.md,
         },
         tabBarActiveTintColor: colors.brandGreen,
-        tabBarInactiveTintColor: colors.brandTextMuted,
+        tabBarInactiveTintColor: colors.textSecondary,
         tabBarLabelStyle: { ...typography.caption, marginBottom: spacing.xs },
         tabBarItemStyle: { height: 70 },
         tabBarBackground: () => (
@@ -108,7 +108,7 @@ function AppTabs() {
                 style={{
                   padding: focused ? spacing.md : spacing.sm,
                   borderRadius: 16,
-                  backgroundColor: focused ? colors.brandGreenSoft : colors.backgroundSoft,
+                  backgroundColor: focused ? colors.brandSoft : colors.backgroundAlt,
                   borderWidth: focused ? 0 : 1,
                   borderColor: colors.borderSubtle,
                 }}
@@ -131,7 +131,7 @@ function AppTabs() {
           headerTitle: () => (
             <Image
               source={GreenbroLogo}
-              style={{ width: 150, height: 40 }}
+              style={{ width: 160, height: 44 }}
               resizeMode="contain"
               accessibilityLabel="Greenbro logo"
             />
@@ -195,14 +195,14 @@ export const RootNavigator: React.FC<RootNavigatorProps> = ({ isAuthenticated, s
                 {sessionExpired ? (
                   <View
                     style={{
-                      backgroundColor: colors.backgroundSoft,
+                      backgroundColor: colors.backgroundAlt,
                       paddingVertical: spacing.sm,
                       paddingHorizontal: spacing.md,
                       borderBottomWidth: 1,
                       borderColor: colors.borderSubtle,
                     }}
                   >
-                    <Text style={[typography.caption, { color: colors.brandText }]}>
+                    <Text style={[typography.caption, { color: colors.textPrimary }]}>
                       Your session has expired. Please log in again.
                     </Text>
                   </View>

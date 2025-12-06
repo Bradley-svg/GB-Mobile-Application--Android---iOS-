@@ -170,7 +170,7 @@ export const SiteOverviewScreen: React.FC = () => {
                 <Ionicons
                   name="chevron-forward"
                   size={18}
-                  color={colors.brandTextMuted}
+                  color={colors.textSecondary}
                   style={{ marginTop: spacing.xs }}
                 />
               </View>
@@ -190,12 +190,12 @@ export const SiteOverviewScreen: React.FC = () => {
 
 const renderStatusPill = (status?: string | null) => {
   const normalized = (status || '').toLowerCase();
-  let backgroundColor: string = colors.backgroundSoft;
-  let textColor: string = colors.brandTextMuted;
+  let backgroundColor: string = colors.backgroundAlt;
+  let textColor: string = colors.textSecondary;
   let label = status || 'Unknown';
 
   if (normalized.includes('online') || normalized.includes('healthy')) {
-    backgroundColor = colors.brandGreenSoft;
+    backgroundColor = colors.brandSoft;
     textColor = colors.success;
     label = 'Healthy';
   } else if (normalized.includes('warn')) {
@@ -225,10 +225,10 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   title: {
-    color: colors.brandText,
+    color: colors.textPrimary,
   },
   muted: {
-    color: colors.brandTextMuted,
+    color: colors.textSecondary,
   },
   topBar: {
     flexDirection: 'row',
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     marginBottom: spacing.md,
-    color: colors.brandText,
+    color: colors.textPrimary,
   },
   statusPill: {
     paddingHorizontal: spacing.md,
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.brandGreenSoft,
+    backgroundColor: colors.brandSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.sm,

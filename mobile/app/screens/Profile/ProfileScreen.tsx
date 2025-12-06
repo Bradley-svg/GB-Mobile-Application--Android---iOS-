@@ -146,7 +146,7 @@ export const ProfileScreen: React.FC = () => {
             <Ionicons name="information-circle-outline" size={18} color={colors.brandGreen} />
             <Text style={[typography.body, styles.title, { marginLeft: spacing.sm }]}>About</Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color={colors.brandTextMuted} />
+          <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
         </View>
       </Card>
 
@@ -172,8 +172,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: spacing.md,
   },
-  title: { color: colors.brandText },
-  muted: { color: colors.brandTextMuted },
+  title: { color: colors.textPrimary },
+  muted: { color: colors.textSecondary },
   listCard: {
     marginBottom: spacing.xl,
     paddingVertical: spacing.sm,

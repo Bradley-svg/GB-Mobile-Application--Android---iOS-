@@ -55,8 +55,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.lg,
   },
-  title: { color: colors.brandText },
-  muted: { color: colors.brandTextMuted },
+  title: { color: colors.textPrimary },
+  muted: { color: colors.textSecondary },
   formCard: {
     padding: spacing.lg,
     marginBottom: spacing.xl,
@@ -64,10 +64,10 @@ const styles = StyleSheet.create({
   notice: {
     padding: spacing.md,
     borderRadius: 12,
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: colors.backgroundAlt,
     borderColor: colors.borderSubtle,
     borderWidth: 1,
     marginBottom: spacing.md,
   },
-  noticeText: { color: colors.brandText },
+  noticeText: { color: colors.textPrimary },
 });

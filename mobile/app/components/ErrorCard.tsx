@@ -33,6 +33,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     width: '100%',
   },
-  title: { color: colors.brandText },
-  muted: { color: colors.brandTextMuted },
+  title: { color: colors.textPrimary },
+  muted: { color: colors.textSecondary },
 });

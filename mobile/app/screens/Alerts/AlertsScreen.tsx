@@ -9,7 +9,7 @@ import { Screen, Card, PillTabGroup, IconButton, ErrorCard, EmptyState } from '.
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { loadJson, saveJson } from '../../utils/storage';
 import type { Alert } from '../../api/types';
-import { colors } from '../../theme/colors';
+import { colors, gradients } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 
@@ -28,7 +28,7 @@ const severityStyles = (severity: string) => {
     case 'warning':
       return { backgroundColor: colors.warningSoft, textColor: colors.warning };
     default:
-      return { backgroundColor: colors.brandGreenSoft, textColor: colors.brandGreenDark };
+      return { backgroundColor: colors.brandSoft, textColor: gradients.brandPrimary.start };
   }
 };
 
@@ -177,7 +177,7 @@ export const AlertsScreen: React.FC = () => {
                 <Ionicons
                   name="chevron-forward"
                   size={16}
-                  color={colors.brandTextMuted}
+                  color={colors.textSecondary}
                   style={{ marginLeft: spacing.sm }}
                 />
               </View>
@@ -203,9 +203,9 @@ export const AlertsScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  title: { color: colors.brandText },
-  muted: { color: colors.brandTextMuted },
-  offlineNote: { color: colors.brandTextMuted, marginBottom: spacing.sm },
+  title: { color: colors.textPrimary },
+  muted: { color: colors.textSecondary },
+  offlineNote: { color: colors.textSecondary, marginBottom: spacing.sm },
   headerCard: { marginTop: spacing.xl, marginBottom: spacing.lg },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md },
   filterRow: { flexDirection: 'row', alignItems: 'center' },

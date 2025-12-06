@@ -90,7 +90,7 @@ export const DashboardScreen: React.FC = () => {
   const listHeader = (
     <View>
       <LinearGradient
-        colors={[gradients.hero.start, gradients.hero.end]}
+        colors={[gradients.brandPrimary.start, gradients.brandPrimary.end]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.heroCard}
@@ -122,7 +122,7 @@ export const DashboardScreen: React.FC = () => {
                 style={[
                   typography.title2,
                   styles.title,
-                  metric.color ? { color: metric.color } : { color: colors.brandText },
+                  metric.color ? { color: metric.color } : { color: colors.textPrimary },
                 ]}
               >
                 {metric.value}
@@ -185,7 +185,7 @@ export const DashboardScreen: React.FC = () => {
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={[typography.caption, styles.muted]}>Status</Text>
-                <Text style={[typography.body, { color: colors.brandTextMuted }]}>
+                <Text style={[typography.body, { color: colors.textSecondary }]}>
                   {item.status || 'Unknown'}
                 </Text>
               </View>
@@ -199,12 +199,12 @@ export const DashboardScreen: React.FC = () => {
 
 const renderStatusPill = (status?: string | null) => {
   const normalized = (status || '').toLowerCase();
-  let backgroundColor: string = colors.backgroundSoft;
-  let textColor: string = colors.brandTextMuted;
+  let backgroundColor: string = colors.backgroundAlt;
+  let textColor: string = colors.textSecondary;
   let label = status || 'Unknown';
 
   if (normalized.includes('healthy') || normalized.includes('online')) {
-    backgroundColor = colors.brandGreenSoft;
+    backgroundColor = colors.brandSoft;
     textColor = colors.success;
     label = 'Healthy';
   } else if (normalized.includes('warn')) {
@@ -234,10 +234,10 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   title: {
-    color: colors.brandText,
+    color: colors.textPrimary,
   },
   muted: {
-    color: colors.brandTextMuted,
+    color: colors.textSecondary,
   },
   heroCard: {
     padding: spacing.lg,
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
     marginBottom: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.brandGreenLight,
+    borderColor: gradients.brandPrimary.end,
   },
   heroTitle: {
     color: colors.white,
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   offlineNote: {
-    color: colors.brandTextMuted,
+    color: colors.textSecondary,
     marginBottom: spacing.sm,
   },
   metricsCard: {
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     marginBottom: spacing.md,
-    color: colors.brandText,
+    color: colors.textPrimary,
   },
   gridRow: {
     flex: 1,
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.brandGreenSoft,
+    backgroundColor: colors.brandSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.sm,

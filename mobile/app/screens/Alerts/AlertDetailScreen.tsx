@@ -7,7 +7,7 @@ import { useAcknowledgeAlert, useAlerts, useMuteAlert } from '../../api/hooks';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { Screen, Card, PrimaryButton, IconButton } from '../../components';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
-import { colors } from '../../theme/colors';
+import { colors, gradients } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 
@@ -153,7 +153,7 @@ const severityStyles = (severity: string) => {
     case 'warning':
       return { backgroundColor: colors.warningSoft, textColor: colors.warning };
     default:
-      return { backgroundColor: colors.brandGreenSoft, textColor: colors.brandGreenDark };
+      return { backgroundColor: colors.brandSoft, textColor: gradients.brandPrimary.start };
   }
 };
 
@@ -163,8 +163,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: { color: colors.brandText },
-  muted: { color: colors.brandTextMuted },
+  title: { color: colors.textPrimary },
+  muted: { color: colors.textSecondary },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'flex-start',
@@ -196,5 +196,5 @@ const styles = StyleSheet.create({
   actions: {
     marginBottom: spacing.xl,
   },
-  offlineNote: { color: colors.brandTextMuted, marginTop: spacing.sm },
+  offlineNote: { color: colors.textSecondary, marginTop: spacing.sm },
 });

@@ -40,13 +40,13 @@ const styles = StyleSheet.create({
     borderColor: colors.brandGreen,
   },
   pillUnselected: {
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: colors.backgroundAlt,
     borderColor: colors.borderSubtle,
   },
   labelSelected: {
-    color: colors.white,
+    color: colors.background,
   },
   labelUnselected: {
-    color: colors.brandTextMuted,
+    color: colors.textSecondary,
   },
 });

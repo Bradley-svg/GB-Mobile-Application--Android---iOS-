@@ -13,7 +13,8 @@
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "icon": "./assets/greenbro/greenbro-icon-1024.png"
     },
     "android": {
       "package": "com.greenbro.mobile",

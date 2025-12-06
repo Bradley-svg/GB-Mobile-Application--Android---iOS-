@@ -45,8 +45,8 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
     <LinearGradient
       colors={
         disabled
-          ? [colors.backgroundSoft, colors.backgroundSoft]
-          : [gradients.button.start, gradients.button.end]
+          ? [colors.backgroundAlt, colors.backgroundAlt]
+          : [gradients.brandPrimary.start, gradients.brandPrimary.end]
       }
       start={{ x: 0, y: 0.5 }}
       end={{ x: 1, y: 0.5 }}
@@ -100,19 +100,19 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   solidText: {
-    color: colors.white,
+    color: colors.background,
     textAlign: 'center',
   },
   disabledText: {
-    color: colors.brandTextMuted,
+    color: colors.textSecondary,
   },
   disabledOpacity: {
     opacity: 0.9,
   },
   disabledButton: {
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: colors.backgroundAlt,
   },
   outlineDisabled: {
-    borderColor: colors.brandTextMuted,
+    borderColor: colors.textSecondary,
   },
 });

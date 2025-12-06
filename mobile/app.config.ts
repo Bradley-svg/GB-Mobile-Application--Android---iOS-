@@ -23,9 +23,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     assetBundlePatterns: ['**/*'],
     ios: {
+      ...(config.ios || {}),
       supportsTablet: true,
+      icon: ICON_PATH,
     },
     android: {
+      ...(config.android || {}),
       // Unique application id required for native builds/dev client
       package: 'com.greenbro.mobile',
       adaptiveIcon: {

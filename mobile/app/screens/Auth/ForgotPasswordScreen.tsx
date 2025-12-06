@@ -40,7 +40,7 @@ export const ForgotPasswordScreen: React.FC = () => {
 
         <View style={styles.linksRow}>
           <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-            <Text style={[typography.body, { color: colors.brandTextMuted }]}>Back to login</Text>
+            <Text style={[typography.body, { color: colors.textSecondary }]}>Back to login</Text>
           </TouchableOpacity>
         </View>
       </Card>
@@ -59,13 +59,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.lg,
   },
-  title: { color: colors.brandText },
-  muted: { color: colors.brandTextMuted },
+  title: { color: colors.textPrimary },
+  muted: { color: colors.textSecondary },
   formCard: {
     padding: spacing.lg,
     marginBottom: spacing.xl,
   },
-  notice: { color: colors.brandText, marginBottom: spacing.md },
+  notice: { color: colors.textPrimary, marginBottom: spacing.md },
   linksRow: {
     marginTop: spacing.md,
   },

@@ -25,7 +25,7 @@ import type { HeatPumpHistoryError } from '../../api/heatPumpHistory/hooks';
 import { Screen, Card, PrimaryButton, IconButton, ErrorCard, PillTabGroup } from '../../components';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { loadJson, saveJson } from '../../utils/storage';
-import { colors } from '../../theme/colors';
+import { colors, gradients } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 import { VictoryAxis, VictoryChart, VictoryLegend, VictoryLine } from 'victory-native';
@@ -455,7 +455,7 @@ export const DeviceDetailScreen: React.FC = () => {
         <View testID="telemetry-section">
           {renderMetricCard(
             'Flow temperatures (C)',
-            colors.brandGreenDark,
+            gradients.brandPrimary.start,
             hasSupplyData || hasReturnData,
             <VictoryChart scale={{ x: 'time' }}>
               <VictoryAxis tickFormat={formatAxisTick} tickCount={xTickCount} />
@@ -490,12 +490,12 @@ export const DeviceDetailScreen: React.FC = () => {
 
           {renderMetricCard(
             'Flow rate (L/s)',
-            colors.brandGreenDark,
+            gradients.brandPrimary.start,
             hasFlowData,
             <VictoryChart scale={{ x: 'time' }}>
               <VictoryAxis tickFormat={formatAxisTick} tickCount={xTickCount} />
               <VictoryAxis dependentAxis />
-              <VictoryLine data={flowData} style={{ data: { stroke: colors.brandGreenDark } }} />
+              <VictoryLine data={flowData} style={{ data: { stroke: gradients.brandPrimary.start } }} />
             </VictoryChart>,
             emptyMetricPlaceholder
           )}
@@ -606,7 +606,7 @@ export const DeviceDetailScreen: React.FC = () => {
                   styles.modeChip,
                   selected
                     ? { backgroundColor: colors.brandGreen, borderColor: colors.brandGreen }
-                    : { backgroundColor: colors.backgroundSoft },
+                    : { backgroundColor: colors.backgroundAlt },
                 ]}
                 onPress={() => onModeChange(mode)}
                 activeOpacity={0.9}
@@ -615,7 +615,7 @@ export const DeviceDetailScreen: React.FC = () => {
                 <Text
                   style={[
                     typography.subtitle,
-                    { color: selected ? colors.white : colors.brandTextMuted, textAlign: 'center' },
+                    { color: selected ? colors.background : colors.textSecondary, textAlign: 'center' },
                   ]}
                 >
                   {mode}
@@ -641,7 +641,7 @@ export const DeviceDetailScreen: React.FC = () => {
                   {a.severity.toUpperCase()} - {new Date(a.last_seen_at).toLocaleString()}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={16} color={colors.brandTextMuted} />
+              <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
             </View>
           ))}
         </Card>
@@ -657,18 +657,18 @@ const severityColor = (severity: string) => {
     case 'warning':
       return colors.warning;
     default:
-      return colors.brandGreenLight;
+      return gradients.brandPrimary.end;
   }
 };
 
 const renderStatusPill = (status?: string | null) => {
   const normalized = (status || '').toLowerCase();
-  let backgroundColor: string = colors.backgroundSoft;
-  let textColor: string = colors.brandTextMuted;
+  let backgroundColor: string = colors.backgroundAlt;
+  let textColor: string = colors.textSecondary;
   let label = status || 'Unknown';
 
   if (normalized.includes('online') || normalized.includes('healthy')) {
-    backgroundColor = colors.brandGreenSoft;
+    backgroundColor = colors.brandSoft;
     textColor = colors.success;
     label = 'Healthy';
   } else if (normalized.includes('warn')) {
@@ -768,17 +768,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    color: colors.brandText,
+    color: colors.textPrimary,
   },
   muted: {
-    color: colors.brandTextMuted,
+    color: colors.textSecondary,
   },
   staleText: {
     color: colors.warning,
     marginTop: spacing.xs,
   },
   offlineNote: {
-    color: colors.brandTextMuted,
+    color: colors.textSecondary,
   },
   topBar: {
     flexDirection: 'row',
@@ -806,7 +806,7 @@ const styles = StyleSheet.create({
     borderColor: colors.borderSubtle,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.brandGreenSoft,
+    backgroundColor: colors.brandSoft,
   },
   dialInner: {
     width: 70,
@@ -824,7 +824,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 90,
     borderRadius: 16,
-    backgroundColor: colors.brandGreenSoft,
+    backgroundColor: colors.brandSoft,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
     justifyContent: 'flex-start',
@@ -871,7 +871,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   cardPlaceholder: {
-    color: colors.brandTextMuted,
+    color: colors.textSecondary,
     marginTop: spacing.sm,
   },
   cardError: {
@@ -894,7 +894,7 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderColor: colors.borderSubtle,
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: colors.backgroundAlt,
     borderRadius: 16,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,

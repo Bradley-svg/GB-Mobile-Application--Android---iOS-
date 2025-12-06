@@ -99,14 +99,14 @@ export default function App() {
         {isOffline ? (
           <View
             style={{
-              backgroundColor: colors.backgroundSoft,
+              backgroundColor: colors.backgroundAlt,
               paddingVertical: 8,
               paddingHorizontal: 12,
               borderBottomWidth: 1,
               borderColor: colors.borderSubtle,
             }}
           >
-            <Text style={{ color: colors.brandTextMuted }}>
+            <Text style={{ color: colors.textSecondary }}>
               {"You're offline. Showing last known data where available."}
             </Text>
           </View>

@@ -2,7 +2,7 @@ import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 
 export const softShadow = {
-  shadowColor: colors.brandText,
+  shadowColor: colors.textPrimary,
   shadowOpacity: 0.08,
   shadowRadius: 12,
   shadowOffset: { width: 0, height: 6 },

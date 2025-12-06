@@ -73,7 +73,7 @@ export const LoginScreen: React.FC = () => {
           style={styles.input}
           testID="login-email"
           placeholder="you@example.com"
-          placeholderTextColor={colors.brandTextMuted}
+          placeholderTextColor={colors.textSecondary}
         />
 
         <Text style={[typography.caption, styles.muted]}>Password</Text>
@@ -84,7 +84,7 @@ export const LoginScreen: React.FC = () => {
           style={styles.input}
           testID="login-password"
           placeholder="********"
-          placeholderTextColor={colors.brandTextMuted}
+          placeholderTextColor={colors.textSecondary}
         />
 
         {error ? (
@@ -126,8 +126,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.lg,
   },
-  title: { color: colors.brandText },
-  muted: { color: colors.brandTextMuted },
+  title: { color: colors.textPrimary },
+  muted: { color: colors.textSecondary },
   formCard: {
     padding: spacing.lg,
     marginBottom: spacing.xl,
@@ -135,21 +135,21 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderColor: colors.borderSubtle,
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: colors.backgroundAlt,
     borderRadius: 16,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     marginBottom: spacing.md,
-    color: colors.brandText,
+    color: colors.textPrimary,
   },
   notice: {
     marginTop: spacing.lg,
     padding: spacing.md,
     borderRadius: 12,
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: colors.backgroundAlt,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
   },
-  noticePrimary: { color: colors.brandText, marginBottom: spacing.xs },
-  noticeSecondary: { color: colors.brandTextMuted },
+  noticePrimary: { color: colors.textPrimary, marginBottom: spacing.xs },
+  noticeSecondary: { color: colors.textSecondary },
 });
