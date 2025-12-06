@@ -11,8 +11,7 @@ _2025-12-05 sweep: backend and mobile npm install/typecheck/lint/test/build all 
 - Helpers: root `dev.ps1`/`dev.sh`, `scripts/prepare-openai-image.js`, backend `scripts/init-local-db.js`, `src/scripts/backfillDeviceSnapshots.ts`, `src/scripts/debugHeatPumpHistory.ts`.
 
 ## Branding
-- Palette (from `mobile/app/theme/colors.ts` / `docs/branding/official/`): brandGreen #39B54A, brandGrey #414042, textPrimary #111111, textSecondary #555555, background #FFFFFF, backgroundAlt #F5F7F9, borderSubtle #E1E5EA, error #DC2626, warning #D97706, success #16A34A; gradients.brandPrimary (#39B54A -> #2D9C3E), gradients.brandSoft (#E9F7EC -> #FFFFFF).
-- Assets: approved originals live in `docs/branding/official/` (PDF/PNG); app-ready exports under `mobile/assets/greenbro/` (`greenbro-logo-horizontal.png`, `greenbro-icon-1024.png`, `greenbro-splash.png`).
+- Branding source of truth: `docs/branding/README.md` (palette and asset list). App-ready assets ship under `mobile/assets/greenbro/`; originals live in `docs/branding/official/`.
 
 ## Security / npm audit (2025-12-05)
 - Backend: 8 vulns (0 low / 6 moderate / 2 high / 0 critical). Highs are in dev tooling (node-pg-migrate/glob transitive); moderates are dev-only (vitest/vite/esbuild). See `backend/audit-backend.json`.
