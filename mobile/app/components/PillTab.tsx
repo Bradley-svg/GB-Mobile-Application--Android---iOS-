@@ -17,14 +17,14 @@ export const PillTab: React.FC<PillTabProps> = ({ label, selected, onPress }) =>
     style={[
       styles.pillTab,
       selected
-        ? { backgroundColor: colors.dark, borderColor: colors.dark }
-        : { backgroundColor: 'transparent', borderColor: colors.borderSoft },
+        ? { backgroundColor: colors.brandGreen, borderColor: colors.brandGreen }
+        : { backgroundColor: 'transparent', borderColor: colors.borderSubtle },
     ]}
   >
     <Text
       style={[
         typography.label,
-        { color: selected ? colors.white : colors.textSecondary, textTransform: 'uppercase' },
+        { color: selected ? colors.white : colors.brandTextMuted, textTransform: 'uppercase' },
       ]}
     >
       {label}

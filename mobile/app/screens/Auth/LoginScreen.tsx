@@ -7,7 +7,7 @@ import { useAuthStore } from '../../store/authStore';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
-import logo from '../../../assets/icon.png';
+import GreenbroLogo from '../../../assets/greenbro/greenbro-logo-horizontal.png';
 
 export const LoginScreen: React.FC = () => {
   const [email, setEmail] = useState('demo@greenbro.com');
@@ -53,10 +53,10 @@ export const LoginScreen: React.FC = () => {
 
   return (
     <Screen testID="LoginScreen">
+      <View style={styles.logoRow}>
+        <Image source={GreenbroLogo} style={styles.logo} resizeMode="contain" />
+      </View>
       <View style={styles.hero}>
-        <View style={styles.logoBadge}>
-          <Image source={logo} style={styles.logo} resizeMode="contain" />
-        </View>
         <Text style={[typography.title1, styles.title]}>Welcome back</Text>
         <Text style={[typography.body, styles.muted]}>Monitor and control your Greenbro fleet</Text>
       </View>
@@ -73,7 +73,7 @@ export const LoginScreen: React.FC = () => {
           style={styles.input}
           testID="login-email"
           placeholder="you@example.com"
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={colors.brandTextMuted}
         />
 
         <Text style={[typography.caption, styles.muted]}>Password</Text>
@@ -84,11 +84,11 @@ export const LoginScreen: React.FC = () => {
           style={styles.input}
           testID="login-password"
           placeholder="********"
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={colors.brandTextMuted}
         />
 
         {error ? (
-          <Text style={[typography.caption, { color: colors.danger, marginBottom: spacing.sm }]} testID="login-error">
+          <Text style={[typography.caption, { color: colors.error, marginBottom: spacing.sm }]} testID="login-error">
             {error}
           </Text>
         ) : null}
@@ -113,48 +113,43 @@ export const LoginScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  hero: {
+  logoRow: {
     alignItems: 'center',
     marginTop: spacing.xl,
     marginBottom: spacing.lg,
   },
-  logoBadge: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-  },
   logo: {
-    width: 40,
-    height: 40,
+    width: 260,
+    height: 70,
   },
-  title: { color: colors.dark },
-  muted: { color: colors.textSecondary },
+  hero: {
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  title: { color: colors.brandText },
+  muted: { color: colors.brandTextMuted },
   formCard: {
     padding: spacing.lg,
     marginBottom: spacing.xl,
   },
   input: {
     borderWidth: 1,
-    borderColor: colors.borderSoft,
-    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.backgroundSoft,
     borderRadius: 16,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     marginBottom: spacing.md,
-    color: colors.textPrimary,
+    color: colors.brandText,
   },
   notice: {
     marginTop: spacing.lg,
     padding: spacing.md,
     borderRadius: 12,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: colors.backgroundSoft,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: colors.borderSubtle,
   },
-  noticePrimary: { color: colors.textPrimary, marginBottom: spacing.xs },
-  noticeSecondary: { color: colors.textSecondary },
+  noticePrimary: { color: colors.brandText, marginBottom: spacing.xs },
+  noticeSecondary: { color: colors.brandTextMuted },
 });

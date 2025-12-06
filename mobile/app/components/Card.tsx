@@ -9,13 +9,14 @@ type CardProps = {
   style?: StyleProp<ViewStyle>;
   onPress?: () => void;
   testID?: string;
+  accented?: boolean;
 };
 
-export const Card: React.FC<CardProps> = ({ children, style, onPress, testID }) => {
+export const Card: React.FC<CardProps> = ({ children, style, onPress, testID, accented }) => {
   if (onPress) {
     return (
       <TouchableOpacity
-        style={[styles.card, style]}
+        style={[styles.card, accented ? styles.accented : null, style]}
         onPress={onPress}
         activeOpacity={0.9}
         testID={testID}
@@ -26,7 +27,7 @@ export const Card: React.FC<CardProps> = ({ children, style, onPress, testID }) 
   }
 
   return (
-    <View style={[styles.card, style]} testID={testID}>
+    <View style={[styles.card, accented ? styles.accented : null, style]} testID={testID}>
       {children}
     </View>
   );
@@ -34,11 +35,16 @@ export const Card: React.FC<CardProps> = ({ children, style, onPress, testID }) 
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
     borderRadius: 22,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: colors.borderSubtle,
     ...softShadow,
+  },
+  accented: {
+    borderLeftWidth: 4,
+    borderColor: colors.brandGreen,
+    paddingLeft: spacing.md + spacing.xs,
   },
 });

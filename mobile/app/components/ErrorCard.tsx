@@ -27,12 +27,12 @@ export const ErrorCard: React.FC<Props> = ({ title, message, onRetry, testID }) 
 const styles = StyleSheet.create({
   card: {
     padding: spacing.lg,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
     borderRadius: 16,
-    borderColor: colors.borderSoft,
+    borderColor: colors.borderSubtle,
     borderWidth: 1,
     width: '100%',
   },
-  title: { color: colors.dark },
-  muted: { color: colors.textSecondary },
+  title: { color: colors.brandText },
+  muted: { color: colors.brandTextMuted },
 });

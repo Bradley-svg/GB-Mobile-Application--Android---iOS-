@@ -32,11 +32,11 @@ export const IconButton: React.FC<IconButtonProps> = ({ icon, onPress, size = 40
 
 const styles = StyleSheet.create({
   iconButton: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: colors.borderSubtle,
     ...softShadow,
   },
 });

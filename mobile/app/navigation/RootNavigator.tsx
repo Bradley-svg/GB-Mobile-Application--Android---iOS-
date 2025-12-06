@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { BottomTabBarButtonProps, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -17,6 +17,7 @@ import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
 import { spacing } from '../theme/spacing';
 import { surfaceStyles } from '../components';
+import GreenbroLogo from '../../assets/greenbro/greenbro-logo-horizontal.png';
 
 export type RootStackParamList = {
   Auth: undefined;
@@ -41,9 +42,13 @@ const AuthStack = createNativeStackNavigator();
 const AppStack = createNativeStackNavigator<AppStackParamList>();
 const Tab = createBottomTabNavigator<AppTabParamList>();
 
-const tabButton = (testID: string) => (props: BottomTabBarButtonProps) => (
-  <TouchableOpacity {...props} testID={testID} accessibilityLabel={testID} />
-);
+const tabButton = (testID: string) => {
+  const Button: React.FC<BottomTabBarButtonProps> = (props) => (
+    <TouchableOpacity {...props} testID={testID} accessibilityLabel={testID} />
+  );
+  Button.displayName = `TabButton-${testID}`;
+  return Button;
+};
 
 function AuthNavigator() {
   return (
@@ -69,8 +74,8 @@ function AppTabs() {
           height: 90,
           paddingBottom: spacing.md,
         },
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarActiveTintColor: colors.brandGreen,
+        tabBarInactiveTintColor: colors.brandTextMuted,
         tabBarLabelStyle: { ...typography.caption, marginBottom: spacing.xs },
         tabBarItemStyle: { height: 70 },
         tabBarBackground: () => (
@@ -82,7 +87,9 @@ function AppTabs() {
               bottom: spacing.md,
               height: 68,
               borderRadius: 28,
-              backgroundColor: colors.surface,
+              backgroundColor: colors.background,
+              borderWidth: 1,
+              borderColor: colors.borderSubtle,
               ...surfaceStyles.shadow,
             }}
           />
@@ -101,12 +108,12 @@ function AppTabs() {
                 style={{
                   padding: focused ? spacing.md : spacing.sm,
                   borderRadius: 16,
-                  backgroundColor: focused ? colors.primarySoft : colors.surfaceMuted,
+                  backgroundColor: focused ? colors.brandGreenSoft : colors.backgroundSoft,
                   borderWidth: focused ? 0 : 1,
-                  borderColor: colors.borderSoft,
+                  borderColor: colors.borderSubtle,
                 }}
               >
-                <Ionicons name={iconName} size={22} color={focused ? colors.primary : color} />
+                <Ionicons name={iconName} size={22} color={focused ? colors.brandGreen : color} />
               </View>
             </View>
           );
@@ -120,6 +127,16 @@ function AppTabs() {
           tabBarLabel: 'Dashboard',
           tabBarTestID: 'tab-dashboard',
           tabBarButton: tabButton('tab-dashboard'),
+          headerShown: true,
+          headerTitle: () => (
+            <Image
+              source={GreenbroLogo}
+              style={{ width: 150, height: 40, resizeMode: 'contain' }}
+              accessibilityLabel="Greenbro logo"
+            />
+          ),
+          headerStyle: { backgroundColor: colors.background },
+          headerShadowVisible: false,
         }}
       />
       <Tab.Screen
@@ -177,12 +194,14 @@ export const RootNavigator: React.FC<RootNavigatorProps> = ({ isAuthenticated, s
                 {sessionExpired ? (
                   <View
                     style={{
-                      backgroundColor: colors.surfaceMuted,
+                      backgroundColor: colors.backgroundSoft,
                       paddingVertical: spacing.sm,
                       paddingHorizontal: spacing.md,
+                      borderBottomWidth: 1,
+                      borderColor: colors.borderSubtle,
                     }}
                   >
-                    <Text style={[typography.caption, { color: colors.textPrimary }]}> 
+                    <Text style={[typography.caption, { color: colors.brandText }]}>
                       Your session has expired. Please log in again.
                     </Text>
                   </View>

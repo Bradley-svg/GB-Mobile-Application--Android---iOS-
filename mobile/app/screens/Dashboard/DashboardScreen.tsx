@@ -3,13 +3,14 @@ import { View, Text, ActivityIndicator, StyleSheet, FlatList } from 'react-nativ
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAlerts, useSites } from '../../api/hooks';
 import type { ApiSite } from '../../api/types';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { Screen, Card, IconButton, ErrorCard, EmptyState } from '../../components';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { loadJson, saveJson } from '../../utils/storage';
-import { colors } from '../../theme/colors';
+import { colors, gradients } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 
@@ -60,14 +61,14 @@ export const DashboardScreen: React.FC = () => {
     return [
       { label: 'Sites', value: totalSites },
       { label: 'Online devices', value: onlineDevices },
-      { label: 'Active alerts', value: alerts?.length ?? 0, color: colors.danger },
+      { label: 'Active alerts', value: alerts?.length ?? 0, color: colors.error },
     ];
   }, [alerts?.length, sites]);
 
   if (showLoading) {
     return (
       <Screen scroll={false} contentContainerStyle={styles.center} testID="DashboardScreen">
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={colors.brandGreen} />
         <Text style={[typography.body, styles.muted, { marginTop: spacing.sm }]}>Loading sites...</Text>
       </Screen>
     );
@@ -88,20 +89,25 @@ export const DashboardScreen: React.FC = () => {
 
   const listHeader = (
     <View>
-      <View style={styles.heroCard}>
+      <LinearGradient
+        colors={[gradients.hero.start, gradients.hero.end]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.heroCard}
+      >
         <View>
-          <Text style={[typography.caption, styles.muted, { marginBottom: spacing.xs }]}>Portfolio</Text>
-          <Text style={[typography.title1, styles.title]}>Greenbro</Text>
-          <Text style={[typography.body, styles.muted]}>Sites and devices at a glance</Text>
+          <Text style={[typography.caption, styles.heroMuted, { marginBottom: spacing.xs }]}>Portfolio</Text>
+          <Text style={[typography.title1, styles.heroTitle]}>Greenbro</Text>
+          <Text style={[typography.body, styles.heroMuted]}>Sites and devices at a glance</Text>
         </View>
         <View style={{ flexDirection: 'row' }}>
           <IconButton
-            icon={<Ionicons name="notifications-outline" size={20} color={colors.dark} />}
+            icon={<Ionicons name="notifications-outline" size={20} color={colors.brandGrey} />}
             style={{ marginRight: spacing.sm }}
           />
-          <IconButton icon={<Ionicons name="settings-outline" size={20} color={colors.dark} />} />
+          <IconButton icon={<Ionicons name="settings-outline" size={20} color={colors.brandGrey} />} />
         </View>
-      </View>
+      </LinearGradient>
 
       {isOffline ? (
         <Text style={[typography.caption, styles.offlineNote]}>Offline - showing last known data.</Text>
@@ -116,7 +122,7 @@ export const DashboardScreen: React.FC = () => {
                 style={[
                   typography.title2,
                   styles.title,
-                  metric.color ? { color: metric.color } : { color: colors.dark },
+                  metric.color ? { color: metric.color } : { color: colors.brandText },
                 ]}
               >
                 {metric.value}
@@ -158,7 +164,7 @@ export const DashboardScreen: React.FC = () => {
           >
             <View style={styles.siteHeader}>
               <View style={styles.iconBadge}>
-                <Ionicons name="home-outline" size={18} color={colors.primary} />
+                <Ionicons name="home-outline" size={18} color={colors.brandGreen} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[typography.subtitle, styles.title]} numberOfLines={1}>
@@ -179,7 +185,7 @@ export const DashboardScreen: React.FC = () => {
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={[typography.caption, styles.muted]}>Status</Text>
-                <Text style={[typography.body, { color: colors.textSecondary }]}>
+                <Text style={[typography.body, { color: colors.brandTextMuted }]}>
                   {item.status || 'Unknown'}
                 </Text>
               </View>
@@ -193,21 +199,21 @@ export const DashboardScreen: React.FC = () => {
 
 const renderStatusPill = (status?: string | null) => {
   const normalized = (status || '').toLowerCase();
-  let backgroundColor = colors.surfaceMuted;
-  let textColor = colors.textSecondary;
+  let backgroundColor: string = colors.backgroundSoft;
+  let textColor: string = colors.brandTextMuted;
   let label = status || 'Unknown';
 
   if (normalized.includes('healthy') || normalized.includes('online')) {
-    backgroundColor = colors.primarySoft;
+    backgroundColor = colors.brandGreenSoft;
     textColor = colors.success;
     label = 'Healthy';
   } else if (normalized.includes('warn')) {
-    backgroundColor = '#FFF5E6';
+    backgroundColor = colors.warningSoft;
     textColor = colors.warning;
     label = 'Warning';
   } else if (normalized.includes('off') || normalized.includes('down')) {
-    backgroundColor = '#FFE8E6';
-    textColor = colors.danger;
+    backgroundColor = colors.errorSoft;
+    textColor = colors.error;
     label = 'Offline';
   }
 
@@ -228,13 +234,12 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   title: {
-    color: colors.dark,
+    color: colors.brandText,
   },
   muted: {
-    color: colors.textSecondary,
+    color: colors.brandTextMuted,
   },
   heroCard: {
-    backgroundColor: colors.surfaceMuted,
     padding: spacing.lg,
     borderRadius: 24,
     flexDirection: 'row',
@@ -242,9 +247,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: spacing.xl,
     marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.brandGreenLight,
+  },
+  heroTitle: {
+    color: colors.white,
+  },
+  heroMuted: {
+    color: colors.white,
   },
   offlineNote: {
-    color: colors.textSecondary,
+    color: colors.brandTextMuted,
     marginBottom: spacing.sm,
   },
   metricsCard: {
@@ -259,7 +272,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     marginBottom: spacing.md,
-    color: colors.dark,
+    color: colors.brandText,
   },
   gridRow: {
     flex: 1,
@@ -279,7 +292,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.primarySoft,
+    backgroundColor: colors.brandGreenSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.sm,

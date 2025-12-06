@@ -12,10 +12,10 @@ export const softShadow = {
 export const surfaceStyles = {
   shadow: softShadow,
   base: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
     borderRadius: 22,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: colors.borderSubtle,
   },
 };

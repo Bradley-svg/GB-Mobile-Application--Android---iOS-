@@ -6,7 +6,7 @@ import { Screen, Card, PrimaryButton } from '../../components';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
-import logo from '../../../assets/icon.png';
+import GreenbroLogo from '../../../assets/greenbro/greenbro-logo-horizontal.png';
 
 type AuthStackParamList = {
   Login: undefined;
@@ -20,10 +20,10 @@ export const ForgotPasswordScreen: React.FC = () => {
 
   return (
     <Screen>
+      <View style={styles.logoRow}>
+        <Image source={GreenbroLogo} style={styles.logo} resizeMode="contain" />
+      </View>
       <View style={styles.hero}>
-        <View style={styles.logoBadge}>
-          <Image source={logo} style={styles.logo} resizeMode="contain" />
-        </View>
         <Text style={[typography.title1, styles.title]}>Password reset</Text>
         <Text style={[typography.body, styles.muted]}>
           Password reset is not available in this build.
@@ -40,7 +40,7 @@ export const ForgotPasswordScreen: React.FC = () => {
 
         <View style={styles.linksRow}>
           <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-            <Text style={[typography.body, { color: colors.primary }]}>Back to login</Text>
+            <Text style={[typography.body, { color: colors.brandTextMuted }]}>Back to login</Text>
           </TouchableOpacity>
         </View>
       </Card>
@@ -49,28 +49,23 @@ export const ForgotPasswordScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  hero: {
+  logoRow: {
     alignItems: 'center',
     marginTop: spacing.xl,
     marginBottom: spacing.lg,
   },
-  logoBadge: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.primarySoft,
+  logo: { width: 240, height: 64 },
+  hero: {
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
-  logo: { width: 40, height: 40 },
-  title: { color: colors.dark },
-  muted: { color: colors.textSecondary },
+  title: { color: colors.brandText },
+  muted: { color: colors.brandTextMuted },
   formCard: {
     padding: spacing.lg,
     marginBottom: spacing.xl,
   },
-  notice: { color: colors.textPrimary, marginBottom: spacing.md },
+  notice: { color: colors.brandText, marginBottom: spacing.md },
   linksRow: {
     marginTop: spacing.md,
   },

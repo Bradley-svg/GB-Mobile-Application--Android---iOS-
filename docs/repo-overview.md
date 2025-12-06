@@ -10,6 +10,11 @@ _2025-12-05 sweep: backend and mobile npm install/typecheck/lint/test/build all 
 - `logs/`: Git-ignored runtime logs. A few dev logs remain under root/backend while locked by running node processes.
 - Helpers: root `dev.ps1`/`dev.sh`, `scripts/prepare-openai-image.js`, backend `scripts/init-local-db.js`, `src/scripts/backfillDeviceSnapshots.ts`, `src/scripts/debugHeatPumpHistory.ts`.
 
+## Branding
+- Palette (sampled from `docs/branding/GREENBRO LOGO APP.svg`): brandGreen #39B54A, brandGreenDark #329F41, brandGreenLight #3FCA52, brandGrey #414042, brandText #111111, brandTextMuted #555555, background #FFFFFF, backgroundSoft #F5F7F9, borderSubtle #E1E5EA, error #DC2626, warning #D97706, success #16A34A.
+- Gradients: hero (brandGreen -> brandGreenLight), primary button (brandGreenDark -> brandGreen).
+- Assets: source of truth logos live in `docs/branding/` (SVG + colour/illustration PNG/PDF); app-ready PNGs for Expo are under `mobile/assets/greenbro/` (horizontal logo, 1024 icon/adaptive foreground, splash).
+
 ## Security / npm audit (2025-12-05)
 - Backend: 8 vulns (0 low / 6 moderate / 2 high / 0 critical). Highs are in dev tooling (node-pg-migrate/glob transitive); moderates are dev-only (vitest/vite/esbuild). See `backend/audit-backend.json`.
 - Mobile: 3 low vulns (expo send template injection via @expo/cli). Fix requires major Expo jump (54.x); accepted until planned Expo upgrade. See `mobile/audit-mobile.json`.

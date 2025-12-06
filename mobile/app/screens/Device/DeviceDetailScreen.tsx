@@ -264,7 +264,7 @@ export const DeviceDetailScreen: React.FC = () => {
   if (showLoading) {
     return (
       <Screen scroll={false} contentContainerStyle={styles.center} testID="DeviceDetailScreen">
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={colors.brandGreen} />
         <Text style={[typography.body, styles.muted, { marginTop: spacing.sm }]}>Loading device...</Text>
       </Screen>
     );
@@ -363,14 +363,14 @@ export const DeviceDetailScreen: React.FC = () => {
     <Screen testID="DeviceDetailScreen">
       <View style={styles.topBar}>
         <IconButton
-          icon={<Ionicons name="chevron-back" size={20} color={colors.dark} />}
+          icon={<Ionicons name="chevron-back" size={20} color={colors.brandGrey} />}
           onPress={() => navigation.goBack()}
           testID="device-back-button"
         />
-        <IconButton icon={<Ionicons name="notifications-outline" size={20} color={colors.dark} />} />
+        <IconButton icon={<Ionicons name="notifications-outline" size={20} color={colors.brandGrey} />} />
       </View>
 
-      <Card style={styles.headerCard}>
+      <Card style={styles.headerCard} accented>
         <View style={{ flex: 1 }}>
           <Text style={[typography.caption, styles.muted, { marginBottom: spacing.xs }]}>Device</Text>
           <Text style={[typography.title1, styles.title]}>{device.name}</Text>
@@ -401,7 +401,7 @@ export const DeviceDetailScreen: React.FC = () => {
         <View style={styles.dialWrapper}>
           <View style={styles.dialOuter}>
             <View style={styles.dialInner}>
-              <Text style={[typography.title1, { color: colors.primary }]}>{`${currentTemp}\u00B0`}</Text>
+              <Text style={[typography.title1, { color: colors.brandGreen }]}>{`${currentTemp}\u00B0`}</Text>
               <Text style={[typography.caption, styles.muted]}>Supply</Text>
             </View>
           </View>
@@ -412,7 +412,7 @@ export const DeviceDetailScreen: React.FC = () => {
           <View style={styles.powerSwitch}>
             <View style={styles.powerThumb} />
           </View>
-          <Ionicons name="power-outline" size={20} color={colors.primary} style={{ marginTop: spacing.xs }} />
+          <Ionicons name="power-outline" size={20} color={colors.brandGreen} style={{ marginTop: spacing.xs }} />
         </View>
       </Card>
 
@@ -438,7 +438,7 @@ export const DeviceDetailScreen: React.FC = () => {
 
       {telemetryLoading && (
         <View style={styles.loadingRow}>
-          <ActivityIndicator color={colors.primary} />
+          <ActivityIndicator color={colors.brandGreen} />
           <Text style={[typography.caption, styles.muted, { marginLeft: spacing.sm }]}>Loading telemetry...</Text>
         </View>
       )}
@@ -455,7 +455,7 @@ export const DeviceDetailScreen: React.FC = () => {
         <View testID="telemetry-section">
           {renderMetricCard(
             'Flow temperatures (C)',
-            colors.info,
+            colors.brandGreenDark,
             hasSupplyData || hasReturnData,
             <VictoryChart scale={{ x: 'time' }}>
               <VictoryAxis tickFormat={formatAxisTick} tickCount={xTickCount} />
@@ -466,11 +466,11 @@ export const DeviceDetailScreen: React.FC = () => {
                 orientation="horizontal"
                 gutter={20}
                 data={[
-                  { name: 'Supply', symbol: { fill: colors.primary } },
+                  { name: 'Supply', symbol: { fill: colors.brandGreen } },
                   { name: 'Return', symbol: { fill: colors.warning } },
                 ]}
               />
-              <VictoryLine data={supplyData} style={{ data: { stroke: colors.primary } }} />
+              <VictoryLine data={supplyData} style={{ data: { stroke: colors.brandGreen } }} />
               <VictoryLine data={returnData} style={{ data: { stroke: colors.warning } }} />
             </VictoryChart>,
             emptyMetricPlaceholder
@@ -478,24 +478,24 @@ export const DeviceDetailScreen: React.FC = () => {
 
           {renderMetricCard(
             'Power (kW)',
-            colors.primary,
+            colors.brandGreen,
             hasPowerData,
             <VictoryChart scale={{ x: 'time' }}>
               <VictoryAxis tickFormat={formatAxisTick} tickCount={xTickCount} />
               <VictoryAxis dependentAxis />
-              <VictoryLine data={powerData} style={{ data: { stroke: colors.primary } }} />
+              <VictoryLine data={powerData} style={{ data: { stroke: colors.brandGreen } }} />
             </VictoryChart>,
             emptyMetricPlaceholder
           )}
 
           {renderMetricCard(
             'Flow rate (L/s)',
-            colors.info,
+            colors.brandGreenDark,
             hasFlowData,
             <VictoryChart scale={{ x: 'time' }}>
               <VictoryAxis tickFormat={formatAxisTick} tickCount={xTickCount} />
               <VictoryAxis dependentAxis />
-              <VictoryLine data={flowData} style={{ data: { stroke: colors.info } }} />
+              <VictoryLine data={flowData} style={{ data: { stroke: colors.brandGreenDark } }} />
             </VictoryChart>,
             emptyMetricPlaceholder
           )}
@@ -544,7 +544,7 @@ export const DeviceDetailScreen: React.FC = () => {
               <VictoryChart scale={{ x: 'time' }}>
                 <VictoryAxis dependentAxis />
                 <VictoryAxis tickFormat={(t) => formatAxisTick(t)} tickCount={xTickCount} />
-                <VictoryLine data={heatPumpSeries} style={{ data: { stroke: colors.primary } }} />
+                <VictoryLine data={heatPumpSeries} style={{ data: { stroke: colors.brandGreen } }} />
               </VictoryChart>
             </View>
           )}
@@ -556,7 +556,7 @@ export const DeviceDetailScreen: React.FC = () => {
             <Text style={[typography.subtitle, styles.title]}>Setpoint</Text>
             <Text style={[typography.caption, styles.muted]}>Safe range 30-60C</Text>
           </View>
-          <Text style={[typography.title2, { color: colors.primary }]}>{`${lastSetpoint}\u00B0C`}</Text>
+          <Text style={[typography.title2, { color: colors.brandGreen }]}>{`${lastSetpoint}\u00B0C`}</Text>
         </View>
         <TextInput
           testID="setpoint-input"
@@ -605,8 +605,8 @@ export const DeviceDetailScreen: React.FC = () => {
                 style={[
                   styles.modeChip,
                   selected
-                    ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                    : { backgroundColor: colors.surfaceMuted },
+                    ? { backgroundColor: colors.brandGreen, borderColor: colors.brandGreen }
+                    : { backgroundColor: colors.backgroundSoft },
                 ]}
                 onPress={() => onModeChange(mode)}
                 activeOpacity={0.9}
@@ -615,7 +615,7 @@ export const DeviceDetailScreen: React.FC = () => {
                 <Text
                   style={[
                     typography.subtitle,
-                    { color: selected ? colors.white : colors.textSecondary, textAlign: 'center' },
+                    { color: selected ? colors.white : colors.brandTextMuted, textAlign: 'center' },
                   ]}
                 >
                   {mode}
@@ -641,7 +641,7 @@ export const DeviceDetailScreen: React.FC = () => {
                   {a.severity.toUpperCase()} - {new Date(a.last_seen_at).toLocaleString()}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              <Ionicons name="chevron-forward" size={16} color={colors.brandTextMuted} />
             </View>
           ))}
         </Card>
@@ -653,31 +653,31 @@ export const DeviceDetailScreen: React.FC = () => {
 const severityColor = (severity: string) => {
   switch (severity) {
     case 'critical':
-      return colors.danger;
+      return colors.error;
     case 'warning':
       return colors.warning;
     default:
-      return colors.info;
+      return colors.brandGreenLight;
   }
 };
 
 const renderStatusPill = (status?: string | null) => {
   const normalized = (status || '').toLowerCase();
-  let backgroundColor = colors.surfaceMuted;
-  let textColor = colors.textSecondary;
+  let backgroundColor: string = colors.backgroundSoft;
+  let textColor: string = colors.brandTextMuted;
   let label = status || 'Unknown';
 
   if (normalized.includes('online') || normalized.includes('healthy')) {
-    backgroundColor = colors.primarySoft;
+    backgroundColor = colors.brandGreenSoft;
     textColor = colors.success;
     label = 'Healthy';
   } else if (normalized.includes('warn')) {
-    backgroundColor = '#FFF5E6';
+    backgroundColor = colors.warningSoft;
     textColor = colors.warning;
     label = 'Warning';
   } else if (normalized.includes('off')) {
-    backgroundColor = '#FFE8E6';
-    textColor = colors.danger;
+    backgroundColor = colors.errorSoft;
+    textColor = colors.error;
     label = 'Offline';
   }
 
@@ -768,17 +768,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    color: colors.dark,
+    color: colors.brandText,
   },
   muted: {
-    color: colors.textSecondary,
+    color: colors.brandTextMuted,
   },
   staleText: {
     color: colors.warning,
     marginTop: spacing.xs,
   },
   offlineNote: {
-    color: colors.textSecondary,
+    color: colors.brandTextMuted,
   },
   topBar: {
     flexDirection: 'row',
@@ -803,16 +803,16 @@ const styles = StyleSheet.create({
     height: 110,
     borderRadius: 55,
     borderWidth: 10,
-    borderColor: colors.borderSoft,
+    borderColor: colors.borderSubtle,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primarySoft,
+    backgroundColor: colors.brandGreenSoft,
   },
   dialInner: {
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -824,9 +824,9 @@ const styles = StyleSheet.create({
     width: 24,
     height: 90,
     borderRadius: 16,
-    backgroundColor: colors.primarySoft,
+    backgroundColor: colors.brandGreenSoft,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: colors.borderSubtle,
     justifyContent: 'flex-start',
     padding: spacing.xs,
   },
@@ -836,7 +836,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: colors.borderSubtle,
   },
   statusPill: {
     paddingHorizontal: spacing.md,
@@ -871,11 +871,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   cardPlaceholder: {
-    color: colors.textSecondary,
+    color: colors.brandTextMuted,
     marginTop: spacing.sm,
   },
   cardError: {
-    color: colors.danger,
+    color: colors.error,
     marginTop: spacing.sm,
   },
   chartWrapper: {
@@ -893,24 +893,24 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: colors.borderSoft,
-    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.backgroundSoft,
     borderRadius: 16,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     marginBottom: spacing.md,
   },
   errorText: {
-    color: colors.danger,
+    color: colors.error,
     marginBottom: spacing.sm,
   },
   commandError: {
     marginBottom: spacing.md,
     padding: spacing.md,
     borderRadius: 12,
-    backgroundColor: '#FFE8E6',
+    backgroundColor: colors.errorSoft,
     borderWidth: 1,
-    borderColor: colors.danger,
+    borderColor: colors.error,
   },
   errorCard: {
     marginBottom: spacing.md,
@@ -931,7 +931,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: colors.borderSubtle,
     marginRight: spacing.sm,
     marginBottom: spacing.sm,
   },

@@ -93,24 +93,24 @@ export const ProfileScreen: React.FC = () => {
             {user?.email ?? ''}
           </Text>
         </View>
-        <IconButton icon={<Ionicons name="settings-outline" size={20} color={colors.dark} />} />
+        <IconButton icon={<Ionicons name="settings-outline" size={20} color={colors.brandGrey} />} />
       </Card>
 
       <Card style={styles.listCard}>
         <View style={styles.listRow}>
           <View style={styles.rowLeft}>
-            <Ionicons name="notifications-outline" size={18} color={colors.primary} />
+            <Ionicons name="notifications-outline" size={18} color={colors.brandGreen} />
             <Text style={[typography.body, styles.title, { marginLeft: spacing.sm }]}>Notifications</Text>
           </View>
           {preferencesLoading || preferencesFetching ? (
-            <ActivityIndicator color={colors.primary} size="small" style={{ marginRight: spacing.sm }} />
+            <ActivityIndicator color={colors.brandGreen} size="small" style={{ marginRight: spacing.sm }} />
           ) : null}
           <Switch
             testID="notification-preference-toggle"
             value={alertsEnabled}
             onValueChange={onToggleNotifications}
             disabled={toggleDisabled}
-            trackColor={{ false: colors.borderSoft, true: colors.primary }}
+            trackColor={{ false: colors.borderSubtle, true: colors.brandGreen }}
             thumbColor={colors.white}
           />
         </View>
@@ -135,7 +135,7 @@ export const ProfileScreen: React.FC = () => {
         <View style={styles.separator} />
         <View style={styles.listRow}>
           <View style={styles.rowLeft}>
-            <Ionicons name="moon-outline" size={18} color={colors.primary} />
+            <Ionicons name="moon-outline" size={18} color={colors.brandGreen} />
             <Text style={[typography.body, styles.title, { marginLeft: spacing.sm }]}>Theme</Text>
           </View>
           <Text style={[typography.caption, styles.muted]}>Light</Text>
@@ -143,10 +143,10 @@ export const ProfileScreen: React.FC = () => {
         <View style={styles.separator} />
         <View style={styles.listRow}>
           <View style={styles.rowLeft}>
-            <Ionicons name="information-circle-outline" size={18} color={colors.primary} />
+            <Ionicons name="information-circle-outline" size={18} color={colors.brandGreen} />
             <Text style={[typography.body, styles.title, { marginLeft: spacing.sm }]}>About</Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+          <Ionicons name="chevron-forward" size={16} color={colors.brandTextMuted} />
         </View>
       </Card>
 
@@ -167,13 +167,13 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 27,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.brandGreen,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.md,
   },
-  title: { color: colors.dark },
-  muted: { color: colors.textSecondary },
+  title: { color: colors.brandText },
+  muted: { color: colors.brandTextMuted },
   listCard: {
     marginBottom: spacing.xl,
     paddingVertical: spacing.sm,
@@ -203,13 +203,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   errorText: {
-    color: colors.danger,
+    color: colors.error,
     marginTop: spacing.xs,
     paddingHorizontal: spacing.lg,
   },
   separator: {
     height: 1,
-    backgroundColor: colors.borderSoft,
+    backgroundColor: colors.borderSubtle,
     marginHorizontal: spacing.lg,
   },
 });

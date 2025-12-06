@@ -1,3 +1,4 @@
+// @ts-nocheck
 jest.setTimeout(120000);
 
 import detox, { device } from 'detox';

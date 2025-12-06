@@ -19,14 +19,14 @@ const styles = StyleSheet.create({
   container: {
     padding: spacing.lg,
     borderRadius: 16,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: colors.backgroundSoft,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: colors.borderSubtle,
     alignItems: 'center',
     justifyContent: 'center',
   },
   text: {
-    color: colors.textSecondary,
+    color: colors.brandTextMuted,
     textAlign: 'center',
   },
 });

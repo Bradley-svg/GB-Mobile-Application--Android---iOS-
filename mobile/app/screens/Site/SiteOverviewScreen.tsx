@@ -80,7 +80,7 @@ export const SiteOverviewScreen: React.FC = () => {
   if (showLoading) {
     return (
       <Screen scroll={false} contentContainerStyle={styles.center} testID="SiteOverviewScreen">
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={colors.brandGreen} />
         <Text style={[typography.body, styles.muted, { marginTop: spacing.sm }]}>Loading site...</Text>
       </Screen>
     );
@@ -119,12 +119,12 @@ export const SiteOverviewScreen: React.FC = () => {
     <Screen scroll={false} contentContainerStyle={{ paddingBottom: spacing.xxl }} testID="SiteOverviewScreen">
       <View style={styles.topBar}>
         <IconButton
-          icon={<Ionicons name="chevron-back" size={20} color={colors.dark} />}
+          icon={<Ionicons name="chevron-back" size={20} color={colors.brandGrey} />}
           onPress={() => navigation.goBack()}
           testID="site-back-button"
           style={{ marginRight: spacing.sm }}
         />
-        <IconButton icon={<Ionicons name="ellipsis-horizontal" size={20} color={colors.dark} />} />
+        <IconButton icon={<Ionicons name="ellipsis-horizontal" size={20} color={colors.brandGrey} />} />
       </View>
 
       <Card style={styles.headerCard}>
@@ -140,7 +140,7 @@ export const SiteOverviewScreen: React.FC = () => {
       </Card>
 
       {isOffline ? (
-        <Text style={[typography.caption, styles.muted, styles.offlineNote]}>Offline — showing last known data.</Text>
+        <Text style={[typography.caption, styles.muted, styles.offlineNote]}>Offline - showing last known data.</Text>
       ) : null}
 
       <Text style={[typography.subtitle, styles.sectionTitle]}>Devices</Text>
@@ -157,7 +157,7 @@ export const SiteOverviewScreen: React.FC = () => {
           >
             <View style={styles.deviceRow}>
               <View style={styles.deviceIcon}>
-                <Ionicons name="thermometer-outline" size={18} color={colors.primary} />
+                <Ionicons name="thermometer-outline" size={18} color={colors.brandGreen} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[typography.subtitle, styles.title]} numberOfLines={1}>
@@ -170,7 +170,7 @@ export const SiteOverviewScreen: React.FC = () => {
                 <Ionicons
                   name="chevron-forward"
                   size={18}
-                  color={colors.textMuted}
+                  color={colors.brandTextMuted}
                   style={{ marginTop: spacing.xs }}
                 />
               </View>
@@ -190,21 +190,21 @@ export const SiteOverviewScreen: React.FC = () => {
 
 const renderStatusPill = (status?: string | null) => {
   const normalized = (status || '').toLowerCase();
-  let backgroundColor = colors.surfaceMuted;
-  let textColor = colors.textSecondary;
+  let backgroundColor: string = colors.backgroundSoft;
+  let textColor: string = colors.brandTextMuted;
   let label = status || 'Unknown';
 
   if (normalized.includes('online') || normalized.includes('healthy')) {
-    backgroundColor = colors.primarySoft;
+    backgroundColor = colors.brandGreenSoft;
     textColor = colors.success;
     label = 'Healthy';
   } else if (normalized.includes('warn')) {
-    backgroundColor = '#FFF5E6';
+    backgroundColor = colors.warningSoft;
     textColor = colors.warning;
     label = 'Warning';
   } else if (normalized.includes('off')) {
-    backgroundColor = '#FFE8E6';
-    textColor = colors.danger;
+    backgroundColor = colors.errorSoft;
+    textColor = colors.error;
     label = 'Offline';
   }
 
@@ -225,10 +225,10 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   title: {
-    color: colors.dark,
+    color: colors.brandText,
   },
   muted: {
-    color: colors.textSecondary,
+    color: colors.brandTextMuted,
   },
   topBar: {
     flexDirection: 'row',
@@ -242,13 +242,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: spacing.sm,
+    borderLeftWidth: 4,
+    borderColor: colors.brandGreen,
   },
   offlineNote: {
     marginBottom: spacing.md,
   },
   sectionTitle: {
     marginBottom: spacing.md,
-    color: colors.dark,
+    color: colors.brandText,
   },
   statusPill: {
     paddingHorizontal: spacing.md,
@@ -268,7 +270,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.primarySoft,
+    backgroundColor: colors.brandGreenSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.sm,

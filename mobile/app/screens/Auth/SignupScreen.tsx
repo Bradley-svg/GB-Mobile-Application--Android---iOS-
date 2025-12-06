@@ -6,7 +6,7 @@ import { Screen, Card, PrimaryButton } from '../../components';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
-import logo from '../../../assets/icon.png';
+import GreenbroLogo from '../../../assets/greenbro/greenbro-logo-horizontal.png';
 
 type AuthStackParamList = {
   Login: undefined;
@@ -20,10 +20,10 @@ export const SignupScreen: React.FC = () => {
 
   return (
     <Screen>
+      <View style={styles.logoRow}>
+        <Image source={GreenbroLogo} style={styles.logo} resizeMode="contain" />
+      </View>
       <View style={styles.hero}>
-        <View style={styles.logoBadge}>
-          <Image source={logo} style={styles.logo} resizeMode="contain" />
-        </View>
         <Text style={[typography.title1, styles.title]}>Access restricted</Text>
         <Text style={[typography.body, styles.muted]}>
           New account creation is disabled for this pilot.
@@ -45,23 +45,18 @@ export const SignupScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  hero: {
+  logoRow: {
     alignItems: 'center',
     marginTop: spacing.xl,
     marginBottom: spacing.lg,
   },
-  logoBadge: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.primarySoft,
+  logo: { width: 240, height: 64 },
+  hero: {
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
-  logo: { width: 40, height: 40 },
-  title: { color: colors.dark },
-  muted: { color: colors.textSecondary },
+  title: { color: colors.brandText },
+  muted: { color: colors.brandTextMuted },
   formCard: {
     padding: spacing.lg,
     marginBottom: spacing.xl,
@@ -69,10 +64,10 @@ const styles = StyleSheet.create({
   notice: {
     padding: spacing.md,
     borderRadius: 12,
-    backgroundColor: colors.surfaceMuted,
-    borderColor: colors.borderSoft,
+    backgroundColor: colors.backgroundSoft,
+    borderColor: colors.borderSubtle,
     borderWidth: 1,
     marginBottom: spacing.md,
   },
-  noticeText: { color: colors.textPrimary },
+  noticeText: { color: colors.brandText },
 });

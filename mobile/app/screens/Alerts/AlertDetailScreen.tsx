@@ -27,7 +27,7 @@ export const AlertDetailScreen: React.FC = () => {
   if (isLoading || !alerts) {
     return (
       <Screen scroll={false} contentContainerStyle={styles.center} testID="AlertDetailScreen">
-        <ActivityIndicator color={colors.primary} />
+        <ActivityIndicator color={colors.brandGreen} />
         <Text style={[typography.body, styles.muted, { marginTop: spacing.sm }]}>Loading alert...</Text>
       </Screen>
     );
@@ -75,7 +75,7 @@ export const AlertDetailScreen: React.FC = () => {
     <Screen scroll={false} contentContainerStyle={{ paddingBottom: spacing.xxl }} testID="AlertDetailScreen">
       <View style={styles.topBar}>
         <IconButton
-          icon={<Ionicons name="chevron-back" size={20} color={colors.dark} />}
+          icon={<Ionicons name="chevron-back" size={20} color={colors.brandGrey} />}
           onPress={() => navigation.goBack()}
           testID="alert-back-button"
         />
@@ -142,11 +142,11 @@ export const AlertDetailScreen: React.FC = () => {
 const severityColor = (severity: string) => {
   switch (severity) {
     case 'critical':
-      return colors.danger;
+      return colors.error;
     case 'warning':
       return colors.warning;
     default:
-      return colors.info;
+      return colors.brandGreenLight;
   }
 };
 
@@ -156,8 +156,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: { color: colors.dark },
-  muted: { color: colors.textSecondary },
+  title: { color: colors.brandText },
+  muted: { color: colors.brandTextMuted },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'flex-start',
@@ -187,5 +187,5 @@ const styles = StyleSheet.create({
   actions: {
     marginBottom: spacing.xl,
   },
-  offlineNote: { color: colors.textSecondary, marginTop: spacing.sm },
+  offlineNote: { color: colors.brandTextMuted, marginTop: spacing.sm },
 });

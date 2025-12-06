@@ -24,11 +24,11 @@ const SEVERITY_ORDER: Record<string, number> = {
 const severityColor = (severity: string) => {
   switch (severity) {
     case 'critical':
-      return colors.danger;
+      return colors.error;
     case 'warning':
       return colors.warning;
     default:
-      return colors.info;
+      return colors.brandGreenLight;
   }
 };
 
@@ -96,7 +96,7 @@ export const AlertsScreen: React.FC = () => {
   if (showLoading) {
     return (
       <Screen scroll={false} contentContainerStyle={styles.center} testID="AlertsScreen">
-        <ActivityIndicator color={colors.primary} />
+        <ActivityIndicator color={colors.brandGreen} />
         <Text style={[typography.body, styles.muted, { marginTop: spacing.sm }]}>Loading alerts...</Text>
       </Screen>
     );
@@ -138,7 +138,7 @@ export const AlertsScreen: React.FC = () => {
                 <Text style={[typography.caption, styles.muted]}>Overview</Text>
                 <Text style={[typography.title1, styles.title]}>Alerts</Text>
               </View>
-              <IconButton icon={<Ionicons name="filter-outline" size={20} color={colors.dark} />} />
+              <IconButton icon={<Ionicons name="filter-outline" size={20} color={colors.brandGrey} />} />
             </View>
             <View style={styles.filterRow}>
               <PillTabGroup
@@ -175,7 +175,7 @@ export const AlertsScreen: React.FC = () => {
               <Ionicons
                 name="chevron-forward"
                 size={16}
-                color={colors.textMuted}
+                color={colors.brandTextMuted}
                 style={{ marginLeft: spacing.sm }}
               />
             </View>
@@ -200,9 +200,9 @@ export const AlertsScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  title: { color: colors.dark },
-  muted: { color: colors.textSecondary },
-  offlineNote: { color: colors.textSecondary, marginBottom: spacing.sm },
+  title: { color: colors.brandText },
+  muted: { color: colors.brandTextMuted },
+  offlineNote: { color: colors.brandTextMuted, marginBottom: spacing.sm },
   headerCard: { marginTop: spacing.xl, marginBottom: spacing.lg },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md },
   filterRow: { flexDirection: 'row', alignItems: 'center' },
