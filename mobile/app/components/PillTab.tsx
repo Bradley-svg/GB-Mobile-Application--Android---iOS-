@@ -14,17 +14,13 @@ export const PillTab: React.FC<PillTabProps> = ({ label, selected, onPress }) =>
   <TouchableOpacity
     onPress={onPress}
     activeOpacity={0.9}
-    style={[
-      styles.pillTab,
-      selected
-        ? { backgroundColor: colors.brandGreen, borderColor: colors.brandGreen }
-        : { backgroundColor: 'transparent', borderColor: colors.borderSubtle },
-    ]}
+    style={[styles.pillTab, selected ? styles.pillSelected : styles.pillUnselected]}
   >
     <Text
       style={[
         typography.label,
-        { color: selected ? colors.white : colors.brandTextMuted, textTransform: 'uppercase' },
+        selected ? styles.labelSelected : styles.labelUnselected,
+        { textTransform: 'uppercase' },
       ]}
     >
       {label}
@@ -38,5 +34,19 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: 20,
     borderWidth: 1,
+  },
+  pillSelected: {
+    backgroundColor: colors.brandGreen,
+    borderColor: colors.brandGreen,
+  },
+  pillUnselected: {
+    backgroundColor: colors.backgroundSoft,
+    borderColor: colors.borderSubtle,
+  },
+  labelSelected: {
+    color: colors.white,
+  },
+  labelUnselected: {
+    color: colors.brandTextMuted,
   },
 });

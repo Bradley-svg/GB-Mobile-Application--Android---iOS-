@@ -131,7 +131,8 @@ function AppTabs() {
           headerTitle: () => (
             <Image
               source={GreenbroLogo}
-              style={{ width: 150, height: 40, resizeMode: 'contain' }}
+              style={{ width: 150, height: 40 }}
+              resizeMode="contain"
               accessibilityLabel="Greenbro logo"
             />
           ),

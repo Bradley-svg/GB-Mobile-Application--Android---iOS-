@@ -82,9 +82,16 @@ export const AlertDetailScreen: React.FC = () => {
       </View>
 
       <Card style={styles.headerCard}>
-        <View style={[styles.severityPill, { backgroundColor: severityColor(alertItem.severity) }]}>
-          <Text style={[typography.label, { color: colors.white }]}>{alertItem.severity.toUpperCase()}</Text>
-        </View>
+        {(() => {
+          const severity = severityStyles(alertItem.severity);
+          return (
+            <View style={[styles.severityPill, { backgroundColor: severity.backgroundColor }]}>
+              <Text style={[typography.label, { color: severity.textColor }]}>
+                {alertItem.severity.toUpperCase()}
+              </Text>
+            </View>
+          );
+        })()}
         <Text style={[typography.title1, styles.title, { marginBottom: spacing.xs }]}>{alertItem.message}</Text>
         <Text style={[typography.caption, styles.muted, { marginBottom: spacing.sm }]} testID="alert-detail-meta">
           {alertItem.site_id ? `Site ${alertItem.site_id}` : 'No site'} |{' '}
@@ -139,14 +146,14 @@ export const AlertDetailScreen: React.FC = () => {
   );
 };
 
-const severityColor = (severity: string) => {
+const severityStyles = (severity: string) => {
   switch (severity) {
     case 'critical':
-      return colors.error;
+      return { backgroundColor: colors.errorSoft, textColor: colors.error };
     case 'warning':
-      return colors.warning;
+      return { backgroundColor: colors.warningSoft, textColor: colors.warning };
     default:
-      return colors.brandGreenLight;
+      return { backgroundColor: colors.brandGreenSoft, textColor: colors.brandGreenDark };
   }
 };
 
@@ -174,6 +181,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     borderRadius: 16,
     marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
   },
   detailCard: {
     marginBottom: spacing.lg,

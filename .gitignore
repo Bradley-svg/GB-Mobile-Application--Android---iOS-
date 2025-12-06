@@ -20,6 +20,8 @@ android-dumpsys*.txt
 ui.xml
 .codex-logs/
 *.tmp
+mobile/*.png
+mobile/*.jpg
 
 # TypeScript
 *.tsbuildinfo

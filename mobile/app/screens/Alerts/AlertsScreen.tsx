@@ -21,14 +21,14 @@ const SEVERITY_ORDER: Record<string, number> = {
   info: 2,
 };
 
-const severityColor = (severity: string) => {
+const severityStyles = (severity: string) => {
   switch (severity) {
     case 'critical':
-      return colors.error;
+      return { backgroundColor: colors.errorSoft, textColor: colors.error };
     case 'warning':
-      return colors.warning;
+      return { backgroundColor: colors.warningSoft, textColor: colors.warning };
     default:
-      return colors.brandGreenLight;
+      return { backgroundColor: colors.brandGreenSoft, textColor: colors.brandGreenDark };
   }
 };
 
@@ -154,33 +154,36 @@ export const AlertsScreen: React.FC = () => {
           </Card>
         }
         ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
-        renderItem={({ item }) => (
-          <Card
-            style={styles.alertCard}
-            onPress={() => navigation.navigate('AlertDetail', { alertId: item.id })}
-            testID="alert-card"
-          >
-            <View style={styles.alertRow}>
-              <View style={[styles.severityPill, { backgroundColor: severityColor(item.severity) }]}>
-                <Text style={[typography.label, { color: colors.white }]}>{item.severity.toUpperCase()}</Text>
+        renderItem={({ item }) => {
+          const { backgroundColor, textColor } = severityStyles(item.severity);
+          return (
+            <Card
+              style={styles.alertCard}
+              onPress={() => navigation.navigate('AlertDetail', { alertId: item.id })}
+              testID="alert-card"
+            >
+              <View style={[styles.alertRow]}>
+                <View style={[styles.severityPill, { backgroundColor }]}>
+                  <Text style={[typography.label, { color: textColor }]}>{item.severity.toUpperCase()}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[typography.body, styles.title]} numberOfLines={2}>
+                    {item.message}
+                  </Text>
+                  <Text style={[typography.caption, styles.muted]} numberOfLines={1}>
+                    {item.type.toUpperCase()} - {new Date(item.last_seen_at).toLocaleString()}
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={16}
+                  color={colors.brandTextMuted}
+                  style={{ marginLeft: spacing.sm }}
+                />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[typography.body, styles.title]} numberOfLines={2}>
-                  {item.message}
-                </Text>
-                <Text style={[typography.caption, styles.muted]} numberOfLines={1}>
-                  {item.type.toUpperCase()} - {new Date(item.last_seen_at).toLocaleString()}
-                </Text>
-              </View>
-              <Ionicons
-                name="chevron-forward"
-                size={16}
-                color={colors.brandTextMuted}
-                style={{ marginLeft: spacing.sm }}
-              />
-            </View>
-          </Card>
-        )}
+            </Card>
+          );
+        }}
         ListEmptyComponent={
           <EmptyState
             message={
@@ -213,5 +216,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     borderRadius: 14,
     marginRight: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
   },
 });
