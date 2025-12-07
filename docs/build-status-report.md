@@ -52,6 +52,7 @@
 
 - **Mobile**
   - npm run typecheck, npm run lint, npm test -- --runInBand all green locally after wiring preferences to `/user/preferences` (latest spot run: `npm test -- --runInBand app/__tests__/DashboardLargeList.test.tsx app/__tests__/AlertsLargeList.test.tsx`).
+  - Branding: horizontal logo now uses the gear-as-O artwork (`docs/branding/official/greenbro-logo-horizontal-gearO.png` → `mobile/assets/greenbro/greenbro-logo-horizontal.png`); icon and splash remain unchanged. Files touched: the two logo PNGs and `mobile/app/navigation/RootNavigator.tsx` for the header logo component.
   - Cleanup this sweep: deleted emulator screenshots/Metro/logcat/bundle tmp files from the mobile root so only canonical assets remain under `assets/greenbro/`.
   - Detox scaffolded for Android with `detox.config.js`, Jest circus runner under `e2e/`, Android instrumentation runner + DetoxButler (`android/app/src/androidTest/...`), and scripts `npm run e2e:build:android`, `npm run e2e:test:android` (headless).
   - Core navigation E2E added (`e2e/appNavigation.e2e.ts`): Login  ->  Dashboard  ->  Site  ->  Device (telemetry + compressor card)  ->  Alerts list/detail  ->  Profile  ->  Logout. Test IDs added to root screens, tabs, and critical controls to keep selectors stable.

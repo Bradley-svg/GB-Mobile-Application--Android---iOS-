@@ -5,7 +5,8 @@ Use this file as the single reference for assets and colours.
 
 Assets
 ------
-- `mobile/assets/greenbro/greenbro-logo-horizontal.png` — horizontal logo with tagline.
+- `docs/branding/official/greenbro-logo-horizontal-gearO.png` — horizontal logo with the gear replacing the "O" and the "ENDORSED BY NATURE®" tagline (source of truth).
+- `mobile/assets/greenbro/greenbro-logo-horizontal.png` — in-app horizontal logo (gear-as-O), exported from the official source.
 - `mobile/assets/greenbro/greenbro-icon-1024.png` — app icon.
 - `mobile/assets/greenbro/greenbro-splash.png` — splash artwork.
 - `docs/branding/official/` holds the approved source artwork; export any new sizes directly from these originals.
@@ -24,9 +25,9 @@ Palette (from `mobile/app/theme/colors.ts`)
 
 Do not
 ------
-- Do not recreate the logo as inline SVG text or custom shapes.
+- Do not recreate the logo as inline SVG/text or compose "GREEN BRO" plus a gear icon. The "O" must be the supplied gear mark from the official artwork.
 - Do not introduce new logo variants or change wording.
-- Do not use or reintroduce the incorrect “GREEN BRO” logo/text.
+- Do not use or reintroduce the incorrect "GREEN BRO" logo/text.
 - Do not add off-brand colours or gradients outside the defined theme.
 
 Notes

@@ -19,6 +19,15 @@ import { spacing } from '../theme/spacing';
 import { surfaceStyles } from '../components';
 import GreenbroLogo from '../../assets/greenbro/greenbro-logo-horizontal.png';
 
+const GreenbroHeaderLogo: React.FC = () => (
+  <Image
+    source={GreenbroLogo}
+    style={{ width: 160, height: 44 }}
+    resizeMode="contain"
+    accessibilityLabel="Greenbro logo"
+  />
+);
+
 export type RootStackParamList = {
   Auth: undefined;
   App: undefined;
@@ -128,14 +137,7 @@ function AppTabs() {
           tabBarTestID: 'tab-dashboard',
           tabBarButton: tabButton('tab-dashboard'),
           headerShown: true,
-          headerTitle: () => (
-            <Image
-              source={GreenbroLogo}
-              style={{ width: 160, height: 44 }}
-              resizeMode="contain"
-              accessibilityLabel="Greenbro logo"
-            />
-          ),
+          headerTitle: () => <GreenbroHeaderLogo />,
           headerStyle: { backgroundColor: colors.background },
           headerShadowVisible: false,
         }}

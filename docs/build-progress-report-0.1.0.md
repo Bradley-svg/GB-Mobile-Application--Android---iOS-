@@ -7,6 +7,8 @@ Scope: backend API, workers, mobile app, branding, E2E tooling, staging/deploy t
 - Backend (Node 20 / Postgres 16): `npm run typecheck` (pass); `npm run lint` (pass); `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm test` (pass); `npm run build` (pass).
 - Mobile: `npm run typecheck` (pass); `npm run lint` (pass); `npm test -- --runInBand` (pass).
 - Repo structure is clean and layered: `backend/src` now only has config/controllers/services/repositories/integrations/middleware/routes/workers/scripts/index.ts (no `domain/`, no stray utils), migrations live solely in `backend/migrations/`; mobile assets are canonical under `mobile/assets/greenbro/`.
+- Branding refreshed: horizontal logo now uses the gear-as-O artwork with tagline (`docs/branding/official/greenbro-logo-horizontal-gearO.png` → `mobile/assets/greenbro/greenbro-logo-horizontal.png`); icon and splash unchanged.
+- Files changed for branding: `docs/branding/official/greenbro-logo-horizontal-gearO.png`, `mobile/assets/greenbro/greenbro-logo-horizontal.png`, `mobile/app/navigation/RootNavigator.tsx`, `docs/branding/README.md`, `docs/mobile-ux-notes.md`, `docs/repo-overview.md`.
 - Major risks: no password reset/2FA/trusted device (manual recovery only); staging DNS/DB for `https://staging-api.greenbro.co.za` still missing; metrics/alerting pipeline not yet deployed (health-plus + logs only).
 - Next high-value steps: provision staging DNS/DB and run bootstrap + health checks, define account recovery posture, and wire metrics plus worker HA observability.
 

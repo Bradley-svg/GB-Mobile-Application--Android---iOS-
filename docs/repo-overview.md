@@ -11,7 +11,7 @@ _2025-12-07 sweep: backend and mobile typecheck/lint/tests/build all green local
 - Helpers: root `dev.ps1`/`dev.sh`, `scripts/prepare-openai-image.js`, backend `scripts/init-local-db.js`, `src/scripts/backfillDeviceSnapshots.ts`, `src/scripts/debugHeatPumpHistory.ts`.
 
 ## Branding
-- Branding source of truth: `docs/branding/README.md` (palette and asset list). App-ready assets ship under `mobile/assets/greenbro/`; originals live in `docs/branding/official/`.
+- Branding source of truth: `docs/branding/README.md` (palette and asset list). App-ready assets ship under `mobile/assets/greenbro/`; originals live in `docs/branding/official/`. Horizontal logo now uses the gear-as-O mark with the "ENDORSED BY NATURE®" tagline (`docs/branding/official/greenbro-logo-horizontal-gearO.png` → `mobile/assets/greenbro/greenbro-logo-horizontal.png`).
 
 ## Security / npm audit (2025-12-05)
 - Backend: 8 vulns (0 low / 6 moderate / 2 high / 0 critical). Highs are in dev tooling (node-pg-migrate/glob transitive); moderates are dev-only (vitest/vite/esbuild). See `backend/audit-backend.json`.
