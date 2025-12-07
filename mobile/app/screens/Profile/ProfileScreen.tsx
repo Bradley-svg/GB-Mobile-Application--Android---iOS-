@@ -158,6 +158,21 @@ export const ProfileScreen: React.FC = () => {
         <TouchableOpacity
           style={styles.listRow}
           activeOpacity={0.85}
+          onPress={() => navigation.navigate('WorkOrders')}
+          testID="workorders-row"
+        >
+          <View style={styles.rowLeft}>
+            <Ionicons name="clipboard-outline" size={18} color={colors.brandGreen} />
+            <Text style={[typography.body, styles.title, { marginLeft: spacing.sm }]}>
+              Work orders
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+        </TouchableOpacity>
+        <View style={styles.separator} />
+        <TouchableOpacity
+          style={styles.listRow}
+          activeOpacity={0.85}
           onPress={() => navigation.navigate('Diagnostics')}
           testID="diagnostics-row"
         >

@@ -761,6 +761,118 @@ exports[`AlertDetailScreen shows rule summary and default snooze copy 1`] = `
         </View>
       </TouchableOpacity>
     </View>
+    <View
+      style={
+        [
+          {
+            "backgroundColor": "#FFFFFF",
+            "borderColor": "#E1E5EA",
+            "borderRadius": 22,
+            "borderWidth": 1,
+            "elevation": 4,
+            "padding": 16,
+            "shadowColor": "#111111",
+            "shadowOffset": {
+              "height": 6,
+              "width": 0,
+            },
+            "shadowOpacity": 0.08,
+            "shadowRadius": 12,
+          },
+          null,
+          {
+            "marginBottom": 16,
+          },
+        ]
+      }
+    >
+      <Text
+        style={
+          [
+            {
+              "fontSize": 16,
+              "fontWeight": "600",
+            },
+            {
+              "color": "#111111",
+            },
+            {
+              "marginBottom": 8,
+            },
+          ]
+        }
+      >
+        Work orders
+      </Text>
+      <Text
+        style={
+          [
+            {
+              "fontSize": 12,
+              "fontWeight": "400",
+            },
+            {
+              "color": "#555555",
+            },
+            {
+              "marginBottom": 8,
+            },
+          ]
+        }
+      >
+        Link this alert to a work order to track remediation.
+      </Text>
+      <TouchableOpacity
+        activeOpacity={0.9}
+        disabled={false}
+        onPress={[Function]}
+        style={
+          [
+            {
+              "alignSelf": "stretch",
+              "borderRadius": 16,
+            },
+            undefined,
+            null,
+          ]
+        }
+        testID="create-work-order-button"
+      >
+        <View
+          style={
+            [
+              {
+                "alignItems": "center",
+                "alignSelf": "stretch",
+                "borderRadius": 16,
+                "justifyContent": "center",
+                "minHeight": 48,
+                "paddingVertical": 12,
+              },
+              null,
+            ]
+          }
+        >
+          <Text
+            style={
+              [
+                {
+                  "fontSize": 16,
+                  "fontWeight": "600",
+                },
+                {
+                  "color": "#FFFFFF",
+                  "textAlign": "center",
+                },
+                null,
+              ]
+            }
+          >
+            Create work order
+          </Text>
+        </View>
+      </TouchableOpacity>
+    </View>
   </View>
 </SafeAreaView>
 `;

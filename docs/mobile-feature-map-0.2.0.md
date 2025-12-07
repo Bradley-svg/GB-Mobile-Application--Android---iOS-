@@ -14,9 +14,9 @@
 | Audit log and instant rollback | Partial | `backend/src/repositories/controlCommandsRepository.ts`, `backend/src/controllers/deviceController.ts`, `mobile/app/screens/Device/DeviceDetailScreen.tsx` | Control commands are persisted and exposed via `/devices/:id/commands` and rendered in mobile history; no rollback/undo. |
 | Alert rules (threshold, rate-of-change, correlation) | Partial | `backend/src/workers/alertsWorker.ts`, `backend/src/services/alertService.ts`, `backend/src/repositories/alertRulesRepository.ts`, `mobile/app/screens/Alerts/AlertDetailScreen.tsx` | Rules table + worker eval for threshold/ROC/offline with load-shedding downgrades and health-plus metrics; rule summaries and snooze options on mobile; no editor/correlation UI yet. |
 | Push/in-app/email notifications with routing & snooze | Partial | `backend/src/services/pushService.ts`, `mobile/app/hooks/useRegisterPushToken.ts`, `mobile/app/screens/Alerts/AlertDetailScreen.tsx` | Expo push for critical alerts; snooze chips (15m/1h/4h/until resolved with cap) respect rule defaults; profile toggle/prefs. No email/in-app inbox or routing/snooze options. |
-| One-tap work-order creation from alerts | Missing | - | No work-order domain. |
-| Work-order checklists and templates | Missing | - | Not present. |
-| Photo capture, annotations, and attachments | Missing | - | No media capture/attach flows. |
+| One-tap work-order creation from alerts | Partial | `backend/src/routes/workOrdersRoutes.ts`, `mobile/app/screens/Alerts/AlertDetailScreen.tsx`, `mobile/app/screens/WorkOrders/*` | Org-scoped work-orders domain with alert entrypoint and list/detail screens; no SLAs/calendar yet. |
+| Work-order checklists and templates | Partial | `backend/src/services/workOrdersService.ts`, `mobile/app/screens/WorkOrders/WorkOrderDetailScreen.tsx` | Basic checklist replace/toggle; no templates or reusable playbooks yet. |
+| Photo capture, annotations, and attachments | Missing | `backend/src/repositories/workOrdersRepository.ts` | Attachments are metadata-only placeholders; no upload/capture UI. |
 | Parts/spares tracking and costs | Missing | - | Not present. |
 | SLA timers and status badges | Missing | - | Not present. |
 | Client signature and handover PDF | Missing | - | Not present. |

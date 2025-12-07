@@ -3,7 +3,14 @@ import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } fr
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { useAcknowledgeAlert, useAlerts, useAlertRulesForDevice, useMuteAlert } from '../../api/hooks';
+import {
+  useAcknowledgeAlert,
+  useAlerts,
+  useAlertRulesForDevice,
+  useCreateWorkOrderFromAlert,
+  useMuteAlert,
+  useWorkOrdersList,
+} from '../../api/hooks';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { Screen, Card, PrimaryButton, IconButton } from '../../components';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
@@ -28,9 +35,12 @@ export const AlertDetailScreen: React.FC = () => {
   const mute = useMuteAlert();
   const { isOffline } = useNetworkBanner();
   const [actionError, setActionError] = useState<string | null>(null);
+  const [workOrderError, setWorkOrderError] = useState<string | null>(null);
   const [snoozeMinutes, setSnoozeMinutes] = useState<number>(60);
   const deviceIdForRules = alertItem?.device_id ?? '';
   const rulesQuery = useAlertRulesForDevice(deviceIdForRules);
+  const createFromAlert = useCreateWorkOrderFromAlert(alertId);
+  const { data: linkedWorkOrders } = useWorkOrdersList({ alertId });
   const matchingRule = alertItem
     ? rulesQuery.data?.find((rule) => rule.id === alertItem.rule_id)
     : undefined;
@@ -104,6 +114,21 @@ export const AlertDetailScreen: React.FC = () => {
     } catch (err) {
       console.error('Failed to mute alert', err);
       setActionError('Failed to mute alert. Please try again.');
+    }
+  };
+
+  const onCreateWorkOrder = async () => {
+    setWorkOrderError(null);
+    if (isOffline) {
+      setWorkOrderError('Work orders require a connection.');
+      return;
+    }
+    try {
+      const workOrder = await createFromAlert.mutateAsync({});
+      navigation.navigate('WorkOrderDetail', { workOrderId: workOrder.id });
+    } catch (err) {
+      console.error('Failed to create work order', err);
+      setWorkOrderError('Could not create work order. Please try again.');
     }
   };
 
@@ -247,6 +272,46 @@ export const AlertDetailScreen: React.FC = () => {
           </Text>
         ) : null}
       </View>
+
+      <Card style={styles.detailCard}>
+        <Text style={[typography.subtitle, styles.title, { marginBottom: spacing.sm }]}>Work orders</Text>
+        {linkedWorkOrders && linkedWorkOrders.length > 0 ? (
+          <TouchableOpacity
+            style={{ marginBottom: spacing.sm }}
+            onPress={() =>
+              navigation.navigate('WorkOrderDetail', {
+                workOrderId: linkedWorkOrders[0].id,
+              })
+            }
+            testID="view-work-order"
+          >
+            <Text style={[typography.body, styles.title]}>
+              View latest work order ({linkedWorkOrders[0].status})
+            </Text>
+            <Text style={[typography.caption, styles.muted]}>
+              {linkedWorkOrders[0].title}
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <Text style={[typography.caption, styles.muted, { marginBottom: spacing.sm }]}>
+            Link this alert to a work order to track remediation.
+          </Text>
+        )}
+        <PrimaryButton
+          label={createFromAlert.isPending ? 'Creating...' : 'Create work order'}
+          onPress={onCreateWorkOrder}
+          disabled={createFromAlert.isPending || isOffline}
+          testID="create-work-order-button"
+        />
+        {isOffline ? (
+          <Text style={[typography.caption, styles.offlineNote]}>
+            Work orders require a connection.
+          </Text>
+        ) : null}
+        {workOrderError ? (
+          <Text style={[typography.caption, styles.errorText]}>{workOrderError}</Text>
+        ) : null}
+      </Card>
     </Screen>
   );
 };

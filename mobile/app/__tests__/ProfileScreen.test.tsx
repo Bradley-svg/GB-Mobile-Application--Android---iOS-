@@ -122,4 +122,12 @@ describe('ProfileScreen notifications', () => {
 
     expect(navigateMock).toHaveBeenCalledWith('Diagnostics');
   });
+
+  it('navigates to work orders from the profile list', () => {
+    const { getByTestId } = render(<ProfileScreen />);
+
+    fireEvent.press(getByTestId('workorders-row'));
+
+    expect(navigateMock).toHaveBeenCalledWith('WorkOrders');
+  });
 });

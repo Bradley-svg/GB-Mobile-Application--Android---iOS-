@@ -1,10 +1,17 @@
 import React from 'react';
 import { Alert } from 'react-native';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import * as navigation from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import { AlertDetailScreen } from '../screens/Alerts/AlertDetailScreen';
-import { useAlerts, useAcknowledgeAlert, useAlertRulesForDevice, useMuteAlert } from '../api/hooks';
+import {
+  useAlerts,
+  useAcknowledgeAlert,
+  useAlertRulesForDevice,
+  useCreateWorkOrderFromAlert,
+  useMuteAlert,
+  useWorkOrdersList,
+} from '../api/hooks';
 import type { AppStackParamList } from '../navigation/RootNavigator';
 import { useNetworkBanner } from '../hooks/useNetworkBanner';
 
@@ -13,6 +20,8 @@ jest.mock('../api/hooks', () => ({
   useAcknowledgeAlert: jest.fn(),
   useAlertRulesForDevice: jest.fn(),
   useMuteAlert: jest.fn(),
+  useCreateWorkOrderFromAlert: jest.fn(),
+  useWorkOrdersList: jest.fn(),
 }));
 
 jest.mock('../hooks/useNetworkBanner', () => ({
@@ -54,14 +63,20 @@ describe('AlertDetailScreen', () => {
     updated_at: '2025-01-01T00:00:00.000Z',
   };
 
+  const navigateMock = jest.fn();
   const acknowledgeMock = jest.fn();
   const muteMock = jest.fn();
+  const createWorkOrderMock = jest.fn();
   const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 
   beforeEach(() => {
     jest.clearAllMocks();
 
     (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: false });
+    (navigation.useNavigation as jest.Mock).mockReturnValue({
+      navigate: navigateMock,
+      goBack: jest.fn(),
+    });
 
     const route: RouteProp<AppStackParamList, 'AlertDetail'> = {
       key: 'AlertDetail',
@@ -91,6 +106,17 @@ describe('AlertDetailScreen', () => {
     (useMuteAlert as jest.Mock).mockReturnValue({
       mutateAsync: muteMock,
       isPending: false,
+    });
+
+    (useCreateWorkOrderFromAlert as jest.Mock).mockReturnValue({
+      mutateAsync: createWorkOrderMock,
+      isPending: false,
+    });
+
+    (useWorkOrdersList as jest.Mock).mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
     });
   });
 
@@ -160,6 +186,26 @@ describe('AlertDetailScreen', () => {
     fireEvent.press(screen.getByText(/until resolved/i));
     fireEvent.press(muteButton);
     expect(muteMock).toHaveBeenLastCalledWith({ alertId: alertItem.id, minutes: 1440 });
+  });
+
+  it('creates a work order and navigates to detail', async () => {
+    createWorkOrderMock.mockResolvedValue({ id: 'wo-99' });
+
+    render(<AlertDetailScreen />);
+
+    fireEvent.press(screen.getByTestId('create-work-order-button'));
+
+    await waitFor(() =>
+      expect(navigateMock).toHaveBeenCalledWith('WorkOrderDetail', { workOrderId: 'wo-99' })
+    );
+  });
+
+  it('disables work order creation when offline', () => {
+    (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: true });
+
+    render(<AlertDetailScreen />);
+
+    expect(screen.getByTestId('create-work-order-button').props.disabled).toBe(true);
   });
 
   it('shows rule summary and default snooze copy', () => {

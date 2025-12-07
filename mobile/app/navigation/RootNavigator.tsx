@@ -15,6 +15,8 @@ import { DeviceDetailScreen } from '../screens/Device/DeviceDetailScreen';
 import { AlertDetailScreen } from '../screens/Alerts/AlertDetailScreen';
 import { DiagnosticsScreen } from '../screens/Profile/DiagnosticsScreen';
 import { SearchScreen } from '../screens/Search/SearchScreen';
+import { WorkOrdersScreen } from '../screens/WorkOrders/WorkOrdersScreen';
+import { WorkOrderDetailScreen } from '../screens/WorkOrders/WorkOrderDetailScreen';
 import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
 import { spacing } from '../theme/spacing';
@@ -42,6 +44,8 @@ export type AppStackParamList = {
   AlertDetail: { alertId: string };
   Diagnostics: undefined;
   Search: undefined;
+  WorkOrders: undefined;
+  WorkOrderDetail: { workOrderId: string };
 };
 
 export type AppTabParamList = {
@@ -177,6 +181,8 @@ function AppNavigator() {
       <AppStack.Screen name="AlertDetail" component={AlertDetailScreen} />
       <AppStack.Screen name="Diagnostics" component={DiagnosticsScreen} />
       <AppStack.Screen name="Search" component={SearchScreen} />
+      <AppStack.Screen name="WorkOrders" component={WorkOrdersScreen} />
+      <AppStack.Screen name="WorkOrderDetail" component={WorkOrderDetailScreen} />
     </AppStack.Navigator>
   );
 }

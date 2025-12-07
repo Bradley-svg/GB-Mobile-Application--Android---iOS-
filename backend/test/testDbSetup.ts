@@ -208,6 +208,58 @@ async function seedBaseData(client: Client) {
   `,
     [DEFAULT_IDS.device]
   );
+
+  const defaultWorkOrderId = '55555555-5555-5555-5555-555555555555';
+  await client.query(
+    `
+    insert into work_orders (
+      id,
+      organisation_id,
+      site_id,
+      device_id,
+      alert_id,
+      title,
+      description,
+      status,
+      priority,
+      assignee_user_id,
+      created_by_user_id,
+      due_at,
+      created_at,
+      updated_at
+    )
+    values (
+      $1,
+      $2,
+      $3,
+      $4,
+      null,
+      'Check heat pump performance',
+      'Seeded work order for regression tests',
+      'open',
+      'medium',
+      null,
+      $5,
+      now() + interval '2 days',
+      now(),
+      now()
+    )
+    on conflict (id) do nothing
+  `,
+    [defaultWorkOrderId, DEFAULT_IDS.organisation, DEFAULT_IDS.site, DEFAULT_IDS.device, DEFAULT_IDS.user]
+  );
+
+  await client.query(
+    `
+    insert into work_order_tasks (work_order_id, label, is_completed, position, created_at, updated_at)
+    values
+      ($1, 'Diagnose issue', false, 0, now(), now()),
+      ($1, 'Record readings', false, 1, now(), now()),
+      ($1, 'Confirm resolved', false, 2, now(), now())
+    on conflict do nothing
+  `,
+    [defaultWorkOrderId]
+  );
 }
 
 async function resetTables(client: Client) {
@@ -226,6 +278,9 @@ async function resetTables(client: Client) {
 
   await client.query(`
       truncate table
+        work_order_tasks,
+        work_order_attachments,
+        work_orders,
         telemetry_points,
         device_snapshots,
         refresh_tokens,

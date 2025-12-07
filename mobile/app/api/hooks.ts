@@ -20,3 +20,11 @@ export {
 } from './preferences/hooks';
 export { useHealthPlus } from './health/hooks';
 export { useFleetSearch } from './fleet/hooks';
+export {
+  useWorkOrdersList,
+  useWorkOrder,
+  useCreateWorkOrder,
+  useCreateWorkOrderFromAlert,
+  useUpdateWorkOrderStatus,
+  useUpdateWorkOrderTasks,
+} from './workOrders/hooks';
