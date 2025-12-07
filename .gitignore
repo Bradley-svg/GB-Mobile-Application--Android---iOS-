@@ -10,6 +10,9 @@ dist/
 .expo/*
 ios
 android
+/artifacts
+mobile/artifacts
+backend/$log*
 
 # Logs & temp
 logs/

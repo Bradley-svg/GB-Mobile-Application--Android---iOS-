@@ -251,8 +251,7 @@ export const DeviceDetailScreen: React.FC = () => {
   const telemetryError = telemetryQuery.isError && !telemetryLoading && !telemetryData && !isOffline;
   const telemetryErrorObj = telemetryQuery.error;
   const historyErrorMessage =
-    mapHistoryError(historyStatus, historyErrorObj as HeatPumpHistoryError | undefined) ||
-    'Failed to load history. Try again or contact support.';
+    mapHistoryError(historyStatus) || 'Failed to load history. Try again or contact support.';
   const isOfflineWithCache = isOffline && !!cachedDeviceDetail;
   const showUnknownLastUpdated = !lastUpdatedAt && (hasAnyTelemetryPoints || hasAnyHistoryPoints);
 
@@ -727,7 +726,7 @@ function mapControlFailureReason(reason?: ControlFailureReason | string, fallbac
   }
 }
 
-function mapHistoryError(status: HistoryStatus, error?: HeatPumpHistoryError) {
+function mapHistoryError(status: HistoryStatus) {
   if (status === 'circuitOpen') {
     return 'History temporarily unavailable, please try again later.';
   }

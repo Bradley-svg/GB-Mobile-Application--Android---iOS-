@@ -12,7 +12,7 @@ Scope: backend API, workers, mobile app, branding, E2E, staging/deploy tooling
 
 ## Backend Status
 ### Architecture snapshot
-- Express API with controllers/middleware/routes feeding services and repositories; integrations for MQTT ingest/control, HTTP control, Expo push, Azure heat-pump history; worker processes for mqttIngest and alertsWorker; scripts for snapshot backfill, heat-pump debug, and staging bootstrap; migrations under `backend/migrations/` via node-pg-migrate.
+- Express API with controllers/middleware/routes feeding services and repositories; integrations for MQTT ingest/control, HTTP control, Expo push, Azure heat-pump history; worker processes for mqttIngest and alertsWorker; scripts for snapshot backfill, heat-pump debug, and staging bootstrap; migrations under `backend/migrations/` via node-pg-migrate (legacy `sql/*.sql` snapshots removed to avoid drift).
 - Features: auth with refresh/logout/logout-all; device control with throttle and `/devices/:id/last-command`; telemetry ingest/read with validation and downsampling; Azure heat-pump history client with circuit breaker/timeout; user preferences persisted via `/user/preferences`; worker locks for MQTT/alerts; structured pino logging to stdout.
 
 ### Build & tests (current state)
@@ -22,11 +22,11 @@ Scope: backend API, workers, mobile app, branding, E2E, staging/deploy tooling
 
 ### Runtime health snapshot
 - `/health-plus` payload includes env, db, version, mqtt, control, heatPumpHistory, alertsWorker, push with timestamps and ok flag.
-- Latest dev sample (`docs/dev-run-notes.md`): `ok:true`, env `development`, db `ok`, version `0.1.0-dev`; mqtt configured:false healthy:true; control configured:false healthy:true with lastError `CONTROL_CHANNEL_UNCONFIGURED`; heatPumpHistory configured:false healthy:true; alertsWorker healthy:true; push enabled:false with lastSampleAt recorded.
+- Latest captured dev sample (2025-12-05 in `docs/dev-run-notes.md`): `ok:true`, env `development`, db `ok`, version `0.1.0-dev`; mqtt configured:false healthy:true; control configured:false healthy:true with lastError `CONTROL_CHANNEL_UNCONFIGURED`; heatPumpHistory configured:false healthy:true; alertsWorker healthy:true; push enabled:false with lastSampleAt recorded. Not rerun in this sweep.
 - When heat-pump history is configured but upstream idle (prior run), `ok` flips false with `heatPumpHistory.healthy:false`; control stays healthy when unconfigured unless an error is recent.
 
 ### Migrations & staging bootstrap
-- Migrations live in `backend/migrations/` and run via node-pg-migrate (`npm run migrate:dev` / `npm run migrate:test` using DATABASE_URL/TEST_DATABASE_URL).
+- Migrations live in `backend/migrations/` and run via node-pg-migrate (`npm run migrate:dev` / `npm run migrate:test` using DATABASE_URL/TEST_DATABASE_URL); legacy `sql/*.sql` schemas were removed this pass to keep migrations authoritative.
 - `npm run staging:bootstrap` enforces `STAGING_DATABASE_URL` containing "staging", applies migrations against it (`npm run migrate:dev` with DATABASE_URL override), then seeds demo data via `scripts/init-local-db.js`, outputting a JSON summary.
 - Supporting scripts: `npm run health:check` (expects HEALTH_BASE_URL) and `npm run staging:bootstrap:raw` for manual bootstrap flows.
 

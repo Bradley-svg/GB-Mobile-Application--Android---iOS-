@@ -10,7 +10,7 @@ Node/Express API that powers the Greenbro mobile app. Includes authentication, s
 - `LOG_LEVEL` controls the structured JSON logger level (info by default).
 - `MQTT_*` are required if MQTT ingest is enabled.
 - `ALERT_OFFLINE_MINUTES` / `ALERT_OFFLINE_CRITICAL_MINUTES` set the warning vs critical thresholds for offline alerts (only critical sends push); `ALERT_HIGH_TEMP_THRESHOLD` controls high-temp alerts.
-- `TELEMETRY_*` and `CONTROL_*` are only needed if using HTTP providers.
+- `CONTROL_*` configure HTTP control when enabled; `CONTROL_COMMAND_THROTTLE_MS` bounds repeat commands to the same device.
 - `HEATPUMP_HISTORY_URL` / `HEATPUMP_HISTORY_API_KEY` configure the upstream Heat Pump History API client (URL defaults to the Azure endpoint; API key required in staging/prod). Legacy `HEAT_PUMP_*` envs are still accepted but deprecated.
 - `EXPO_ACCESS_TOKEN` is optional but recommended for sending push notifications.
 
@@ -29,7 +29,7 @@ Environment files `.env.development`, `.env.staging`, and `.env.production` shou
 
 ## Database migrations
 - Schema is managed via `node-pg-migrate` under `backend/migrations/`. Run `npm run migrate:dev` (or `npm run migrate` with `DATABASE_URL` set) to apply migrations locally, and `npm run migrate:test` against `TEST_DATABASE_URL` for test databases.
-- The legacy `sql/*.sql` files remain as references, but new changes should be captured as migrations.
+- Keep schema changes in migrations; the old `sql/*.sql` snapshots were removed to avoid drift with the migration source of truth.
 - `scripts/init-local-db.js` now seeds demo data and expects the migrations to have already run.
 
 ## Telemetry storage

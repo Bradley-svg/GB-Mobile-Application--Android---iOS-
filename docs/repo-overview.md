@@ -1,13 +1,13 @@
 # Greenbro Repo Overview
 
-_2025-12-05 sweep: backend and mobile npm install/typecheck/lint/test/build all green locally on Node 20 with Postgres 16 for backend tests._
+_2025-12-07 sweep: backend and mobile typecheck/lint/tests/build all green locally on Node 20 with Postgres 16 for backend tests._
 
 ## Repo map (current)
-- `backend/`: Express API split into `src/config` (DB/CORS/env/logger), `src/controllers` (auth/sites/devices/alerts/health/heat-pump-history/telemetry stub), `src/services` (auth, telemetry ingest/read, alerts, control, push, status, users, sites/devices), `src/repositories` (users, refresh_tokens, sites, devices, telemetry points/snapshots, alerts, control_commands, push_tokens, system_status, worker_locks), `src/integrations` (MQTT, Expo push, HTTP control, Azure heat-pump history), `src/middleware` (auth, CORS, errors), `src/routes` (auth, health, sites, devices, alerts, telemetry stub, heat-pump history), `src/workers` (mqttIngest, alertsWorker), `src/scripts` (backfill snapshots, debug heat-pump history), `migrations/` (node-pg-migrate schema), `src/index.ts` entrypoint.
+- `backend/`: Express API split into `src/config` (DB/CORS/env/logger), `src/controllers` (auth/sites/devices/alerts/health/heat-pump-history/telemetry stub), `src/services` (auth, telemetry ingest/read, alerts, control, push, status, users, sites/devices), `src/repositories` (users, refresh_tokens, sites, devices, telemetry points/snapshots, alerts, control_commands, push_tokens, system_status, worker_locks), `src/integrations` (MQTT, Expo push, HTTP control, Azure heat-pump history), `src/middleware` (auth, CORS, errors), `src/routes` (auth, health, sites, devices, alerts, telemetry stub, heat-pump history), `src/workers` (mqttIngest, alertsWorker), `src/scripts` (backfill snapshots, debug heat-pump history), `migrations/` (node-pg-migrate schema; legacy sql snapshots removed), `src/index.ts` entrypoint.
 - `mobile/`: Expo app with `app/navigation/RootNavigator.tsx` (Auth vs App stacks; Dashboard/Alerts/Profile tabs; Site/Device/Alert detail), `app/screens` (Auth stubs, Dashboard, Site, Device with telemetry/control/history, Alerts list/detail, Profile), `app/components` (Screen, Card, PillTab, PrimaryButton, IconButton, styles), `app/api` (axios client + refresh, domain hooks for auth/sites/devices/alerts/control/heatPumpHistory, shared types), `app/store` (Zustand auth + SecureStore/AsyncStorage), `app/hooks` (push token registration), `app/theme` (tokens), `app/__tests__` (auth/nav/device/history/push/API refresh + large-list), `mobile/e2e` (Detox config, Jest circus runner, appNavigation smoke test), Android instrumentation runner under `android/app/src/androidTest/java/com/greenbro/mobile/`.
 - `archive/`: Legacy copies (`archive/mobile_workdir/`, `archive/node_modules_old_unused_backup/`, `archive/logs/`) kept isolated.
 - `docs/`: Repo notes and screenshots (moved `emulator-screen.png` and `screenshot.png` here). Environment variables across backend/mobile are summarised in `docs/envs.md`; deployment guide lives in `docs/deploy.md`.
-- `logs/`: Git-ignored runtime logs. A few dev logs remain under root/backend while locked by running node processes.
+- `logs/`: Git-ignored runtime logs; stray tracked backend log stubs removed. Runtime artifacts stay untracked.
 - Helpers: root `dev.ps1`/`dev.sh`, `scripts/prepare-openai-image.js`, backend `scripts/init-local-db.js`, `src/scripts/backfillDeviceSnapshots.ts`, `src/scripts/debugHeatPumpHistory.ts`.
 
 ## Branding
@@ -20,12 +20,12 @@ _2025-12-05 sweep: backend and mobile npm install/typecheck/lint/test/build all 
 ## Backend
 - Entrypoint: `src/index.ts` mounts CORS, JSON parsing, routers, and error handler; server start is skipped in tests.
 - Layering: controllers mostly call services; `healthController` directly queries the DB and `mqttClient` health helpers; `heatPumpHistoryController` calls the integration client directly; HTTP telemetry route is an intentional 501 stub pointing to MQTT ingest.
-- Config/env notes: JWT secret throws if unset in non-dev; refresh token lifetime via `REFRESH_TOKEN_DAYS`; alerts worker toggle `ALERT_WORKER_ENABLED` (defaults true) with `ALERT_WORKER_INTERVAL_SEC`; CORS allowlist required in prod; heat-pump client prefers `HEATPUMP_*` envs with deprecated `HEAT_PUMP_*` fallbacks; control channel set by MQTT or CONTROL_API_URL/CONTROL_API_KEY; telemetry HTTP ingest intentionally disabled.
+- Config/env notes: JWT secret throws if unset in non-dev; refresh token lifetime via `REFRESH_TOKEN_DAYS`; alerts worker toggle `ALERT_WORKER_ENABLED` (defaults true) with `ALERT_WORKER_INTERVAL_SEC`; CORS allowlist required in prod; heat-pump client prefers `HEATPUMP_*` envs with deprecated `HEAT_PUMP_*` fallbacks; control channel set by MQTT or CONTROL_API_URL/CONTROL_API_KEY with throttle window via `CONTROL_COMMAND_THROTTLE_MS`; telemetry HTTP ingest intentionally disabled.
 - Control: throttling enforced via last control command; `/devices/:id/last-command` returns the most recent control attempt; logout and logout-all endpoints revoke refresh tokens.
 - Preferences: `/user/preferences` (GET/PUT) backed by `user_preferences` (unique per user, default `alerts_enabled=true`); service returns default `alertsEnabled=true` until updated.
 - Integrations: MQTT ingest on `greenbro/+/+/telemetry`; control over HTTP or MQTT; Expo push with optional health sample; Azure heat-pump history client with timeout and circuit breaker.
 - Workers & concurrency: long-running workers (MQTT ingest, alerts) now take a DB-backed lease via `worker_locks` (configurable TTL with `WORKER_LOCK_TTL_SEC`); extra instances log and idle/exit.
-- Health (2025-12-05 local): npm install/typecheck/lint/test/build all green with TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test and ALLOW_TEST_DB_RESET=true against Postgres 16. `/health-plus` curl showed ok:false env:development version:0.1.0-dev; db ok; mqtt configured:false healthy:true (lastErrorAt 2025-12-05T12:49:30Z); control configured:false lastError CONTROL_CHANNEL_UNCONFIGURED healthy:true; heatPumpHistory configured:true healthy:false (upstream idle); alertsWorker healthy:true; push enabled:false lastSampleAt 2025-12-05T19:10:05Z.
+- Health (2025-12-07 local): typecheck/lint/test/build all green with TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test and ALLOW_TEST_DB_RESET=true against Postgres 16. Last recorded `/health-plus` sample (2025-12-05) showed mqtt/configured:false healthy:true; control configured:false healthy:true with CONTROL_CHANNEL_UNCONFIGURED; heatPumpHistory configured:true healthy:false while upstream was idle; alertsWorker healthy:true; push enabled:false with lastSampleAt present.
 - Test harness: Vitest global setup (test/globalSetup.ts -> test/testDbSetup.ts) requires TEST_DATABASE_URL, runs migrations via node-pg-migrate, seeds demo org/site/device/user plus status row, and ends the test pool; truncation/seeding runs when the DB name includes "test" or ALLOW_TEST_DB_RESET=true, otherwise it seeds only to avoid wiping a shared dev DB.
 - CI: GitHub Actions provisions Postgres 16 (`greenbro_test`), runs `npm run migrate:test`, and sets TEST_DATABASE_URL + ALLOW_TEST_DB_RESET for backend API tests.
 - Local/dev containers: `docker-compose.dev.yml` brings up Postgres 16, MQTT, and the backend image; `.devcontainer/devcontainer.json` reuses it to provide a Node 20 workspace when opened in VS Code Dev Containers.
@@ -47,8 +47,8 @@ _2025-12-05 sweep: backend and mobile npm install/typecheck/lint/test/build all 
 
 ## Cleanup actions
 - Moved root screenshots (`emulator-screen.png`, `screenshot.png`) into `docs/`.
-- Tried to consolidate stray logs; two root runtime logs and backend dev logs are locked by active node processes, so left in place (all git-ignored). `logs/` remains the intended sink.
-- Removed the unused HTTP telemetry ingest helper and aligned env examples with actual usage (refresh token days, alerts worker toggle; removed unused TELEMETRY_API_KEY stub).
+- Removed tracked backend runtime log artifacts (`$logA`, `$logB`); tightened ignore list for backend `$log*` files and Detox `artifacts/`.
+- Dropped outdated schema reference files under `backend/sql/` to keep migrations as the single source of truth; aligned env docs/templates with real config (added `CONTROL_COMMAND_THROTTLE_MS`).
 
 ## Open risks / TODOs before more API work
 - No 2FA or trusted-device protections yet; password reset flow still absent (manual resets only).

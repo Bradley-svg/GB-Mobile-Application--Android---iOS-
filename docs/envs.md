@@ -20,6 +20,7 @@ Centralised reference for backend and mobile environment variables across dev/st
 - `MQTT_USERNAME` / `MQTT_PASSWORD`: Optional MQTT credentials when brokers require auth.
 - `CONTROL_API_URL`: Optional HTTP control endpoint; when unset, control may fall back to MQTT.
 - `CONTROL_API_KEY`: API key for the HTTP control endpoint (when enabled).
+- `CONTROL_COMMAND_THROTTLE_MS`: Minimum interval (ms) between repeated control commands per device.
 - `ALERT_WORKER_ENABLED`: Toggle alerts worker on/off (defaults true) plus `ALERT_WORKER_INTERVAL_SEC`/`ALERT_OFFLINE_MINUTES`/`ALERT_OFFLINE_CRITICAL_MINUTES`/`ALERT_HIGH_TEMP_THRESHOLD` to tune cadence/thresholds.
 - `PUSH_HEALTHCHECK_ENABLED`: Toggle for sample push health check endpoint.
 - `PUSH_HEALTHCHECK_TOKEN`: Token used to authorize sample push checks.
