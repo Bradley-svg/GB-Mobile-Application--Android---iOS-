@@ -69,3 +69,9 @@ Scope: backend API, workers, mobile app, branding, E2E, staging/deploy tooling
 - **P1 - Staging & observability:** Bring up staging DNS/DB and run `npm run staging:bootstrap` + health checks; add metrics/alerting pipeline and define HA/worker strategy beyond single-instance locks.
 - **P2 - UX/scale:** Add offline write-back or clearer offline guidance for commands/alerts; expand history/telemetry UX and broaden Detox/E2E coverage beyond navigation smoke.
 - **P3 - Polish:** Triage residual test warnings/noise, continue repo cleanup, and optionally harden branding delivery (additional asset sizes/dev-client rebuild with bundled NetInfo).
+
+## Staging verification - 2025-12-07
+- `npm run staging:bootstrap`: not run (no STAGING_DATABASE_URL available; staging Postgres not provisioned yet; script guard still requires DB name containing "staging").
+- `npm run health:check`: not run (staging-api.greenbro.co.za does not resolve; awaiting DNS + staged DATABASE_URL before setting HEALTH_BASE_URL).
+- Manual smoke: blocked (no staging backend/app build; will run login -> dashboard -> site -> device -> alerts -> profile -> logout once staging API is live).
+- Detox navigation E2E: not run (staging backend unavailable and no staging app build/emulator session for this pass).

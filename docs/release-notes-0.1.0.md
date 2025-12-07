@@ -24,3 +24,6 @@
 - Status: blocked - staging backend host `https://staging-api.greenbro.co.za` does not resolve yet, so no staging smoke test was executed.
 - Pending when staging is reachable: seed demo data via `scripts/init-local-db.js`, then confirm Login -> Dashboard -> Site -> Device (telemetry/history) -> Alerts (ack/mute) -> Profile (preferences toggle) -> Logout against `/health-plus` showing env production and version 0.1.0.
 - Expected staging quirks to document when live: control likely unconfigured (CONTROL_CHANNEL_UNCONFIGURED), heat-pump history optional until Azure credentials are wired; DB/alerts worker should report healthy for ok:true.
+
+## Staging 0.1.0 verification: 2025-12-07
+Staging remains blocked: staging-api.greenbro.co.za does not resolve and no staged DATABASE_URL is provisioned, so `npm run staging:bootstrap` and `npm run health:check` have not been executed. RC readiness is pending until DNS + Postgres for greenbro_staging are in place and seeds/health checks run cleanly.

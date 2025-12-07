@@ -53,8 +53,8 @@
 - **Mobile**
   - npm run typecheck, npm run lint, npm test -- --runInBand all green locally after wiring preferences to `/user/preferences` (latest spot run: `npm test -- --runInBand app/__tests__/DashboardLargeList.test.tsx app/__tests__/AlertsLargeList.test.tsx`).
   - Detox scaffolded for Android with `detox.config.js`, Jest circus runner under `e2e/`, Android instrumentation runner + DetoxButler (`android/app/src/androidTest/...`), and scripts `npm run e2e:build:android`, `npm run e2e:test:android` (headless).
-  - Core navigation E2E added (`e2e/appNavigation.e2e.ts`): Login → Dashboard → Site → Device (telemetry + compressor card) → Alerts list/detail → Profile → Logout. Test IDs added to root screens, tabs, and critical controls to keep selectors stable.
-  - Large-list sanity: Dashboard and Alerts tests ensure FlatList virtualization props are present with 600–800 item fixtures; offline alerts cache path covered.
+  - Core navigation E2E added (`e2e/appNavigation.e2e.ts`): Login  ->  Dashboard  ->  Site  ->  Device (telemetry + compressor card)  ->  Alerts list/detail  ->  Profile  ->  Logout. Test IDs added to root screens, tabs, and critical controls to keep selectors stable.
+  - Large-list sanity: Dashboard and Alerts tests ensure FlatList virtualization props are present with 600-800 item fixtures; offline alerts cache path covered.
   - Device Detail supports 1h/24h/7d ranges with stale-data banners for cached/lagging telemetry.
   - Offline caching: Dashboard, Site, Device detail, and Alerts show cached read-only data with commands/ack/mute disabled when offline.
   - Profile push notification preferences now round-trip to the backend with React Query + AsyncStorage cache, keeping the OS-denied warning and push registration gating.
@@ -80,5 +80,14 @@
   - Database: no managed Postgres connection string available for `greenbro_staging`, so `npm run migrate:dev` and `node scripts/init-local-db.js` have not been run against staging.
   - Backend deployment: awaiting host/DNS + DATABASE_URL; intended envs per checklist (`NODE_ENV=production`, `PORT=4000`, `APP_VERSION=0.1.0`, CORS allowlist, JWT secret, ALERT_WORKER_ENABLED=true, optional HEATPUMP_* and CONTROL_*).
   - Mobile: staging EAS profile exists with `EXPO_PUBLIC_API_URL=https://staging-api.greenbro.co.za`; staging build not triggered because backend endpoint is unresolved.
-  - Next steps once DNS/DB exist: provision Postgres (`greenbro_staging`), set envs on staging backend, deploy (`npm install && npm run build` / `npm run start`), run migrations + seed against staging DB, verify `/health-plus`, then generate staging mobile build and perform the smoke (login→dashboard→site→device→alerts→profile→logout) with screenshots.
+  - Next steps once DNS/DB exist: provision Postgres (`greenbro_staging`), set envs on staging backend, deploy (`npm install && npm run build` / `npm run start`), run migrations + seed against staging DB, verify `/health-plus`, then generate staging mobile build and perform the smoke (login -> dashboard -> site -> device -> alerts -> profile -> logout) with screenshots.
   - Once infra exists, run: `npm run staging:bootstrap`, `HEALTH_BASE_URL=https://staging-api.greenbro.co.za npm run health:check`, then `eas build --profile staging`.
+**Staging 0.1.0 manual smoke - 2025-12-07**
+- Backend /health-plus: blocked (staging-api.greenbro.co.za does not resolve; need DNS + staged DATABASE_URL before `npm run health:check`).
+- Login: blocked (no reachable staging backend; staging build not produced).
+- Dashboard: blocked (API unreachable).
+- Site -> Device: blocked (telemetry/control paths untestable without backend).
+- Alerts: blocked (ack/mute flows pending backend).
+- Profile: blocked (preferences toggle untested pending backend).
+- Logout: blocked (navigation/logout smoke deferred until staging app exists).
+

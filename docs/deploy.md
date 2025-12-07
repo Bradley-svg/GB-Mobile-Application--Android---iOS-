@@ -1,5 +1,10 @@
 # Deploying Greenbro (staging & production)
 
+## Infra TODO (staging readiness)
+- Create DNS record for staging-api.greenbro.co.za pointing at the staging backend load balancer / host.
+- Provision Postgres DB greenbro_staging (or equivalent).
+- Store STAGING_DATABASE_URL in your secret store.
+
 ## Environments & services
 - Backend: Node 20, Postgres 16, MQTT broker, Azure heat-pump history API reachability, optional Expo push (EXPO_ACCESS_TOKEN).
 - Mobile: EAS builds pointing `EXPO_PUBLIC_API_URL` at the correct backend (staging or production).
