@@ -1,6 +1,7 @@
 import React from 'react';
 import { Text } from 'react-native';
 import { act, render, waitFor } from '@testing-library/react-native';
+import { NetInfoStateType } from '@react-native-community/netinfo';
 import type { NetInfoState } from '@react-native-community/netinfo';
 import { useNetworkBanner } from '../hooks/useNetworkBanner';
 import { getSafeNetInfo } from '../lib/safeNetInfo';
@@ -25,14 +26,36 @@ describe('useNetworkBanner', () => {
     const unsubscribe = jest.fn();
     let handler: ((state: NetInfoState) => void) | undefined;
 
+    const onlineState: NetInfoState = {
+      type: NetInfoStateType.wifi,
+      isConnected: true,
+      isInternetReachable: true,
+      details: {
+        isConnectionExpensive: false,
+        ssid: null,
+        bssid: null,
+        strength: null,
+        ipAddress: null,
+        subnet: null,
+        frequency: null,
+        linkSpeed: null,
+        rxLinkSpeed: null,
+        txLinkSpeed: null,
+      },
+    };
+
+    const offlineState: NetInfoState = {
+      type: NetInfoStateType.none,
+      isConnected: false,
+      isInternetReachable: false,
+      details: null,
+    };
+
     const addEventListener = jest.fn((cb: (state: NetInfoState) => void) => {
       handler = cb;
       return unsubscribe;
     });
-    const fetch = jest.fn().mockResolvedValue({
-      isConnected: true,
-      isInternetReachable: true,
-    });
+    const fetch = jest.fn().mockResolvedValue(onlineState);
 
     mockGetSafeNetInfo.mockReturnValue({ addEventListener, fetch });
 
@@ -41,7 +64,7 @@ describe('useNetworkBanner', () => {
     await waitFor(() => expect(fetch).toHaveBeenCalled());
 
     act(() => {
-      handler?.({ isConnected: false, isInternetReachable: false });
+      handler?.(offlineState);
     });
 
     await waitFor(() => getByText('offline'));

@@ -5,7 +5,7 @@
 ### health-plus (dev)
 
 {"ok":true,"env":"development","db":"ok","version":"0.1.0-dev","mqtt":{"configured":false,"lastIngestAt":null,"lastErrorAt":"2025-12-05T12:49:30.201Z","lastError":"","healthy":true},"control":{"configured":false,"lastCommandAt":null,"lastErrorAt":null,"lastError":"CONTROL_CHANNEL_UNCONFIGURED","healthy":true},"heatPumpHistory":{"configured":false,"lastSuccessAt":null,"lastErrorAt":null,"lastError":null,"healthy":true},"alertsWorker":{"lastHeartbeatAt":null,"healthy":true},"push":{"enabled":false,"lastSampleAt":"2025-12-06T15:13:56.588Z","lastError":null}}
-- Backend npm install, migrate:dev, init-local-db, typecheck, lint, test (TEST_DATABASE_URL + ALLOW_TEST_DB_RESET), and build all succeeded.
+- Backend npm install, migrate:dev, init-local-db, typecheck, lint, test (TEST_DATABASE_URL + ALLOW_TEST_DB_RESET), and build all succeeded (`npm test` uses Vitest serialization from `vitest.config.ts` so no Jest `--runInBand` flag is required).
 - Backend dev server running via npm run dev (logs at logs/backend-dev-run.log).
 - Mobile npm install completed.
 - Mobile typecheck, lint, and npm test -- --runInBand passed (jest logs include expected act() warnings).

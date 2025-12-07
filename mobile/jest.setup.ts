@@ -119,14 +119,40 @@ jest.mock('victory-native', () => {
   };
 });
 
-jest.mock('@react-native-community/netinfo', () => ({
-  addEventListener: jest.fn(() => jest.fn()),
-  fetch: jest.fn(() =>
-    Promise.resolve({
-      isConnected: true,
-      isInternetReachable: true,
-      details: null,
-      type: 'wifi',
-    })
-  ),
-}));
+jest.mock('@react-native-community/netinfo', () => {
+  const NetInfoStateType = {
+    unknown: 'unknown',
+    none: 'none',
+    cellular: 'cellular',
+    wifi: 'wifi',
+    bluetooth: 'bluetooth',
+    ethernet: 'ethernet',
+    wimax: 'wimax',
+    vpn: 'vpn',
+    other: 'other',
+  } as const;
+
+  const defaultState = {
+    isConnected: true,
+    isInternetReachable: true,
+    type: NetInfoStateType.wifi,
+    details: {
+      isConnectionExpensive: false,
+      ssid: null,
+      bssid: null,
+      strength: null,
+      ipAddress: null,
+      subnet: null,
+      frequency: null,
+      linkSpeed: null,
+      rxLinkSpeed: null,
+      txLinkSpeed: null,
+    },
+  };
+
+  return {
+    NetInfoStateType,
+    addEventListener: jest.fn(() => jest.fn()),
+    fetch: jest.fn(() => Promise.resolve(defaultState)),
+  };
+});

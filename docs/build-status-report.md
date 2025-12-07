@@ -1,7 +1,7 @@
 **Greenbro Build Status (local sweep 2025-12-05)**
 
 - **Backend**
-  - npm install; npm run typecheck; npm run lint; TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm test; npm run build - all green locally on Node 20 / Postgres 16 after the structured logging, worker locks, migrations, staging bootstrap, and health:check additions (vitest held to single-thread/file-serial to avoid DB contention).
+- npm install; npm run typecheck; npm run lint; TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm test; npm run build - all green locally on Node 20 / Postgres 16 after the structured logging, worker locks, migrations, staging bootstrap, and health:check additions (Vitest held to single-thread/file-serial in `vitest.config.ts`; no Jest `--runInBand` flag needed).
   - Migrations: node-pg-migrate baseline under `backend/migrations/` (includes `worker_locks`); `npm run migrate:dev` / `npm run migrate:test` wire to DATABASE_URL/TEST_DATABASE_URL; test harness runs migrations before seeding.
   - `STAGING_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_staging npm run staging:bootstrap` (env guard) applied migrations and demo seed on a local staging DB for a dry-run; summary `{"stage":"staging","db":"ok","migrations":"applied","seed":"ok"}`.
   - Preferences: `/user/preferences` GET/PUT backed by `user_preferences` (`alerts_enabled` default true) with API coverage for auth/validation/default/update paths.
