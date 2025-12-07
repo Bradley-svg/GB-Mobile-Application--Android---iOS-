@@ -1,5 +1,23 @@
 import { query } from '../config/db';
-import { AlertRow, AlertSeverity, AlertType } from '../domain/alerts';
+
+export type AlertSeverity = 'info' | 'warning' | 'critical';
+type AlertStatus = 'active' | 'cleared';
+export type AlertType = 'offline' | 'high_temp';
+
+export type AlertRow = {
+  id: string;
+  site_id: string | null;
+  device_id: string | null;
+  severity: AlertSeverity;
+  type: AlertType;
+  message: string;
+  status: AlertStatus;
+  first_seen_at: string;
+  last_seen_at: string;
+  acknowledged_by: string | null;
+  acknowledged_at: string | null;
+  muted_until: string | null;
+};
 
 export async function findActiveAlert(
   deviceId: string | null,

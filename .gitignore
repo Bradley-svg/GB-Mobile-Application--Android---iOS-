@@ -4,6 +4,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 dist/
+build/
 .expo/
 .expo-shared/
 .expo-dev-tools/
@@ -12,19 +13,17 @@ ios
 android
 /artifacts
 mobile/artifacts
-backend/$log*
 
 # Logs & temp
 logs/
 *.log
 *.err
+*.dmp
 android-*.err
 android-dumpsys*.txt
 ui.xml
 .codex-logs/
 *.tmp
-mobile/*.png
-mobile/*.jpg
 
 # TypeScript
 *.tsbuildinfo

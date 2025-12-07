@@ -46,9 +46,9 @@ _2025-12-07 sweep: backend and mobile typecheck/lint/tests/build all green local
 - Large-list: Jest sanity for Dashboard and Alerts ensures FlatList virtualization props stay set with 600–800 item fixtures; offline alerts cache path covered.
 
 ## Cleanup actions
-- Moved root screenshots (`emulator-screen.png`, `screenshot.png`) into `docs/`.
-- Removed tracked backend runtime log artifacts (`$logA`, `$logB`); tightened ignore list for backend `$log*` files and Detox `artifacts/`.
-- Dropped outdated schema reference files under `backend/sql/` to keep migrations as the single source of truth; aligned env docs/templates with real config (added `CONTROL_COMMAND_THROTTLE_MS`).
+- Removed unused `src/domain/*` types and `src/utils/organisation.ts` by inlining types into repositories/services and moving the org resolver into `src/controllers/organisation.ts`; `backend/src` now only contains config/controllers/services/repositories/integrations/middleware/routes/workers/scripts/index.ts.
+- Deleted stray runtime logs/tmp bundles/emulator screenshots from the repo and mobile roots so screenshots only live under `docs/`; tightened `.gitignore` (added `build/`, `*.dmp`, stopped hiding `mobile/*.png|*.jpg`).
+- Migrations stay the single source of truth (`backend/migrations/`); no legacy `backend/sql/*.sql` snapshots; `CONTROL_COMMAND_THROTTLE_MS` remains documented and in use across env templates/docs.
 
 ## Open risks / TODOs before more API work
 - No 2FA or trusted-device protections yet; password reset flow still absent (manual resets only).

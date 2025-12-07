@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
 import { acknowledgeAlert, getAlerts, getAlertsForDevice, muteAlert } from '../services/alertService';
-import { resolveOrganisationId } from '../utils/organisation';
+import { resolveOrganisationId } from './organisation';
 
 const alertIdSchema = z.object({ id: z.string().uuid() });
 const deviceIdSchema = z.object({ id: z.string().uuid() });

@@ -1,5 +1,5 @@
-import { SystemStatus } from '../domain/status';
 import {
+  type SystemStatus,
   ensureStatusRow,
   getSystemStatus as loadSystemStatus,
   updateStatusColumns,

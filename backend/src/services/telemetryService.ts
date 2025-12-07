@@ -1,7 +1,18 @@
-import { TelemetryPoint, TelemetryRange, TelemetryResult } from '../domain/telemetry';
 import { getTelemetryForDevice } from '../repositories/telemetryRepository';
 
 const DEFAULT_MAX_POINTS_PER_SERIES = 500;
+
+export type TelemetryPoint = {
+  ts: string;
+  value: number;
+};
+
+export type TelemetryRange = '24h' | '7d';
+
+export type TelemetryResult = {
+  range: TelemetryRange;
+  metrics: Record<string, TelemetryPoint[]>;
+};
 
 function clampMaxPoints(maxPoints?: number) {
   if (!maxPoints || Number.isNaN(maxPoints)) return DEFAULT_MAX_POINTS_PER_SERIES;

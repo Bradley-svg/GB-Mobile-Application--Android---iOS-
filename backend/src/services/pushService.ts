@@ -1,11 +1,13 @@
-import { AlertRow } from '../domain/alerts';
 import {
   isExpoPushToken,
   sendPushNotification,
   sendPushNotifications,
   type ExpoPushMessage,
 } from '../integrations/push/expoClient';
-import { getOrganisationIdForAlert as fetchOrganisationIdForAlert } from '../repositories/alertsRepository';
+import {
+  type AlertRow,
+  getOrganisationIdForAlert as fetchOrganisationIdForAlert,
+} from '../repositories/alertsRepository';
 import {
   getExistingUserPushToken,
   getLatestPushToken,

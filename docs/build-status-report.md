@@ -1,7 +1,7 @@
 **Greenbro Build Status (local sweep 2025-12-07)**
 
 - **Backend**
-- npm install; npm run typecheck; npm run lint; TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm test; npm run build - all green locally on Node 20 / Postgres 16 (Vitest held to single-thread/file-serial in `vitest.config.ts`; no Jest `--runInBand` flag needed). Cleanup this sweep: removed tracked backend `$log*` stubs, dropped legacy `backend/sql/*.sql` snapshots, added `CONTROL_COMMAND_THROTTLE_MS` to env docs/templates, and ignored Detox `artifacts/`.
+- npm install; npm run typecheck; npm run lint; TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm test; npm run build - all green locally on Node 20 / Postgres 16 (Vitest held to single-thread/file-serial in `vitest.config.ts`; no Jest `--runInBand` flag needed). Cleanup this sweep: inlined `src/domain/*` types into repositories/services, moved the org resolver into `src/controllers/organisation.ts` (removed `src/utils/organisation.ts`), deleted stray runtime logs, and tightened `.gitignore` (`build/`, `*.dmp`, stop hiding `mobile/*.png|*.jpg`).
   - Migrations: node-pg-migrate baseline under `backend/migrations/` (includes `worker_locks`); `npm run migrate:dev` / `npm run migrate:test` wire to DATABASE_URL/TEST_DATABASE_URL; test harness runs migrations before seeding. Legacy `sql/*.sql` references removed to keep migrations as the source of truth.
   - `STAGING_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_staging npm run staging:bootstrap` (env guard) applied migrations and demo seed on a local staging DB for a dry-run; summary `{"stage":"staging","db":"ok","migrations":"applied","seed":"ok"}`.
   - Preferences: `/user/preferences` GET/PUT backed by `user_preferences` (`alerts_enabled` default true) with API coverage for auth/validation/default/update paths.
@@ -52,6 +52,7 @@
 
 - **Mobile**
   - npm run typecheck, npm run lint, npm test -- --runInBand all green locally after wiring preferences to `/user/preferences` (latest spot run: `npm test -- --runInBand app/__tests__/DashboardLargeList.test.tsx app/__tests__/AlertsLargeList.test.tsx`).
+  - Cleanup this sweep: deleted emulator screenshots/Metro/logcat/bundle tmp files from the mobile root so only canonical assets remain under `assets/greenbro/`.
   - Detox scaffolded for Android with `detox.config.js`, Jest circus runner under `e2e/`, Android instrumentation runner + DetoxButler (`android/app/src/androidTest/...`), and scripts `npm run e2e:build:android`, `npm run e2e:test:android` (headless).
   - Core navigation E2E added (`e2e/appNavigation.e2e.ts`): Login  ->  Dashboard  ->  Site  ->  Device (telemetry + compressor card)  ->  Alerts list/detail  ->  Profile  ->  Logout. Test IDs added to root screens, tabs, and critical controls to keep selectors stable.
   - Large-list sanity: Dashboard and Alerts tests ensure FlatList virtualization props are present with 600-800 item fixtures; offline alerts cache path covered.

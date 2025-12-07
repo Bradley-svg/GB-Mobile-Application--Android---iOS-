@@ -5,6 +5,7 @@ Scope: backend API, workers, mobile app, branding, E2E, staging/deploy tooling
 
 ## Executive summary
 - Backend and mobile are fully green on this pass: typecheck, lint, tests, and build all completed (backend on Node 20/Postgres 16; mobile Jest with `--runInBand`).
+- Final hygiene: removed unused backend `src/domain/*` + controller util by inlining types/moving the org resolver into controllers, deleted stray logs/emulator screenshots/tmp bundles from repo/mobile roots, and tightened `.gitignore` (`build/`, `*.dmp`, no blanket ignore for `mobile/*.png|*.jpg`).
 - Staging remains blocked on DNS/DB provisioning for https://staging-api.greenbro.co.za; bootstrap and health-check scripts are ready once hosts exist.
 - Branding confirmed: only approved GREENBRO icon/splash/horizontal logo from `docs/branding/official/` and palette from `app/theme/colors.ts`.
 - Major open risks: no password reset/2FA, single-instance workers without HA/metrics pipeline, staging infra absent, and push/heat-pump integrations optional per env.
@@ -17,6 +18,7 @@ Scope: backend API, workers, mobile app, branding, E2E, staging/deploy tooling
 
 ### Build & tests (current state)
 - Confirmed green this sweep: `npm run typecheck`, `npm run lint`, `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm test`, `npm run build`.
+- Cleanup this sweep: removed `src/domain/*` and the controller org util in favor of repository/service-local types and `src/controllers/organisation.ts`; backend/sql remains removed; `.gitignore` now also ignores `build/`/`*.dmp` and no longer hides `mobile/*.png|*.jpg`.
 - Vitest serialization is configured in `backend/vitest.config.ts` (`fileParallelism:false`, `maxConcurrency:1`, `pool:threads` with `singleThread:true`); invocation is plain `npm test` (no `--runInBand`).
 - CI backend job (`.github/workflows/ci.yml`): Node 20 with Postgres 16 service; runs `npm run migrate:test` with TEST_DATABASE_URL/ALLOW_TEST_DB_RESET, then `npm test`, then `npm run build`.
 
@@ -47,6 +49,7 @@ Scope: backend API, workers, mobile app, branding, E2E, staging/deploy tooling
 
 ### Build & tests (current state)
 - Confirmed green: `npm run typecheck`, `npm run lint`, `npm test -- --runInBand`.
+- Cleanup this sweep: deleted emulator screenshots/Metro/logcat/bundle tmp from the mobile root so only canonical assets live under `assets/greenbro/`.
 - Jest coverage spans auth/session expiry, client refresh, navigation, device detail/history (1h/24h/7d + stale banners), offline banners and cached lists, alert detail ack/mute, push preference toggle, NetInfo banner, and large FlatList virtualization tests.
 - Detox is wired (`detox.config.js`, `e2e/jest.config.e2e.js`, Android runner, `e2e/appNavigation.e2e.ts` smoke path); not re-run in this pass per dev notes.
 

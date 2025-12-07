@@ -1,5 +1,7 @@
-import { AlertRow, AlertSeverity, AlertType } from '../domain/alerts';
 import {
+  type AlertRow,
+  type AlertSeverity,
+  type AlertType,
   acknowledgeAlert as acknowledgeAlertRepo,
   clearAlertIfExists as clearAlertIfExistsRepo,
   fetchAlerts,
@@ -11,7 +13,7 @@ import {
   updateAlert,
 } from '../repositories/alertsRepository';
 
-export type { AlertRow, AlertSeverity, AlertType } from '../domain/alerts';
+export type { AlertRow, AlertSeverity, AlertType } from '../repositories/alertsRepository';
 
 export async function upsertActiveAlert(options: {
   siteId: string | null;

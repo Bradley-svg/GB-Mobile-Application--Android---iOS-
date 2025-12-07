@@ -2,8 +2,7 @@ import { query } from '../config/db';
 import { getControlChannelStatus } from './deviceControlService';
 import { getMqttHealth } from '../integrations/mqttClient';
 import { runPushHealthCheck, type PushHealthStatus } from './pushService';
-import { SystemStatus } from '../domain/status';
-import { getSystemStatus } from './statusService';
+import { type SystemStatus, getSystemStatus } from './statusService';
 import { logger } from '../config/logger';
 
 const MQTT_INGEST_STALE_MS = 5 * 60 * 1000;

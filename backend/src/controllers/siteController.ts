@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
 import { getDevicesForSite, getSiteById, getSitesForOrganisation } from '../services/siteService';
-import { resolveOrganisationId } from '../utils/organisation';
+import { resolveOrganisationId } from './organisation';
 
 const siteIdSchema = z.object({ id: z.string().uuid() });
 

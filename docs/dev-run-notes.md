@@ -1,7 +1,7 @@
 ## Dev run on 2025-12-07
-- Backend: typecheck, lint, `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm test`, and build all green on Node 20/Postgres 16. Legacy `backend/sql/*.sql` snapshots removed; migrations remain the schema source.
-- Mobile: `npm run typecheck`, `npm run lint`, `npm test -- --runInBand` all green (expected console noise from mocks/act warnings).
-- Tooling cleanup: `.gitignore` now ignores Detox `artifacts/` and backend `$log*`; tracked `$logA`/`$logB` removed.
+- Backend: typecheck, lint, `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm test`, and build all green on Node 20/Postgres 16 after inlining `src/domain/*` types into repositories/services and moving the org resolver into `src/controllers/organisation.ts`. `backend/sql/` stays removed; migrations remain the schema source.
+- Mobile: `npm run typecheck`, `npm run lint`, `npm test -- --runInBand` all green (expected console noise from mocks/act warnings) with emulator screenshots/Metro/logcat/bundle tmp files deleted from the mobile root.
+- Tooling cleanup: `.gitignore` tightened (added `build/`, `*.dmp`, stopped hiding `mobile/*.png|*.jpg`); stray runtime logs at the repo root removed.
 ### health-plus (dev)
 
 Last recorded sample (2025-12-05; not rerun this sweep):

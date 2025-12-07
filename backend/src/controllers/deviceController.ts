@@ -8,7 +8,7 @@ import {
 } from '../services/deviceControlService';
 import { getDeviceTelemetry } from '../services/telemetryService';
 import { ControlValidationError } from '../services/deviceControlValidationService';
-import { resolveOrganisationId } from '../utils/organisation';
+import { resolveOrganisationId } from './organisation';
 import { getLastCommandForDevice } from '../repositories/controlCommandsRepository';
 
 const deviceIdSchema = z.object({ id: z.string().uuid() });
