@@ -1,5 +1,6 @@
 const path = require('path');
 const { Client } = require('pg');
+const bcrypt = require('bcryptjs');
 
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
@@ -12,6 +13,9 @@ async function main() {
   const defaultOrgId = '11111111-1111-1111-1111-111111111111';
   const siteId = '22222222-2222-2222-2222-222222222222';
   const deviceId = '33333333-3333-3333-3333-333333333333';
+  const demoUserId = '55555555-5555-5555-5555-555555555555';
+  const demoUserEmail = 'demo@greenbro.com';
+  const demoUserPassword = process.env.DEMO_USER_PASSWORD || 'password';
   // Must match the MAC Azure expects for the demo heat pump history calls.
   // If you already seeded a different MAC locally, run:
   //   update devices set mac = '38:18:2B:60:A9:94' where id = '33333333-3333-3333-3333-333333333333';
@@ -44,6 +48,17 @@ async function main() {
     on conflict (id) do nothing
   `,
     [siteId, defaultOrgId, 'Demo Site', 'Cape Town', 'healthy', 1, 1]
+  );
+
+  const passwordHash = await bcrypt.hash(demoUserPassword, 10);
+  await client.query(
+    `
+    insert into users (id, organisation_id, email, password_hash, name)
+    values ($1, $2, $3, $4, $5)
+    on conflict (email)
+    do update set organisation_id = excluded.organisation_id, name = excluded.name, password_hash = excluded.password_hash
+  `,
+    [demoUserId, defaultOrgId, demoUserEmail, passwordHash, 'Demo User']
   );
 
   await client.query(

@@ -69,6 +69,12 @@ Login credentials: `demo@greenbro.com` with the seed script password (typically 
 - Detox E2E: optional; not needed for manual screen captures.
 - Azure heat-pump API issues: if `HEATPUMP_HISTORY_URL`/`HEATPUMP_HISTORY_API_KEY` are unset or the upstream is unhappy, the Device history card will show the appropriate “temporarily unavailable / disabled” or “no history” copy — acceptable for UI screenshots.
 
+## Dev run on 2025-12-07 (local stack setup)
+- Commands: `cd backend && npm install && npm run migrate:dev && node scripts/init-local-db.js` (now seeds demo user), backend dev server via `Start-Process ... npm run dev`, health check `Invoke-RestMethod http://localhost:4000/health-plus`; backend checks `npm run typecheck`, `npm run lint`, `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm test`, `npm run build`; mobile `cd mobile && npm install && npx expo start --dev-client --localhost -c --port 8082`, emulator port reverse `adb reverse tcp:8082 tcp:8082 && adb reverse tcp:4000 tcp:4000`, dev client launch `adb shell am start -n com.greenbro.mobile/.MainActivity`.
+- Env: backend `.env` set for dev (`PORT=4000`, `NODE_ENV=development`, dev/test DB URLs, `ALLOW_TEST_DB_RESET=true`, HEATPUMP history left blank); mobile `.env` uses `EXPO_PUBLIC_API_URL=http://10.0.2.2:4000`.
+- Issues/fixes: `psql` not on PATH (used `C:\Program Files\PostgreSQL\16\bin\psql.exe`), seed script was missing a user so `backend/scripts/init-local-db.js` now inserts `demo@greenbro.com` with bcrypt hash for `password`.
+- API sanity: demo login works; `/sites`, `/sites/:id/devices`, `/devices/:id`, telemetry, `/alerts` all return seeded data; `/devices/:id/last-command` currently 404 (no command history yet) and Profile `/user/preferences` returns defaults with alerts enabled.
+
 ## Dev run on 2025-12-07
 - Backend: typecheck, lint, `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm test`, and build all green on Node 20/Postgres 16 after inlining `src/domain/*` types into repositories/services and moving the org resolver into `src/controllers/organisation.ts`. `backend/sql/` stays removed; migrations remain the schema source.
 - Mobile: `npm run typecheck`, `npm run lint`, `npm test -- --runInBand` all green (expected console noise from mocks/act warnings) with emulator screenshots/Metro/logcat/bundle tmp files deleted from the mobile root.
