@@ -1,80 +1,83 @@
-﻿# Greenbro Build Progress Report - 0.1.0
+# Greenbro Build Progress Report - 0.1.0
 
 Date: 2025-12-07  
-Scope: backend API, workers, mobile app, branding, E2E, staging/deploy tooling
+Scope: backend API, workers, mobile app, branding, E2E tooling, staging/deploy tooling
 
 ## Executive summary
-- Backend and mobile are fully green on this pass: typecheck, lint, tests, and build all completed (backend on Node 20/Postgres 16; mobile Jest with `--runInBand`).
-- Final hygiene: removed unused backend `src/domain/*` + controller util by inlining types/moving the org resolver into controllers, deleted stray logs/emulator screenshots/tmp bundles from repo/mobile roots, and tightened `.gitignore` (`build/`, `*.dmp`, no blanket ignore for `mobile/*.png|*.jpg`).
-- Staging remains blocked on DNS/DB provisioning for https://staging-api.greenbro.co.za; bootstrap and health-check scripts are ready once hosts exist.
-- Branding confirmed: only approved GREENBRO icon/splash/horizontal logo from `docs/branding/official/` and palette from `app/theme/colors.ts`.
-- Major open risks: no password reset/2FA, single-instance workers without HA/metrics pipeline, staging infra absent, and push/heat-pump integrations optional per env.
-- Next steps: bring up staging DNS/DB, run `npm run staging:bootstrap` + `npm run health:check`, execute Detox smoke, and decide on account recovery/security posture.
+- Backend (Node 20 / Postgres 16): `npm run typecheck` (pass); `npm run lint` (pass); `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm test` (pass); `npm run build` (pass).
+- Mobile: `npm run typecheck` (pass); `npm run lint` (pass); `npm test -- --runInBand` (pass).
+- Repo structure is clean and layered: `backend/src` now only has config/controllers/services/repositories/integrations/middleware/routes/workers/scripts/index.ts (no `domain/`, no stray utils), migrations live solely in `backend/migrations/`; mobile assets are canonical under `mobile/assets/greenbro/`.
+- Major risks: no password reset/2FA/trusted device (manual recovery only); staging DNS/DB for `https://staging-api.greenbro.co.za` still missing; metrics/alerting pipeline not yet deployed (health-plus + logs only).
+- Next high-value steps: provision staging DNS/DB and run bootstrap + health checks, define account recovery posture, and wire metrics plus worker HA observability.
 
-## Backend Status
-### Architecture snapshot
-- Express API with controllers/middleware/routes feeding services and repositories; integrations for MQTT ingest/control, HTTP control, Expo push, Azure heat-pump history; worker processes for mqttIngest and alertsWorker; scripts for snapshot backfill, heat-pump debug, and staging bootstrap; migrations under `backend/migrations/` via node-pg-migrate (legacy `sql/*.sql` snapshots removed to avoid drift).
-- Features: auth with refresh/logout/logout-all; device control with throttle and `/devices/:id/last-command`; telemetry ingest/read with validation and downsampling; Azure heat-pump history client with circuit breaker/timeout; user preferences persisted via `/user/preferences`; worker locks for MQTT/alerts; structured pino logging to stdout.
+## Repo structure snapshot (post-cleanup)
+- backend/: Express API and workers
+  - `src/config` (DB/env/CORS/logger), `src/controllers` (auth/sites/devices/alerts/health/heat-pump-history/telemetry stub/organisation), `src/services` (auth, telemetry ingest/read, alerts, control, push, status, sites/devices, user preferences), `src/repositories` (users, refresh_tokens, sites, devices, telemetry, alerts, control_commands, push_tokens, system_status, worker_locks, etc.), `src/integrations` (MQTT, HTTP control, Expo push, Azure heat-pump history), `src/middleware`, `src/routes`, `src/workers`, `src/scripts`, `src/index.ts`.
+  - `src/domain/*` removed; organisation resolution lives in `src/controllers/organisation.ts`; `src/utils/organisation.ts` removed. `backend/sql/` snapshot folder removed; `backend/migrations/*` is the single schema source of truth.
+- mobile/: Expo client
+  - `app/navigation/RootNavigator.tsx` (Auth vs App; tabs Dashboard/Alerts/Profile; detail screens: Site/Device/Alert), `app/screens`, `app/components`, `app/api`, `app/store`, `app/hooks`, `app/theme`, `app/__tests__/`.
+  - `mobile/assets/greenbro/` holds only `greenbro-icon-1024.png`, `greenbro-splash.png`, `greenbro-logo-horizontal.png`.
+- Other: `archive/`, `docs/`, `.github/`, `scripts/`, git-ignored `logs/`. Runtime logs/tmp bundles/screenshots removed from tracked roots; `.gitignore` tightened to keep only source/docs plus canonical assets.
 
-### Build & tests (current state)
-- Confirmed green this sweep: `npm run typecheck`, `npm run lint`, `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm test`, `npm run build`.
-- Cleanup this sweep: removed `src/domain/*` and the controller org util in favor of repository/service-local types and `src/controllers/organisation.ts`; backend/sql remains removed; `.gitignore` now also ignores `build/`/`*.dmp` and no longer hides `mobile/*.png|*.jpg`.
-- Vitest serialization is configured in `backend/vitest.config.ts` (`fileParallelism:false`, `maxConcurrency:1`, `pool:threads` with `singleThread:true`); invocation is plain `npm test` (no `--runInBand`).
-- CI backend job (`.github/workflows/ci.yml`): Node 20 with Postgres 16 service; runs `npm run migrate:test` with TEST_DATABASE_URL/ALLOW_TEST_DB_RESET, then `npm test`, then `npm run build`.
+## Backend status
+### Architecture
+- Requests flow routes -> controllers -> services -> repositories -> Postgres/integrations; middleware handles auth/CORS/errors; `src/index.ts` wires routers and pino logging.
+- Auth: login/refresh/me/logout/logout-all; refresh rotation stored in `refresh_tokens`.
+- Control: validation/throttling plus `/devices/:id/last-command`; supports MQTT or HTTP control clients.
+- Telemetry: MQTT ingest with DB-backed worker locks; HTTP ingest route intentionally 501 stub; telemetry read down-samples and enforces limits.
+- Heat-pump history: Azure client with timeout + circuit breaker; `/heat-pump-history` returns normalized series/points.
+- User preferences: `/user/preferences` GET/PUT backed by `user_preferences` defaults.
+- Workers: `mqttIngest` and `alertsWorker` single-instance with DB leases (`worker_locks`); structured logging via pino.
 
-### Runtime health snapshot
-- `/health-plus` payload includes env, db, version, mqtt, control, heatPumpHistory, alertsWorker, push with timestamps and ok flag.
-- Latest captured dev sample (2025-12-05 in `docs/dev-run-notes.md`): `ok:true`, env `development`, db `ok`, version `0.1.0-dev`; mqtt configured:false healthy:true; control configured:false healthy:true with lastError `CONTROL_CHANNEL_UNCONFIGURED`; heatPumpHistory configured:false healthy:true; alertsWorker healthy:true; push enabled:false with lastSampleAt recorded. Not rerun in this sweep.
-- When heat-pump history is configured but upstream idle (prior run), `ok` flips false with `heatPumpHistory.healthy:false`; control stays healthy when unconfigured unless an error is recent.
+### Build & tests (this pass)
+- backend:  
+  - `npm run typecheck` (pass)  
+  - `npm run lint` (pass)  
+  - `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm test` (pass)  
+  - `npm run build` (pass)  
+- Vitest serialization is configured in `backend/vitest.config.ts` (single-threaded pool); no extra flags needed in `npm test`.
 
-### Migrations & staging bootstrap
-- Migrations live in `backend/migrations/` and run via node-pg-migrate (`npm run migrate:dev` / `npm run migrate:test` using DATABASE_URL/TEST_DATABASE_URL); legacy `sql/*.sql` schemas were removed this pass to keep migrations authoritative.
-- `npm run staging:bootstrap` enforces `STAGING_DATABASE_URL` containing "staging", applies migrations against it (`npm run migrate:dev` with DATABASE_URL override), then seeds demo data via `scripts/init-local-db.js`, outputting a JSON summary.
-- Supporting scripts: `npm run health:check` (expects HEALTH_BASE_URL) and `npm run staging:bootstrap:raw` for manual bootstrap flows.
+### Health & migrations
+- `/health-plus` reports env, db, version, mqtt, control, heatPumpHistory, alertsWorker, push. Use `HEALTH_BASE_URL=... npm run health:check` to sample.
+- Migrations live under `backend/migrations/` and run via `npm run migrate:dev` / `npm run migrate:test`; `scripts/init-local-db.js` seeds after migrations. No `backend/sql/` snapshots remain.
 
-### Risks & TODOs (backend)
-- Password reset/2FA/trusted device flows not implemented (manual recovery only).
-- Workers run as single instances despite DB locks; HA strategy and metrics/alerting pipeline still absent.
-- `npm audit` moderates/highs remain in dev tooling (node-pg-migrate/glob, vitest/vite/esbuild); runtime deps are clear.
+### Heat pump history alignment
+- Client posts to `HEATPUMP_HISTORY_URL` with `x-api-key` from `HEATPUMP_HISTORY_API_KEY`, headers `Content-Type: application/json-patch+json` and `Accept: text/plain`.
+- Payload matches vendor contract: flat `aggregation/from/to/mode/fields/mac`. Responses are normalized into `series[{ field, points: [{ timestamp, value }] }]`.
+- Circuit breaker returns 503 (`kind: CIRCUIT_OPEN`) when tripped; upstream failures/timeouts surface as 502-style (`kind: UPSTREAM_ERROR`) with logging and status markers.
 
-## Mobile Status
-### App structure snapshot
-- RootNavigator swaps Auth vs App stacks; App tabs: Dashboard, Alerts, Profile; detail stacks for Site, Device, and Alert screens.
-- Domains covered: auth/session refresh, telemetry + compressed history ranges, control commands with throttle messaging, alert list/detail with ack/mute, notification preferences bound to `/user/preferences`, offline caching for Dashboard/Site/Device/Alerts.
+### Known backend risks
+- No password reset, 2FA, or trusted-device support (manual recovery only).
+- Workers rely on single-instance process with DB locks; no HA scheduler/metrics yet.
+- Metrics/alerting pipeline still absent beyond logs and health-plus.
+
+## Mobile status
+### Architecture & flows
+- `RootNavigator` swaps Auth vs App stacks; tabs Dashboard/Alerts/Profile with Site/Device/Alert detail stacks.
+- Auth/session handling via store and refresh; Device detail shows telemetry, control, and heat-pump history card; Alerts include ack/mute; push preferences round-trip to `/user/preferences`.
+- Offline: banner + cached Dashboard/Site/Device/Alerts; UI goes read-only offline (control/ack/mute disabled).
 
 ### Branding
-- Runtime assets come from `mobile/assets/greenbro/`: `greenbro-icon-1024.png` (icon/adaptive icon), `greenbro-splash.png` (splash), `greenbro-logo-horizontal.png` (login/headers); sources align with `docs/branding/official/`.
-- Colours derive from `app/theme/colors.ts` and match the documented palette (brand greens #39B54A/#2D9C3E, greys, text, background, gradients).
-- Do-not rules upheld: no fake SVG lockups or "GREEN BRO" variants; only approved GREENBRO mark with gear.
+- Canonical assets: `mobile/assets/greenbro/greenbro-icon-1024.png`, `greenbro-splash.png`, `greenbro-logo-horizontal.png`.
+- Palette from `app/theme/colors.ts` matches `docs/branding/README.md` (brand greens/greys/text/gradients); no extra logo variants.
 
-### Build & tests (current state)
-- Confirmed green: `npm run typecheck`, `npm run lint`, `npm test -- --runInBand`.
-- Cleanup this sweep: deleted emulator screenshots/Metro/logcat/bundle tmp from the mobile root so only canonical assets live under `assets/greenbro/`.
-- Jest coverage spans auth/session expiry, client refresh, navigation, device detail/history (1h/24h/7d + stale banners), offline banners and cached lists, alert detail ack/mute, push preference toggle, NetInfo banner, and large FlatList virtualization tests.
-- Detox is wired (`detox.config.js`, `e2e/jest.config.e2e.js`, Android runner, `e2e/appNavigation.e2e.ts` smoke path); not re-run in this pass per dev notes.
+### Build & tests (this pass)
+- mobile:  
+  - `npm run typecheck` (pass)  
+  - `npm run lint` (pass)  
+  - `npm test -- --runInBand` (pass)  
+- Coverage includes auth/session expiry, navigation, device detail + history (ranges and stale banners), offline banners and caches, alerts list/detail, push preferences + OS permission handling, NetInfo hook, and large FlatList virtualization tests.
 
-### Offline, control, and push UX
-- Offline banner driven by NetInfo via `safeNetInfo`; hook supports both native NetInfo present and fallback when the module is missing. Jest mock uses full `NetInfoState` shape.
-- Dashboard/Site/Device/Alerts render cached data read-only when offline; control commands, ack, and mute disable with messaging. Control UI shows pending/throttling state and last-command panel with backend `failure_reason` mapping.
-- Push preferences toggle ties to `/user/preferences`, respects OS permission, and gates Expo token registration accordingly.
+### E2E / Detox
+- Detox wired (`mobile/detox.config.js`, `mobile/e2e/jest.config.e2e.js`, `mobile/e2e/appNavigation.e2e.ts`, Android runner). Run with `npm run e2e:build:android` then `npm run e2e:test:android -- --headless` (backend at http://10.0.2.2:4000). Not run in this pass.
 
-### Risks & TODOs (mobile)
-- No offline write-back/queuing for commands or alerts; offline mode remains read-only.
-- Detox coverage limited to navigation smoke; no long-run/stress or device-matrix E2E yet.
-- Future UX depth for history ranges, richer charts, and clearer "read-only cached" indicators.
+## Staging & deployment readiness
+- Staging DNS/DB for `https://staging-api.greenbro.co.za` still missing, blocking staging bootstrap and health checks.
+- Staging steps once available: set `STAGING_DATABASE_URL` (must include "staging"), run `npm run staging:bootstrap` to migrate + seed, then `HEALTH_BASE_URL=https://staging-api.greenbro.co.za npm run health:check` for `/health-plus`.
+- Production mirrors staging with production URLs/secrets; Expo builds use `EXPO_PUBLIC_API_URL` and EAS profiles per environment.
 
-## E2E & Deployment Readiness
-- **E2E / Detox:** Android config present with `npm run e2e:build:android` and `npm run e2e:test:android` (headless, Jest circus). Current coverage is navigation/login->dashboard->site->device->alerts->profile->logout. Last noted run was prior sweep; not executed in this pass.
-- **Staging & production:** Staging DNS/DB for `https://staging-api.greenbro.co.za` still pending, so no staging smoke yet. Once available: set DATABASE_URL/JWT_SECRET/APP_VERSION/HEATPUMP_*/CONTROL_*/WORKER_LOCK_TTL_SEC/ALERT_WORKER_* and related envs, run `npm run staging:bootstrap`, then `HEALTH_BASE_URL=https://staging-api.greenbro.co.za npm run health:check`. Build staging mobile pointing EXPO_PUBLIC_API_URL to the staging host. Production follows the same flow with production URLs/secrets.
-
-## Open Risks & Recommended Next Steps
-- **P0 - Account recovery/security:** Decide on password reset/2FA/trusted-device posture; add security/legal sign-off before production exposure.
-- **P1 - Staging & observability:** Bring up staging DNS/DB and run `npm run staging:bootstrap` + health checks; add metrics/alerting pipeline and define HA/worker strategy beyond single-instance locks.
-- **P2 - UX/scale:** Add offline write-back or clearer offline guidance for commands/alerts; expand history/telemetry UX and broaden Detox/E2E coverage beyond navigation smoke.
-- **P3 - Polish:** Triage residual test warnings/noise, continue repo cleanup, and optionally harden branding delivery (additional asset sizes/dev-client rebuild with bundled NetInfo).
-
-## Staging verification - 2025-12-07
-- `npm run staging:bootstrap`: not run (no STAGING_DATABASE_URL available; staging Postgres not provisioned yet; script guard still requires DB name containing "staging").
-- `npm run health:check`: not run (staging-api.greenbro.co.za does not resolve; awaiting DNS + staged DATABASE_URL before setting HEALTH_BASE_URL).
-- Manual smoke: blocked (no staging backend/app build; will run login -> dashboard -> site -> device -> alerts -> profile -> logout once staging API is live).
-- Detox navigation E2E: not run (staging backend unavailable and no staging app build/emulator session for this pass).
+## Open risks & prioritised next steps
+- P0: Decide and implement/document password reset/2FA/trusted-device posture before wider exposure.
+- P1: Provision staging DNS/DB, run `npm run staging:bootstrap` + health checks; design/ship metrics + alerting pipeline and worker HA strategy.
+- P2: Broaden Detox/E2E coverage and consider richer offline guidance or optional write-back strategy.
+- P3: Reduce residual test noise, continue small UX polish, and keep repo lean as new assets/configs arrive.
