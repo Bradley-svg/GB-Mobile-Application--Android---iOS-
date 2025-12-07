@@ -7,13 +7,14 @@ import { useAlerts } from '../../api/hooks';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { Screen, Card, PillTabGroup, IconButton, ErrorCard, EmptyState } from '../../components';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
-import { loadJson, saveJson } from '../../utils/storage';
+import { loadJsonWithMetadata, saveJson, isCacheOlderThan } from '../../utils/storage';
 import type { Alert } from '../../api/types';
 import { colors, gradients } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 
 type Navigation = NativeStackNavigationProp<AppStackParamList>;
+const CACHE_STALE_MS = 24 * 60 * 60 * 1000;
 
 const SEVERITY_ORDER: Record<string, number> = {
   critical: 0,
@@ -43,6 +44,7 @@ export const AlertsScreen: React.FC = () => {
   const navigation = useNavigation<Navigation>();
   const { isOffline } = useNetworkBanner();
   const [cachedAlerts, setCachedAlerts] = useState<Alert[] | null>(null);
+  const [cachedAt, setCachedAt] = useState<string | null>(null);
 
   useEffect(() => {
     if (!alerts || isOffline) return;
@@ -54,6 +56,7 @@ export const AlertsScreen: React.FC = () => {
         prev.every((a, idx) => a.id === alerts[idx].id && a.status === alerts[idx].status);
       if (isSame) return prev;
       saveJson(ALERTS_CACHE_KEY, alerts);
+      setCachedAt(new Date().toISOString());
       return alerts;
     });
   }, [alerts, isOffline]);
@@ -63,9 +66,10 @@ export const AlertsScreen: React.FC = () => {
     let cancelled = false;
 
     const loadCache = async () => {
-      const cached = await loadJson<Alert[]>(ALERTS_CACHE_KEY);
+      const cached = await loadJsonWithMetadata<Alert[]>(ALERTS_CACHE_KEY);
       if (!cancelled) {
-        setCachedAlerts(cached);
+        setCachedAlerts(cached?.data ?? null);
+        setCachedAt(cached?.savedAt ?? null);
       }
     };
 
@@ -78,6 +82,8 @@ export const AlertsScreen: React.FC = () => {
 
   const alertsList = useMemo(() => alerts ?? cachedAlerts ?? [], [alerts, cachedAlerts]);
   const hasCachedAlerts = (cachedAlerts?.length ?? 0) > 0;
+  const cacheStale = isCacheOlderThan(cachedAt, CACHE_STALE_MS);
+  const cacheUpdatedLabel = cachedAt ? new Date(cachedAt).toLocaleString() : null;
   const showLoading = isLoading && alertsList.length === 0;
   const shouldShowError = isError && !isOffline && alertsList.length === 0;
 
@@ -124,6 +130,11 @@ export const AlertsScreen: React.FC = () => {
       {isOffline ? (
         <Text style={[typography.caption, styles.offlineNote]}>
           {hasCachedAlerts ? 'Offline - showing cached alerts (read-only).' : 'Offline and no cached alerts.'}
+        </Text>
+      ) : null}
+      {cacheStale ? (
+        <Text style={[typography.caption, styles.staleNote]}>
+          Data older than 24 hours – may be out of date{cacheUpdatedLabel ? ` (cached ${cacheUpdatedLabel})` : ''}.
         </Text>
       ) : null}
       <Card style={styles.headerCard}>
@@ -224,4 +235,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderSubtle,
   },
+  staleNote: { color: colors.warning, marginBottom: spacing.sm },
 });

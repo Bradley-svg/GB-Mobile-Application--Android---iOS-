@@ -14,7 +14,7 @@ import * as navigation from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { AppStackParamList } from '../navigation/RootNavigator';
 import { useNetworkBanner } from '../hooks/useNetworkBanner';
-import { loadJson } from '../utils/storage';
+import { loadJsonWithMetadata } from '../utils/storage';
 
 jest.mock('../api/hooks', () => ({
   useDevice: jest.fn(),
@@ -31,8 +31,9 @@ jest.mock('../hooks/useNetworkBanner', () => ({
 }));
 
 jest.mock('../utils/storage', () => ({
-  loadJson: jest.fn(),
+  loadJsonWithMetadata: jest.fn(),
   saveJson: jest.fn(),
+  isCacheOlderThan: jest.fn().mockReturnValue(false),
 }));
 
 describe('DeviceDetailScreen', () => {
@@ -40,7 +41,7 @@ describe('DeviceDetailScreen', () => {
     jest.clearAllMocks();
 
     (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: false });
-    (loadJson as jest.Mock).mockResolvedValue(null);
+    (loadJsonWithMetadata as jest.Mock).mockResolvedValue(null);
 
     const route: RouteProp<AppStackParamList, 'DeviceDetail'> = {
       key: 'DeviceDetail',
@@ -166,19 +167,22 @@ describe('DeviceDetailScreen', () => {
         cop: [],
       },
     };
-    (loadJson as jest.Mock).mockResolvedValue({
-      device: {
-        id: 'device-1',
-        site_id: 'site-1',
-        name: 'Cached Device',
-        type: 'hp',
-        status: 'ok',
-        external_id: 'dev-1',
-        mac: '38:18:2B:60:A9:94',
+    (loadJsonWithMetadata as jest.Mock).mockResolvedValue({
+      data: {
+        device: {
+          id: 'device-1',
+          site_id: 'site-1',
+          name: 'Cached Device',
+          type: 'hp',
+          status: 'ok',
+          external_id: 'dev-1',
+          mac: '38:18:2B:60:A9:94',
+        },
+        telemetry: cachedTelemetry,
+        lastUpdatedAt: '2025-01-01T00:00:00.000Z',
+        cachedAt: '2025-01-01T01:00:00.000Z',
       },
-      telemetry: cachedTelemetry,
-      lastUpdatedAt: '2025-01-01T00:00:00.000Z',
-      cachedAt: '2025-01-01T01:00:00.000Z',
+      savedAt: '2025-01-01T01:00:00.000Z',
     });
     (useDevice as jest.Mock).mockReturnValue({
       data: undefined,
@@ -208,7 +212,7 @@ describe('DeviceDetailScreen', () => {
 
   it('shows offline empty state when no cached device exists', async () => {
     (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: true });
-    (loadJson as jest.Mock).mockResolvedValue(null);
+    (loadJsonWithMetadata as jest.Mock).mockResolvedValue(null);
     (useDevice as jest.Mock).mockReturnValue({
       data: undefined,
       isLoading: false,

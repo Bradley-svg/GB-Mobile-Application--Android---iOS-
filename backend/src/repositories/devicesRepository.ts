@@ -8,7 +8,7 @@ export type DeviceRow = {
   external_id?: string | null;
   mac?: string | null;
   status?: string | null;
-  last_seen_at?: Date;
+  last_seen_at?: Date | null;
   controller?: string | null;
 };
 
@@ -27,8 +27,17 @@ export type DeviceSnapshotRow = {
 
 export async function getDeviceById(id: string, organisationId?: string) {
   const baseSql = `
-    select d.*
+    select d.id,
+           d.site_id,
+           d.name,
+           d.type,
+           d.external_id,
+           d.mac,
+           d.status,
+           coalesce(ds.last_seen_at, d.last_seen_at) as last_seen_at,
+           d.controller
     from devices d
+    left join device_snapshots ds on ds.device_id = d.id
     ${organisationId ? 'join sites s on d.site_id = s.id' : ''}
     where d.id = $1
     ${organisationId ? 'and s.organisation_id = $2' : ''}
@@ -42,8 +51,17 @@ export async function getDeviceById(id: string, organisationId?: string) {
 export async function getDevicesForSite(siteId: string, organisationId: string) {
   const result = await query<DeviceRow>(
     `
-    select d.*
+    select d.id,
+           d.site_id,
+           d.name,
+           d.type,
+           d.external_id,
+           d.mac,
+           d.status,
+           coalesce(ds.last_seen_at, d.last_seen_at) as last_seen_at,
+           d.controller
     from devices d
+    left join device_snapshots ds on ds.device_id = d.id
     join sites s on d.site_id = s.id
     where d.site_id = $1
       and s.organisation_id = $2
@@ -108,6 +126,57 @@ export async function getDeviceSnapshotTemperatures() {
     from devices d
     join device_snapshots s on d.id = s.device_id
   `
+  );
+
+  return res.rows;
+}
+
+export type DeviceSearchRow = DeviceRow & {
+  site_name: string;
+  site_city: string | null;
+};
+
+export async function searchDevices(options: {
+  organisationId: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const where: string[] = ['s.organisation_id = $1'];
+  const params: Array<string | number> = [options.organisationId];
+  let idx = 2;
+
+  if (options.search) {
+    where.push('(d.name ilike $' + idx + ' or s.name ilike $' + idx + ' or s.city ilike $' + idx + ')');
+    params.push(`%${options.search}%`);
+    idx += 1;
+  }
+
+  const limit = options.limit ?? 100;
+  const offset = options.offset ?? 0;
+
+  const res = await query<DeviceSearchRow>(
+    `
+    select d.id,
+           d.site_id,
+           d.name,
+           d.type,
+           d.external_id,
+           d.mac,
+           d.status,
+           coalesce(ds.last_seen_at, d.last_seen_at) as last_seen_at,
+           d.controller,
+           s.name as site_name,
+           s.city as site_city
+    from devices d
+    join sites s on d.site_id = s.id
+    left join device_snapshots ds on ds.device_id = d.id
+    where ${where.join(' and ')}
+    order by d.name asc
+    limit ${limit}
+    offset ${offset}
+  `,
+    params
   );
 
   return res.rows;

@@ -21,6 +21,8 @@ Prereqs: Postgres is running; `backend/.env` has `DATABASE_URL`, `JWT_SECRET`, e
 
 If you don’t want to hit Azure while grabbing screenshots, leave `HEATPUMP_HISTORY_URL` and `HEATPUMP_HISTORY_API_KEY` unset in `.env`. The Device screen’s history card will show the “temporarily unavailable / disabled” copy instead of blowing up on vendor errors.
 
+- Fleet search + health: `/sites` and `/sites/:id` now return `health` + `last_seen` summaries; `/sites/:id/devices` includes the same. `/fleet` supports `q`, repeated `health`, and `tag` (no-op for now) query params and returns both sites/devices for the Search screen; defaults remain if filters are omitted.
+
 ### Mobile / Metro + dev client
 From repo root:
 ```bash

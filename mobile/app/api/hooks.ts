@@ -10,3 +10,4 @@ export {
   useUpdateNotificationPreferencesMutation,
 } from './preferences/hooks';
 export { useHealthPlus } from './health/hooks';
+export { useFleetSearch } from './fleet/hooks';

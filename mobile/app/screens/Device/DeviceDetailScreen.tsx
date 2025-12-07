@@ -24,7 +24,7 @@ import type {
 import type { HeatPumpHistoryError } from '../../api/heatPumpHistory/hooks';
 import { Screen, Card, PrimaryButton, IconButton, ErrorCard, PillTabGroup } from '../../components';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
-import { loadJson, saveJson } from '../../utils/storage';
+import { loadJsonWithMetadata, saveJson, isCacheOlderThan } from '../../utils/storage';
 import { colors, gradients } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
@@ -37,6 +37,7 @@ const SETPOINT_MIN = 30;
 const SETPOINT_MAX = 60;
 const DEFAULT_SETPOINT = '45';
 const STALE_THRESHOLD_MS = 15 * 60 * 1000;
+const CACHE_STALE_MS = 24 * 60 * 60 * 1000;
 const DEVICE_CACHE_KEY = (deviceId: string) => `device-cache:${deviceId}`;
 const RANGE_TO_WINDOW_MS: Record<TimeRange, number> = {
   '1h': 60 * 60 * 1000,
@@ -67,6 +68,7 @@ export const DeviceDetailScreen: React.FC = () => {
   const navigation = useNavigation<Navigation>();
   const [range, setRange] = useState<TimeRange>('24h');
   const [cachedDeviceDetail, setCachedDeviceDetail] = useState<CachedDeviceDetail | null>(null);
+  const [cachedSavedAt, setCachedSavedAt] = useState<string | null>(null);
   const [cacheLoading, setCacheLoading] = useState(false);
 
   const [setpointInput, setSetpointInput] = useState(DEFAULT_SETPOINT);
@@ -98,9 +100,10 @@ export const DeviceDetailScreen: React.FC = () => {
     setCacheLoading(true);
 
     const loadCache = async () => {
-      const cached = await loadJson<CachedDeviceDetail>(DEVICE_CACHE_KEY(deviceId));
+      const cached = await loadJsonWithMetadata<CachedDeviceDetail>(DEVICE_CACHE_KEY(deviceId));
       if (!cancelled) {
-        setCachedDeviceDetail(cached);
+        setCachedDeviceDetail(cached?.data ?? null);
+        setCachedSavedAt(cached?.savedAt ?? cached?.data?.cachedAt ?? null);
         setCacheLoading(false);
       }
     };
@@ -284,6 +287,7 @@ export const DeviceDetailScreen: React.FC = () => {
     mapHistoryError(historyStatus) || 'Failed to load history. Try again or contact support.';
   const isOfflineWithCache = isOffline && !!cachedDeviceDetail;
   const showUnknownLastUpdated = !lastUpdatedAt && (hasAnyTelemetryPoints || hasAnyHistoryPoints);
+  const cacheStale = isCacheOlderThan(cachedSavedAt ?? cachedDeviceDetail?.cachedAt ?? null, CACHE_STALE_MS);
 
   if (__DEV__) {
     if (telemetryErrorObj) console.log('Telemetry load error', telemetryErrorObj);
@@ -452,6 +456,11 @@ export const DeviceDetailScreen: React.FC = () => {
           {isOfflineWithCache
             ? 'Offline - showing cached data (read-only).'
             : 'Offline and no cached data for this device.'}
+        </Text>
+      ) : null}
+      {cacheStale ? (
+        <Text style={[typography.caption, styles.offlineNote, { marginBottom: spacing.md, color: colors.warning }]}>
+          Data older than 24 hours – may be out of date.
         </Text>
       ) : null}
       {!isOffline && isDeviceOffline ? (

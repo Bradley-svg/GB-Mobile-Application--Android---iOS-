@@ -32,6 +32,7 @@ describe('device and site scoping', () => {
         rows: [{ id: 'user-99', organisation_id: 'org-a', email: 'a@test.com', name: 'A' }],
         rowCount: 1,
       })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
       .mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
     await request(app)
@@ -60,10 +61,13 @@ describe('device and site scoping', () => {
             name: 'Heat Pump',
             external_id: 'ext-1',
             mac: DEMO_HEATPUMP_MAC,
+            status: 'online',
+            last_seen_at: new Date(),
           },
         ],
         rowCount: 1,
-      });
+      })
+      .mockResolvedValueOnce({ rows: [] });
 
     const res = await request(app)
       .get('/devices/00000000-0000-0000-0000-000000000010')
@@ -81,7 +85,21 @@ describe('device and site scoping', () => {
         rowCount: 1,
       })
       .mockResolvedValueOnce({
-        rows: [{ id: 'device-2', site_id: 'site-2', name: 'Boiler', mac: null }],
+        rows: [
+          {
+            id: 'device-2',
+            site_id: 'site-2',
+            name: 'Boiler',
+            mac: null,
+            status: 'online',
+            last_seen_at: new Date(),
+          },
+        ],
+        rowCount: 1,
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{ id: 'site-2', organisation_id: 'org-b', name: 'S', city: 'C', status: 'ok' }],
         rowCount: 1,
       });
 
@@ -90,8 +108,7 @@ describe('device and site scoping', () => {
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(res.body).toEqual([
-      { id: 'device-2', site_id: 'site-2', name: 'Boiler', mac: null },
-    ]);
+    expect(res.body[0].id).toBe('device-2');
+    expect(res.body[0].health).toBe('healthy');
   });
 });

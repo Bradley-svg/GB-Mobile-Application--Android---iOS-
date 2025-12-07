@@ -1,20 +1,22 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet, FlatList } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAlerts, useSites } from '../../api/hooks';
-import type { ApiSite } from '../../api/types';
+import type { ApiSite, HealthStatus } from '../../api/types';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { Screen, Card, IconButton, ErrorCard, EmptyState } from '../../components';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
-import { loadJson, saveJson } from '../../utils/storage';
+import { loadJsonWithMetadata, saveJson, isCacheOlderThan } from '../../utils/storage';
 import { colors, gradients } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 
 type Navigation = NativeStackNavigationProp<AppStackParamList>;
+const CACHE_STALE_MS = 24 * 60 * 60 * 1000;
+const HEALTH_STATES: HealthStatus[] = ['healthy', 'warning', 'critical', 'offline'];
 
 export const DashboardScreen: React.FC = () => {
   const navigation = useNavigation<Navigation>();
@@ -22,6 +24,7 @@ export const DashboardScreen: React.FC = () => {
   const { data: alerts } = useAlerts({ status: 'active' });
   const { isOffline } = useNetworkBanner();
   const [cachedSites, setCachedSites] = useState<ApiSite[] | null>(null);
+  const [cachedSitesSavedAt, setCachedSitesSavedAt] = useState<string | null>(null);
 
   useEffect(() => {
     if (data) {
@@ -34,9 +37,10 @@ export const DashboardScreen: React.FC = () => {
     let cancelled = false;
 
     const loadCache = async () => {
-      const cached = await loadJson<ApiSite[]>('dashboardSites');
+      const cached = await loadJsonWithMetadata<ApiSite[]>('dashboardSites');
       if (!cancelled) {
-        setCachedSites(cached);
+        setCachedSites(cached?.data ?? null);
+        setCachedSitesSavedAt(cached?.savedAt ?? null);
       }
     };
 
@@ -49,6 +53,10 @@ export const DashboardScreen: React.FC = () => {
 
   const sites = useMemo(() => data ?? cachedSites ?? [], [data, cachedSites]);
   const hasCachedSites = (cachedSites?.length ?? 0) > 0;
+  const cacheStale = isCacheOlderThan(cachedSitesSavedAt, CACHE_STALE_MS);
+  const cacheUpdatedLabel = cachedSitesSavedAt
+    ? new Date(cachedSitesSavedAt).toLocaleString()
+    : null;
   const showLoading = isLoading && !hasCachedSites;
   const shouldShowError = isError && !isOffline && !hasCachedSites;
 
@@ -64,6 +72,26 @@ export const DashboardScreen: React.FC = () => {
       { label: 'Active alerts', value: alerts?.length ?? 0, color: colors.error },
     ];
   }, [alerts?.length, sites]);
+
+  const healthCounts = useMemo(() => {
+    return sites.reduce(
+      (acc, site) => {
+        const state = (site.health as HealthStatus) || 'healthy';
+        acc[state] = (acc[state] || 0) + 1;
+        return acc;
+      },
+      { healthy: 0, warning: 0, critical: 0, offline: 0 } as Record<HealthStatus, number>
+    );
+  }, [sites]);
+
+  const fleetRecency = useMemo(() => {
+    if (sites.length === 0) return 'No sites yet';
+    const anyOffline = sites.some((s) => s.last_seen?.isOffline);
+    const anyStale = sites.some((s) => s.last_seen?.isStale && !s.last_seen?.isOffline);
+    if (anyOffline) return 'Some sites offline';
+    if (anyStale) return 'Some sites stale';
+    return 'All data current';
+  }, [sites]);
 
   if (showLoading) {
     return (
@@ -109,11 +137,42 @@ export const DashboardScreen: React.FC = () => {
         </View>
       </LinearGradient>
 
+      <TouchableOpacity
+        style={styles.searchBar}
+        onPress={() => navigation.navigate('Search')}
+        activeOpacity={0.9}
+        testID="dashboard-search-entry"
+      >
+        <Ionicons name="search" size={18} color={colors.textSecondary} style={{ marginRight: spacing.sm }} />
+        <Text style={[typography.body, styles.muted]}>Search sites and devices</Text>
+      </TouchableOpacity>
+
       {isOffline ? (
         <Card style={styles.offlineCard} testID="dashboard-offline-banner">
           <Text style={[typography.caption, styles.offlineNote]}>
             Offline - showing cached portfolio data in read-only mode.
           </Text>
+          {cacheUpdatedLabel ? (
+            <Text style={[typography.caption, styles.offlineNote]}>
+              Viewing cached data (last updated {cacheUpdatedLabel}).
+            </Text>
+          ) : null}
+          {cacheStale ? (
+            <Text style={[typography.caption, styles.staleNote]}>
+              Data older than 24 hours – may be out of date.
+            </Text>
+          ) : null}
+        </Card>
+      ) : cacheStale ? (
+        <Card style={styles.offlineCard}>
+          <Text style={[typography.caption, styles.staleNote]}>
+            Data older than 24 hours – may be out of date.
+          </Text>
+          {cacheUpdatedLabel ? (
+            <Text style={[typography.caption, styles.offlineNote]}>
+              Last cached at {cacheUpdatedLabel}.
+            </Text>
+          ) : null}
         </Card>
       ) : null}
 
@@ -134,6 +193,19 @@ export const DashboardScreen: React.FC = () => {
             </View>
           ))}
         </View>
+        <View style={styles.healthRow}>
+          {HEALTH_STATES.map((state) => (
+            <View key={state} style={[styles.healthChip, healthChipStyle(state)]}>
+              <Text style={[typography.caption, styles.healthLabel]}>
+                {state.charAt(0).toUpperCase() + state.slice(1)}
+              </Text>
+              <Text style={[typography.subtitle, styles.healthCount]}>{healthCounts[state]}</Text>
+            </View>
+          ))}
+        </View>
+        <Text style={[typography.caption, styles.muted, { marginTop: spacing.sm }]}>
+          {fleetRecency}
+        </Text>
       </Card>
 
       <Text style={[typography.subtitle, styles.sectionTitle]}>Sites</Text>
@@ -180,19 +252,23 @@ export const DashboardScreen: React.FC = () => {
                   {item.city || 'Unknown city'}
                 </Text>
               </View>
-              {renderStatusPill(item.status)}
+              {renderStatusPill(item.health, item.status)}
             </View>
             <View style={styles.siteMeta}>
               <View style={{ flex: 1 }}>
                 <Text style={[typography.caption, styles.muted]}>Last seen</Text>
                 <Text style={[typography.body, styles.title]}>
-                  {item.last_seen_at ? new Date(item.last_seen_at).toLocaleString() : 'Unknown'}
+                  {item.last_seen?.at
+                    ? new Date(item.last_seen.at).toLocaleString()
+                    : item.last_seen_at
+                    ? new Date(item.last_seen_at).toLocaleString()
+                    : 'Unknown'}
                 </Text>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={[typography.caption, styles.muted]}>Status</Text>
                 <Text style={[typography.body, { color: colors.textSecondary }]}>
-                  {item.status || 'Unknown'}
+                  {(item.health || item.status || 'Unknown').toString()}
                 </Text>
               </View>
             </View>
@@ -203,25 +279,25 @@ export const DashboardScreen: React.FC = () => {
   );
 };
 
-const renderStatusPill = (status?: string | null) => {
-  const normalized = (status || '').toLowerCase();
+const renderStatusPill = (health?: HealthStatus, status?: string | null) => {
+  const normalized = health || (status || '').toLowerCase();
   let backgroundColor: string = colors.backgroundAlt;
   let textColor: string = colors.textSecondary;
-  let label = status || 'Unknown';
+  let label = (health || status || 'Unknown').toString();
 
-  if (normalized.includes('healthy') || normalized.includes('online')) {
+  if (normalized === 'healthy' || normalized.includes('healthy') || normalized.includes('online')) {
     backgroundColor = colors.brandSoft;
     textColor = colors.success;
     label = 'Healthy';
-  } else if (normalized.includes('critical')) {
+  } else if (normalized === 'critical' || normalized.includes('critical')) {
     backgroundColor = colors.errorSoft;
     textColor = colors.error;
     label = 'Critical';
-  } else if (normalized.includes('warn')) {
+  } else if (normalized === 'warning' || normalized.includes('warn')) {
     backgroundColor = colors.warningSoft;
     textColor = colors.warning;
     label = 'Warning';
-  } else if (normalized.includes('off') || normalized.includes('down')) {
+  } else if (normalized === 'offline' || normalized.includes('off') || normalized.includes('down')) {
     backgroundColor = colors.errorSoft;
     textColor = colors.error;
     label = 'Offline';
@@ -232,6 +308,20 @@ const renderStatusPill = (status?: string | null) => {
       <Text style={[typography.label, { color: textColor }]}>{label}</Text>
     </View>
   );
+};
+
+const healthChipStyle = (state: HealthStatus) => {
+  switch (state) {
+    case 'healthy':
+      return { backgroundColor: colors.brandSoft, borderColor: colors.brandSoft };
+    case 'warning':
+      return { backgroundColor: colors.warningSoft, borderColor: colors.warningSoft };
+    case 'critical':
+      return { backgroundColor: colors.errorSoft, borderColor: colors.errorSoft };
+    case 'offline':
+    default:
+      return { backgroundColor: colors.backgroundAlt, borderColor: colors.borderSubtle };
+  }
 };
 
 const styles = StyleSheet.create({
@@ -274,6 +364,10 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: spacing.sm,
   },
+  staleNote: {
+    color: colors.warning,
+    marginBottom: spacing.xs,
+  },
   metricsCard: {
     marginBottom: spacing.xl,
   },
@@ -283,6 +377,26 @@ const styles = StyleSheet.create({
   },
   metric: {
     flex: 1,
+  },
+  healthRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
+  },
+  healthChip: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: 14,
+    marginHorizontal: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  healthLabel: {
+    color: colors.textSecondary,
+  },
+  healthCount: {
+    color: colors.textPrimary,
   },
   sectionTitle: {
     marginBottom: spacing.md,
@@ -321,5 +435,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-end',
     paddingTop: spacing.sm,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    borderRadius: 14,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.md,
+    backgroundColor: colors.backgroundAlt,
   },
 });

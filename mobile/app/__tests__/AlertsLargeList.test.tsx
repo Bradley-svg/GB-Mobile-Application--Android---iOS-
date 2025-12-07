@@ -4,15 +4,16 @@ import { FlatList } from 'react-native';
 import { AlertsScreen } from '../screens/Alerts/AlertsScreen';
 import { useAlerts } from '../api/hooks';
 import { useNetworkBanner } from '../hooks/useNetworkBanner';
-import { loadJson } from '../utils/storage';
+import { loadJsonWithMetadata, isCacheOlderThan } from '../utils/storage';
 
 jest.mock('../api/hooks');
 jest.mock('../hooks/useNetworkBanner', () => ({
   useNetworkBanner: jest.fn(),
 }));
 jest.mock('../utils/storage', () => ({
-  loadJson: jest.fn(),
+  loadJsonWithMetadata: jest.fn(),
   saveJson: jest.fn(),
+  isCacheOlderThan: jest.fn().mockReturnValue(false),
 }));
 
 const buildAlerts = (count: number) =>
@@ -35,7 +36,7 @@ describe('Alerts large list rendering', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: false });
-    (loadJson as jest.Mock).mockResolvedValue(null);
+    (loadJsonWithMetadata as jest.Mock).mockResolvedValue(null);
   });
 
   it('virtualizes a long list of alerts', () => {
@@ -68,7 +69,7 @@ describe('Alerts large list rendering', () => {
       isError: false,
       refetch: jest.fn(),
     });
-    (loadJson as jest.Mock).mockResolvedValue(cachedAlerts);
+    (loadJsonWithMetadata as jest.Mock).mockResolvedValue({ data: cachedAlerts, savedAt: new Date().toISOString() });
 
     render(<AlertsScreen />);
 
@@ -118,7 +119,7 @@ describe('Alerts large list rendering', () => {
       isError: false,
       refetch: jest.fn(),
     });
-    (loadJson as jest.Mock).mockResolvedValue(cachedAlerts);
+    (loadJsonWithMetadata as jest.Mock).mockResolvedValue({ data: cachedAlerts, savedAt: new Date().toISOString() });
 
     render(<AlertsScreen />);
 
@@ -129,5 +130,24 @@ describe('Alerts large list rendering', () => {
     await waitFor(() => expect(screen.queryByText('Warning alert')).toBeNull());
     expect(screen.getAllByTestId('alert-card').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Critical alert')).toBeTruthy();
+  });
+
+  it('shows stale banner when cached alerts are old', async () => {
+    (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: true });
+    (useAlerts as jest.Mock).mockReturnValue({
+      data: null,
+      isLoading: false,
+      isError: false,
+      refetch: jest.fn(),
+    });
+    (loadJsonWithMetadata as jest.Mock).mockResolvedValue({
+      data: buildAlerts(1),
+      savedAt: '2025-01-01T00:00:00.000Z',
+    });
+    (isCacheOlderThan as jest.Mock).mockReturnValue(true);
+
+    render(<AlertsScreen />);
+
+    expect(await screen.findByText(/Data older than 24 hours/i)).toBeTruthy();
   });
 });

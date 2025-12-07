@@ -6,6 +6,9 @@ export type ApiSite = {
   last_seen_at?: string;
   online_devices?: number;
   device_count_online?: number;
+  health?: HealthStatus;
+  last_seen?: LastSeenSummary;
+  device_count?: number;
 };
 
 export type ApiDevice = {
@@ -18,6 +21,8 @@ export type ApiDevice = {
   controller?: string | null;
   status?: string;
   last_seen_at?: string;
+  health?: HealthStatus;
+  last_seen?: LastSeenSummary;
 };
 
 export type TimeRange = '1h' | '24h' | '7d';
@@ -134,4 +139,22 @@ export type HealthPlusPayload = {
 export type NotificationPreferences = {
   alertsEnabled: boolean;
   // Mirror of backend /user/preferences response.
+};
+
+export type HealthStatus = 'healthy' | 'warning' | 'critical' | 'offline';
+
+export type LastSeenSummary = {
+  at: string | null;
+  ageMinutes: number | null;
+  isStale: boolean;
+  isOffline: boolean;
+};
+
+export type FleetSearchResult = {
+  sites: ApiSite[];
+  devices: (ApiDevice & { site_name?: string; site_city?: string | null })[];
+  meta?: {
+    siteCount: number;
+    deviceCount: number;
+  };
 };

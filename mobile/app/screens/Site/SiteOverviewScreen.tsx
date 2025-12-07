@@ -5,16 +5,17 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { useDevices, useSite } from '../../api/hooks';
-import type { ApiDevice, ApiSite } from '../../api/types';
+import type { ApiDevice, ApiSite, HealthStatus } from '../../api/types';
 import { Screen, Card, IconButton, ErrorCard, EmptyState } from '../../components';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
-import { loadJson, saveJson } from '../../utils/storage';
+import { loadJsonWithMetadata, saveJson, isCacheOlderThan } from '../../utils/storage';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 
 type Navigation = NativeStackNavigationProp<AppStackParamList>;
 type Route = RouteProp<AppStackParamList, 'SiteOverview'>;
+const CACHE_STALE_MS = 24 * 60 * 60 * 1000;
 
 export const SiteOverviewScreen: React.FC = () => {
   const navigation = useNavigation<Navigation>();
@@ -36,6 +37,7 @@ export const SiteOverviewScreen: React.FC = () => {
   const { isOffline } = useNetworkBanner();
   const [cachedSite, setCachedSite] = useState<ApiSite | null>(null);
   const [cachedDevices, setCachedDevices] = useState<ApiDevice[] | null>(null);
+  const [cachedAt, setCachedAt] = useState<string | null>(null);
 
   useEffect(() => {
     if (site) {
@@ -55,12 +57,13 @@ export const SiteOverviewScreen: React.FC = () => {
 
     const loadCache = async () => {
       const [siteCache, deviceCache] = await Promise.all([
-        loadJson<ApiSite>(`site:${siteId}`),
-        loadJson<ApiDevice[]>(`siteDevices:${siteId}`),
+        loadJsonWithMetadata<ApiSite>(`site:${siteId}`),
+        loadJsonWithMetadata<ApiDevice[]>(`siteDevices:${siteId}`),
       ]);
       if (!cancelled) {
-        setCachedSite(siteCache);
-        setCachedDevices(deviceCache);
+        setCachedSite(siteCache?.data ?? null);
+        setCachedDevices(deviceCache?.data ?? null);
+        setCachedAt(siteCache?.savedAt || deviceCache?.savedAt || null);
       }
     };
 
@@ -74,6 +77,8 @@ export const SiteOverviewScreen: React.FC = () => {
   const siteData = site ?? cachedSite;
   const devicesData = devices ?? cachedDevices ?? [];
   const hasCachedData = !!cachedSite || (cachedDevices?.length ?? 0) > 0;
+  const cacheStale = isCacheOlderThan(cachedAt, CACHE_STALE_MS);
+  const cacheUpdatedLabel = cachedAt ? new Date(cachedAt).toLocaleString() : null;
   const showLoading = (siteLoading || devicesLoading) && !hasCachedData;
   const shouldShowError = (siteError || devicesError) && !isOffline && !hasCachedData;
 
@@ -133,14 +138,26 @@ export const SiteOverviewScreen: React.FC = () => {
           <Text style={[typography.title1, styles.title]}>{siteData.name}</Text>
           <Text style={[typography.body, styles.muted]}>{siteData.city || 'Unknown location'}</Text>
           <Text style={[typography.caption, styles.muted, { marginTop: spacing.sm }]}>
-            Last seen: {siteData.last_seen_at ? new Date(siteData.last_seen_at).toLocaleString() : 'Unknown'}
+            Last seen:{' '}
+            {siteData.last_seen?.at
+              ? new Date(siteData.last_seen.at).toLocaleString()
+              : siteData.last_seen_at
+              ? new Date(siteData.last_seen_at).toLocaleString()
+              : 'Unknown'}
           </Text>
         </View>
-        {renderStatusPill(siteData.status)}
+        {renderStatusPill(siteData.health as HealthStatus, siteData.status)}
       </Card>
 
       {isOffline ? (
-        <Text style={[typography.caption, styles.muted, styles.offlineNote]}>Offline - showing last known data.</Text>
+        <Text style={[typography.caption, styles.muted, styles.offlineNote]}>
+          Offline - showing last known data.
+        </Text>
+      ) : null}
+      {cacheStale ? (
+        <Text style={[typography.caption, styles.staleNote]}>
+          Data older than 24 hours – may be out of date{cacheUpdatedLabel ? ` (cached ${cacheUpdatedLabel})` : ''}.
+        </Text>
       ) : null}
 
       <Text style={[typography.subtitle, styles.sectionTitle]}>Devices</Text>
@@ -164,15 +181,29 @@ export const SiteOverviewScreen: React.FC = () => {
                   {item.name}
                 </Text>
                 <Text style={[typography.caption, styles.muted]}>{item.type}</Text>
+                <Text style={[typography.caption, styles.muted]}>
+                  Last seen:{' '}
+                  {item.last_seen?.at
+                    ? new Date(item.last_seen.at).toLocaleString()
+                    : item.last_seen_at
+                    ? new Date(item.last_seen_at).toLocaleString()
+                    : 'Unknown'}
+                </Text>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
-                {renderStatusPill(item.status)}
-                <Ionicons
-                  name="chevron-forward"
-                  size={18}
-                  color={colors.textSecondary}
-                  style={{ marginTop: spacing.xs }}
-                />
+                {renderStatusPill(item.health as HealthStatus, item.status)}
+                <View style={styles.quickActions}>
+                  <IconButton
+                    icon={<Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />}
+                    onPress={() => navigation.navigate('DeviceDetail', { deviceId: item.id })}
+                    testID="device-action-detail"
+                  />
+                  <IconButton
+                    icon={<Ionicons name="alert-circle-outline" size={18} color={colors.textSecondary} />}
+                    onPress={() => navigation.navigate('Alerts')}
+                    testID="device-action-alerts"
+                  />
+                </View>
               </View>
             </View>
           </Card>
@@ -188,25 +219,25 @@ export const SiteOverviewScreen: React.FC = () => {
   );
 };
 
-const renderStatusPill = (status?: string | null) => {
-  const normalized = (status || '').toLowerCase();
+const renderStatusPill = (health?: HealthStatus, status?: string | null) => {
+  const normalized = health || (status || '').toLowerCase();
   let backgroundColor: string = colors.backgroundAlt;
   let textColor: string = colors.textSecondary;
-  let label = status || 'Unknown';
+  let label = (health || status || 'Unknown').toString();
 
-  if (normalized.includes('online') || normalized.includes('healthy')) {
+  if (normalized === 'healthy' || normalized.includes('online') || normalized.includes('healthy')) {
     backgroundColor = colors.brandSoft;
     textColor = colors.success;
     label = 'Healthy';
-  } else if (normalized.includes('critical')) {
+  } else if (normalized === 'critical' || normalized.includes('critical')) {
     backgroundColor = colors.errorSoft;
     textColor = colors.error;
     label = 'Critical';
-  } else if (normalized.includes('warn')) {
+  } else if (normalized === 'warning' || normalized.includes('warn')) {
     backgroundColor = colors.warningSoft;
     textColor = colors.warning;
     label = 'Warning';
-  } else if (normalized.includes('off')) {
+  } else if (normalized === 'offline' || normalized.includes('off')) {
     backgroundColor = colors.errorSoft;
     textColor = colors.error;
     label = 'Offline';
@@ -252,6 +283,10 @@ const styles = StyleSheet.create({
   offlineNote: {
     marginBottom: spacing.md,
   },
+  staleNote: {
+    color: colors.warning,
+    marginBottom: spacing.md,
+  },
   sectionTitle: {
     marginBottom: spacing.md,
     color: colors.textPrimary,
@@ -278,5 +313,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.sm,
+  },
+  quickActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.sm,
   },
 });

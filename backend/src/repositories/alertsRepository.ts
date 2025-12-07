@@ -19,6 +19,8 @@ export type AlertRow = {
   muted_until: string | null;
 };
 
+export type AlertWithSite = AlertRow & { resolved_site_id: string | null };
+
 export async function findActiveAlert(
   deviceId: string | null,
   type: AlertType
@@ -214,4 +216,23 @@ export async function getOrganisationIdForAlert(alertId: string): Promise<string
   );
 
   return res.rows[0]?.organisation_id ?? null;
+}
+
+export async function getActiveAlertsForOrganisation(
+  organisationId: string
+): Promise<AlertWithSite[]> {
+  const res = await query<AlertWithSite>(
+    `
+    select a.*,
+           coalesce(a.site_id, d.site_id) as resolved_site_id
+    from alerts a
+    left join devices d on a.device_id = d.id
+    left join sites s on coalesce(a.site_id, d.site_id) = s.id
+    where a.status = 'active'
+      and s.organisation_id = $1
+  `,
+    [organisationId]
+  );
+
+  return res.rows;
 }
