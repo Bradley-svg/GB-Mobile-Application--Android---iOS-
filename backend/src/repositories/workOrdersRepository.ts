@@ -17,6 +17,11 @@ export type WorkOrderRow = {
   assignee_user_id: string | null;
   created_by_user_id: string;
   due_at: string | null;
+  sla_due_at: string | null;
+  resolved_at: string | null;
+  sla_breached: boolean;
+  reminder_at: string | null;
+  category: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -57,6 +62,11 @@ export type CreateWorkOrderInput = {
   assigneeUserId?: string | null;
   createdByUserId: string;
   dueAt?: Date | string | null;
+  slaDueAt?: Date | string | null;
+  resolvedAt?: Date | string | null;
+  slaBreached?: boolean;
+  reminderAt?: Date | string | null;
+  category?: string | null;
 };
 
 type WorkOrderFilters = {
@@ -89,10 +99,15 @@ export async function createWorkOrder(input: CreateWorkOrderInput): Promise<Work
       assignee_user_id,
       created_by_user_id,
       due_at,
+      sla_due_at,
+      resolved_at,
+      sla_breached,
+      reminder_at,
+      category,
       created_at,
       updated_at
     )
-    values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now(), now())
+    values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, now(), now())
     returning *
   `,
     [
@@ -107,6 +122,11 @@ export async function createWorkOrder(input: CreateWorkOrderInput): Promise<Work
       input.assigneeUserId ?? null,
       input.createdByUserId,
       input.dueAt ?? null,
+      input.slaDueAt ?? null,
+      input.resolvedAt ?? null,
+      input.slaBreached ?? false,
+      input.reminderAt ?? null,
+      input.category ?? null,
     ]
   );
 
@@ -123,10 +143,15 @@ export async function updateWorkOrder(
     priority: WorkOrderPriority;
     assigneeUserId: string | null;
     dueAt: Date | string | null;
+    slaDueAt: Date | string | null;
+    resolvedAt: Date | string | null;
+    slaBreached: boolean;
+    reminderAt: Date | string | null;
+    category: string | null;
   }>
 ): Promise<WorkOrderRow | null> {
   const sets: string[] = [];
-  const params: Array<string | Date | null> = [];
+  const params: Array<string | Date | null | boolean> = [];
   let idx = 1;
 
   if (updates.title !== undefined) {
@@ -152,6 +177,26 @@ export async function updateWorkOrder(
   if (updates.dueAt !== undefined) {
     sets.push(`due_at = $${idx++}`);
     params.push(updates.dueAt ?? null);
+  }
+  if (updates.slaDueAt !== undefined) {
+    sets.push(`sla_due_at = $${idx++}`);
+    params.push(updates.slaDueAt ?? null);
+  }
+  if (updates.resolvedAt !== undefined) {
+    sets.push(`resolved_at = $${idx++}`);
+    params.push(updates.resolvedAt ?? null);
+  }
+  if (updates.slaBreached !== undefined) {
+    sets.push(`sla_breached = $${idx++}`);
+    params.push(updates.slaBreached);
+  }
+  if (updates.reminderAt !== undefined) {
+    sets.push(`reminder_at = $${idx++}`);
+    params.push(updates.reminderAt ?? null);
+  }
+  if (updates.category !== undefined) {
+    sets.push(`category = $${idx++}`);
+    params.push(updates.category ?? null);
   }
 
   if (sets.length === 0) {
@@ -263,6 +308,94 @@ export async function findWorkOrderById(
   );
 
   return res.rows[0] ?? null;
+}
+
+export async function getMaintenanceCounts(
+  organisationId: string,
+  options: { siteId?: string; deviceId?: string; now?: Date; dueSoonWindowHours?: number } = {}
+): Promise<{ openCount: number; overdueCount: number; dueSoonCount: number }> {
+  const where: string[] = ['organisation_id = $1'];
+  const params: Array<string | Date> = [organisationId];
+  let idx = 2;
+
+  if (options.siteId) {
+    where.push(`site_id = $${idx++}`);
+    params.push(options.siteId);
+  }
+  if (options.deviceId) {
+    where.push(`device_id = $${idx++}`);
+    params.push(options.deviceId);
+  }
+
+  const now = options.now ?? new Date();
+  const dueSoonWindow = options.dueSoonWindowHours ?? 24;
+  const soonThreshold = new Date(now.getTime() + dueSoonWindow * 60 * 60 * 1000);
+
+  params.push(now, soonThreshold);
+
+  const res = await query<{ open_count: string; overdue_count: string; due_soon_count: string }>(
+    `
+    select
+      count(*) filter (where status in ('open', 'in_progress')) as open_count,
+      count(*) filter (
+        where status in ('open', 'in_progress')
+          and sla_due_at is not null
+          and sla_due_at < $${idx}
+      ) as overdue_count,
+      count(*) filter (
+        where status in ('open', 'in_progress')
+          and sla_due_at is not null
+          and sla_due_at >= $${idx}
+          and sla_due_at <= $${idx + 1}
+      ) as due_soon_count
+    from work_orders
+    where ${where.join(' and ')}
+  `,
+    params
+  );
+
+  const row = res.rows[0] ?? { open_count: '0', overdue_count: '0', due_soon_count: '0' };
+  return {
+    openCount: Number(row.open_count ?? 0),
+    overdueCount: Number(row.overdue_count ?? 0),
+    dueSoonCount: Number(row.due_soon_count ?? 0),
+  };
+}
+
+export async function findWorkOrdersBySlaWindow(
+  organisationId: string,
+  options: { siteId?: string; deviceId?: string; start: Date; end: Date }
+): Promise<WorkOrderWithRefs[]> {
+  const where: string[] = ['wo.organisation_id = $1', 'wo.sla_due_at is not null', 'wo.sla_due_at between $2 and $3'];
+  const params: Array<string | Date> = [organisationId, options.start, options.end];
+  let idx = 4;
+
+  if (options.siteId) {
+    where.push(`wo.site_id = $${idx++}`);
+    params.push(options.siteId);
+  }
+  if (options.deviceId) {
+    where.push(`wo.device_id = $${idx++}`);
+    params.push(options.deviceId);
+  }
+
+  const res = await query<WorkOrderWithRefs>(
+    `
+    select wo.*,
+           s.name as site_name,
+           d.name as device_name,
+           a.severity as alert_severity
+    from work_orders wo
+    join sites s on wo.site_id = s.id
+    left join devices d on wo.device_id = d.id
+    left join alerts a on wo.alert_id = a.id
+    where ${where.join(' and ')}
+    order by wo.sla_due_at asc
+  `,
+    params
+  );
+
+  return res.rows;
 }
 
 export async function listTasks(workOrderId: string): Promise<WorkOrderTaskRow[]> {

@@ -18,7 +18,7 @@
 | Work-order checklists and templates | Partial | `backend/src/services/workOrdersService.ts`, `mobile/app/screens/WorkOrders/WorkOrderDetailScreen.tsx` | Basic checklist replace/toggle; no templates or reusable playbooks yet. |
 | Photo capture, annotations, and attachments | Missing | `backend/src/repositories/workOrdersRepository.ts` | Attachments are metadata-only placeholders; no upload/capture UI. |
 | Parts/spares tracking and costs | Missing | - | Not present. |
-| SLA timers and status badges | Missing | - | Not present. |
+| SLA timers and status badges | Partial | `mobile/app/screens/WorkOrders/*`, `backend/src/services/workOrdersService.ts` | SLA metadata stored with breach logic and list/detail pills; inline SLA/reminder edit (online-only) and maintenance calendar entry point. |
 | Client signature and handover PDF | Missing | - | Not present. |
 | Monthly site reports (branded) | Missing | - | Not present. |
 | Data export (CSV) per site/device | Missing | - | Not present. |
@@ -29,7 +29,7 @@
 | TOU and load-shedding awareness in alerts | Partial | `backend/src/services/siteScheduleService.ts`, `backend/src/workers/alertsWorker.ts` | Load-shedding windows stored in `site_schedules`; alerts worker downgrades offline severity during load-shedding; no UI or TOU peak surfacing yet. |
 | Device commissioning wizard | Missing | - | Not present. |
 | Firmware/version and connectivity status | Partial | `mobile/app/screens/Dashboard/DashboardScreen.tsx`, `mobile/app/screens/Site/SiteOverviewScreen.tsx`, `mobile/app/screens/Device/DeviceDetailScreen.tsx`, `backend/src/repositories/devicesRepository.ts` | Devices carry `firmware_version` + `connectivity_status`; dashboard/site/device screens now show branded connectivity pills and firmware text; no firmware OTA flow. |
-| Maintenance calendar and reminders | Missing | - | Not present. |
+| Maintenance calendar and reminders | Partial | `mobile/app/screens/Maintenance/MaintenanceCalendarScreen.tsx`, `/maintenance/summary` | Calendar view with open/overdue/due-soon buckets and cached offline view; reminders stored on work orders but no push/notification yet. |
 | Document vault (manuals, schematics) | Missing | - | Not present. |
 | User authentication with SSO/2FA | Missing | `backend/src/controllers/authController.ts`, `mobile/app/screens/Auth/LoginScreen.tsx` | Only local email/password; no SSO or 2FA. |
 | Device onboarding/registration | Missing | - | No device creation/provisioning flow. |

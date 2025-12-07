@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -41,6 +41,59 @@ const severityColor = (severity?: string | null) => {
     default:
       return gradients.brandPrimary.start;
   }
+};
+
+const parseDate = (value?: string | null) => (value ? new Date(value) : null);
+
+const slaInfo = (order: WorkOrder) => {
+  const slaDueAt = parseDate(order.slaDueAt ?? order.sla_due_at ?? null);
+  const resolvedAt = parseDate(order.resolvedAt ?? order.resolved_at ?? null);
+  const slaBreached = order.slaBreached ?? order.sla_breached ?? false;
+  const now = new Date();
+  const isDone = order.status === 'done';
+  const overdue = !isDone && slaDueAt ? now.getTime() > slaDueAt.getTime() || slaBreached : false;
+  const dueSoon =
+    !isDone && slaDueAt
+      ? slaDueAt.getTime() - now.getTime() <= 24 * 60 * 60 * 1000 && slaDueAt.getTime() >= now.getTime()
+      : false;
+
+  return {
+    slaDueAt,
+    resolvedAt,
+    slaBreached: isDone ? slaBreached : overdue || slaBreached,
+    overdue,
+    dueSoon,
+    isDone,
+  };
+};
+
+const slaPillFor = (order: WorkOrder) => {
+  const info = slaInfo(order);
+  if (!info.slaDueAt) return { label: 'No SLA', tone: 'muted' as const };
+  if (info.isDone) {
+    return info.slaBreached
+      ? { label: 'Done (breached)', tone: 'warning' as const }
+      : { label: 'Done (SLA)', tone: 'success' as const };
+  }
+  if (info.overdue) return { label: 'Overdue', tone: 'error' as const };
+  if (info.dueSoon) return { label: 'Due soon', tone: 'warning' as const };
+  return { label: 'On track', tone: 'success' as const };
+};
+
+const formatSlaDueLabel = (dueAt: Date | null) => {
+  if (!dueAt) return 'No SLA target';
+  const now = new Date();
+  const time = dueAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+
+  if (dueAt.toDateString() === now.toDateString()) {
+    return `Due today ${time}`;
+  }
+  if (dueAt.toDateString() === tomorrow.toDateString()) {
+    return `Due tomorrow ${time}`;
+  }
+  return `Due ${dueAt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} ${time}`;
 };
 
 export const WorkOrdersScreen: React.FC = () => {
@@ -88,9 +141,35 @@ export const WorkOrdersScreen: React.FC = () => {
     return ordersList.filter((wo) => wo.status === statusFilter);
   }, [ordersList, statusFilter]);
 
+  const sortedOrders = useMemo(() => {
+    const list = [...filteredOrders];
+    if (statusFilter === 'done') {
+      return list.sort((a, b) => {
+        const aResolved = slaInfo(a).resolvedAt ?? parseDate(a.updated_at) ?? parseDate(a.created_at);
+        const bResolved = slaInfo(b).resolvedAt ?? parseDate(b.updated_at) ?? parseDate(b.created_at);
+        return (bResolved?.getTime() ?? 0) - (aResolved?.getTime() ?? 0);
+      });
+    }
+    if (statusFilter === 'open' || statusFilter === 'in_progress') {
+      return list.sort((a, b) => {
+        const aSla = slaInfo(a);
+        const bSla = slaInfo(b);
+        if (aSla.overdue !== bSla.overdue) return aSla.overdue ? -1 : 1;
+        if (aSla.slaDueAt && bSla.slaDueAt) {
+          return aSla.slaDueAt.getTime() - bSla.slaDueAt.getTime();
+        }
+        if (aSla.slaDueAt) return -1;
+        if (bSla.slaDueAt) return 1;
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      });
+    }
+    return list;
+  }, [filteredOrders, statusFilter]);
+
   const hasCached = (cachedOrders?.length ?? 0) > 0;
   const cacheStale = isCacheOlderThan(cachedAt, CACHE_STALE_MS);
-  const cacheUpdatedLabel = cachedAt ? new Date(cachedAt).toLocaleString() : null;
+  const cachedAtDate = cachedAt ? new Date(cachedAt) : null;
+  const cacheUpdatedLabel = cachedAtDate ? cachedAtDate.toLocaleString() : null;
   const showLoading = isLoading && filteredOrders.length === 0;
   const shouldShowError = isError && !isOffline && filteredOrders.length === 0;
 
@@ -131,13 +210,28 @@ export const WorkOrdersScreen: React.FC = () => {
           {cacheUpdatedLabel ? ` (cached ${cacheUpdatedLabel})` : ''}.
         </Text>
       ) : null}
+      {cachedAtDate && (isOffline || cacheStale) ? (
+        <Text style={[typography.caption, styles.staleNote]}>
+          SLA timers are based on last sync at{' '}
+          {cachedAtDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.
+        </Text>
+      ) : null}
       <Card style={styles.headerCard}>
         <View style={styles.headerRow}>
           <View>
             <Text style={[typography.caption, styles.muted]}>Maintenance</Text>
             <Text style={[typography.title1, styles.title]}>Work orders</Text>
           </View>
-          <Ionicons name="construct-outline" size={20} color={colors.brandGrey} />
+          <TouchableOpacity
+            style={styles.calendarButton}
+            onPress={() => navigation.navigate('MaintenanceCalendar')}
+            testID="view-calendar-button"
+          >
+            <Ionicons name="calendar-outline" size={18} color={colors.brandGreen} />
+            <Text style={[typography.caption, styles.title, { marginLeft: spacing.xs }]}>
+              View calendar
+            </Text>
+          </TouchableOpacity>
         </View>
         <View style={styles.filterRow}>
           <PillTabGroup
@@ -154,13 +248,15 @@ export const WorkOrdersScreen: React.FC = () => {
       </Card>
 
       <FlatList
-        data={filteredOrders}
+        data={sortedOrders}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: spacing.xl }}
         ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
         testID="workorders-list"
         renderItem={({ item }) => {
           const status = statusPillFor(item.status);
+          const sla = slaPillFor(item);
+          const slaDueAt = slaInfo(item).slaDueAt;
           return (
             <Card
               style={styles.orderCard}
@@ -168,7 +264,15 @@ export const WorkOrdersScreen: React.FC = () => {
               testID="work-order-card"
             >
               <View style={styles.orderHeader}>
-                <StatusPill label={status.label} tone={status.tone} />
+                <View style={styles.badgeRow}>
+                  <StatusPill label={status.label} tone={status.tone} />
+                  <StatusPill
+                    label={sla.label}
+                    tone={sla.tone}
+                    style={{ marginLeft: spacing.xs }}
+                    testID={`sla-pill-${item.id}`}
+                  />
+                </View>
                 {item.priority ? (
                   <Text style={[typography.caption, styles.priority]}>
                     {item.priority.toUpperCase()}
@@ -180,7 +284,10 @@ export const WorkOrdersScreen: React.FC = () => {
               </Text>
               <Text style={[typography.caption, styles.muted]} numberOfLines={2}>
                 {item.site_name || 'Unknown site'}
-                {item.device_name ? ` • ${item.device_name}` : ''}
+                {item.device_name ? ` > ${item.device_name}` : ''}
+              </Text>
+              <Text style={[typography.caption, styles.muted, { marginTop: spacing.xs }]}>
+                {formatSlaDueLabel(slaDueAt)}
               </Text>
               <View style={styles.metaRow}>
                 <Text style={[typography.caption, styles.muted]}>
@@ -241,6 +348,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.sm,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  calendarButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 12,
+    backgroundColor: colors.backgroundAlt,
   },
   priority: {
     color: colors.brandGrey,

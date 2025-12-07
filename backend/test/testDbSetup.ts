@@ -225,6 +225,11 @@ async function seedBaseData(client: Client) {
       assignee_user_id,
       created_by_user_id,
       due_at,
+      sla_due_at,
+      resolved_at,
+      sla_breached,
+      reminder_at,
+      category,
       created_at,
       updated_at
     )
@@ -241,12 +246,167 @@ async function seedBaseData(client: Client) {
       null,
       $5,
       now() + interval '2 days',
+      now() + interval '2 days',
+      null,
+      false,
+      now() + interval '1 day',
+      'maintenance',
       now(),
       now()
     )
     on conflict (id) do nothing
   `,
     [defaultWorkOrderId, DEFAULT_IDS.organisation, DEFAULT_IDS.site, DEFAULT_IDS.device, DEFAULT_IDS.user]
+  );
+
+  const overdueWorkOrderId = '66666666-6666-6666-6666-666666666666';
+  await client.query(
+    `
+    insert into work_orders (
+      id,
+      organisation_id,
+      site_id,
+      device_id,
+      alert_id,
+      title,
+      description,
+      status,
+      priority,
+      assignee_user_id,
+      created_by_user_id,
+      due_at,
+      sla_due_at,
+      resolved_at,
+      sla_breached,
+      reminder_at,
+      category,
+      created_at,
+      updated_at
+    )
+    values (
+      $1,
+      $2,
+      $3,
+      $4,
+      null,
+      'Overdue pump inspection',
+      'Seeded overdue work order',
+      'open',
+      'high',
+      null,
+      $5,
+      now() - interval '3 days',
+      now() - interval '2 days',
+      null,
+      true,
+      now() - interval '1 day',
+      'maintenance',
+      now() - interval '5 days',
+      now() - interval '1 day'
+    )
+    on conflict (id) do nothing
+  `,
+    [overdueWorkOrderId, DEFAULT_IDS.organisation, DEFAULT_IDS.site, DEFAULT_IDS.device, DEFAULT_IDS.user]
+  );
+
+  const doneWithinSlaId = '77777777-7777-7777-7777-777777777777';
+  await client.query(
+    `
+    insert into work_orders (
+      id,
+      organisation_id,
+      site_id,
+      device_id,
+      alert_id,
+      title,
+      description,
+      status,
+      priority,
+      assignee_user_id,
+      created_by_user_id,
+      due_at,
+      sla_due_at,
+      resolved_at,
+      sla_breached,
+      reminder_at,
+      category,
+      created_at,
+      updated_at
+    )
+    values (
+      $1,
+      $2,
+      $3,
+      $4,
+      null,
+      'Completed within SLA',
+      'Seeded closed order completed on time',
+      'done',
+      'medium',
+      null,
+      $5,
+      now() - interval '1 day',
+      now() + interval '6 hours',
+      now(),
+      false,
+      null,
+      'inspection',
+      now() - interval '2 days',
+      now()
+    )
+    on conflict (id) do nothing
+  `,
+    [doneWithinSlaId, DEFAULT_IDS.organisation, DEFAULT_IDS.site, DEFAULT_IDS.device, DEFAULT_IDS.user]
+  );
+
+  const doneBreachedId = '88888888-8888-8888-8888-888888888888';
+  await client.query(
+    `
+    insert into work_orders (
+      id,
+      organisation_id,
+      site_id,
+      device_id,
+      alert_id,
+      title,
+      description,
+      status,
+      priority,
+      assignee_user_id,
+      created_by_user_id,
+      due_at,
+      sla_due_at,
+      resolved_at,
+      sla_breached,
+      reminder_at,
+      category,
+      created_at,
+      updated_at
+    )
+    values (
+      $1,
+      $2,
+      $3,
+      $4,
+      null,
+      'Completed after SLA',
+      'Seeded closed order that breached SLA',
+      'done',
+      'medium',
+      null,
+      $5,
+      now() - interval '4 days',
+      now() - interval '3 days',
+      now() - interval '1 day',
+      true,
+      null,
+      'breakdown',
+      now() - interval '5 days',
+      now() - interval '1 day'
+    )
+    on conflict (id) do nothing
+  `,
+    [doneBreachedId, DEFAULT_IDS.organisation, DEFAULT_IDS.site, DEFAULT_IDS.device, DEFAULT_IDS.user]
   );
 
   await client.query(

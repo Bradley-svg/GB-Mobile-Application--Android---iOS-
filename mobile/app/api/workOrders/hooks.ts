@@ -2,6 +2,7 @@ import axios from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../client';
 import type {
+  MaintenanceSummary,
   WorkOrder,
   WorkOrderDetail,
   WorkOrderFilters,
@@ -19,6 +20,31 @@ const shouldRetry = (failureCount: number, error: unknown) => {
 
 const retryDelay = (attempt: number) => attempt * 1000;
 
+const normalizeWorkOrder = (order: WorkOrder): WorkOrder => {
+  const slaDueAt = order.slaDueAt ?? order.sla_due_at ?? null;
+  const resolvedAt = order.resolvedAt ?? order.resolved_at ?? null;
+  const slaBreached = order.slaBreached ?? order.sla_breached ?? false;
+  const reminderAt = order.reminderAt ?? order.reminder_at ?? null;
+
+  return {
+    ...order,
+    slaDueAt,
+    sla_due_at: slaDueAt,
+    resolvedAt,
+    resolved_at: resolvedAt,
+    slaBreached,
+    sla_breached: slaBreached,
+    reminderAt,
+    reminder_at: reminderAt,
+  };
+};
+
+const normalizeDetail = (detail: WorkOrderDetail): WorkOrderDetail => ({
+  ...normalizeWorkOrder(detail),
+  tasks: detail.tasks,
+  attachments: detail.attachments,
+});
+
 export function useWorkOrdersList(filters?: WorkOrderFilters) {
   const params: Record<string, string> = {};
   if (filters?.status && filters.status !== 'all') params.status = filters.status;
@@ -31,7 +57,7 @@ export function useWorkOrdersList(filters?: WorkOrderFilters) {
     queryKey: ['work-orders', params],
     queryFn: async () => {
       const res = await api.get('/work-orders', { params });
-      return res.data;
+      return (res.data as WorkOrder[]).map((order) => normalizeWorkOrder(order));
     },
     retry: shouldRetry,
     retryDelay,
@@ -43,7 +69,7 @@ export function useWorkOrder(id: string) {
     queryKey: ['work-orders', id],
     queryFn: async () => {
       const res = await api.get(`/work-orders/${id}`);
-      return res.data;
+      return normalizeDetail(res.data as WorkOrderDetail);
     },
     enabled: !!id,
     retry: shouldRetry,
@@ -63,9 +89,12 @@ export function useCreateWorkOrder() {
       priority?: string;
       assigneeUserId?: string | null;
       dueAt?: string | null;
+      slaDueAt?: string | null;
+      reminderAt?: string | null;
+      category?: string | null;
     }) => {
       const res = await api.post('/work-orders', payload);
-      return res.data as WorkOrderDetail;
+      return normalizeDetail(res.data as WorkOrderDetail);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['work-orders'] });
@@ -79,7 +108,7 @@ export function useCreateWorkOrderFromAlert(alertId: string) {
   return useMutation({
     mutationFn: async (payload: { title?: string; description?: string }) => {
       const res = await api.post(`/alerts/${alertId}/work-orders`, payload ?? {});
-      return res.data as WorkOrderDetail;
+      return normalizeDetail(res.data as WorkOrderDetail);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['work-orders'] });
@@ -99,10 +128,13 @@ export function useUpdateWorkOrderStatus() {
       priority?: string;
       assigneeUserId?: string | null;
       dueAt?: string | null;
+      slaDueAt?: string | null;
+      reminderAt?: string | null;
+      category?: string | null;
     }) => {
       const { workOrderId, ...body } = payload;
       const res = await api.patch(`/work-orders/${workOrderId}`, body);
-      return res.data as WorkOrderDetail;
+      return normalizeDetail(res.data as WorkOrderDetail);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['work-orders'] });
@@ -118,11 +150,27 @@ export function useUpdateWorkOrderTasks() {
       const res = await api.put(`/work-orders/${payload.workOrderId}/tasks`, {
         tasks: payload.tasks,
       });
-      return res.data as WorkOrderDetail;
+      return normalizeDetail(res.data as WorkOrderDetail);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['work-orders'] });
       queryClient.setQueryData(['work-orders', data.id], data);
     },
+  });
+}
+
+export function useMaintenanceSummary(filters?: { siteId?: string; deviceId?: string }) {
+  const params: Record<string, string> = {};
+  if (filters?.siteId) params.siteId = filters.siteId;
+  if (filters?.deviceId) params.deviceId = filters.deviceId;
+
+  return useQuery<MaintenanceSummary>({
+    queryKey: ['maintenance-summary', params],
+    queryFn: async () => {
+      const res = await api.get('/maintenance/summary', { params });
+      return res.data as MaintenanceSummary;
+    },
+    retry: shouldRetry,
+    retryDelay,
   });
 }

@@ -7,6 +7,7 @@ import {
   createFromAlert,
   createWorkOrder,
   getWorkOrder,
+  getMaintenanceSummary,
   listWorkOrders,
   listWorkOrdersForAlert,
   listWorkOrdersForDevice,
@@ -35,6 +36,9 @@ const createWorkOrderSchema = z.object({
   priority: z.enum(['low', 'medium', 'high']).optional(),
   assigneeUserId: z.string().uuid().nullable().optional(),
   dueAt: z.string().datetime().nullable().optional(),
+  slaDueAt: z.string().datetime().nullable().optional(),
+  reminderAt: z.string().datetime().nullable().optional(),
+  category: z.string().max(64).nullable().optional(),
 });
 
 const createFromAlertBodySchema = z.object({
@@ -50,6 +54,9 @@ const updateWorkOrderSchema = z
     assigneeUserId: z.string().uuid().nullable().optional(),
     dueAt: z.string().datetime().nullable().optional(),
     status: z.enum(['open', 'in_progress', 'done', 'cancelled']).optional(),
+    slaDueAt: z.string().datetime().nullable().optional(),
+    reminderAt: z.string().datetime().nullable().optional(),
+    category: z.string().max(64).nullable().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, { message: 'No updates provided' });
 
@@ -63,6 +70,11 @@ const tasksSchema = z.object({
       })
     )
     .max(100),
+});
+
+const maintenanceQuerySchema = z.object({
+  siteId: z.string().uuid().optional(),
+  deviceId: z.string().uuid().optional(),
 });
 
 export async function listWorkOrdersHandler(req: Request, res: Response, next: NextFunction) {
@@ -84,6 +96,26 @@ export async function listWorkOrdersHandler(req: Request, res: Response, next: N
     });
 
     res.json(orders);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function maintenanceSummaryHandler(req: Request, res: Response, next: NextFunction) {
+  const parsed = maintenanceQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({ message: 'Invalid query' });
+  }
+
+  try {
+    const organisationId = await resolveOrganisationId(req.user!.id, res);
+    if (!organisationId) return;
+
+    const summary = await getMaintenanceSummary(organisationId, {
+      siteId: parsed.data.siteId,
+      deviceId: parsed.data.deviceId,
+    });
+    res.json(summary);
   } catch (err) {
     next(err);
   }
@@ -128,6 +160,9 @@ export async function createWorkOrderHandler(req: Request, res: Response, next: 
       priority: parsedBody.data.priority,
       assigneeUserId: parsedBody.data.assigneeUserId ?? null,
       dueAt: parsedBody.data.dueAt ?? null,
+      slaDueAt: parsedBody.data.slaDueAt ?? null,
+      reminderAt: parsedBody.data.reminderAt ?? null,
+      category: parsedBody.data.category ?? null,
       createdByUserId: req.user!.id,
     });
 
@@ -201,6 +236,9 @@ export async function updateWorkOrderHandler(req: Request, res: Response, next: 
       assigneeUserId: parsedBody.data.assigneeUserId,
       dueAt: parsedBody.data.dueAt,
       status: parsedBody.data.status,
+      slaDueAt: parsedBody.data.slaDueAt,
+      reminderAt: parsedBody.data.reminderAt,
+      category: parsedBody.data.category,
     });
 
     if (!order) return res.status(404).json({ message: 'Not found' });

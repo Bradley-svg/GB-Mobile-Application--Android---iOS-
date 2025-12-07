@@ -27,4 +27,5 @@ export {
   useCreateWorkOrderFromAlert,
   useUpdateWorkOrderStatus,
   useUpdateWorkOrderTasks,
+  useMaintenanceSummary,
 } from './workOrders/hooks';

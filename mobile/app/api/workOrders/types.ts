@@ -14,6 +14,15 @@ export type WorkOrder = {
   assignee_user_id: string | null;
   created_by_user_id: string;
   due_at: string | null;
+  slaDueAt?: string | null;
+  sla_due_at?: string | null;
+  resolvedAt?: string | null;
+  resolved_at?: string | null;
+  slaBreached?: boolean;
+  sla_breached?: boolean;
+  reminderAt?: string | null;
+  reminder_at?: string | null;
+  category?: 'maintenance' | 'breakdown' | 'inspection' | string | null;
   created_at: string;
   updated_at: string;
   site_name?: string | null;
@@ -46,4 +55,25 @@ export type WorkOrderFilters = {
   deviceId?: string;
   alertId?: string;
   q?: string;
+};
+
+export type MaintenanceSummaryItem = {
+  workOrderId: string;
+  title: string;
+  siteName: string | null;
+  deviceName: string | null;
+  slaDueAt: string;
+  status: WorkOrderStatus;
+};
+
+export type MaintenanceSummary = {
+  openCount: number;
+  overdueCount: number;
+  dueSoonCount: number;
+  byDate: Array<{
+    date: string;
+    open: MaintenanceSummaryItem[];
+    overdue: MaintenanceSummaryItem[];
+    done: MaintenanceSummaryItem[];
+  }>;
 };

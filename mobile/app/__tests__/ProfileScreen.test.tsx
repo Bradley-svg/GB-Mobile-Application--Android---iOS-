@@ -130,4 +130,12 @@ describe('ProfileScreen notifications', () => {
 
     expect(navigateMock).toHaveBeenCalledWith('WorkOrders');
   });
+
+  it('navigates to maintenance from the profile list', () => {
+    const { getByTestId } = render(<ProfileScreen />);
+
+    fireEvent.press(getByTestId('maintenance-row'));
+
+    expect(navigateMock).toHaveBeenCalledWith('MaintenanceCalendar');
+  });
 });

@@ -7,6 +7,7 @@ import {
   listWorkOrdersForDeviceHandler,
   listWorkOrdersForSiteHandler,
   listWorkOrdersHandler,
+  maintenanceSummaryHandler,
   updateWorkOrderHandler,
   updateWorkOrderTasksHandler,
 } from '../controllers/workOrdersController';
@@ -23,5 +24,6 @@ router.patch('/work-orders/:id', requireAuth, updateWorkOrderHandler);
 router.put('/work-orders/:id/tasks', requireAuth, updateWorkOrderTasksHandler);
 router.get('/devices/:id/work-orders', requireAuth, listWorkOrdersForDeviceHandler);
 router.get('/sites/:id/work-orders', requireAuth, listWorkOrdersForSiteHandler);
+router.get('/maintenance/summary', requireAuth, maintenanceSummaryHandler);
 
 export default router;

@@ -62,6 +62,11 @@ export type HealthPlusPayload = {
     lastSampleAt: string | null;
     lastError: string | null;
   };
+  maintenance?: {
+    openCount: number;
+    overdueCount: number;
+    lastCalcAt: string | null;
+  };
   alertsEngine: {
     lastRunAt: string | null;
     lastDurationMs: number | null;
@@ -263,8 +268,38 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
         healthy: alertsHealthy,
       },
       push,
+      maintenance: undefined,
       alertsEngine,
     };
+
+    try {
+      const maintenanceRes = await query<{ open_count: string; overdue_count: string }>(
+        `
+        select
+          count(*) filter (where status in ('open', 'in_progress')) as open_count,
+          count(*) filter (
+            where status in ('open', 'in_progress')
+              and sla_due_at is not null
+              and sla_due_at < $1
+          ) as overdue_count
+        from work_orders
+      `,
+        [now]
+      );
+      const maintenanceRow = maintenanceRes.rows[0] ?? { open_count: '0', overdue_count: '0' };
+      body.maintenance = {
+        openCount: Number(maintenanceRow.open_count ?? 0),
+        overdueCount: Number(maintenanceRow.overdue_count ?? 0),
+        lastCalcAt: now.toISOString(),
+      };
+    } catch (maintenanceErr) {
+      log.warn({ err: maintenanceErr }, 'maintenance snapshot failed');
+      body.maintenance = {
+        openCount: 0,
+        overdueCount: 0,
+        lastCalcAt: now.toISOString(),
+      };
+    }
 
     return { status: 200, body };
   } catch (error) {
@@ -303,6 +338,11 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
         enabled: pushEnabled,
         lastSampleAt: null,
         lastError: null,
+      },
+      maintenance: {
+        openCount: 0,
+        overdueCount: 0,
+        lastCalcAt: null,
       },
       alertsEngine: {
         lastRunAt: null,

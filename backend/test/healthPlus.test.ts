@@ -110,7 +110,9 @@ beforeEach(() => {
 
 describe('GET /health-plus (baseline)', () => {
   it('returns ok with version and db ok when query succeeds', async () => {
-    queryMock.mockResolvedValueOnce({ rows: [{ ok: 1 }], rowCount: 1 });
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ ok: 1 }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ open_count: '5', overdue_count: '2' }], rowCount: 1 });
 
     const res = await request(app).get('/health-plus').expect(200);
 
@@ -148,6 +150,11 @@ describe('GET /health-plus (baseline)', () => {
         enabled: false,
         lastSampleAt: null,
         lastError: null,
+      },
+      maintenance: {
+        openCount: 5,
+        overdueCount: 2,
+        lastCalcAt: expect.any(String),
       },
       alertsEngine: {
         lastRunAt: null,
@@ -206,6 +213,11 @@ describe('GET /health-plus (baseline)', () => {
         enabled: false,
         lastSampleAt: null,
         lastError: null,
+      },
+      maintenance: {
+        openCount: 0,
+        overdueCount: 0,
+        lastCalcAt: null,
       },
       alertsEngine: {
         lastRunAt: null,

@@ -9,7 +9,7 @@ import {
   useWorkOrder,
 } from '../../api/hooks';
 import type { WorkOrderStatus, WorkOrderTask } from '../../api/workOrders/types';
-import { Screen, Card, PrimaryButton, StatusPill, IconButton } from '../../components';
+import { Screen, Card, PrimaryButton, StatusPill, IconButton, PillTabGroup } from '../../components';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { colors, gradients } from '../../theme/colors';
@@ -33,16 +33,55 @@ const statusDisplay = (status: WorkOrderStatus) => {
   }
 };
 
+const parseDate = (value?: string | null) => (value ? new Date(value) : null);
+
+const formatDuration = (ms: number) => {
+  const totalMinutes = Math.max(0, Math.round(ms / 60000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours && minutes) return `${hours}h ${minutes}m`;
+  if (hours) return `${hours}h`;
+  return `${minutes}m`;
+};
+
+const formatSlaDueLabel = (dueAt: Date | null) => {
+  if (!dueAt) return 'No SLA target set for this work order.';
+  const now = new Date();
+  const time = dueAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  if (dueAt.toDateString() === now.toDateString()) return `Due today ${time}`;
+  if (dueAt.toDateString() === tomorrow.toDateString()) return `Due tomorrow ${time}`;
+  return `Due ${dueAt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} ${time}`;
+};
+
+const reminderPresetFromDates = (
+  slaDueAt: Date | null,
+  reminderAt: Date | null
+): 'none' | 'hour' | 'day' => {
+  if (!slaDueAt || !reminderAt) return 'none';
+  const diffMs = Math.abs(slaDueAt.getTime() - reminderAt.getTime());
+  const hourMs = 60 * 60 * 1000;
+  const dayMs = 24 * hourMs;
+  if (Math.abs(diffMs - hourMs) < 5 * 60 * 1000) return 'hour';
+  if (Math.abs(diffMs - dayMs) < 30 * 60 * 1000) return 'day';
+  return 'none';
+};
+
 export const WorkOrderDetailScreen: React.FC = () => {
   const route = useRoute<WorkOrderDetailRouteParams>();
   const navigation = useNavigation<WorkOrderDetailNavigation>();
   const workOrderId = route.params.workOrderId;
   const { data: workOrder, isLoading, isError, refetch } = useWorkOrder(workOrderId);
   const updateStatus = useUpdateWorkOrderStatus();
+  const updateSla = useUpdateWorkOrderStatus();
   const updateTasks = useUpdateWorkOrderTasks();
   const { isOffline } = useNetworkBanner();
   const [notes, setNotes] = useState<string>('');
   const [actionError, setActionError] = useState<string | null>(null);
+  const [isEditingSla, setIsEditingSla] = useState(false);
+  const [editedSlaDueAt, setEditedSlaDueAt] = useState<Date | null>(null);
+  const [reminderPreset, setReminderPreset] = useState<'none' | 'hour' | 'day'>('none');
 
   useEffect(() => {
     if (workOrder?.description !== undefined && workOrder?.description !== null) {
@@ -51,6 +90,14 @@ export const WorkOrderDetailScreen: React.FC = () => {
       setNotes('');
     }
   }, [workOrder]);
+
+  useEffect(() => {
+    if (!workOrder || isEditingSla) return;
+    const currentSla = parseDate(workOrder.slaDueAt ?? workOrder.sla_due_at ?? null);
+    const reminderAt = parseDate(workOrder.reminderAt ?? workOrder.reminder_at ?? null);
+    setEditedSlaDueAt(currentSla);
+    setReminderPreset(reminderPresetFromDates(currentSla, reminderAt));
+  }, [isEditingSla, workOrder]);
 
   const statusInfo = useMemo(() => (workOrder ? statusDisplay(workOrder.status) : null), [workOrder]);
 
@@ -106,6 +153,46 @@ export const WorkOrderDetailScreen: React.FC = () => {
     } catch (err) {
       console.error('Failed to update tasks', err);
       setActionError('Could not update checklist. Please try again.');
+    }
+  };
+
+  const onOpenSlaEdit = () => {
+    if (!workOrder) return;
+    if (isOffline) {
+      setActionError('SLA changes require a connection');
+      return;
+    }
+    const currentSla = parseDate(workOrder.slaDueAt ?? workOrder.sla_due_at ?? null);
+    const reminderAt = parseDate(workOrder.reminderAt ?? workOrder.reminder_at ?? null);
+    setEditedSlaDueAt(currentSla ?? new Date());
+    setReminderPreset(reminderPresetFromDates(currentSla, reminderAt));
+    setIsEditingSla(true);
+    setActionError(null);
+  };
+
+  const onSaveSla = async () => {
+    if (!workOrder) return;
+    if (isOffline) {
+      setActionError('SLA changes require a connection');
+      return;
+    }
+    try {
+      const reminderAt =
+        reminderPreset === 'hour' && editedSlaDueAt
+          ? new Date(editedSlaDueAt.getTime() - 60 * 60 * 1000)
+          : reminderPreset === 'day' && editedSlaDueAt
+          ? new Date(editedSlaDueAt.getTime() - 24 * 60 * 60 * 1000)
+          : null;
+
+      await updateSla.mutateAsync({
+        workOrderId,
+        slaDueAt: editedSlaDueAt ? editedSlaDueAt.toISOString() : null,
+        reminderAt: reminderAt ? reminderAt.toISOString() : null,
+      });
+      setIsEditingSla(false);
+    } catch (err) {
+      console.error('Failed to update SLA', err);
+      setActionError('Could not update SLA. Please try again.');
     }
   };
 
@@ -180,6 +267,13 @@ export const WorkOrderDetailScreen: React.FC = () => {
   const linkedAlert = workOrder.alert_id
     ? { id: workOrder.alert_id, severity: workOrder.alert_severity }
     : null;
+  const now = new Date();
+  const slaDueAt = parseDate(workOrder.slaDueAt ?? workOrder.sla_due_at ?? null);
+  const resolvedAt = parseDate(workOrder.resolvedAt ?? workOrder.resolved_at ?? null);
+  const reminderAt = parseDate(workOrder.reminderAt ?? workOrder.reminder_at ?? null);
+  const slaBreached = workOrder.slaBreached ?? workOrder.sla_breached ?? false;
+  const overdue = slaDueAt ? now.getTime() > slaDueAt.getTime() && workOrder.status !== 'done' : false;
+  const completedLate = workOrder.status === 'done' && slaBreached && slaDueAt && resolvedAt;
 
   return (
     <Screen scroll contentContainerStyle={{ paddingBottom: spacing.xxl }} testID="WorkOrderDetailScreen">
@@ -206,7 +300,7 @@ export const WorkOrderDetailScreen: React.FC = () => {
         </Text>
         <Text style={[typography.caption, styles.muted]} numberOfLines={2}>
           {workOrder.site_name || 'Unknown site'}
-          {workOrder.device_name ? ` • ${workOrder.device_name}` : ''}
+          {workOrder.device_name ? ` > ${workOrder.device_name}` : ''}
         </Text>
         {linkedAlert ? (
           <TouchableOpacity
@@ -224,6 +318,134 @@ export const WorkOrderDetailScreen: React.FC = () => {
               Linked alert
             </Text>
           </TouchableOpacity>
+        ) : null}
+      </Card>
+
+      <Card style={styles.detailCard}>
+        <View style={styles.slaHeader}>
+          <Text style={[typography.subtitle, styles.title, { marginBottom: spacing.xs }]}>SLA</Text>
+          <TouchableOpacity
+            style={styles.slaEditButton}
+            onPress={onOpenSlaEdit}
+            disabled={isOffline}
+            testID="edit-sla-button"
+          >
+            <Ionicons name="time-outline" size={16} color={colors.brandGreen} />
+            <Text style={[typography.caption, styles.title, { marginLeft: spacing.xs }]}>
+              {isEditingSla ? 'Close' : 'Edit SLA'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        <Text
+          style={[
+            typography.body,
+            workOrder.status === 'done'
+              ? slaBreached
+                ? styles.warningText
+                : styles.title
+              : overdue
+              ? styles.errorText
+              : styles.title,
+          ]}
+        >
+          {!slaDueAt
+            ? 'No SLA target set for this work order.'
+            : workOrder.status === 'done'
+            ? slaBreached && completedLate
+              ? `Completed ${formatDuration(resolvedAt!.getTime() - slaDueAt.getTime())} after SLA`
+              : 'Completed in SLA'
+            : overdue
+            ? `Overdue by ${formatDuration(now.getTime() - slaDueAt.getTime())}`
+            : formatSlaDueLabel(slaDueAt)}
+        </Text>
+        <Text style={[typography.caption, styles.muted, { marginTop: spacing.xs }]}>
+          {reminderAt ? `Reminder set for ${reminderAt.toLocaleString()}` : 'No reminder scheduled.'}
+        </Text>
+        {isEditingSla ? (
+          <>
+            <Text style={[typography.caption, styles.muted, { marginTop: spacing.sm }]}>
+              Quick set
+            </Text>
+            <View style={styles.slaQuickRow}>
+              <TouchableOpacity
+                style={styles.slaQuickButton}
+                onPress={() => setEditedSlaDueAt(new Date(Date.now() + 4 * 60 * 60 * 1000))}
+              >
+                <Text style={[typography.caption, styles.title]}>In 4 hours</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.slaQuickButton}
+                onPress={() => setEditedSlaDueAt(new Date(Date.now() + 24 * 60 * 60 * 1000))}
+              >
+                <Text style={[typography.caption, styles.title]}>Tomorrow</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.slaQuickButton}
+                onPress={() => setEditedSlaDueAt(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000))}
+              >
+                <Text style={[typography.caption, styles.title]}>+3 days</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.slaQuickButton} onPress={() => setEditedSlaDueAt(null)}>
+                <Text style={[typography.caption, styles.muted]}>Clear</Text>
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              style={[styles.slaInput, { marginTop: spacing.sm }]}
+              placeholder="YYYY-MM-DDTHH:MM (local)"
+              value={editedSlaDueAt ? editedSlaDueAt.toISOString().slice(0, 16) : ''}
+              onChangeText={(value) => {
+                if (!value) {
+                  setEditedSlaDueAt(null);
+                  return;
+                }
+                const parsed = new Date(value);
+                setEditedSlaDueAt(Number.isNaN(parsed.getTime()) ? null : parsed);
+              }}
+              autoCapitalize="none"
+              keyboardType="numbers-and-punctuation"
+              testID="sla-due-input"
+            />
+            <Text style={[typography.caption, styles.muted, { marginTop: spacing.sm }]}>
+              Reminder
+            </Text>
+            <PillTabGroup
+              value={reminderPreset}
+              options={[
+                { value: 'none', label: 'None' },
+                { value: 'hour', label: '1h before' },
+                { value: 'day', label: '1 day before' },
+              ]}
+              onChange={(value) => setReminderPreset(value as 'none' | 'hour' | 'day')}
+            />
+            <Text style={[typography.caption, styles.muted, { marginTop: spacing.sm }]}>
+              {editedSlaDueAt
+                ? `Selected: ${formatSlaDueLabel(editedSlaDueAt)}`
+                : 'SLA target will be cleared.'}
+            </Text>
+            <View style={[styles.actionRow, { marginTop: spacing.sm }]}>
+              <PrimaryButton
+                label={updateSla.isPending ? 'Saving...' : 'Save SLA'}
+                onPress={onSaveSla}
+                disabled={updateSla.isPending || isOffline}
+                testID="save-sla-button"
+              />
+              <PrimaryButton
+                label="Cancel"
+                onPress={() => {
+                  setIsEditingSla(false);
+                  setEditedSlaDueAt(slaDueAt ?? null);
+                  setReminderPreset(reminderPresetFromDates(slaDueAt, reminderAt));
+                }}
+                variant="outline"
+                style={{ marginTop: spacing.sm }}
+              />
+            </View>
+          </>
+        ) : null}
+        {isOffline ? (
+          <Text style={[typography.caption, styles.muted, { marginTop: spacing.xs }]}>
+            SLA changes require a connection
+          </Text>
         ) : null}
       </Card>
 
@@ -327,6 +549,34 @@ const styles = StyleSheet.create({
   headerCard: {
     marginBottom: spacing.md,
   },
+  slaHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  slaEditButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 12,
+    backgroundColor: colors.backgroundAlt,
+  },
+  slaQuickRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: spacing.xs,
+  },
+  slaQuickButton: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.backgroundAlt,
+    marginRight: spacing.sm,
+    marginTop: spacing.xs,
+  },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -363,6 +613,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.xs,
   },
+  slaInput: {
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    borderRadius: 12,
+    padding: spacing.sm,
+    color: colors.textPrimary,
+    backgroundColor: colors.backgroundAlt,
+  },
   notesInput: {
     minHeight: 96,
     borderWidth: 1,
@@ -374,4 +632,5 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   errorText: { color: colors.error, marginTop: spacing.sm },
+  warningText: { color: colors.warning },
 });
