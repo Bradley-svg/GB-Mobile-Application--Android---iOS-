@@ -198,6 +198,10 @@ const renderStatusPill = (status?: string | null) => {
     backgroundColor = colors.brandSoft;
     textColor = colors.success;
     label = 'Healthy';
+  } else if (normalized.includes('critical')) {
+    backgroundColor = colors.errorSoft;
+    textColor = colors.error;
+    label = 'Critical';
   } else if (normalized.includes('warn')) {
     backgroundColor = colors.warningSoft;
     textColor = colors.warning;

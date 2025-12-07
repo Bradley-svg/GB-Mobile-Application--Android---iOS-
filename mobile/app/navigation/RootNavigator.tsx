@@ -13,6 +13,7 @@ import { ProfileScreen } from '../screens/Profile/ProfileScreen';
 import { SiteOverviewScreen } from '../screens/Site/SiteOverviewScreen';
 import { DeviceDetailScreen } from '../screens/Device/DeviceDetailScreen';
 import { AlertDetailScreen } from '../screens/Alerts/AlertDetailScreen';
+import { DiagnosticsScreen } from '../screens/Profile/DiagnosticsScreen';
 import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
 import { spacing } from '../theme/spacing';
@@ -38,6 +39,7 @@ export type AppStackParamList = {
   SiteOverview: { siteId: string };
   DeviceDetail: { deviceId: string };
   AlertDetail: { alertId: string };
+  Diagnostics: undefined;
 };
 
 export type AppTabParamList = {
@@ -171,6 +173,7 @@ function AppNavigator() {
       <AppStack.Screen name="SiteOverview" component={SiteOverviewScreen} />
       <AppStack.Screen name="DeviceDetail" component={DeviceDetailScreen} />
       <AppStack.Screen name="AlertDetail" component={AlertDetailScreen} />
+      <AppStack.Screen name="Diagnostics" component={DiagnosticsScreen} />
     </AppStack.Navigator>
   );
 }

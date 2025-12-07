@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react-native';
+import { render, screen, waitFor } from '@testing-library/react-native';
 import { FlatList } from 'react-native';
 import { DashboardScreen } from '../screens/Dashboard/DashboardScreen';
 import { useAlerts, useSites } from '../api/hooks';
@@ -49,5 +49,24 @@ describe('Dashboard large list rendering', () => {
 
     const renderedCards = screen.getAllByTestId('site-card');
     expect(renderedCards.length).toBeGreaterThan(0);
+  });
+
+  it('shows cached sites with an offline banner', async () => {
+    (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: true });
+    (useSites as jest.Mock).mockReturnValue({
+      data: null,
+      isLoading: false,
+      isError: false,
+      refetch: jest.fn(),
+    });
+    const cachedSites = [
+      { id: 'site-1', name: 'Cached Site', city: 'Offline City', status: 'online', last_seen_at: '2025-01-01T00:00:00.000Z' },
+    ];
+    (loadJson as jest.Mock).mockResolvedValue(cachedSites);
+
+    render(<DashboardScreen />);
+
+    await waitFor(() => expect(screen.getByTestId('dashboard-offline-banner')).toBeTruthy());
+    expect(screen.getByText('Cached Site')).toBeTruthy();
   });
 });

@@ -1,6 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Linking, TouchableOpacity, View, Text, StyleSheet, Switch } from 'react-native';
+import {
+  ActivityIndicator,
+  Linking,
+  TouchableOpacity,
+  View,
+  Text,
+  StyleSheet,
+  Switch,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuthStore } from '../../store/authStore';
 import { Screen, Card, PrimaryButton, IconButton } from '../../components';
 import { getNotificationPermissionStatus } from '../../hooks/useRegisterPushToken';
@@ -9,11 +19,15 @@ import {
   useNotificationPreferencesQuery,
   useUpdateNotificationPreferencesMutation,
 } from '../../api/preferences/hooks';
+import { AppStackParamList } from '../../navigation/RootNavigator';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 
+type Navigation = NativeStackNavigationProp<AppStackParamList>;
+
 export const ProfileScreen: React.FC = () => {
+  const navigation = useNavigation<Navigation>();
   const { clearAuth, user, notificationPreferences } = useAuthStore((s) => ({
     clearAuth: s.clearAuth,
     user: s.user,
@@ -141,13 +155,20 @@ export const ProfileScreen: React.FC = () => {
           <Text style={[typography.caption, styles.muted]}>Light</Text>
         </View>
         <View style={styles.separator} />
-        <View style={styles.listRow}>
+        <TouchableOpacity
+          style={styles.listRow}
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('Diagnostics')}
+          testID="diagnostics-row"
+        >
           <View style={styles.rowLeft}>
             <Ionicons name="information-circle-outline" size={18} color={colors.brandGreen} />
-            <Text style={[typography.body, styles.title, { marginLeft: spacing.sm }]}>About</Text>
+            <Text style={[typography.body, styles.title, { marginLeft: spacing.sm }]}>
+              About / Diagnostics
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
-        </View>
+        </TouchableOpacity>
       </Card>
 
       <PrimaryButton label="Log out" onPress={onLogout} testID="logout-button" />

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { FlatList } from 'react-native';
 import { AlertsScreen } from '../screens/Alerts/AlertsScreen';
 import { useAlerts } from '../api/hooks';
@@ -78,5 +78,56 @@ describe('Alerts large list rendering', () => {
 
     const rendered = screen.getAllByTestId('alert-card');
     expect(rendered.length).toBeGreaterThan(0);
+  });
+
+  it('filters cached alerts client-side when offline', async () => {
+    const cachedAlerts = [
+      {
+        id: 'alert-1',
+        site_id: 'site-1',
+        device_id: 'device-1',
+        severity: 'warning',
+        type: 'sensor',
+        message: 'Warning alert',
+        status: 'active',
+        first_seen_at: '2025-01-01T00:00:00.000Z',
+        last_seen_at: '2025-01-01T00:10:00.000Z',
+        acknowledged_by: null,
+        acknowledged_at: null,
+        muted_until: null,
+      },
+      {
+        id: 'alert-2',
+        site_id: 'site-1',
+        device_id: 'device-2',
+        severity: 'critical',
+        type: 'sensor',
+        message: 'Critical alert',
+        status: 'active',
+        first_seen_at: '2025-01-01T00:05:00.000Z',
+        last_seen_at: '2025-01-01T00:15:00.000Z',
+        acknowledged_by: null,
+        acknowledged_at: null,
+        muted_until: null,
+      },
+    ];
+    (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: true });
+    (useAlerts as jest.Mock).mockReturnValue({
+      data: null,
+      isLoading: false,
+      isError: false,
+      refetch: jest.fn(),
+    });
+    (loadJson as jest.Mock).mockResolvedValue(cachedAlerts);
+
+    render(<AlertsScreen />);
+
+    await waitFor(() => expect(screen.getAllByTestId('alert-card').length).toBe(2));
+
+    fireEvent.press(screen.getByTestId('pill-critical'));
+
+    await waitFor(() => expect(screen.queryByText('Warning alert')).toBeNull());
+    expect(screen.getAllByTestId('alert-card').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Critical alert')).toBeTruthy();
   });
 });

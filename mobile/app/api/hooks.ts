@@ -9,3 +9,4 @@ export {
   useNotificationPreferencesQuery,
   useUpdateNotificationPreferencesMutation,
 } from './preferences/hooks';
+export { useHealthPlus } from './health/hooks';

@@ -191,7 +191,7 @@ describe('DeviceDetailScreen heat pump history', () => {
 
     render(<DeviceDetailScreen />);
 
-    expect(screen.getByText(/History temporarily unavailable/i)).toBeTruthy();
+    expect(screen.getByText(/History unavailable, please try again later/i)).toBeTruthy();
   });
 
   it('shows an upstream failure message for 502 errors', () => {
@@ -204,7 +204,7 @@ describe('DeviceDetailScreen heat pump history', () => {
 
     render(<DeviceDetailScreen />);
 
-    expect(screen.getByText(/Error loading history from the data source/i)).toBeTruthy();
+    expect(screen.getByText(/History temporarily unavailable/i)).toBeTruthy();
   });
 
   it('disables history when mac is missing', () => {
@@ -228,7 +228,7 @@ describe('DeviceDetailScreen heat pump history', () => {
       { enabled: boolean }
     ];
     expect(options.enabled).toBe(false);
-    expect(screen.getByText('No history for this period.')).toBeTruthy();
+    expect(screen.getByText(/History unavailable for this device/i)).toBeTruthy();
   });
 
   it('allows selecting 1h, 24h, and 7d ranges for telemetry and history', () => {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -23,6 +23,7 @@ export const AlertDetailScreen: React.FC = () => {
   const acknowledge = useAcknowledgeAlert();
   const mute = useMuteAlert();
   const { isOffline } = useNetworkBanner();
+  const [actionError, setActionError] = useState<string | null>(null);
 
   if (isLoading || !alerts) {
     return (
@@ -52,22 +53,32 @@ export const AlertDetailScreen: React.FC = () => {
   }
 
   const onAcknowledge = async () => {
-    if (isOffline) return;
+    setActionError(null);
+    if (isOffline) {
+      setActionError('Offline — acknowledgment requires a connection.');
+      return;
+    }
     try {
       await acknowledge.mutateAsync(alertItem.id);
       Alert.alert('Acknowledged', 'Alert marked as acknowledged');
-    } catch {
-      Alert.alert('Error', 'Failed to acknowledge alert');
+    } catch (err) {
+      console.error('Failed to acknowledge alert', err);
+      setActionError('Failed to acknowledge alert. Please try again.');
     }
   };
 
   const onMute = async () => {
-    if (isOffline) return;
+    setActionError(null);
+    if (isOffline) {
+      setActionError('Offline — muting requires a connection.');
+      return;
+    }
     try {
       await mute.mutateAsync({ alertId: alertItem.id, minutes: 60 });
       Alert.alert('Muted', 'Alert muted for 60 minutes');
-    } catch {
-      Alert.alert('Error', 'Failed to mute alert');
+    } catch (err) {
+      console.error('Failed to mute alert', err);
+      setActionError('Failed to mute alert. Please try again.');
     }
   };
 
@@ -136,6 +147,7 @@ export const AlertDetailScreen: React.FC = () => {
           variant="outline"
           style={{ marginTop: spacing.sm }}
         />
+        {actionError ? <Text style={[typography.caption, styles.errorText]}>{actionError}</Text> : null}
         {isOffline ? (
           <Text style={[typography.caption, styles.offlineNote]}>
             Requires network connection to acknowledge or mute alerts.
@@ -196,5 +208,6 @@ const styles = StyleSheet.create({
   actions: {
     marginBottom: spacing.xl,
   },
+  errorText: { color: colors.error, marginTop: spacing.sm },
   offlineNote: { color: colors.textSecondary, marginTop: spacing.sm },
 });

@@ -8,13 +8,15 @@ type PillTabProps = {
   label: string;
   selected?: boolean;
   onPress?: () => void;
+  testID?: string;
 };
 
-export const PillTab: React.FC<PillTabProps> = ({ label, selected, onPress }) => (
+export const PillTab: React.FC<PillTabProps> = ({ label, selected, onPress, testID }) => (
   <TouchableOpacity
     onPress={onPress}
     activeOpacity={0.9}
     style={[styles.pillTab, selected ? styles.pillSelected : styles.pillUnselected]}
+    testID={testID}
   >
     <Text
       style={[

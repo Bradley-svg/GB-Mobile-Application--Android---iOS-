@@ -83,3 +83,8 @@ Scope: backend API, workers, mobile app, branding, E2E tooling, staging/deploy t
 - P1: Provision staging DNS/DB, run `npm run staging:bootstrap` + health checks; design/ship metrics + alerting pipeline and worker HA strategy.
 - P2: Broaden Detox/E2E coverage and consider richer offline guidance or optional write-back strategy.
 - P3: Reduce residual test noise, continue small UX polish, and keep repo lean as new assets/configs arrive.
+
+## 0.1.1 mobile feature-completion (2025-12-07)
+- Backend: added 1h telemetry range across controller/service/repository with coverage in `test/telemetryService.test.ts`; `npm run typecheck`, `npm run lint`, `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm test`, and `npm run build` all green.
+- Mobile: strengthened offline/brand states (dashboard offline card, offline telemetry/history messaging, control disablement for offline/device-offline/unconfigured, alerts client-side filtering of cached data), improved control error mapping (throttle/validation/503), and added a Profile→Diagnostics screen with app version/API URL/health-plus snapshot/user+device ids.
+- Tests: `npm run typecheck`, `npm run lint`, `npm test -- --runInBand` under `mobile/` now cover new control/error/offline/diagnostics paths.

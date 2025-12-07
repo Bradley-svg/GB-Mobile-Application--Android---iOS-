@@ -38,7 +38,6 @@ export const AlertsScreen: React.FC = () => {
   const [severityFilter, setSeverityFilter] = useState<'all' | 'warning' | 'critical'>('all');
   const { data: alerts, isLoading, isError, refetch } = useAlerts({
     status: 'active',
-    severity: severityFilter === 'all' ? undefined : severityFilter,
   });
 
   const navigation = useNavigation<Navigation>();
@@ -82,15 +81,20 @@ export const AlertsScreen: React.FC = () => {
   const showLoading = isLoading && alertsList.length === 0;
   const shouldShowError = isError && !isOffline && alertsList.length === 0;
 
+  const filteredAlerts = useMemo(() => {
+    if (severityFilter === 'all') return alertsList;
+    return alertsList.filter((alert) => alert.severity === severityFilter);
+  }, [alertsList, severityFilter]);
+
   const sortedAlerts = useMemo(
     () =>
-      (alertsList || []).slice().sort((a, b) => {
+      (filteredAlerts || []).slice().sort((a, b) => {
         const sA = SEVERITY_ORDER[a.severity] ?? 99;
         const sB = SEVERITY_ORDER[b.severity] ?? 99;
         if (sA !== sB) return sA - sB;
         return new Date(b.last_seen_at).getTime() - new Date(a.last_seen_at).getTime();
       }),
-    [alertsList]
+    [filteredAlerts]
   );
 
   if (showLoading) {
@@ -122,6 +126,26 @@ export const AlertsScreen: React.FC = () => {
           {hasCachedAlerts ? 'Offline - showing cached alerts (read-only).' : 'Offline and no cached alerts.'}
         </Text>
       ) : null}
+      <Card style={styles.headerCard}>
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={[typography.caption, styles.muted]}>Overview</Text>
+            <Text style={[typography.title1, styles.title]}>Alerts</Text>
+          </View>
+          <IconButton icon={<Ionicons name="filter-outline" size={20} color={colors.brandGrey} />} />
+        </View>
+        <View style={styles.filterRow}>
+          <PillTabGroup
+            value={severityFilter}
+            options={[
+              { value: 'all', label: 'ALL' },
+              { value: 'warning', label: 'WARNING' },
+              { value: 'critical', label: 'CRITICAL' },
+            ]}
+            onChange={(value) => setSeverityFilter(value)}
+          />
+        </View>
+      </Card>
       <FlatList
         data={sortedAlerts}
         keyExtractor={(item) => item.id}
@@ -131,28 +155,7 @@ export const AlertsScreen: React.FC = () => {
         windowSize={6}
         removeClippedSubviews
         testID="alerts-list"
-        ListHeaderComponent={
-          <Card style={styles.headerCard}>
-            <View style={styles.headerRow}>
-              <View>
-                <Text style={[typography.caption, styles.muted]}>Overview</Text>
-                <Text style={[typography.title1, styles.title]}>Alerts</Text>
-              </View>
-              <IconButton icon={<Ionicons name="filter-outline" size={20} color={colors.brandGrey} />} />
-            </View>
-            <View style={styles.filterRow}>
-              <PillTabGroup
-                value={severityFilter}
-                options={[
-                  { value: 'all', label: 'ALL' },
-                  { value: 'warning', label: 'WARNING' },
-                  { value: 'critical', label: 'CRITICAL' },
-                ]}
-                onChange={(value) => setSeverityFilter(value)}
-              />
-            </View>
-          </Card>
-        }
+        ListHeaderComponent={null}
         ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
         renderItem={({ item }) => {
           const { backgroundColor, textColor } = severityStyles(item.severity);
@@ -191,7 +194,9 @@ export const AlertsScreen: React.FC = () => {
                 ? hasCachedAlerts
                   ? 'Offline - showing cached alerts (read-only).'
                   : 'Offline and no cached alerts.'
-                : 'No active alerts.'
+                : severityFilter === 'all'
+                ? 'No active alerts.'
+                : 'No alerts match this filter.'
             }
             testID="alerts-empty"
           />

@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { DeviceDetailScreen } from '../screens/Device/DeviceDetailScreen';
 import {
   useDevice,
@@ -57,6 +57,7 @@ describe('DeviceDetailScreen', () => {
         name: 'Heat Pump',
         type: 'hp',
         status: 'ok',
+        external_id: 'dev-1',
         mac: '38:18:2B:60:A9:94',
         last_seen_at: '2025-01-01T00:00:00.000Z',
       },
@@ -172,6 +173,7 @@ describe('DeviceDetailScreen', () => {
         name: 'Cached Device',
         type: 'hp',
         status: 'ok',
+        external_id: 'dev-1',
         mac: '38:18:2B:60:A9:94',
       },
       telemetry: cachedTelemetry,
@@ -198,7 +200,8 @@ describe('DeviceDetailScreen', () => {
 
     expect(await screen.findByText('Offline - showing cached data (read-only).')).toBeTruthy();
     expect(screen.getByText('Cached Device')).toBeTruthy();
-    expect(screen.getByText('Commands unavailable while offline.')).toBeTruthy();
+    const offlineCommandMessages = screen.getAllByText(/Commands are unavailable while offline/i);
+    expect(offlineCommandMessages.length).toBeGreaterThan(0);
     const setpointButton = screen.getByTestId('setpoint-button');
     expect(setpointButton.props.disabled).toBe(true);
   });
@@ -220,5 +223,75 @@ describe('DeviceDetailScreen', () => {
     render(<DeviceDetailScreen />);
 
     expect(await screen.findByText('Offline and no cached data for this device.')).toBeTruthy();
+  });
+
+  it('maps throttling errors to friendly copy', async () => {
+    const throttleError = {
+      isAxiosError: true,
+      response: { status: 429, data: { failure_reason: 'THROTTLED', message: 'too many' } },
+    };
+    const mutateAsync = jest.fn().mockRejectedValue(throttleError);
+    (useSetpointCommand as jest.Mock).mockReturnValue({
+      mutateAsync,
+      isPending: false,
+    });
+    (useDevice as jest.Mock).mockReturnValue({
+      data: {
+        id: 'device-1',
+        site_id: 'site-1',
+        name: 'Heat Pump',
+        type: 'hp',
+        status: 'online',
+        external_id: 'dev-1',
+        mac: '38:18:2B:60:A9:94',
+        last_seen_at: '2025-01-01T00:00:00.000Z',
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<DeviceDetailScreen />);
+
+    fireEvent.press(screen.getByText('Update setpoint'));
+
+    await waitFor(() =>
+      expect(screen.getByText(/Too many commands in a short time/i)).toBeTruthy()
+    );
+  });
+
+  it('surfaces backend validation failures from control commands', async () => {
+    const validationError = {
+      isAxiosError: true,
+      response: {
+        status: 400,
+        data: { failure_reason: 'ABOVE_MAX', message: 'Setpoint above allowed range.' },
+      },
+    };
+    (useSetpointCommand as jest.Mock).mockReturnValue({
+      mutateAsync: jest.fn().mockRejectedValue(validationError),
+      isPending: false,
+    });
+    (useDevice as jest.Mock).mockReturnValue({
+      data: {
+        id: 'device-1',
+        site_id: 'site-1',
+        name: 'Heat Pump',
+        type: 'hp',
+        status: 'online',
+        external_id: 'dev-1',
+        mac: '38:18:2B:60:A9:94',
+        last_seen_at: '2025-01-01T00:00:00.000Z',
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<DeviceDetailScreen />);
+
+    fireEvent.press(screen.getByText('Update setpoint'));
+
+    await waitFor(() =>
+      expect(screen.getByText(/Setpoint above allowed range/i)).toBeTruthy()
+    );
   });
 });

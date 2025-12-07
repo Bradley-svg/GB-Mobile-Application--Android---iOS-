@@ -7,7 +7,7 @@ export type TelemetryPoint = {
   value: number;
 };
 
-export type TelemetryRange = '24h' | '7d';
+export type TelemetryRange = '1h' | '24h' | '7d';
 
 export type TelemetryResult = {
   range: TelemetryRange;

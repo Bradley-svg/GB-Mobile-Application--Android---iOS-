@@ -1,5 +1,6 @@
 import React from 'react';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { useNavigation } from '@react-navigation/native';
 import { ProfileScreen } from '../screens/Profile/ProfileScreen';
 import {
   useNotificationPreferencesQuery,
@@ -18,9 +19,17 @@ jest.mock('../hooks/useRegisterPushToken', () => ({
   getNotificationPermissionStatus: jest.fn(),
 }));
 
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: jest.fn(),
+}));
+
 describe('ProfileScreen notifications', () => {
+  const navigateMock = jest.fn();
+
   beforeEach(() => {
     jest.clearAllMocks();
+    (useNavigation as jest.Mock).mockReturnValue({ navigate: navigateMock });
+    navigateMock.mockReset();
     useAuthStore.setState({
       user: { id: 'user-1', email: 'user@example.com', name: 'User One', organisation_id: null },
       accessToken: 'access',
@@ -104,5 +113,13 @@ describe('ProfileScreen notifications', () => {
     expect(getByTestId('notification-preference-toggle')).toHaveProp('value', false);
     expect(getByTestId('notification-preference-error')).toBeTruthy();
     expect(getByText(/Could not update notification preference/i)).toBeTruthy();
+  });
+
+  it('navigates to diagnostics from the about row', () => {
+    const { getByTestId } = render(<ProfileScreen />);
+
+    fireEvent.press(getByTestId('diagnostics-row'));
+
+    expect(navigateMock).toHaveBeenCalledWith('Diagnostics');
   });
 });

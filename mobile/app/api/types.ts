@@ -94,6 +94,43 @@ export type ControlFailureReason =
   | 'DEVICE_NOT_CAPABLE'
   | 'VALIDATION_ERROR';
 
+export type HealthPlusPayload = {
+  ok: boolean;
+  env: string;
+  version: string | null;
+  db?: string;
+  mqtt: {
+    configured: boolean;
+    healthy: boolean;
+    lastIngestAt: string | null;
+    lastErrorAt: string | null;
+    lastError: string | null;
+  };
+  control: {
+    configured: boolean;
+    healthy: boolean;
+    lastCommandAt: string | null;
+    lastErrorAt: string | null;
+    lastError: string | null;
+  };
+  heatPumpHistory: {
+    configured: boolean;
+    healthy: boolean;
+    lastSuccessAt: string | null;
+    lastErrorAt: string | null;
+    lastError: string | null;
+  };
+  alertsWorker: {
+    healthy: boolean;
+    lastHeartbeatAt: string | null;
+  };
+  push: {
+    enabled: boolean;
+    lastSampleAt: string | null;
+    lastError: string | null;
+  };
+};
+
 export type NotificationPreferences = {
   alertsEnabled: boolean;
   // Mirror of backend /user/preferences response.

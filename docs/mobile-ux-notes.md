@@ -19,3 +19,8 @@
 - Login as demo user → Dashboard → Demo Site → Demo Device.
 - Compressor current (A) card: shows spinner while loading then a chart with points; if the window is empty show “No history for this period.”
 - mac present: no “history disabled” placeholder; if backend returns 503 show “History temporarily unavailable, please try again later.”; if backend returns 502 show “Error loading history from the data source.”
+## 0.1.1 updates
+- Dashboard: offline read-only card sits above the grid; status chips cover critical; cached-site offline test added.
+- Alerts: filter chips now drive client-side filtering for cached lists; offline read-only message stays above the list; ack/mute failures surface inline copy.
+- Device detail: 1h telemetry supported end-to-end; offline telemetry/history copy updated (502/503 mapped); controls disabled for offline/device-offline/unconfigured with throttle/validation messaging; cached-offline control copy covered in tests.
+- Profile: About row now navigates to Diagnostics (app version, API base URL, last /health-plus sample, user/device ids).

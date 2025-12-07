@@ -73,4 +73,14 @@ describe('getDeviceTelemetry', () => {
     expect(result.metrics.power_kw.length).toBeLessThanOrEqual(20);
     expect(result.metrics.power_kw[0]).toEqual({ ts: rows[0].ts.toISOString(), value: 1 });
   });
+
+  it('supports 1h range queries', async () => {
+    queryMock.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+    await getDeviceTelemetry('device-3', '1h');
+
+    expect(queryMock).toHaveBeenCalledTimes(1);
+    const [sql] = queryMock.mock.calls[0] as [string];
+    expect(sql).toContain("interval '1 hour'");
+  });
 });

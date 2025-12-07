@@ -23,7 +23,12 @@ export function PillTabGroup<T extends string | number>({
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
       {options.map((option) => (
         <View key={option.value} style={{ marginRight: spacing.sm }}>
-          <PillTab label={option.label} selected={option.value === value} onPress={() => onChange(option.value)} />
+          <PillTab
+            label={option.label}
+            selected={option.value === value}
+            onPress={() => onChange(option.value)}
+            testID={`pill-${option.value}`}
+          />
         </View>
       ))}
     </View>

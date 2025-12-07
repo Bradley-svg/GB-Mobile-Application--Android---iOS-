@@ -51,7 +51,15 @@ type CachedDeviceDetail = {
   cachedAt: string;
 };
 
-type HistoryStatus = 'ok' | 'noData' | 'circuitOpen' | 'upstreamError' | 'otherError';
+type HistoryStatus =
+  | 'ok'
+  | 'noData'
+  | 'circuitOpen'
+  | 'upstreamError'
+  | 'otherError'
+  | 'offline'
+  | 'disabled';
+type CommandDisabledReason = 'offline' | 'deviceOffline' | 'unconfigured' | null;
 
 export const DeviceDetailScreen: React.FC = () => {
   const route = useRoute<Route>();
@@ -104,33 +112,40 @@ export const DeviceDetailScreen: React.FC = () => {
     };
   }, [deviceId, isOffline]);
 
-  const now = new Date();
-  const fromDate = new Date(now.getTime() - RANGE_TO_WINDOW_MS[range]);
+  const historyWindow = useMemo(() => {
+    const now = new Date();
+    const fromDate = new Date(now.getTime() - RANGE_TO_WINDOW_MS[range]);
+    return {
+      from: fromDate.toISOString(),
+      to: now.toISOString(),
+    };
+  }, [range]);
 
-  const historyRequest: HeatPumpHistoryRequest | null = mac
-    ? {
-        mac,
-        from: fromDate.toISOString(),
-        to: now.toISOString(),
-        aggregation: 'raw',
-        mode: 'live',
-        fields: [
-          {
-            field: 'metric_compCurrentA',
-            unit: 'A',
-            decimals: 1,
-            displayName: 'Compressor current',
-            propertyName: '',
-          },
-        ],
-      }
-    : null;
+  const historyRequest: HeatPumpHistoryRequest | null = useMemo(() => {
+    if (!mac) return null;
+    return {
+      mac,
+      from: historyWindow.from,
+      to: historyWindow.to,
+      aggregation: 'raw',
+      mode: 'live',
+      fields: [
+        {
+          field: 'metric_compCurrentA',
+          unit: 'A',
+          decimals: 1,
+          displayName: 'Compressor current',
+          propertyName: '',
+        },
+      ],
+    };
+  }, [historyWindow.from, historyWindow.to, mac]);
 
   const heatPumpHistoryQuery = useHeatPumpHistory(
     historyRequest ?? {
       mac: '',
-      from: fromDate.toISOString(),
-      to: now.toISOString(),
+      from: historyWindow.from,
+      to: historyWindow.to,
       aggregation: 'raw',
       mode: 'live',
       fields: [],
@@ -185,6 +200,16 @@ export const DeviceDetailScreen: React.FC = () => {
     if (Number.isNaN(ts)) return false;
     return Date.now() - ts > STALE_THRESHOLD_MS;
   }, [lastUpdatedAt]);
+  const deviceStatus = (device?.status || '').toLowerCase();
+  const isDeviceOffline = deviceStatus.includes('off') || deviceStatus.includes('down');
+  const isControlConfigured = Boolean(device?.external_id);
+  const commandsDisabledReason: CommandDisabledReason = isOffline
+    ? 'offline'
+    : isDeviceOffline
+    ? 'deviceOffline'
+    : !isControlConfigured
+    ? 'unconfigured'
+    : null;
 
   useEffect(() => {
     if (isOffline) return;
@@ -232,6 +257,8 @@ export const DeviceDetailScreen: React.FC = () => {
 
   const historyErrorObj = heatPumpHistoryQuery.error;
   const historyStatus = useMemo<HistoryStatus>(() => {
+    if (isOffline) return 'offline';
+    if (!historyRequest) return 'disabled';
     if (heatPumpHistoryQuery.isError) {
       return deriveHistoryStatus(historyErrorObj as HeatPumpHistoryError | undefined);
     }
@@ -244,12 +271,15 @@ export const DeviceDetailScreen: React.FC = () => {
     heatPumpHistoryQuery.isLoading,
     heatPumpSeries.length,
     historyErrorObj,
+    historyRequest,
+    isOffline,
   ]);
   const showLoading = (deviceQuery.isLoading || cacheLoading) && !device;
   const deviceNotFound = !device && !showLoading;
   const telemetryLoading = telemetryQuery.isLoading && !telemetryData;
-  const telemetryError = telemetryQuery.isError && !telemetryLoading && !telemetryData && !isOffline;
+  const telemetryError = telemetryQuery.isError && !telemetryLoading && !telemetryData;
   const telemetryErrorObj = telemetryQuery.error;
+  const telemetryOfflineEmpty = isOffline && !telemetryData && !telemetryLoading;
   const historyErrorMessage =
     mapHistoryError(historyStatus) || 'Failed to load history. Try again or contact support.';
   const isOfflineWithCache = isOffline && !!cachedDeviceDetail;
@@ -309,8 +339,8 @@ export const DeviceDetailScreen: React.FC = () => {
 
     setSetpointError(null);
     setCommandError(null);
-    if (isOffline) {
-      setCommandError('Commands are unavailable while offline.');
+    if (commandsDisabledReason) {
+      setCommandError(mapControlDisabledMessage(commandsDisabledReason));
       return;
     }
     const previousValue = lastSetpoint;
@@ -327,7 +357,8 @@ export const DeviceDetailScreen: React.FC = () => {
       const backendMessage = axios.isAxiosError(err)
         ? err.response?.data?.message ?? err.response?.data?.error
         : undefined;
-      const message = mapControlFailureReason(failureReason, backendMessage);
+      const status = axios.isAxiosError(err) ? err.response?.status : undefined;
+      const message = mapControlFailureReason(failureReason, backendMessage, status);
       setCommandError(message);
     } finally {
       setIsSetpointPending(false);
@@ -335,8 +366,8 @@ export const DeviceDetailScreen: React.FC = () => {
   };
 
   const onModeChange = async (mode: 'OFF' | 'HEATING' | 'COOLING' | 'AUTO') => {
-    if (isOffline) {
-      setCommandError('Commands are unavailable while offline.');
+    if (commandsDisabledReason) {
+      setCommandError(mapControlDisabledMessage(commandsDisabledReason));
       return;
     }
     const previousMode = selectedMode;
@@ -351,7 +382,8 @@ export const DeviceDetailScreen: React.FC = () => {
       const backendMessage = axios.isAxiosError(err)
         ? err.response?.data?.message ?? err.response?.data?.error
         : undefined;
-      const message = mapControlFailureReason(failureReason, backendMessage);
+      const status = axios.isAxiosError(err) ? err.response?.status : undefined;
+      const message = mapControlFailureReason(failureReason, backendMessage, status);
       setCommandError(message);
     } finally {
       setIsModePending(false);
@@ -422,6 +454,16 @@ export const DeviceDetailScreen: React.FC = () => {
             : 'Offline and no cached data for this device.'}
         </Text>
       ) : null}
+      {!isOffline && isDeviceOffline ? (
+        <Text style={[typography.caption, styles.offlineNote, { marginBottom: spacing.md }]}>
+          Device is offline. Commands are disabled until it reconnects.
+        </Text>
+      ) : null}
+      {!isOffline && !isDeviceOffline && !isControlConfigured ? (
+        <Text style={[typography.caption, styles.offlineNote, { marginBottom: spacing.md }]}>
+          Control channel not configured for this device in this environment.
+        </Text>
+      ) : null}
 
       <View style={styles.rangeTabs}>
         <PillTabGroup
@@ -441,16 +483,21 @@ export const DeviceDetailScreen: React.FC = () => {
           <Text style={[typography.caption, styles.muted, { marginLeft: spacing.sm }]}>Loading telemetry...</Text>
         </View>
       )}
-      {telemetryError && !telemetryLoading ? (
+      {telemetryOfflineEmpty ? (
+        <ErrorCard
+          title="Telemetry unavailable offline"
+          message="Connect to the network to refresh telemetry for this device."
+        />
+      ) : telemetryError && !telemetryLoading ? (
         <ErrorCard
           title="Couldn't load telemetry"
-          message="Please try again."
+          message={mapTelemetryError(telemetryErrorObj)}
           onRetry={() => refetchTelemetry()}
           testID="telemetry-error"
         />
       ) : null}
 
-      {!telemetryLoading && !telemetryError && (
+      {!telemetryLoading && !telemetryError && !telemetryOfflineEmpty && (
         <View testID="telemetry-section">
           {renderMetricCard(
             'Flow temperatures (C)',
@@ -523,6 +570,14 @@ export const DeviceDetailScreen: React.FC = () => {
               Loading history...
             </Text>
           </View>
+        ) : historyStatus === 'offline' ? (
+          <Text style={[typography.caption, styles.cardPlaceholder]}>
+            History unavailable while offline. Reconnect to refresh.
+          </Text>
+        ) : historyStatus === 'disabled' ? (
+          <Text style={[typography.caption, styles.cardPlaceholder]}>
+            History unavailable for this device.
+          </Text>
         ) : historyStatus === 'noData' ? (
           <Text style={[typography.caption, styles.cardPlaceholder]}>
             No history for this period.
@@ -571,14 +626,14 @@ export const DeviceDetailScreen: React.FC = () => {
           label={setpointPending ? 'Sending...' : 'Update setpoint'}
           onPress={onSetpointSave}
           testID="setpoint-button"
-          disabled={setpointPending || isOffline}
+          disabled={setpointPending || commandsDisabledReason !== null}
         />
         {setpointPending ? (
           <Text style={[typography.caption, styles.muted, styles.pendingText]}>Sending setpoint...</Text>
         ) : null}
-        {isOffline ? (
+        {commandsDisabledReason ? (
           <Text style={[typography.caption, styles.muted, styles.pendingText]}>
-            Commands unavailable while offline.
+            {mapControlDisabledMessage(commandsDisabledReason)}
           </Text>
         ) : null}
       </Card>
@@ -605,7 +660,7 @@ export const DeviceDetailScreen: React.FC = () => {
                 ]}
                 onPress={() => onModeChange(mode)}
                 activeOpacity={0.9}
-                disabled={modePending || isOffline}
+                disabled={modePending || commandsDisabledReason !== null}
               >
                 <Text
                   style={[
@@ -621,6 +676,11 @@ export const DeviceDetailScreen: React.FC = () => {
         </View>
         {modePending ? (
           <Text style={[typography.caption, styles.muted, styles.pendingText]}>Sending mode change...</Text>
+        ) : null}
+        {commandsDisabledReason ? (
+          <Text style={[typography.caption, styles.muted, styles.pendingText]}>
+            {mapControlDisabledMessage(commandsDisabledReason)}
+          </Text>
         ) : null}
       </Card>
 
@@ -666,6 +726,10 @@ const renderStatusPill = (status?: string | null) => {
     backgroundColor = colors.brandSoft;
     textColor = colors.success;
     label = 'Healthy';
+  } else if (normalized.includes('crit')) {
+    backgroundColor = colors.errorSoft;
+    textColor = colors.error;
+    label = 'Critical';
   } else if (normalized.includes('warn')) {
     backgroundColor = colors.warningSoft;
     textColor = colors.warning;
@@ -708,30 +772,74 @@ function deriveHistoryStatus(error?: HeatPumpHistoryError): HistoryStatus {
   return 'otherError';
 }
 
-function mapControlFailureReason(reason?: ControlFailureReason | string, fallbackMessage?: string) {
+function mapTelemetryError(error: unknown) {
+  if (axios.isAxiosError(error)) {
+    const status = error.response?.status;
+    if (status === 404) return 'Telemetry unavailable for this device.';
+    if (status && status >= 500) return 'Server error loading telemetry. Please try again.';
+  }
+  return 'Failed to load telemetry. Please try again.';
+}
+
+function mapControlDisabledMessage(reason: CommandDisabledReason) {
+  switch (reason) {
+    case 'offline':
+      return 'Commands are unavailable while offline.';
+    case 'deviceOffline':
+      return 'Device is offline; commands are disabled.';
+    case 'unconfigured':
+      return 'Control channel is not configured for this device in this environment.';
+    default:
+      return '';
+  }
+}
+
+function mapControlFailureReason(
+  reason?: ControlFailureReason | string,
+  fallbackMessage?: string,
+  status?: number
+) {
   const normalized = (reason || '').toUpperCase();
+  if (status === 429 || normalized === 'THROTTLED') {
+    return 'Too many commands in a short time. Try again shortly.';
+  }
   switch (normalized) {
     case 'ABOVE_MAX':
       return 'Setpoint above allowed range.';
     case 'BELOW_MIN':
       return 'Setpoint below allowed range.';
-    case 'THROTTLED':
-      return 'Too many commands in a short time. Try again shortly.';
     case 'DEVICE_NOT_CAPABLE':
       return "This device doesn't support that mode.";
+    case 'INVALID_VALUE':
+      return 'Command value is not supported by this device.';
     case 'VALIDATION_ERROR':
       return 'Command validation failed. Please check the values and retry.';
     default:
+      if (status === 503 || fallbackMessage?.includes('CONTROL_CHANNEL_UNCONFIGURED')) {
+        return 'Control unavailable right now. Please try again later.';
+      }
+      if (status === 404) {
+        return 'Device not controllable right now.';
+      }
+      if (status === 502) {
+        return 'Command failed to reach the device. Please retry.';
+      }
       return fallbackMessage || 'Command failed, please try again.';
   }
 }
 
 function mapHistoryError(status: HistoryStatus) {
   if (status === 'circuitOpen') {
-    return 'History temporarily unavailable, please try again later.';
+    return 'History unavailable, please try again later.';
   }
   if (status === 'upstreamError') {
-    return 'Error loading history from the data source.';
+    return 'History temporarily unavailable. Please retry shortly.';
+  }
+  if (status === 'offline') {
+    return 'History unavailable while offline. Reconnect to refresh.';
+  }
+  if (status === 'disabled') {
+    return 'History unavailable for this device.';
   }
   if (status === 'otherError') {
     return 'Failed to load history. Try again or contact support.';

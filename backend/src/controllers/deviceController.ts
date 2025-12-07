@@ -14,7 +14,7 @@ import { getLastCommandForDevice } from '../repositories/controlCommandsReposito
 const deviceIdSchema = z.object({ id: z.string().uuid() });
 const telemetryQuerySchema = z.object({
   range: z
-    .union([z.literal('24h'), z.literal('7d')])
+    .union([z.literal('1h'), z.literal('24h'), z.literal('7d')])
     .optional()
     .transform((val) => val ?? '24h'),
   maxPoints: z.preprocess(

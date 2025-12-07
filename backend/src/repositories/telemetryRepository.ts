@@ -8,9 +8,10 @@ export type TelemetryMetricRow = {
 
 export async function getTelemetryForDevice(
   deviceId: string,
-  range: '24h' | '7d'
+  range: '1h' | '24h' | '7d'
 ): Promise<TelemetryMetricRow[]> {
-  const interval = range === '24h' ? "interval '24 hours'" : "interval '7 days'";
+  const interval =
+    range === '1h' ? "interval '1 hour'" : range === '24h' ? "interval '24 hours'" : "interval '7 days'";
 
   const res = await query<TelemetryMetricRow>(
     `

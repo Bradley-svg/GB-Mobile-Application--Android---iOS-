@@ -110,7 +110,11 @@ export const DashboardScreen: React.FC = () => {
       </LinearGradient>
 
       {isOffline ? (
-        <Text style={[typography.caption, styles.offlineNote]}>Offline - showing last known data.</Text>
+        <Card style={styles.offlineCard} testID="dashboard-offline-banner">
+          <Text style={[typography.caption, styles.offlineNote]}>
+            Offline - showing cached portfolio data in read-only mode.
+          </Text>
+        </Card>
       ) : null}
 
       <Card style={styles.metricsCard}>
@@ -135,9 +139,11 @@ export const DashboardScreen: React.FC = () => {
       <Text style={[typography.subtitle, styles.sectionTitle]}>Sites</Text>
     </View>
   );
+  const allowSiteNavigation = !isOffline || hasCachedSites;
 
   return (
     <Screen scroll={false} testID="DashboardScreen">
+      {listHeader}
       <FlatList
         data={sites}
         keyExtractor={(item) => item.id}
@@ -147,7 +153,7 @@ export const DashboardScreen: React.FC = () => {
         maxToRenderPerBatch={10}
         windowSize={5}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
-        ListHeaderComponent={listHeader}
+        ListHeaderComponent={null}
         ListEmptyComponent={
           <EmptyState
             message={isOffline ? 'Offline - no cached sites available yet.' : 'No sites available yet.'}
@@ -160,7 +166,7 @@ export const DashboardScreen: React.FC = () => {
           <Card
             style={styles.siteCard}
             testID="site-card"
-            onPress={() => navigation.navigate('SiteOverview', { siteId: item.id })}
+            onPress={allowSiteNavigation ? () => navigation.navigate('SiteOverview', { siteId: item.id }) : undefined}
           >
             <View style={styles.siteHeader}>
               <View style={styles.iconBadge}>
@@ -180,7 +186,7 @@ export const DashboardScreen: React.FC = () => {
               <View style={{ flex: 1 }}>
                 <Text style={[typography.caption, styles.muted]}>Last seen</Text>
                 <Text style={[typography.body, styles.title]}>
-                  {item.last_seen_at ? new Date(item.last_seen_at).toLocaleDateString() : 'Unknown'}
+                  {item.last_seen_at ? new Date(item.last_seen_at).toLocaleString() : 'Unknown'}
                 </Text>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
@@ -207,6 +213,10 @@ const renderStatusPill = (status?: string | null) => {
     backgroundColor = colors.brandSoft;
     textColor = colors.success;
     label = 'Healthy';
+  } else if (normalized.includes('critical')) {
+    backgroundColor = colors.errorSoft;
+    textColor = colors.error;
+    label = 'Critical';
   } else if (normalized.includes('warn')) {
     backgroundColor = colors.warningSoft;
     textColor = colors.warning;
@@ -255,6 +265,10 @@ const styles = StyleSheet.create({
   },
   heroMuted: {
     color: colors.white,
+  },
+  offlineCard: {
+    marginBottom: spacing.md,
+    backgroundColor: colors.backgroundAlt,
   },
   offlineNote: {
     color: colors.textSecondary,
