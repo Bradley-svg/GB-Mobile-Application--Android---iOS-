@@ -13,3 +13,9 @@
 ## Optional manual smoke
 - Online: login as demo, walk Dashboard → Site → Device, flip 1h/24h/7d ranges, and force stale data to see the banner; check Alerts filter/ack/mute; confirm Profile toggle updates while OS permission granted.
 - Offline: cut network, open Device to see offline banner + cached data (controls disabled) and Alerts with cached read-only alerts/ack disabled; toggle OS notification permission off to see Profile warning and disabled switch, then reopen Settings link to restore.
+
+## Device Detail manual smoke (heat-pump history)
+- Prereqs: backend + Metro running with HEATPUMP_HISTORY envs set and demo login working.
+- Login as demo user → Dashboard → Demo Site → Demo Device.
+- Compressor current (A) card: shows spinner while loading then a chart with points; if the window is empty show “No history for this period.”
+- mac present: no “history disabled” placeholder; if backend returns 503 show “History temporarily unavailable, please try again later.”; if backend returns 502 show “Error loading history from the data source.”

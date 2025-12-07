@@ -192,11 +192,12 @@ describe('heatPumpHistoryClient', () => {
     expect(url).toBe(process.env.HEATPUMP_HISTORY_URL);
     expect(options.method).toBe('POST');
     expect(options.headers).toMatchObject({
-      accept: 'application/json,text/plain',
+      accept: 'text/plain',
       'content-type': 'application/json-patch+json',
       'x-api-key': 'test-key',
     });
     expect(JSON.parse(options.body)).toEqual(baseRequest);
+    expect(JSON.parse(options.body)).not.toHaveProperty('query');
     expect(result.ok).toBe(true);
   });
 

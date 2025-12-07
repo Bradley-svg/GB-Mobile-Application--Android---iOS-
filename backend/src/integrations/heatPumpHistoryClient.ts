@@ -251,7 +251,8 @@ export async function fetchHeatPumpHistory(req: HeatPumpHistoryRequest): Promise
     const res = await fetch(url, {
       method: 'POST',
       headers: {
-        accept: 'application/json,text/plain',
+        // Vendor requires text/plain; JSON is returned as text and parsed below.
+        accept: 'text/plain',
         'content-type': 'application/json-patch+json',
         ...(apiKey ? { 'x-api-key': apiKey } : {}),
       },

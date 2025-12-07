@@ -51,7 +51,7 @@ type CachedDeviceDetail = {
   cachedAt: string;
 };
 
-type HistoryStatus = 'ok' | 'noData' | 'unavailable' | 'otherError';
+type HistoryStatus = 'ok' | 'noData' | 'circuitOpen' | 'upstreamError' | 'otherError';
 
 export const DeviceDetailScreen: React.FC = () => {
   const route = useRoute<Route>();
@@ -251,7 +251,7 @@ export const DeviceDetailScreen: React.FC = () => {
   const telemetryError = telemetryQuery.isError && !telemetryLoading && !telemetryData && !isOffline;
   const telemetryErrorObj = telemetryQuery.error;
   const historyErrorMessage =
-    mapHistoryError(historyErrorObj as HeatPumpHistoryError | undefined) ||
+    mapHistoryError(historyStatus, historyErrorObj as HeatPumpHistoryError | undefined) ||
     'Failed to load history. Try again or contact support.';
   const isOfflineWithCache = isOffline && !!cachedDeviceDetail;
   const showUnknownLastUpdated = !lastUpdatedAt && (hasAnyTelemetryPoints || hasAnyHistoryPoints);
@@ -517,37 +517,33 @@ export const DeviceDetailScreen: React.FC = () => {
       <Card style={styles.historyCard} testID="compressor-current-card">
         <Text style={[typography.subtitle, styles.title]}>Compressor current (A)</Text>
 
-        {heatPumpHistoryQuery.isLoading && (
-          <Text style={[typography.caption, styles.cardPlaceholder]}>Loading history...</Text>
-        )}
-
-        {!heatPumpHistoryQuery.isLoading &&
-          (historyStatus === 'unavailable' || historyStatus === 'otherError') && (
-            <ErrorCard
-              title="Could not load heat pump history."
-              message={historyErrorMessage}
-              onRetry={() => refetchHistory()}
-              testID="history-error"
-            />
-          )}
-
-        {!heatPumpHistoryQuery.isLoading && historyStatus === 'noData' && (
+        {heatPumpHistoryQuery.isLoading ? (
+          <View style={styles.historyLoadingRow}>
+            <ActivityIndicator color={colors.brandGreen} />
+            <Text style={[typography.caption, styles.cardPlaceholder, { marginLeft: spacing.sm }]}>
+              Loading history...
+            </Text>
+          </View>
+        ) : historyStatus === 'noData' ? (
           <Text style={[typography.caption, styles.cardPlaceholder]}>
-            No history data in this period.
+            No history for this period.
           </Text>
-        )}
-
-        {!heatPumpHistoryQuery.isLoading &&
-          historyStatus === 'ok' &&
-          heatPumpSeries.length > 0 && (
-            <View testID="heatPumpHistoryChart" style={styles.chartWrapper}>
-              <VictoryChart scale={{ x: 'time' }}>
-                <VictoryAxis dependentAxis />
-                <VictoryAxis tickFormat={(t) => formatAxisTick(t)} tickCount={xTickCount} />
-                <VictoryLine data={heatPumpSeries} style={{ data: { stroke: colors.brandGreen } }} />
-              </VictoryChart>
-            </View>
-          )}
+        ) : historyStatus === 'ok' && heatPumpSeries.length > 0 ? (
+          <View testID="heatPumpHistoryChart" style={styles.chartWrapper}>
+            <VictoryChart scale={{ x: 'time' }}>
+              <VictoryAxis dependentAxis />
+              <VictoryAxis tickFormat={(t) => formatAxisTick(t)} tickCount={xTickCount} />
+              <VictoryLine data={heatPumpSeries} style={{ data: { stroke: colors.brandGreen } }} />
+            </VictoryChart>
+          </View>
+        ) : historyStatus !== 'ok' ? (
+          <ErrorCard
+            title="Could not load heat pump history."
+            message={historyErrorMessage}
+            onRetry={() => refetchHistory()}
+            testID="history-error"
+          />
+        ) : null}
       </Card>
 
       <Card style={styles.controlCard}>
@@ -708,9 +704,9 @@ function computeLastUpdatedAt(telemetry?: DeviceTelemetry | null) {
 
 function deriveHistoryStatus(error?: HeatPumpHistoryError): HistoryStatus {
   if (!error) return 'otherError';
-  return error.kind === 'unavailable' || error.status === 503 || error.status === 502
-    ? 'unavailable'
-    : 'otherError';
+  if (error.kind === 'circuitOpen' || error.status === 503) return 'circuitOpen';
+  if (error.kind === 'upstream' || error.status === 502) return 'upstreamError';
+  return 'otherError';
 }
 
 function mapControlFailureReason(reason?: ControlFailureReason | string, fallbackMessage?: string) {
@@ -731,12 +727,17 @@ function mapControlFailureReason(reason?: ControlFailureReason | string, fallbac
   }
 }
 
-function mapHistoryError(error?: HeatPumpHistoryError) {
-  if (!error) return undefined;
-  if (deriveHistoryStatus(error) === 'unavailable') {
-    return 'History temporarily unavailable. Please try again later.';
+function mapHistoryError(status: HistoryStatus, error?: HeatPumpHistoryError) {
+  if (status === 'circuitOpen') {
+    return 'History temporarily unavailable, please try again later.';
   }
-  return 'Failed to load history. Try again or contact support.';
+  if (status === 'upstreamError') {
+    return 'Error loading history from the data source.';
+  }
+  if (status === 'otherError') {
+    return 'Failed to load history. Try again or contact support.';
+  }
+  return undefined;
 }
 
 const renderMetricCard = (
@@ -869,6 +870,11 @@ const styles = StyleSheet.create({
   },
   historyCard: {
     marginBottom: spacing.md,
+  },
+  historyLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.sm,
   },
   cardPlaceholder: {
     color: colors.textSecondary,

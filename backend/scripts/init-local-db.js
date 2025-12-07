@@ -13,6 +13,8 @@ async function main() {
   const siteId = '22222222-2222-2222-2222-222222222222';
   const deviceId = '33333333-3333-3333-3333-333333333333';
   // Must match the MAC Azure expects for the demo heat pump history calls.
+  // If you already seeded a different MAC locally, run:
+  //   update devices set mac = '38:18:2B:60:A9:94' where id = '33333333-3333-3333-3333-333333333333';
   const DEMO_HEATPUMP_MAC = '38:18:2B:60:A9:94';
 
   const client = new Client({ connectionString });
@@ -48,7 +50,7 @@ async function main() {
     `
     insert into devices (id, site_id, name, type, external_id, mac, status, last_seen_at, controller)
     values ($1, $2, $3, $4, $5, $6, $7, now(), $8)
-    on conflict (id) do nothing
+    on conflict (id) do update set mac = excluded.mac
   `,
     [deviceId, siteId, 'Demo Heat Pump', 'heat_pump', 'demo-device-1', DEMO_HEATPUMP_MAC, 'online', 'mqtt']
   );

@@ -13,6 +13,7 @@ import {
 import * as navigation from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { AppStackParamList } from '../navigation/RootNavigator';
+import type { HeatPumpHistoryRequest } from '../api/types';
 import { useNetworkBanner } from '../hooks/useNetworkBanner';
 
 jest.mock('../api/hooks', () => ({
@@ -107,6 +108,26 @@ describe('DeviceDetailScreen heat pump history', () => {
     jest.restoreAllMocks();
   });
 
+  it('passes the device MAC and live/raw params to the history hook', () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2025-01-01T12:00:00.000Z'));
+
+    render(<DeviceDetailScreen />);
+
+    const [params] = (useHeatPumpHistory as jest.Mock).mock.calls[0] as [
+      HeatPumpHistoryRequest,
+      { enabled: boolean }
+    ];
+    expect(params.mac).toBe(baseDevice.mac);
+    expect(params.mode).toBe('live');
+    expect(params.aggregation).toBe('raw');
+    expect(params.fields[0].field).toBe('metric_compCurrentA');
+    expect(params.to).toBe('2025-01-01T12:00:00.000Z');
+    expect(params.from).toBe('2024-12-31T12:00:00.000Z');
+
+    jest.useRealTimers();
+  });
+
   it('renders compressor current chart when history data exists', () => {
     (useHeatPumpHistory as jest.Mock).mockReturnValue({
       data: {
@@ -124,7 +145,7 @@ describe('DeviceDetailScreen heat pump history', () => {
     render(<DeviceDetailScreen />);
 
     expect(screen.getByText('Compressor current (A)')).toBeTruthy();
-    expect(screen.queryByText('No history data in this period.')).toBeNull();
+    expect(screen.queryByText('No history for this period.')).toBeNull();
     expect(screen.getByTestId('heatPumpHistoryChart')).toBeTruthy();
   });
 
@@ -138,7 +159,7 @@ describe('DeviceDetailScreen heat pump history', () => {
     render(<DeviceDetailScreen />);
 
     expect(screen.getByText('Compressor current (A)')).toBeTruthy();
-    expect(screen.getByText('No history data in this period.')).toBeTruthy();
+    expect(screen.getByText('No history for this period.')).toBeTruthy();
   });
 
   it('shows an inline error when the history request fails', () => {
@@ -170,7 +191,7 @@ describe('DeviceDetailScreen heat pump history', () => {
 
     render(<DeviceDetailScreen />);
 
-    expect(screen.getByText(/temporarily unavailable/i)).toBeTruthy();
+    expect(screen.getByText(/History temporarily unavailable/i)).toBeTruthy();
   });
 
   it('shows an upstream failure message for 502 errors', () => {
@@ -183,7 +204,7 @@ describe('DeviceDetailScreen heat pump history', () => {
 
     render(<DeviceDetailScreen />);
 
-    expect(screen.getByText(/history temporarily unavailable/i)).toBeTruthy();
+    expect(screen.getByText(/Error loading history from the data source/i)).toBeTruthy();
   });
 
   it('disables history when mac is missing', () => {
@@ -207,7 +228,7 @@ describe('DeviceDetailScreen heat pump history', () => {
       { enabled: boolean }
     ];
     expect(options.enabled).toBe(false);
-    expect(screen.getByText('No history data in this period.')).toBeTruthy();
+    expect(screen.getByText('No history for this period.')).toBeTruthy();
   });
 
   it('allows selecting 1h, 24h, and 7d ranges for telemetry and history', () => {
