@@ -2,7 +2,7 @@ import { query } from '../config/db';
 import { getControlChannelStatus } from './deviceControlService';
 import { getMqttHealth } from '../integrations/mqttClient';
 import { runPushHealthCheck, type PushHealthStatus } from './pushService';
-import { type SystemStatus, getSystemStatus } from './statusService';
+import { type SystemStatus, getSystemStatus, getSystemStatusByKey } from './statusService';
 import { logger } from '../config/logger';
 
 const MQTT_INGEST_STALE_MS = 5 * 60 * 1000;
@@ -62,6 +62,13 @@ export type HealthPlusPayload = {
     lastSampleAt: string | null;
     lastError: string | null;
   };
+  alertsEngine: {
+    lastRunAt: string | null;
+    lastDurationMs: number | null;
+    rulesLoaded: number | null;
+    activeWarning: number | null;
+    activeCritical: number | null;
+  };
 };
 
 export type HealthPlusResult = {
@@ -97,12 +104,18 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
     }
 
     let systemStatus: SystemStatus | null = null;
+    let alertsEngineStatus: SystemStatus | null = null;
     let statusLoadFailed = false;
     try {
       systemStatus = await getSystemStatus();
     } catch (statusErr) {
       statusLoadFailed = true;
       log.error({ err: statusErr }, 'failed to load system_status');
+    }
+    try {
+      alertsEngineStatus = await getSystemStatusByKey('alerts_engine');
+    } catch (statusErr) {
+      log.error({ err: statusErr }, 'failed to load alerts_engine status row');
     }
 
     const mqttLastIngestAt = systemStatus?.mqtt_last_ingest_at ?? null;
@@ -135,6 +148,28 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
       (!statusLoadFailed &&
         alertsHeartbeat != null &&
         !isStale(alertsHeartbeat, alertsHeartbeatWindowMs, now));
+
+    const alertsPayload = (alertsEngineStatus?.payload ??
+      {}) as Record<string, unknown> & {
+      lastRunAt?: string | null;
+      lastDurationMs?: number | null;
+      rulesLoaded?: number | null;
+      activeCounts?: { warning?: number; critical?: number };
+    };
+    const alertsEngine = {
+      lastRunAt: toIso(alertsPayload.lastRunAt as string | null),
+      lastDurationMs:
+        typeof alertsPayload.lastDurationMs === 'number' ? alertsPayload.lastDurationMs : null,
+      rulesLoaded: typeof alertsPayload.rulesLoaded === 'number' ? alertsPayload.rulesLoaded : null,
+      activeWarning:
+        typeof alertsPayload.activeCounts?.warning === 'number'
+          ? alertsPayload.activeCounts.warning
+          : null,
+      activeCritical:
+        typeof alertsPayload.activeCounts?.critical === 'number'
+          ? alertsPayload.activeCounts.critical
+          : null,
+    };
 
     const pushLastSampleAt =
       systemStatus?.push_last_sample_at ??
@@ -203,6 +238,7 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
         healthy: alertsHealthy,
       },
       push,
+      alertsEngine,
     };
 
     return { status: 200, body };
@@ -242,6 +278,13 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
         enabled: pushEnabled,
         lastSampleAt: null,
         lastError: null,
+      },
+      alertsEngine: {
+        lastRunAt: null,
+        lastDurationMs: null,
+        rulesLoaded: null,
+        activeWarning: null,
+        activeCritical: null,
       },
     };
 

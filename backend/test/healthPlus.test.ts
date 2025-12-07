@@ -145,6 +145,13 @@ describe('GET /health-plus (baseline)', () => {
         lastSampleAt: null,
         lastError: null,
       },
+      alertsEngine: {
+        lastRunAt: null,
+        lastDurationMs: null,
+        rulesLoaded: null,
+        activeWarning: null,
+        activeCritical: null,
+      },
     });
   });
 
@@ -191,6 +198,13 @@ describe('GET /health-plus (baseline)', () => {
         enabled: false,
         lastSampleAt: null,
         lastError: null,
+      },
+      alertsEngine: {
+        lastRunAt: null,
+        lastDurationMs: null,
+        rulesLoaded: null,
+        activeWarning: null,
+        activeCritical: null,
       },
     });
   });

@@ -23,6 +23,8 @@ export type ApiDevice = {
   last_seen_at?: string;
   health?: HealthStatus;
   last_seen?: LastSeenSummary;
+  firmware_version?: string | null;
+  connectivity_status?: string | null;
 };
 
 export type TimeRange = '1h' | '24h' | '7d';
@@ -76,6 +78,57 @@ export type Alert = {
   acknowledged_by: string | null;
   acknowledged_at: string | null;
   muted_until: string | null;
+  rule_id?: string | null;
+};
+
+export type AlertRule = {
+  id: string;
+  org_id: string;
+  site_id: string | null;
+  device_id: string | null;
+  metric: string;
+  rule_type: string;
+  threshold: number | null;
+  roc_window_sec: number | null;
+  offline_grace_sec: number | null;
+  enabled: boolean;
+  severity: 'warning' | 'critical';
+  snooze_default_sec: number | null;
+  name: string | null;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DeviceSchedule = {
+  id: string;
+  device_id: string;
+  name: string;
+  enabled: boolean;
+  start_hour: number;
+  end_hour: number;
+  target_setpoint: number;
+  target_mode: 'OFF' | 'HEATING' | 'COOLING' | 'AUTO' | string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ControlCommandHistoryRow = {
+  id: string;
+  device_id: string;
+  status: string;
+  command_type: string;
+  requested_value: unknown;
+  payload: unknown;
+  requested_at: string;
+  completed_at: string | null;
+  failure_reason: string | null;
+  failure_message: string | null;
+  actor: {
+    id: string | null;
+    email: string | null;
+    name: string | null;
+  };
 };
 
 export type AuthUser = {
@@ -133,6 +186,13 @@ export type HealthPlusPayload = {
     enabled: boolean;
     lastSampleAt: string | null;
     lastError: string | null;
+  };
+  alertsEngine: {
+    lastRunAt: string | null;
+    lastDurationMs: number | null;
+    rulesLoaded: number | null;
+    activeWarning: number | null;
+    activeCritical: number | null;
   };
 };
 

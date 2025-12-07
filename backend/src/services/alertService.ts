@@ -11,6 +11,7 @@ import {
   insertAlert,
   muteAlert as muteAlertRepo,
   updateAlert,
+  getActiveAlertCounts,
 } from '../repositories/alertsRepository';
 
 export type { AlertRow, AlertSeverity, AlertType } from '../repositories/alertsRepository';
@@ -21,24 +22,30 @@ export async function upsertActiveAlert(options: {
   type: AlertType;
   severity: AlertSeverity;
   message: string;
+  ruleId?: string | null;
   now: Date;
 }): Promise<{ alert: AlertRow; isNew: boolean }> {
-  const { siteId, deviceId, type, severity, message, now } = options;
+  const { siteId, deviceId, type, severity, message, ruleId, now } = options;
 
-  const existing = await findActiveAlert(deviceId, type);
+  const existing = await findActiveAlert({ deviceId, siteId, type, ruleId });
 
   if (existing) {
     const alert = await updateAlert(existing.id, severity, message, now);
     return { alert, isNew: false };
   }
 
-  const alert = await insertAlert({ siteId, deviceId, severity, type, message, now });
+  const alert = await insertAlert({ siteId, deviceId, severity, type, message, ruleId, now });
 
   return { alert, isNew: true };
 }
 
-export async function clearAlertIfExists(deviceId: string, type: AlertType, now: Date) {
-  await clearAlertIfExistsRepo(deviceId, type, now);
+export async function clearAlertIfExists(
+  deviceId: string,
+  type: AlertType,
+  now: Date,
+  ruleId?: string | null
+) {
+  await clearAlertIfExistsRepo(deviceId, type, now, ruleId);
 }
 
 export async function getAlerts(filters: {
@@ -53,6 +60,10 @@ export async function getAlerts(filters: {
 
 export async function getAlertsForDevice(deviceId: string, organisationId: string) {
   return fetchAlertsForDevice(deviceId, organisationId);
+}
+
+export async function getActiveAlertCountsForOrg(organisationId?: string) {
+  return getActiveAlertCounts(organisationId);
 }
 
 export async function acknowledgeAlert(

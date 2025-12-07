@@ -10,6 +10,8 @@ export type DeviceRow = {
   status?: string | null;
   last_seen_at?: Date | null;
   controller?: string | null;
+  firmware_version?: string | null;
+  connectivity_status?: string | null;
 };
 
 export type OfflineDeviceRow = {
@@ -25,6 +27,13 @@ export type DeviceSnapshotRow = {
   supply_temp: number | null;
 };
 
+export type DeviceLastSeenRow = {
+  id: string;
+  site_id: string;
+  last_seen_at: Date;
+  data: any;
+};
+
 export async function getDeviceById(id: string, organisationId?: string) {
   const baseSql = `
     select d.id,
@@ -35,7 +44,9 @@ export async function getDeviceById(id: string, organisationId?: string) {
            d.mac,
            d.status,
            coalesce(ds.last_seen_at, d.last_seen_at) as last_seen_at,
-           d.controller
+           d.controller,
+           d.firmware_version,
+           d.connectivity_status
     from devices d
     left join device_snapshots ds on ds.device_id = d.id
     ${organisationId ? 'join sites s on d.site_id = s.id' : ''}
@@ -59,7 +70,9 @@ export async function getDevicesForSite(siteId: string, organisationId: string) 
            d.mac,
            d.status,
            coalesce(ds.last_seen_at, d.last_seen_at) as last_seen_at,
-           d.controller
+           d.controller,
+           d.firmware_version,
+           d.connectivity_status
     from devices d
     left join device_snapshots ds on ds.device_id = d.id
     join sites s on d.site_id = s.id
@@ -131,6 +144,27 @@ export async function getDeviceSnapshotTemperatures() {
   return res.rows;
 }
 
+export async function getDeviceLastSeen(deviceIds?: string[]) {
+  const params: any[] = [];
+  let filterClause = '';
+  if (deviceIds && deviceIds.length > 0) {
+    params.push(deviceIds);
+    filterClause = 'where d.id = ANY($1)';
+  }
+
+  const res = await query<DeviceLastSeenRow>(
+    `
+    select d.id, d.site_id, s.last_seen_at, s.data
+    from devices d
+    join device_snapshots s on d.id = s.device_id
+    ${filterClause}
+  `,
+    params
+  );
+
+  return res.rows;
+}
+
 export type DeviceSearchRow = DeviceRow & {
   site_name: string;
   site_city: string | null;
@@ -166,6 +200,8 @@ export async function searchDevices(options: {
            d.status,
            coalesce(ds.last_seen_at, d.last_seen_at) as last_seen_at,
            d.controller,
+           d.firmware_version,
+           d.connectivity_status,
            s.name as site_name,
            s.city as site_city
     from devices d

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../client';
-import type { Alert } from '../types';
+import type { Alert, AlertRule } from '../types';
 
 const shouldRetry = (failureCount: number, error: unknown) => {
   if (axios.isAxiosError(error)) {
@@ -38,6 +38,32 @@ export function useDeviceAlerts(deviceId: string) {
       return res.data;
     },
     enabled: !!deviceId,
+    retry: shouldRetry,
+    retryDelay,
+  });
+}
+
+export function useAlertRulesForDevice(deviceId: string) {
+  return useQuery<AlertRule[]>({
+    queryKey: ['devices', deviceId, 'alert-rules'],
+    queryFn: async () => {
+      const res = await api.get(`/devices/${deviceId}/alert-rules`);
+      return res.data;
+    },
+    enabled: !!deviceId,
+    retry: shouldRetry,
+    retryDelay,
+  });
+}
+
+export function useAlertRulesForSite(siteId: string) {
+  return useQuery<AlertRule[]>({
+    queryKey: ['sites', siteId, 'alert-rules'],
+    queryFn: async () => {
+      const res = await api.get(`/sites/${siteId}/alert-rules`);
+      return res.data;
+    },
+    enabled: !!siteId,
     retry: shouldRetry,
     retryDelay,
   });

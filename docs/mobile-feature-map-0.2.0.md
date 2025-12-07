@@ -10,9 +10,9 @@
 | Live gauges (kW, COP, ΔT, flow, pressure) | Partial | `mobile/app/screens/Device/DeviceDetailScreen.tsx`, `backend/src/services/telemetryService.ts` | Charts for supply/return temps, power, flow, COP; supply dial only; no ΔT calculation or pressure metrics. |
 | Device table with quick actions | Missing | `mobile/app/screens/Site/SiteOverviewScreen.tsx` | Device list is card-only; no inline quick actions or bulk ops. |
 | Device detail with live charts (1h/24h/7d) | Done | `mobile/app/screens/Device/DeviceDetailScreen.tsx`, `backend/src/controllers/deviceController.ts`, `backend/src/services/telemetryService.ts` | Telemetry charts with 1h/24h/7d tabs, offline cache, and Azure history hook. |
-| Safe setpoint controls and schedules | Partial | `mobile/app/screens/Device/DeviceDetailScreen.tsx`, `backend/src/services/deviceControlService.ts`, `backend/src/controllers/deviceController.ts` | Setpoint/mode commands with validation + throttling; no schedules or device-specific bounds surfaced. |
+| Safe setpoint controls and schedules | Partial | `mobile/app/screens/Device/DeviceDetailScreen.tsx`, `backend/src/services/deviceControlService.ts`, `backend/src/controllers/deviceController.ts`, `backend/src/services/deviceScheduleService.ts` | Setpoint/mode commands with validation + throttling; single daily schedule per device exposed via `/devices/:id/schedule` with read/write mobile UI; device-specific bounds still not surfaced. |
 | Audit log and instant rollback | Missing | - | Control commands persisted (`backend/src/repositories/controlCommandsRepository.ts`) but not exposed to mobile; no rollback/undo. |
-| Alert rules (threshold, rate-of-change, correlation) | Partial | `backend/src/workers/alertsWorker.ts`, `backend/src/services/alertService.ts`, `mobile/app/screens/Alerts/AlertsScreen.tsx` | Worker evaluates offline/high-temp thresholds only; no ROC/correlation or rule editor. |
+| Alert rules (threshold, rate-of-change, correlation) | Partial | `backend/src/workers/alertsWorker.ts`, `backend/src/services/alertService.ts`, `backend/src/repositories/alertRulesRepository.ts`, `mobile/app/screens/Alerts/AlertDetailScreen.tsx` | Rules table + worker eval for threshold/ROC/offline, rule summaries and snooze options on mobile; no editor/correlation UI yet. |
 | Push/in-app/email notifications with routing & snooze | Partial | `backend/src/services/pushService.ts`, `mobile/app/hooks/useRegisterPushToken.ts`, `mobile/app/screens/Alerts/AlertDetailScreen.tsx` | Expo push for critical alerts; mute 60m; profile toggle/prefs. No email/in-app inbox or routing/snooze options. |
 | One-tap work-order creation from alerts | Missing | - | No work-order domain. |
 | Work-order checklists and templates | Missing | - | Not present. |
@@ -26,15 +26,15 @@
 | Share links with expiry and scopes | Missing | - | Not present. |
 | Offline cache (last 24h) and queued actions | Partial | `mobile/app/screens/Dashboard/DashboardScreen.tsx`, `mobile/app/screens/Site/SiteOverviewScreen.tsx`, `mobile/app/screens/Device/DeviceDetailScreen.tsx`, `mobile/app/screens/Alerts/AlertsScreen.tsx`, `mobile/app/utils/storage.ts` | AsyncStorage cache for portfolio/site/device/alerts/telemetry read-only; no action queue/sync; cache age not enforced to 24h. |
 | PV integrations (Victron, Sunsynk) read-only | Missing | - | Not present. |
-| TOU and load-shedding awareness in alerts | Missing | - | Alert worker unaware of TOU/load-shedding context. |
+| TOU and load-shedding awareness in alerts | Partial | `backend/src/services/siteScheduleService.ts`, `backend/src/workers/alertsWorker.ts` | Load-shedding windows stored in `site_schedules`; alerts worker downgrades offline severity during load-shedding; no UI or TOU peak surfacing yet. |
 | Device commissioning wizard | Missing | - | Not present. |
-| Firmware/version and connectivity status | Partial | `mobile/app/screens/Dashboard/DashboardScreen.tsx`, `mobile/app/screens/Site/SiteOverviewScreen.tsx`, `mobile/app/screens/Device/DeviceDetailScreen.tsx`, `backend/src/repositories/devicesRepository.ts` | Status/last-seen shown; no firmware/version surfacing. |
+| Firmware/version and connectivity status | Partial | `mobile/app/screens/Dashboard/DashboardScreen.tsx`, `mobile/app/screens/Site/SiteOverviewScreen.tsx`, `mobile/app/screens/Device/DeviceDetailScreen.tsx`, `backend/src/repositories/devicesRepository.ts` | Devices carry `firmware_version` + `connectivity_status`; Device detail shows firmware/connectivity; dashboard/site pills still need connectivity styling. |
 | Maintenance calendar and reminders | Missing | - | Not present. |
 | Document vault (manuals, schematics) | Missing | - | Not present. |
 | User authentication with SSO/2FA | Missing | `backend/src/controllers/authController.ts`, `mobile/app/screens/Auth/LoginScreen.tsx` | Only local email/password; no SSO or 2FA. |
 | Device onboarding/registration | Missing | - | No device creation/provisioning flow. |
 | Basic accessibility (WCAG-aligned states & contrasts) | Missing | `mobile/app/components/*` | Limited accessibility props; contrast/dark-mode not validated. |
-| Error/state telemetry and diagnostics | Partial | `mobile/app/screens/Profile/DiagnosticsScreen.tsx`, `mobile/app/api/health/hooks.ts`, `backend/src/services/healthService.ts` | Diagnostics shows `/health-plus` snapshot; no client crash/state telemetry pipeline. |
+| Error/state telemetry and diagnostics | Partial | `mobile/app/screens/Profile/DiagnosticsScreen.tsx`, `mobile/app/api/health/hooks.ts`, `backend/src/services/healthService.ts` | Diagnostics shows `/health-plus` snapshot with alerts engine stats; no client crash/state telemetry pipeline. |
 | Theming (dark mode) | Missing | `mobile/app/theme/colors.ts`, `mobile/app/screens/Profile/ProfileScreen.tsx` | Single light theme; dark-mode row is static. |
 
 ## Architectural constraints to respect

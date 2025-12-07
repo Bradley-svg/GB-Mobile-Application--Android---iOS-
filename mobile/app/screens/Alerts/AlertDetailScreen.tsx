@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { useAcknowledgeAlert, useAlerts, useMuteAlert } from '../../api/hooks';
+import { useAcknowledgeAlert, useAlerts, useAlertRulesForDevice, useMuteAlert } from '../../api/hooks';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { Screen, Card, PrimaryButton, IconButton } from '../../components';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
@@ -24,6 +24,18 @@ export const AlertDetailScreen: React.FC = () => {
   const mute = useMuteAlert();
   const { isOffline } = useNetworkBanner();
   const [actionError, setActionError] = useState<string | null>(null);
+  const [snoozeMinutes, setSnoozeMinutes] = useState<number>(60);
+  const deviceIdForRules = alerts?.find((a) => a.id === alertId)?.device_id ?? '';
+  const rulesQuery = useAlertRulesForDevice(deviceIdForRules);
+  const matchingRule = alerts
+    ? rulesQuery.data?.find((rule) => rule.id === alerts.find((a) => a.id === alertId)?.rule_id)
+    : undefined;
+
+  useEffect(() => {
+    if (matchingRule?.snooze_default_sec) {
+      setSnoozeMinutes(Math.max(1, Math.round(matchingRule.snooze_default_sec / 60)));
+    }
+  }, [matchingRule]);
 
   if (isLoading || !alerts) {
     return (
@@ -55,7 +67,7 @@ export const AlertDetailScreen: React.FC = () => {
   const onAcknowledge = async () => {
     setActionError(null);
     if (isOffline) {
-      setActionError('Offline — acknowledgment requires a connection.');
+      setActionError('Offline - acknowledgment requires a connection.');
       return;
     }
     try {
@@ -70,12 +82,12 @@ export const AlertDetailScreen: React.FC = () => {
   const onMute = async () => {
     setActionError(null);
     if (isOffline) {
-      setActionError('Offline — muting requires a connection.');
+      setActionError('Offline - muting requires a connection.');
       return;
     }
     try {
-      await mute.mutateAsync({ alertId: alertItem.id, minutes: 60 });
-      Alert.alert('Muted', 'Alert muted for 60 minutes');
+      await mute.mutateAsync({ alertId: alertItem.id, minutes: snoozeMinutes });
+      Alert.alert('Muted', `Alert muted for ${formatSnoozeLabel(snoozeMinutes)}`);
     } catch (err) {
       console.error('Failed to mute alert', err);
       setActionError('Failed to mute alert. Please try again.');
@@ -132,6 +144,42 @@ export const AlertDetailScreen: React.FC = () => {
         </View>
       </Card>
 
+      <Card style={styles.detailCard}>
+        <Text style={[typography.subtitle, styles.title, { marginBottom: spacing.xs }]}>Rule</Text>
+        {rulesQuery.isLoading ? (
+          <View style={styles.detailRow}>
+            <ActivityIndicator color={colors.brandGreen} />
+            <Text style={[typography.caption, styles.muted, { marginLeft: spacing.sm }]}>
+              Loading rule...
+            </Text>
+          </View>
+        ) : matchingRule ? (
+          <>
+            <Text style={[typography.body, styles.title]}>{matchingRule.name || 'Alert rule'}</Text>
+            <Text style={[typography.caption, styles.muted]}>
+              Metric: {matchingRule.metric} ({matchingRule.rule_type})
+            </Text>
+            {matchingRule.threshold != null ? (
+              <Text style={[typography.caption, styles.muted]}>
+                Threshold: {matchingRule.threshold}
+              </Text>
+            ) : null}
+            {matchingRule.offline_grace_sec ? (
+              <Text style={[typography.caption, styles.muted]}>
+                Offline grace: {Math.round(matchingRule.offline_grace_sec / 60)}m
+              </Text>
+            ) : null}
+            <Text style={[typography.caption, styles.muted]}>
+              Severity: {matchingRule.severity}
+            </Text>
+          </>
+        ) : (
+          <Text style={[typography.caption, styles.muted]}>
+            No matching rule found for this alert.
+          </Text>
+        )}
+      </Card>
+
       <View style={styles.actions}>
         <PrimaryButton
           label={acknowledge.isPending ? 'Acknowledging...' : 'Acknowledge'}
@@ -139,8 +187,35 @@ export const AlertDetailScreen: React.FC = () => {
           testID="acknowledge-button"
           disabled={acknowledge.isPending || isOffline}
         />
+        <View style={styles.snoozeRow}>
+          {[15, 60, 240, 1440].map((minutes) => {
+            const selected = snoozeMinutes === minutes;
+            return (
+              <TouchableOpacity
+                key={minutes}
+                style={[
+                  styles.snoozeChip,
+                  selected
+                    ? { backgroundColor: colors.brandGreen, borderColor: colors.brandGreen }
+                    : { backgroundColor: colors.background },
+                ]}
+                onPress={() => setSnoozeMinutes(minutes)}
+                disabled={mute.isPending}
+              >
+                <Text
+                  style={[
+                    typography.caption,
+                    { color: selected ? colors.white : colors.textSecondary },
+                  ]}
+                >
+                  {formatSnoozeLabel(minutes)}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
         <PrimaryButton
-          label={mute.isPending ? 'Muting...' : 'Mute 60 minutes'}
+          label={mute.isPending ? 'Muting...' : `Mute ${formatSnoozeLabel(snoozeMinutes)}`}
           onPress={onMute}
           testID="mute-button"
           disabled={mute.isPending || isOffline}
@@ -156,6 +231,15 @@ export const AlertDetailScreen: React.FC = () => {
       </View>
     </Screen>
   );
+};
+
+const formatSnoozeLabel = (minutes: number) => {
+  if (minutes >= 1440) return 'Until resolved';
+  if (minutes >= 60) {
+    const hours = Math.round(minutes / 60);
+    return `${hours}h`;
+  }
+  return `${minutes}m`;
 };
 
 const severityStyles = (severity: string) => {
@@ -207,6 +291,21 @@ const styles = StyleSheet.create({
   },
   actions: {
     marginBottom: spacing.xl,
+  },
+  snoozeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  snoozeChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    marginRight: spacing.sm,
+    marginBottom: spacing.sm,
   },
   errorText: { color: colors.error, marginTop: spacing.sm },
   offlineNote: { color: colors.textSecondary, marginTop: spacing.sm },

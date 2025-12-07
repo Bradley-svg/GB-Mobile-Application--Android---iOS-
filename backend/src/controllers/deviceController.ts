@@ -9,7 +9,12 @@ import {
 import { getDeviceTelemetry } from '../services/telemetryService';
 import { ControlValidationError } from '../services/deviceControlValidationService';
 import { resolveOrganisationId } from './organisation';
-import { getLastCommandForDevice } from '../repositories/controlCommandsRepository';
+import { getCommandsForDevice, getLastCommandForDevice } from '../repositories/controlCommandsRepository';
+import {
+  getDeviceSchedule as getDeviceScheduleService,
+  upsertDeviceSchedule,
+  ScheduleValidationError,
+} from '../services/deviceScheduleService';
 
 const deviceIdSchema = z.object({ id: z.string().uuid() });
 const telemetryQuerySchema = z.object({
@@ -21,6 +26,18 @@ const telemetryQuerySchema = z.object({
     (val) => (val === undefined ? undefined : Number(val)),
     z.number().int().positive().optional()
   ),
+});
+const paginationSchema = z.object({
+  limit: z.coerce.number().int().positive().max(100).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+});
+const scheduleBodySchema = z.object({
+  name: z.string().min(1).max(120).optional(),
+  enabled: z.boolean().optional(),
+  startHour: z.number().int().min(0).max(24),
+  endHour: z.number().int().min(0).max(24),
+  targetSetpoint: z.number(),
+  targetMode: z.enum(['OFF', 'HEATING', 'COOLING', 'AUTO']),
 });
 
 export async function getDevice(req: Request, res: Response, next: NextFunction) {
@@ -95,6 +112,96 @@ export async function getLastCommand(req: Request, res: Response, next: NextFunc
     });
   } catch (e) {
     next(e);
+  }
+}
+
+export async function getDeviceCommands(req: Request, res: Response, next: NextFunction) {
+  const parsedParams = deviceIdSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    return res.status(400).json({ message: 'Invalid device id' });
+  }
+  const parsedQuery = paginationSchema.safeParse(req.query);
+  if (!parsedQuery.success) {
+    return res.status(400).json({ message: 'Invalid query' });
+  }
+
+  try {
+    const organisationId = await resolveOrganisationId(req.user!.id, res);
+    if (!organisationId) return;
+
+    const device = await getDeviceById(parsedParams.data.id, organisationId);
+    if (!device) return res.status(404).json({ message: 'Not found' });
+
+    const commands = await getCommandsForDevice(
+      device.id,
+      parsedQuery.data.limit ?? 20,
+      parsedQuery.data.offset ?? 0
+    );
+
+    return res.json(
+      commands.map((cmd) => ({
+        id: cmd.id,
+        device_id: cmd.device_id,
+        status: cmd.status,
+        command_type: cmd.command_type,
+        requested_value: cmd.requested_value,
+        payload: cmd.payload,
+        requested_at: cmd.requested_at,
+        completed_at: cmd.completed_at,
+        failure_reason: cmd.failure_reason,
+        failure_message: cmd.failure_message,
+        actor: {
+          id: cmd.user_id,
+          email: cmd.user_email,
+          name: cmd.user_name,
+        },
+      }))
+    );
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function getDeviceSchedule(req: Request, res: Response, next: NextFunction) {
+  const parsedParams = deviceIdSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    return res.status(400).json({ message: 'Invalid device id' });
+  }
+
+  try {
+    const organisationId = await resolveOrganisationId(req.user!.id, res);
+    if (!organisationId) return;
+
+    const schedule = await getDeviceScheduleService(parsedParams.data.id, organisationId);
+    if (!schedule) return res.json(null);
+    return res.json(schedule);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function putDeviceSchedule(req: Request, res: Response, next: NextFunction) {
+  const parsedParams = deviceIdSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    return res.status(400).json({ message: 'Invalid device id' });
+  }
+  const parsedBody = scheduleBodySchema.safeParse(req.body);
+  if (!parsedBody.success) {
+    return res.status(400).json({ message: 'Invalid body' });
+  }
+
+  try {
+    const organisationId = await resolveOrganisationId(req.user!.id, res);
+    if (!organisationId) return;
+
+    const schedule = await upsertDeviceSchedule(parsedParams.data.id, organisationId, parsedBody.data);
+    return res.json(schedule);
+  } catch (err: any) {
+    if (err instanceof ScheduleValidationError) {
+      const status = err.reason === 'NOT_FOUND' ? 404 : 400;
+      return res.status(status).json({ message: err.message, reason: err.reason });
+    }
+    return next(err);
   }
 }
 

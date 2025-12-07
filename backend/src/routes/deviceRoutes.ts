@@ -6,6 +6,9 @@ import {
   getDeviceTelemetryHandler,
   sendModeCommand,
   sendSetpointCommand,
+  getDeviceCommands,
+  getDeviceSchedule,
+  putDeviceSchedule,
 } from '../controllers/deviceController';
 import { requireAuth } from '../middleware/requireAuth';
 
@@ -22,6 +25,9 @@ const controlLimiter = rateLimit({
 router.get('/devices/:id', requireAuth, getDevice);
 router.get('/devices/:id/telemetry', requireAuth, getDeviceTelemetryHandler);
 router.get('/devices/:id/last-command', requireAuth, getLastCommand);
+router.get('/devices/:id/commands', requireAuth, getDeviceCommands);
+router.get('/devices/:id/schedule', requireAuth, getDeviceSchedule);
+router.put('/devices/:id/schedule', requireAuth, putDeviceSchedule);
 router.post('/devices/:id/commands/setpoint', requireAuth, controlLimiter, sendSetpointCommand);
 router.post('/devices/:id/commands/mode', requireAuth, controlLimiter, sendModeCommand);
 

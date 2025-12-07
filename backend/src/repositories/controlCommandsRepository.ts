@@ -18,6 +18,11 @@ export type ControlCommandRow = {
   source: string | null;
 };
 
+export type ControlCommandWithActor = ControlCommandRow & {
+  user_email: string | null;
+  user_name: string | null;
+};
+
 export type InsertControlCommandInput = {
   deviceId: string;
   userId: string;
@@ -112,4 +117,30 @@ export async function markCommandFailure(
   `,
     [commandId, failureMessage, failureReason || null]
   );
+}
+
+export async function getCommandsForDevice(
+  deviceId: string,
+  limit = 20,
+  offset = 0
+): Promise<ControlCommandWithActor[]> {
+  const cappedLimit = Math.min(Math.max(limit, 1), 100);
+  const safeOffset = Math.max(offset, 0);
+
+  const res = await query<ControlCommandWithActor>(
+    `
+    select cc.*,
+           u.email as user_email,
+           u.name as user_name
+    from control_commands cc
+    left join users u on u.id = cc.user_id
+    where cc.device_id = $1
+    order by cc.requested_at desc
+    limit ${cappedLimit}
+    offset ${safeOffset}
+  `,
+    [deviceId]
+  );
+
+  return res.rows;
 }

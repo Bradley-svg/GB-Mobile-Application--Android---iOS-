@@ -178,6 +178,17 @@ async function seedBaseData(client: Client) {
       }),
     ]
   );
+
+  await client.query(
+    `
+    insert into alert_rules (org_id, site_id, device_id, metric, rule_type, threshold, severity, enabled, name, description)
+    values
+      ($1, $2, null, 'supply_temp', 'threshold_above', 60, 'critical', true, 'High supply temperature', 'Seed rule for tests'),
+      ($1, null, null, 'connectivity', 'offline_window', null, 'warning', true, 'Offline', 'Offline rule with default grace')
+    on conflict do nothing
+  `,
+    [DEFAULT_IDS.organisation, DEFAULT_IDS.site]
+  );
 }
 
 async function resetTables(client: Client) {
@@ -202,6 +213,9 @@ async function resetTables(client: Client) {
         push_tokens,
         user_preferences,
         alerts,
+        alert_rules,
+        device_schedules,
+        site_schedules,
         control_commands,
         devices,
         sites,

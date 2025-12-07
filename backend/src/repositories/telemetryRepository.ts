@@ -6,6 +6,8 @@ export type TelemetryMetricRow = {
   value: number;
 };
 
+export type LatestMetricRow = TelemetryMetricRow & { device_id: string };
+
 export async function getTelemetryForDevice(
   deviceId: string,
   range: '1h' | '24h' | '7d'
@@ -68,4 +70,68 @@ export async function upsertDeviceSnapshot(deviceId: string, timestamp: Date, da
   `,
     [deviceId, timestamp, JSON.stringify(data)]
   );
+}
+
+export async function getLatestTelemetryForMetrics(
+  metrics: string[],
+  deviceIds?: string[]
+): Promise<LatestMetricRow[]> {
+  if (metrics.length === 0) return [];
+
+  const params: any[] = [metrics];
+  let deviceClause = '';
+  if (deviceIds && deviceIds.length > 0) {
+    params.push(deviceIds);
+    deviceClause = `and device_id = ANY($2)`;
+  }
+
+  const res = await query<LatestMetricRow>(
+    `
+    select distinct on (device_id, metric) device_id, metric, ts, value
+    from telemetry_points
+    where metric = ANY($1)
+      ${deviceClause}
+    order by device_id, metric, ts desc
+  `,
+    params
+  );
+
+  return res.rows;
+}
+
+export async function getTelemetryWindowBounds(
+  deviceId: string,
+  metric: string,
+  since: Date
+): Promise<{ first: TelemetryMetricRow | null; last: TelemetryMetricRow | null }> {
+  const earliest = await query<TelemetryMetricRow>(
+    `
+    select metric, ts, value
+    from telemetry_points
+    where device_id = $1
+      and metric = $2
+      and ts >= $3
+    order by ts asc
+    limit 1
+  `,
+    [deviceId, metric, since]
+  );
+
+  const latest = await query<TelemetryMetricRow>(
+    `
+    select metric, ts, value
+    from telemetry_points
+    where device_id = $1
+      and metric = $2
+      and ts >= $3
+    order by ts desc
+    limit 1
+  `,
+    [deviceId, metric, since]
+  );
+
+  return {
+    first: earliest.rows[0] ?? null,
+    last: latest.rows[0] ?? null,
+  };
 }

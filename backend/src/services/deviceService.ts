@@ -27,5 +27,9 @@ export async function getDeviceById(
     alerts: deviceAlerts,
   });
 
-  return { ...device, health, last_seen: lastSeen };
+  const connectivity =
+    device.connectivity_status ??
+    (lastSeen.isOffline ? 'offline' : lastSeen.isStale ? 'flapping' : 'online');
+
+  return { ...device, connectivity_status: connectivity, health, last_seen: lastSeen };
 }

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { View, Text, ActivityIndicator, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, ActivityIndicator, TextInput, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,10 +13,14 @@ import {
   useSetpointCommand,
   useSite,
   useHeatPumpHistory,
+  useDeviceCommands,
+  useDeviceSchedule,
+  useUpsertDeviceSchedule,
 } from '../../api/hooks';
 import type {
   ApiDevice,
   ControlFailureReason,
+  ControlCommandHistoryRow,
   DeviceTelemetry,
   HeatPumpHistoryRequest,
   TimeRange,
@@ -80,6 +84,16 @@ export const DeviceDetailScreen: React.FC = () => {
   );
   const [isSetpointPending, setIsSetpointPending] = useState(false);
   const [isModePending, setIsModePending] = useState(false);
+  const [isScheduleModalVisible, setScheduleModalVisible] = useState(false);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [scheduleForm, setScheduleForm] = useState({
+    name: 'Daily schedule',
+    enabled: true,
+    startHour: 6,
+    endHour: 22,
+    targetSetpoint: 45,
+    targetMode: 'HEATING' as const,
+  });
 
   const deviceQuery = useDevice(deviceId);
   const siteId = deviceQuery.data?.site_id ?? cachedDeviceDetail?.device.site_id;
@@ -88,6 +102,9 @@ export const DeviceDetailScreen: React.FC = () => {
   const telemetryQuery = useDeviceTelemetry(deviceId, range);
   const setpointMutation = useSetpointCommand(deviceId);
   const modeMutation = useModeCommand(deviceId);
+  const scheduleQuery = useDeviceSchedule(deviceId);
+  const scheduleMutation = useUpsertDeviceSchedule(deviceId);
+  const commandsQuery = useDeviceCommands(deviceId);
   const setpointPending = isSetpointPending || setpointMutation.isPending;
   const modePending = isModePending || modeMutation.isPending;
   const refetchTelemetry = telemetryQuery.refetch;
@@ -114,6 +131,18 @@ export const DeviceDetailScreen: React.FC = () => {
       cancelled = true;
     };
   }, [deviceId, isOffline]);
+
+  useEffect(() => {
+    if (!scheduleQuery.data) return;
+    setScheduleForm({
+      name: scheduleQuery.data.name,
+      enabled: scheduleQuery.data.enabled,
+      startHour: scheduleQuery.data.start_hour,
+      endHour: scheduleQuery.data.end_hour,
+      targetSetpoint: scheduleQuery.data.target_setpoint,
+      targetMode: (scheduleQuery.data.target_mode as 'OFF' | 'HEATING' | 'COOLING' | 'AUTO') || 'HEATING',
+    });
+  }, [scheduleQuery.data]);
 
   const historyWindow = useMemo(() => {
     const now = new Date();
@@ -173,6 +202,13 @@ export const DeviceDetailScreen: React.FC = () => {
   const powerPoints = telemetryData?.metrics['power_kw'] || [];
   const flowPoints = telemetryData?.metrics['flow_rate'] || [];
   const copPoints = telemetryData?.metrics['cop'] || [];
+  const deltaT = useMemo(() => {
+    if (supplyPoints.length === 0 || returnPoints.length === 0) return null;
+    const latestSupply = supplyPoints[supplyPoints.length - 1]?.value;
+    const latestReturn = returnPoints[returnPoints.length - 1]?.value;
+    if (latestSupply == null || latestReturn == null) return null;
+    return Number((latestSupply - latestReturn).toFixed(2));
+  }, [supplyPoints, returnPoints]);
   const currentTemp = Math.round(supplyPoints[supplyPoints.length - 1]?.value ?? 20);
 
   const toSeries = (points: typeof supplyPoints) =>
@@ -326,6 +362,13 @@ export const DeviceDetailScreen: React.FC = () => {
   const hasFlowData = flowData.length > 0;
   const hasCopData = copData.length > 0;
   const emptyMetricPlaceholder = 'No data for this metric in the selected range.';
+  const scheduleData = scheduleQuery.data;
+  const scheduleSummary = scheduleData
+    ? `${scheduleData.enabled ? 'Active' : 'Paused'}: ${formatHour(scheduleData.start_hour)}-${formatHour(
+        scheduleData.end_hour
+      )}, ${scheduleData.target_setpoint}\u00B0C, ${scheduleData.target_mode}`
+    : 'No schedule configured yet.';
+  const commandRows = commandsQuery.data || [];
 
   const onSetpointSave = async () => {
     const value = Number(setpointInput);
@@ -394,8 +437,181 @@ export const DeviceDetailScreen: React.FC = () => {
     }
   };
 
+  const onSaveSchedule = async () => {
+    if (isOffline) {
+      setScheduleError('Schedule changes require a connection.');
+      return;
+    }
+    if (
+      scheduleForm.startHour < 0 ||
+      scheduleForm.startHour > 24 ||
+      scheduleForm.endHour < 0 ||
+      scheduleForm.endHour > 24
+    ) {
+      setScheduleError('Hours must be between 0 and 24.');
+      return;
+    }
+    if (scheduleForm.startHour === scheduleForm.endHour) {
+      setScheduleError('Start and end hours must be different.');
+      return;
+    }
+    if (
+      scheduleForm.targetSetpoint < SETPOINT_MIN ||
+      scheduleForm.targetSetpoint > SETPOINT_MAX
+    ) {
+      setScheduleError(
+        `Setpoint must be between ${SETPOINT_MIN}-${SETPOINT_MAX}\u00B0C`
+      );
+      return;
+    }
+
+    setScheduleError(null);
+    try {
+      await scheduleMutation.mutateAsync({
+        name: scheduleForm.name,
+        enabled: scheduleForm.enabled,
+        startHour: scheduleForm.startHour,
+        endHour: scheduleForm.endHour,
+        targetSetpoint: scheduleForm.targetSetpoint,
+        targetMode: scheduleForm.targetMode,
+      });
+      setScheduleModalVisible(false);
+    } catch (err) {
+      setScheduleError('Failed to save schedule. Please try again.');
+    }
+  };
+
   return (
-    <Screen testID="DeviceDetailScreen">
+    <>
+      <Modal visible={isScheduleModalVisible} animationType="slide" transparent>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={[typography.title2, styles.title, { marginBottom: spacing.sm }]}>
+              Edit schedule
+            </Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.inputRow}>
+                <Text style={[typography.caption, styles.muted]}>Name</Text>
+                <TextInput
+                  value={scheduleForm.name}
+                  onChangeText={(text) => setScheduleForm((prev) => ({ ...prev, name: text }))}
+                  style={styles.input}
+                />
+              </View>
+              <View style={styles.inputRow}>
+                <Text style={[typography.caption, styles.muted]}>Start hour</Text>
+                <TextInput
+                  value={scheduleForm.startHour.toString()}
+                  onChangeText={(text) =>
+                    setScheduleForm((prev) => ({
+                      ...prev,
+                      startHour: Number.isNaN(Number(text)) ? 0 : Math.min(24, Math.max(0, Number(text))),
+                    }))
+                  }
+                  keyboardType="numeric"
+                  style={styles.input}
+                />
+              </View>
+              <View style={styles.inputRow}>
+                <Text style={[typography.caption, styles.muted]}>End hour</Text>
+                <TextInput
+                  value={scheduleForm.endHour.toString()}
+                  onChangeText={(text) =>
+                    setScheduleForm((prev) => ({
+                      ...prev,
+                      endHour: Number.isNaN(Number(text)) ? 0 : Math.min(24, Math.max(0, Number(text))),
+                    }))
+                  }
+                  keyboardType="numeric"
+                  style={styles.input}
+                />
+              </View>
+              <View style={styles.inputRow}>
+                <Text style={[typography.caption, styles.muted]}>Setpoint (°C)</Text>
+                <TextInput
+                  value={scheduleForm.targetSetpoint.toString()}
+                  onChangeText={(text) =>
+                    setScheduleForm((prev) => ({
+                      ...prev,
+                      targetSetpoint: Number.isNaN(Number(text))
+                        ? prev.targetSetpoint
+                        : Number(text),
+                    }))
+                  }
+                  keyboardType="numeric"
+                  style={styles.input}
+                />
+              </View>
+              <Text style={[typography.caption, styles.muted, { marginBottom: spacing.xs }]}>
+                Mode
+              </Text>
+              <View style={styles.modeRow}>
+                {(['OFF', 'HEATING', 'COOLING', 'AUTO'] as const).map((mode) => {
+                  const selected = scheduleForm.targetMode === mode;
+                  return (
+                    <TouchableOpacity
+                      key={mode}
+                      style={[
+                        styles.modeChip,
+                        selected
+                          ? { backgroundColor: colors.brandGreen, borderColor: colors.brandGreen }
+                          : { backgroundColor: colors.backgroundAlt },
+                      ]}
+                      onPress={() => setScheduleForm((prev) => ({ ...prev, targetMode: mode }))}
+                      disabled={scheduleMutation.isPending}
+                    >
+                      <Text
+                        style={[
+                          typography.subtitle,
+                          { color: selected ? colors.background : colors.textSecondary, textAlign: 'center' },
+                        ]}
+                      >
+                        {mode}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <TouchableOpacity
+                style={styles.toggleRow}
+                onPress={() =>
+                  setScheduleForm((prev) => ({ ...prev, enabled: !prev.enabled }))
+                }
+                disabled={scheduleMutation.isPending}
+              >
+                <Text style={[typography.body, styles.title]}>Enabled</Text>
+                <Ionicons
+                  name={scheduleForm.enabled ? 'checkbox-outline' : 'square-outline'}
+                  size={20}
+                  color={scheduleForm.enabled ? colors.brandGreen : colors.textSecondary}
+                />
+              </TouchableOpacity>
+              {scheduleError ? (
+                <Text style={[typography.caption, styles.errorText]}>{scheduleError}</Text>
+              ) : null}
+              {isOffline ? (
+                <Text style={[typography.caption, styles.offlineNote, { marginTop: spacing.xs }]}>
+                  Schedule changes require a connection.
+                </Text>
+              ) : null}
+            </ScrollView>
+            <View style={styles.modalActions}>
+              <PrimaryButton
+                label={scheduleMutation.isPending ? 'Saving...' : 'Save schedule'}
+                onPress={onSaveSchedule}
+                disabled={scheduleMutation.isPending || isOffline}
+              />
+              <PrimaryButton
+                label="Cancel"
+                variant="outline"
+                onPress={() => setScheduleModalVisible(false)}
+                style={{ marginTop: spacing.sm }}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+      <Screen testID="DeviceDetailScreen">
       <View style={styles.topBar}>
         <IconButton
           icon={<Ionicons name="chevron-back" size={20} color={colors.brandGrey} />}
@@ -416,6 +632,14 @@ export const DeviceDetailScreen: React.FC = () => {
               {siteName}
             </Text>
           </View>
+          {(device.firmware_version || device.connectivity_status) && (
+            <Text style={[typography.caption, styles.muted, { marginTop: spacing.xs }]}>
+              {device.firmware_version ? `Firmware v${device.firmware_version}` : 'Firmware n/a'}
+              {device.connectivity_status
+                ? ` - Connectivity: ${formatConnectivityStatus(device.connectivity_status)}`
+                : ''}
+            </Text>
+          )}
           <Text style={[typography.caption, styles.muted, { marginTop: spacing.xs }]}>
             {lastUpdatedAt
               ? `Last updated at ${new Date(lastUpdatedAt).toLocaleString()}`
@@ -529,6 +753,17 @@ export const DeviceDetailScreen: React.FC = () => {
               <VictoryLine data={returnData} style={{ data: { stroke: colors.warning } }} />
             </VictoryChart>,
             emptyMetricPlaceholder
+          )}
+
+          {renderMetricCard(
+            'ΔT (Supply - Return)',
+            colors.brandGrey,
+            deltaT !== null,
+            <View style={styles.deltaRow}>
+              <Text style={[typography.title1, styles.title]}>{deltaT?.toFixed(1)}°C</Text>
+              <Text style={[typography.caption, styles.muted]}>Latest difference</Text>
+            </View>,
+            'ΔT unavailable for this range.'
           )}
 
           {renderMetricCard(
@@ -693,6 +928,89 @@ export const DeviceDetailScreen: React.FC = () => {
         ) : null}
       </Card>
 
+      <Card style={styles.scheduleCard}>
+        <View style={styles.scheduleHeader}>
+          <Text style={[typography.subtitle, styles.title]}>Schedule</Text>
+          <TouchableOpacity
+            onPress={() => setScheduleModalVisible(true)}
+            disabled={isOffline}
+          >
+            <Text
+              style={[
+                typography.caption,
+                isOffline ? styles.muted : styles.title,
+              ]}
+            >
+              {isOffline ? 'Offline' : 'Edit schedule'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        {scheduleQuery.isLoading ? (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator color={colors.brandGreen} />
+            <Text style={[typography.caption, styles.muted, { marginLeft: spacing.sm }]}>
+              Loading schedule...
+            </Text>
+          </View>
+        ) : (
+          <>
+            <Text style={[typography.body, styles.title]}>{scheduleSummary}</Text>
+            <Text style={[typography.caption, styles.muted, { marginTop: spacing.xs }]}>
+              {scheduleData
+                ? `Updated ${new Date(scheduleData.updated_at).toLocaleString()}`
+                : 'Create a safe setpoint window for this device.'}
+            </Text>
+          </>
+        )}
+        {scheduleQuery.isError ? (
+          <Text style={[typography.caption, styles.errorText]}>
+            Could not load schedule. Pull to refresh or retry.
+          </Text>
+        ) : null}
+        {isOffline ? (
+          <Text style={[typography.caption, styles.offlineNote, { marginTop: spacing.xs }]}>
+            Schedule changes require a connection.
+          </Text>
+        ) : null}
+      </Card>
+
+      <Card style={styles.historyCard}>
+        <View style={styles.scheduleHeader}>
+          <Text style={[typography.subtitle, styles.title]}>Control history</Text>
+          <Text style={[typography.caption, styles.muted]}>Last 5 commands</Text>
+        </View>
+        {commandsQuery.isLoading ? (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator color={colors.brandGreen} />
+            <Text style={[typography.caption, styles.muted, { marginLeft: spacing.sm }]}>
+              Loading history...
+            </Text>
+          </View>
+        ) : commandRows.length === 0 ? (
+          <Text style={[typography.caption, styles.muted]}>No recent commands.</Text>
+        ) : (
+          commandRows.slice(0, 5).map((cmd) => {
+            const status = cmd.status || 'pending';
+            return (
+              <View key={cmd.id} style={styles.historyRow}>
+                <View style={[styles.alertDot, { backgroundColor: commandStatusColor(status) }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[typography.body, styles.title]}>{formatCommandSummary(cmd)}</Text>
+                  <Text style={[typography.caption, styles.muted]}>
+                    {status.toUpperCase()} - {new Date(cmd.requested_at).toLocaleString()}
+                  </Text>
+                </View>
+              </View>
+            );
+          })
+        )}
+        {commandsQuery.isError ? (
+          <Text style={[typography.caption, styles.errorText]}>
+            Could not load command history.
+          </Text>
+        ) : null}
+      </Card>
+
       {activeDeviceAlerts.length > 0 && (
         <Card style={styles.alertCard}>
           <Text style={[typography.subtitle, styles.title, { marginBottom: spacing.sm }]}>Active alerts</Text>
@@ -711,6 +1029,7 @@ export const DeviceDetailScreen: React.FC = () => {
         </Card>
       )}
     </Screen>
+    </>
   );
 };
 
@@ -723,6 +1042,42 @@ const severityColor = (severity: string) => {
     default:
       return gradients.brandPrimary.end;
   }
+};
+
+const formatConnectivityStatus = (status?: string | null) => {
+  const normalized = (status || '').toLowerCase();
+  if (!status) return 'Unknown';
+  if (normalized.includes('flap')) return 'Flapping';
+  if (normalized.includes('off')) return 'Offline';
+  if (normalized.includes('on')) return 'Online';
+  return status;
+};
+
+function formatHour(hour: number) {
+  const clamped = Math.max(0, Math.min(24, Math.floor(hour)));
+  return `${`${clamped}`.padStart(2, '0')}:00`;
+}
+
+const commandStatusColor = (status: string) => {
+  const normalized = (status || '').toLowerCase();
+  if (normalized === 'success') return colors.success;
+  if (normalized === 'failed') return colors.error;
+  return colors.warning;
+};
+
+const formatCommandSummary = (cmd: ControlCommandHistoryRow) => {
+  const actor = cmd.actor?.name || cmd.actor?.email || 'Unknown user';
+  const requested = (cmd.requested_value as any) || {};
+  const payload = (cmd.payload as any) || {};
+  if ((cmd.command_type || '').includes('mode')) {
+    const mode = requested.mode || payload.mode || 'N/A';
+    return `Mode ${mode} by ${actor}`;
+  }
+  if ((cmd.command_type || '').includes('setpoint') || payload.metric === 'flow_temp') {
+    const value = requested.value ?? payload.value ?? requested.metric ?? '';
+    return `Setpoint ${value ?? ''}\u00B0C by ${actor}`;
+  }
+  return `${cmd.command_type} by ${actor}`;
 };
 
 const renderStatusPill = (status?: string | null) => {
@@ -984,6 +1339,21 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginRight: spacing.sm,
   },
+  deltaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+  },
+  scheduleCard: {
+    marginBottom: spacing.md,
+  },
+  scheduleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
   historyCard: {
     marginBottom: spacing.md,
   },
@@ -1056,6 +1426,35 @@ const styles = StyleSheet.create({
     borderColor: colors.borderSubtle,
     marginRight: spacing.sm,
     marginBottom: spacing.sm,
+  },
+  inputRow: {
+    marginBottom: spacing.sm,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    padding: spacing.lg,
+  },
+  modalCard: {
+    backgroundColor: colors.background,
+    borderRadius: 16,
+    padding: spacing.lg,
+    maxHeight: '85%',
+  },
+  modalActions: {
+    marginTop: spacing.md,
   },
   alertCard: {
     marginBottom: spacing.xl,

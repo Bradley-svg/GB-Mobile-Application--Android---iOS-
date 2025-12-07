@@ -6,8 +6,10 @@ import {
   findOfflineDevices,
   findOnlineDevices,
   getDeviceSnapshotTemperatures,
+  getDeviceLastSeen,
+  type DeviceLastSeenRow,
 } from '../repositories/devicesRepository';
-import { clearAlertIfExists, upsertActiveAlert } from '../services/alertService';
+import { clearAlertIfExists, upsertActiveAlert, getActiveAlertCountsForOrg } from '../services/alertService';
 import { sendAlertNotification } from '../services/pushService';
 import { markAlertsWorkerHeartbeat, upsertStatus } from '../services/statusService';
 import { logger } from '../config/logger';
@@ -16,6 +18,15 @@ import {
   releaseWorkerLock,
   renewWorkerLock,
 } from '../repositories/workerLocksRepository';
+import {
+  getAllEnabledRules,
+  type AlertRuleRow,
+} from '../repositories/alertRulesRepository';
+import {
+  getLatestTelemetryForMetrics,
+  getTelemetryWindowBounds,
+} from '../repositories/telemetryRepository';
+import { getScheduleContextForSite, type ScheduleContext } from '../services/siteScheduleService';
 
 const OFFLINE_MINUTES = Number(process.env.ALERT_OFFLINE_MINUTES || 10);
 const OFFLINE_CRITICAL_MINUTES = Number(process.env.ALERT_OFFLINE_CRITICAL_MINUTES || 60);
@@ -30,6 +41,8 @@ let lastFailureAt: Date | null = null;
 let renewTimer: NodeJS.Timeout | null = null;
 let scheduleTimer: NodeJS.Timeout | null = null;
 let stopped = false;
+let rulesCache: AlertRuleRow[] = [];
+let lastRulesLoadedAt: Date | null = null;
 
 type OfflineMetrics = {
   offlineCount: number;
@@ -46,6 +59,14 @@ export type AlertsWorkerHeartbeat = {
   last_run_at: string;
   offline: OfflineMetrics;
   high_temp: HighTempMetrics;
+  rules?: RuleMetrics;
+};
+
+type RuleMetrics = {
+  evaluated: number;
+  triggered: number;
+  cleared: number;
+  skipped: number;
 };
 
 function parseLockTtlMs() {
@@ -57,6 +78,7 @@ function parseLockTtlMs() {
 }
 
 const lockTtlMs = parseLockTtlMs();
+const ruleRefreshMs = Math.max(60_000, Number(process.env.ALERT_RULE_REFRESH_MINUTES || 5) * 60_000);
 
 export async function evaluateOfflineAlerts(now: Date): Promise<OfflineMetrics> {
   const offline = await findOfflineDevices(OFFLINE_MINUTES);
@@ -152,6 +174,273 @@ export async function evaluateHighTempAlerts(now: Date): Promise<HighTempMetrics
   return { evaluatedCount: snapshots.length, overThresholdCount };
 }
 
+async function refreshRulesCache(force = false) {
+  const now = Date.now();
+  if (!force && lastRulesLoadedAt && now - lastRulesLoadedAt.getTime() < ruleRefreshMs) {
+    return rulesCache;
+  }
+
+  rulesCache = await getAllEnabledRules();
+  lastRulesLoadedAt = new Date();
+  log.info({ rules: rulesCache.length }, 'loaded alert rules');
+  return rulesCache;
+}
+
+function buildDeviceScopes(lastSeen: DeviceLastSeenRow[]) {
+  const siteToDevice = new Map<string, string[]>();
+  const deviceToSite = new Map<string, string>();
+
+  lastSeen.forEach((row) => {
+    deviceToSite.set(row.id, row.site_id);
+    const devices = siteToDevice.get(row.site_id) || [];
+    devices.push(row.id);
+    siteToDevice.set(row.site_id, devices);
+  });
+
+  return { siteToDevice, deviceToSite };
+}
+
+async function resolveScheduleContext(
+  siteId: string,
+  cache: Map<string, ScheduleContext>,
+  at: Date
+) {
+  const cached = cache.get(siteId);
+  if (cached) return cached;
+  const context = await getScheduleContextForSite(siteId, at);
+  cache.set(siteId, context);
+  return context;
+}
+
+type RuleTarget = {
+  deviceId: string;
+  siteId: string | null;
+};
+
+function resolveRuleTargets(
+  rule: AlertRuleRow,
+  siteToDevice: Map<string, string[]>,
+  allDeviceIds: string[]
+): RuleTarget[] {
+  if (rule.device_id) {
+    return [{ deviceId: rule.device_id, siteId: rule.site_id ?? null }];
+  }
+  if (rule.site_id) {
+    const devices = siteToDevice.get(rule.site_id) || [];
+    return devices.map((deviceId) => ({ deviceId, siteId: rule.site_id }));
+  }
+
+  return allDeviceIds.map((deviceId) => ({
+    deviceId,
+    siteId: null,
+  }));
+}
+
+function getMetricSampleKey(deviceId: string, metric: string) {
+  return `${deviceId}:${metric}`;
+}
+
+function buildMetricMap(samples: Awaited<ReturnType<typeof getLatestTelemetryForMetrics>>) {
+  const map = new Map<string, { value: number; ts: Date }>();
+  samples.forEach((sample) => {
+    map.set(getMetricSampleKey(sample.device_id, sample.metric), {
+      value: sample.value,
+      ts: sample.ts,
+    });
+  });
+  return map;
+}
+
+function formatRuleMessage(rule: AlertRuleRow, value: number, extra?: string) {
+  const baseName = rule.name ?? `${rule.metric} ${rule.rule_type}`;
+  let detail = '';
+  switch (rule.rule_type) {
+    case 'threshold_above':
+      detail = `value ${value.toFixed(2)} above threshold ${rule.threshold}`;
+      break;
+    case 'threshold_below':
+      detail = `value ${value.toFixed(2)} below threshold ${rule.threshold}`;
+      break;
+    default:
+      detail = `value ${value.toFixed(2)}`;
+  }
+  return `${baseName}: ${detail}${extra ? ` (${extra})` : ''}`;
+}
+
+async function evaluateOfflineRule(
+  rule: AlertRuleRow,
+  target: RuleTarget,
+  lastSeenMap: Map<string, DeviceLastSeenRow>,
+  scheduleCtx: Map<string, ScheduleContext>,
+  now: Date
+) {
+  const lastSeen = lastSeenMap.get(target.deviceId);
+  if (!lastSeen) return { triggered: false, skipped: true };
+  const graceSec = rule.offline_grace_sec ?? OFFLINE_MINUTES * 60;
+  const minutesOffline = (now.getTime() - new Date(lastSeen.last_seen_at).getTime()) / 60_000;
+  const overGrace = minutesOffline * 60 >= graceSec;
+  if (!overGrace) {
+    await clearAlertIfExists(target.deviceId, 'rule', now, rule.id);
+    return { triggered: false, skipped: false, cleared: true };
+  }
+
+  let severity = rule.severity;
+  let modifier = '';
+  const siteId = target.siteId ?? lastSeen.site_id ?? null;
+  if (siteId) {
+    const ctx = await resolveScheduleContext(siteId, scheduleCtx, now);
+    if (ctx.isLoadShedding && severity === 'critical') {
+      // During load shedding we downgrade to warning but keep emitting for diagnostics.
+      severity = 'warning';
+      modifier = ' (load-shedding window)';
+    }
+  }
+
+  const message = `${rule.name ?? 'Device offline'}: offline for ${minutesOffline.toFixed(
+    1
+  )} minutes (grace ${Math.round(graceSec / 60)}m)${modifier}`;
+  await upsertActiveAlert({
+    siteId: siteId ?? null,
+    deviceId: target.deviceId,
+    type: 'rule',
+    severity,
+    message,
+    ruleId: rule.id,
+    now,
+  });
+  return { triggered: true, skipped: false };
+}
+
+async function evaluateRateOfChangeRule(
+  rule: AlertRuleRow,
+  target: RuleTarget,
+  now: Date
+) {
+  if (!rule.roc_window_sec || !rule.threshold) return { triggered: false, skipped: true };
+
+  const since = new Date(now.getTime() - rule.roc_window_sec * 1000);
+  const { first, last } = await getTelemetryWindowBounds(target.deviceId, rule.metric, since);
+  if (!first || !last) return { triggered: false, skipped: true };
+
+  const delta = last.value - first.value;
+  const elapsedMs = new Date(last.ts).getTime() - new Date(first.ts).getTime();
+  if (elapsedMs <= 0) return { triggered: false, skipped: true };
+
+  const absDelta = Math.abs(delta);
+  const exceeded = absDelta >= rule.threshold;
+  if (!exceeded) {
+    await clearAlertIfExists(target.deviceId, 'rule', now, rule.id);
+    return { triggered: false, skipped: false, cleared: true };
+  }
+
+  const minutes = elapsedMs / 60_000;
+  const message = `${rule.name ?? 'Rapid change'}: Δ${delta.toFixed(
+    2
+  )} over ${minutes.toFixed(1)}m (threshold ${rule.threshold})`;
+  await upsertActiveAlert({
+    siteId: target.siteId,
+    deviceId: target.deviceId,
+    type: 'rule',
+    severity: rule.severity,
+    message,
+    ruleId: rule.id,
+    now,
+  });
+
+  return { triggered: true, skipped: false };
+}
+
+async function evaluateThresholdRule(
+  rule: AlertRuleRow,
+  target: RuleTarget,
+  metricMap: Map<string, { value: number; ts: Date }>,
+  now: Date
+) {
+  if (rule.threshold == null) return { triggered: false, skipped: true };
+  const sample = metricMap.get(getMetricSampleKey(target.deviceId, rule.metric));
+  if (!sample || sample.value == null) return { triggered: false, skipped: true };
+
+  const value = sample.value;
+  const over =
+    rule.rule_type === 'threshold_above'
+      ? value > rule.threshold
+      : rule.rule_type === 'threshold_below'
+      ? value < rule.threshold
+      : false;
+
+  if (!over) {
+    await clearAlertIfExists(target.deviceId, 'rule', now, rule.id);
+    return { triggered: false, skipped: false, cleared: true };
+  }
+
+  const message = formatRuleMessage(rule, value);
+  await upsertActiveAlert({
+    siteId: target.siteId,
+    deviceId: target.deviceId,
+    type: 'rule',
+    severity: rule.severity,
+    message,
+    ruleId: rule.id,
+    now,
+  });
+
+  return { triggered: true, skipped: false };
+}
+
+async function evaluateRules(now: Date): Promise<RuleMetrics> {
+  const rules = await refreshRulesCache();
+  const metrics: RuleMetrics = { evaluated: 0, triggered: 0, cleared: 0, skipped: 0 };
+  if (rules.length === 0) return metrics;
+
+  const lastSeenRows = await getDeviceLastSeen();
+  const lastSeenMap = new Map(lastSeenRows.map((row) => [row.id, row]));
+  const { siteToDevice } = buildDeviceScopes(lastSeenRows);
+  const allDeviceIds = lastSeenRows.map((row) => row.id);
+
+  const metricsNeeded = Array.from(
+    new Set(
+      rules
+        .filter((r) => r.rule_type === 'threshold_above' || r.rule_type === 'threshold_below')
+        .map((r) => r.metric)
+    )
+  );
+  const metricSamples =
+    metricsNeeded.length > 0 ? await getLatestTelemetryForMetrics(metricsNeeded, allDeviceIds) : [];
+  const metricMap = buildMetricMap(metricSamples);
+  const scheduleCtx = new Map<string, ScheduleContext>();
+
+  for (const rule of rules) {
+    const targets = resolveRuleTargets(rule, siteToDevice, allDeviceIds);
+    for (const target of targets) {
+      metrics.evaluated += 1;
+      try {
+        let result: { triggered?: boolean; skipped?: boolean; cleared?: boolean } = {};
+        if (rule.rule_type === 'offline_window') {
+          result = await evaluateOfflineRule(rule, target, lastSeenMap, scheduleCtx, now);
+        } else if (rule.rule_type === 'rate_of_change') {
+          result = await evaluateRateOfChangeRule(rule, target, now);
+        } else if (
+          rule.rule_type === 'threshold_above' ||
+          rule.rule_type === 'threshold_below'
+        ) {
+          result = await evaluateThresholdRule(rule, target, metricMap, now);
+        } else {
+          metrics.skipped += 1;
+          continue;
+        }
+
+        if (result.triggered) metrics.triggered += 1;
+        if (result.skipped) metrics.skipped += 1;
+        if (result.cleared) metrics.cleared += 1;
+      } catch (err) {
+        log.error({ err, ruleId: rule.id, deviceId: target.deviceId }, 'rule evaluation failed');
+      }
+    }
+  }
+
+  return metrics;
+}
+
 export async function runOnce(now: Date = new Date()) {
   if (inProgress) {
     log.warn('cycle skipped: already running');
@@ -162,14 +451,31 @@ export async function runOnce(now: Date = new Date()) {
   log.info({ at: now.toISOString() }, 'cycle start');
 
   try {
-    const offlineMetrics = await evaluateOfflineAlerts(now);
-    const highTempMetrics = await evaluateHighTempAlerts(now);
+    const evalStarted = Date.now();
+    const ruleMetrics = await evaluateRules(now);
+    const hasOfflineRules = rulesCache.some((r) => r.rule_type === 'offline_window');
+    const hasHighTempRule = rulesCache.some(
+      (r) =>
+        (r.rule_type === 'threshold_above' || r.rule_type === 'threshold_below') &&
+        r.metric === 'supply_temp'
+    );
+
+    const offlineMetrics = hasOfflineRules
+      ? { offlineCount: 0, clearedCount: 0, mutedCount: 0 }
+      : await evaluateOfflineAlerts(now);
+    const highTempMetrics = hasHighTempRule
+      ? { evaluatedCount: 0, overThresholdCount: 0 }
+      : await evaluateHighTempAlerts(now);
+    const durationMs = Date.now() - evalStarted;
+    const activeCounts = await getActiveAlertCountsForOrg();
 
     log.info(
       {
         at: now.toISOString(),
         offline: offlineMetrics,
         highTemp: highTempMetrics,
+        rules: ruleMetrics,
+        durationMs,
       },
       'cycle complete'
     );
@@ -179,8 +485,17 @@ export async function runOnce(now: Date = new Date()) {
         last_run_at: now.toISOString(),
         offline: offlineMetrics,
         high_temp: highTempMetrics,
+        rules: ruleMetrics,
       };
       await upsertStatus('alerts_worker', heartbeat);
+      await upsertStatus('alerts_engine', {
+        lastRunAt: now.toISOString(),
+        lastDurationMs: durationMs,
+        rulesLoaded: rulesCache.length,
+        triggered: ruleMetrics.triggered,
+        evaluated: ruleMetrics.evaluated,
+        activeCounts,
+      });
     } catch (statusErr) {
       log.error({ err: statusErr }, 'failed to persist heartbeat');
     }
@@ -273,6 +588,7 @@ export async function start() {
       highTempThreshold: HIGH_TEMP_THRESHOLD,
       intervalSec,
       lockTtlMs,
+      ruleRefreshMs,
     },
     'starting alerts worker'
   );

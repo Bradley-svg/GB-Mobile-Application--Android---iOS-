@@ -19,6 +19,16 @@ const formatSubsystemStatus = (
   return 'Healthy';
 };
 
+const formatAlertsEngine = (alertsEngine?: HealthPlusPayload['alertsEngine']) => {
+  if (!alertsEngine) return 'Unknown';
+  if (!alertsEngine.lastRunAt) return 'No runs yet';
+  const counts =
+    alertsEngine.activeCritical || alertsEngine.activeWarning
+      ? ` | Active: ${alertsEngine.activeWarning ?? 0} warn / ${alertsEngine.activeCritical ?? 0} crit`
+      : '';
+  return `${new Date(alertsEngine.lastRunAt).toLocaleString()} (${alertsEngine.rulesLoaded ?? 0} rules)${counts}`;
+};
+
 const Row: React.FC<{ label: string; value: string; testID?: string }> = ({ label, value, testID }) => (
   <View style={styles.row} testID={testID}>
     <Text style={[typography.caption, styles.muted]}>{label}</Text>
@@ -118,6 +128,11 @@ export const DiagnosticsScreen: React.FC = () => {
                 : 'Enabled'
               : 'Disabled'
           }
+        />
+        <Row label="Alerts engine" value={formatAlertsEngine(healthQuery.data?.alertsEngine)} />
+        <Row
+          label="Rules loaded"
+          value={`${healthQuery.data?.alertsEngine?.rulesLoaded ?? 0} rules`}
         />
       </Card>
 

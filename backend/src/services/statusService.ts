@@ -50,6 +50,11 @@ export async function getSystemStatus(): Promise<SystemStatus | null> {
   return loadSystemStatus(STATUS_ROW_KEY);
 }
 
+export async function getSystemStatusByKey(key: string): Promise<SystemStatus | null> {
+  await ensureStatusRow(key);
+  return loadSystemStatus(key);
+}
+
 export async function updateStatusPatch(patch: StatusPatch): Promise<void> {
   await ensureStatusRow(STATUS_ROW_KEY);
   const allowedColumns = new Set<string>(STATUS_COLUMNS as readonly string[]);
