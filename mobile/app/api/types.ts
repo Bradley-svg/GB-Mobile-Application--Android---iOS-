@@ -191,8 +191,12 @@ export type HealthPlusPayload = {
     lastRunAt: string | null;
     lastDurationMs: number | null;
     rulesLoaded: number | null;
+    activeAlertsTotal: number | null;
     activeWarning: number | null;
     activeCritical: number | null;
+    activeInfo: number | null;
+    evaluated: number | null;
+    triggered: number | null;
   };
 };
 

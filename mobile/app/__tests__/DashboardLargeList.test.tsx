@@ -88,9 +88,27 @@ describe('Dashboard large list rendering', () => {
 
     render(<DashboardScreen />);
 
-    expect(screen.getByText('Healthy')).toBeTruthy();
-    expect(screen.getByText('Warning')).toBeTruthy();
-    expect(screen.getByText('Critical')).toBeTruthy();
-    expect(screen.getByText('Offline')).toBeTruthy();
+    expect(screen.getAllByText('Healthy').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Warning').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Critical').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Offline').length).toBeGreaterThan(0);
+  });
+
+  it('renders connectivity pills for site cards', () => {
+    const sites = [
+      { id: 'site-1', name: 'Healthy', city: 'CT', status: 'online', last_seen_at: '2025-01-01T00:00:00.000Z', health: 'healthy' },
+      { id: 'site-2', name: 'Offline', city: 'CT', status: 'offline', last_seen_at: '2025-01-01T00:00:00.000Z', health: 'offline' },
+    ];
+    (useSites as jest.Mock).mockReturnValue({
+      data: sites,
+      isLoading: false,
+      isError: false,
+      refetch: jest.fn(),
+    });
+
+    render(<DashboardScreen />);
+
+    expect(screen.getAllByText(/Online/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Offline/i).length).toBeGreaterThan(0);
   });
 });

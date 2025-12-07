@@ -7,6 +7,9 @@ import {
   useDeviceTelemetry,
   useModeCommand,
   useSetpointCommand,
+  useDeviceSchedule,
+  useUpsertDeviceSchedule,
+  useDeviceCommands,
   useSite,
   useHeatPumpHistory,
 } from '../api/hooks';
@@ -22,6 +25,9 @@ jest.mock('../api/hooks', () => ({
   useDeviceTelemetry: jest.fn(),
   useModeCommand: jest.fn(),
   useSetpointCommand: jest.fn(),
+  useDeviceSchedule: jest.fn(),
+  useUpsertDeviceSchedule: jest.fn(),
+  useDeviceCommands: jest.fn(),
   useSite: jest.fn(),
   useHeatPumpHistory: jest.fn(),
 }));
@@ -95,6 +101,23 @@ describe('DeviceDetailScreen heat pump history', () => {
     (useModeCommand as jest.Mock).mockReturnValue({
       mutateAsync: jest.fn(),
       isPending: false,
+    });
+
+    (useDeviceSchedule as jest.Mock).mockReturnValue({
+      data: null,
+      isLoading: false,
+      isError: false,
+    });
+
+    (useUpsertDeviceSchedule as jest.Mock).mockReturnValue({
+      mutateAsync: jest.fn(),
+      isPending: false,
+    });
+
+    (useDeviceCommands as jest.Mock).mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
     });
 
     (useHeatPumpHistory as jest.Mock).mockReturnValue({
@@ -306,5 +329,59 @@ describe('DeviceDetailScreen heat pump history', () => {
     render(<DeviceDetailScreen />);
 
     expect(screen.getByText(/Last updated time unavailable/i)).toBeTruthy();
+  });
+
+  it('renders control history rows with failure reasons', () => {
+    (useDeviceCommands as jest.Mock).mockReturnValue({
+      data: [
+        {
+          id: 'cmd-1',
+          device_id: baseDevice.id,
+          status: 'success',
+          command_type: 'setpoint',
+          requested_value: { metric: 'flow_temp', value: 48 },
+          payload: { metric: 'flow_temp', value: 48 },
+          requested_at: '2025-01-01T00:00:00.000Z',
+          completed_at: '2025-01-01T00:01:00.000Z',
+          failure_reason: null,
+          failure_message: null,
+          actor: { id: 'user-1', email: 'demo@example.com', name: 'Demo' },
+        },
+        {
+          id: 'cmd-2',
+          device_id: baseDevice.id,
+          status: 'failed',
+          command_type: 'mode',
+          requested_value: { mode: 'OFF' },
+          payload: { mode: 'OFF' },
+          requested_at: '2025-01-02T00:00:00.000Z',
+          completed_at: '2025-01-02T00:01:00.000Z',
+          failure_reason: 'THROTTLED',
+          failure_message: 'throttled',
+          actor: { id: 'user-1', email: 'demo@example.com', name: 'Demo' },
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<DeviceDetailScreen />);
+
+    expect(screen.getByText(/Setpoint 48/)).toBeTruthy();
+    expect(screen.getByText(/THROTTLED/)).toBeTruthy();
+    expect(screen.getByText(/throttled/)).toBeTruthy();
+  });
+
+  it('shows offline placeholder when no cached history exists', () => {
+    (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: true });
+    (useDeviceCommands as jest.Mock).mockReturnValue({
+      data: [],
+      isLoading: true,
+      isError: false,
+    });
+
+    render(<DeviceDetailScreen />);
+
+    expect(screen.getAllByText(/History unavailable while offline/i).length).toBeGreaterThan(0);
   });
 });

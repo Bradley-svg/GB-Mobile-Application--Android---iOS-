@@ -7,3 +7,4 @@ export { IconButton } from './IconButton';
 export { surfaceStyles, softShadow } from './styles';
 export { ErrorCard } from './ErrorCard';
 export { EmptyState } from './EmptyState';
+export { StatusPill, connectivityDisplay, healthDisplay } from './StatusPill';

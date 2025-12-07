@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -19,23 +19,35 @@ export const AlertDetailScreen: React.FC = () => {
   const alertId = route.params.alertId;
   const navigation = useNavigation<AlertDetailNavigation>();
 
-  const { data: alerts, isLoading, isError } = useAlerts();
+  const { data: alerts, isLoading, isError, refetch: refetchAlerts } = useAlerts();
+  const alertItem = useMemo(
+    () => alerts?.find((a) => a.id === alertId) ?? null,
+    [alerts, alertId]
+  );
   const acknowledge = useAcknowledgeAlert();
   const mute = useMuteAlert();
   const { isOffline } = useNetworkBanner();
   const [actionError, setActionError] = useState<string | null>(null);
   const [snoozeMinutes, setSnoozeMinutes] = useState<number>(60);
-  const deviceIdForRules = alerts?.find((a) => a.id === alertId)?.device_id ?? '';
+  const deviceIdForRules = alertItem?.device_id ?? '';
   const rulesQuery = useAlertRulesForDevice(deviceIdForRules);
-  const matchingRule = alerts
-    ? rulesQuery.data?.find((rule) => rule.id === alerts.find((a) => a.id === alertId)?.rule_id)
+  const matchingRule = alertItem
+    ? rulesQuery.data?.find((rule) => rule.id === alertItem.rule_id)
     : undefined;
+  const defaultSnoozeMinutes = useMemo(
+    () =>
+      matchingRule?.snooze_default_sec
+        ? Math.max(1, Math.round(matchingRule.snooze_default_sec / 60))
+        : null,
+    [matchingRule]
+  );
+  const isResolved = alertItem?.status === 'cleared';
 
   useEffect(() => {
-    if (matchingRule?.snooze_default_sec) {
-      setSnoozeMinutes(Math.max(1, Math.round(matchingRule.snooze_default_sec / 60)));
+    if (defaultSnoozeMinutes) {
+      setSnoozeMinutes(defaultSnoozeMinutes);
     }
-  }, [matchingRule]);
+  }, [defaultSnoozeMinutes, isResolved]);
 
   if (isLoading || !alerts) {
     return (
@@ -55,7 +67,6 @@ export const AlertDetailScreen: React.FC = () => {
     );
   }
 
-  const alertItem = alerts.find((a) => a.id === alertId);
   if (!alertItem) {
     return (
       <Screen scroll={false} contentContainerStyle={styles.center} testID="AlertDetailScreen">
@@ -72,6 +83,7 @@ export const AlertDetailScreen: React.FC = () => {
     }
     try {
       await acknowledge.mutateAsync(alertItem.id);
+      await refetchAlerts();
       Alert.alert('Acknowledged', 'Alert marked as acknowledged');
     } catch (err) {
       console.error('Failed to acknowledge alert', err);
@@ -87,6 +99,7 @@ export const AlertDetailScreen: React.FC = () => {
     }
     try {
       await mute.mutateAsync({ alertId: alertItem.id, minutes: snoozeMinutes });
+      await refetchAlerts();
       Alert.alert('Muted', `Alert muted for ${formatSnoozeLabel(snoozeMinutes)}`);
     } catch (err) {
       console.error('Failed to mute alert', err);
@@ -200,7 +213,7 @@ export const AlertDetailScreen: React.FC = () => {
                     : { backgroundColor: colors.background },
                 ]}
                 onPress={() => setSnoozeMinutes(minutes)}
-                disabled={mute.isPending}
+                disabled={mute.isPending || isResolved}
               >
                 <Text
                   style={[
@@ -218,11 +231,16 @@ export const AlertDetailScreen: React.FC = () => {
           label={mute.isPending ? 'Muting...' : `Mute ${formatSnoozeLabel(snoozeMinutes)}`}
           onPress={onMute}
           testID="mute-button"
-          disabled={mute.isPending || isOffline}
+          disabled={mute.isPending || isOffline || isResolved}
           variant="outline"
           style={{ marginTop: spacing.sm }}
         />
         {actionError ? <Text style={[typography.caption, styles.errorText]}>{actionError}</Text> : null}
+        {isResolved ? (
+          <Text style={[typography.caption, styles.muted]}>
+            This alert is resolved; snooze will be cleared until it reopens.
+          </Text>
+        ) : null}
         {isOffline ? (
           <Text style={[typography.caption, styles.offlineNote]}>
             Requires network connection to acknowledge or mute alerts.
@@ -234,7 +252,7 @@ export const AlertDetailScreen: React.FC = () => {
 };
 
 const formatSnoozeLabel = (minutes: number) => {
-  if (minutes >= 1440) return 'Until resolved';
+  if (minutes >= 1440) return 'Until resolved (max 24h)';
   if (minutes >= 60) {
     const hours = Math.round(minutes / 60);
     return `${hours}h`;

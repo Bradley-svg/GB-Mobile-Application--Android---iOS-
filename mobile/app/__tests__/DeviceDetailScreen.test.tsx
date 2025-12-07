@@ -7,6 +7,9 @@ import {
   useDeviceTelemetry,
   useModeCommand,
   useSetpointCommand,
+  useDeviceSchedule,
+  useUpsertDeviceSchedule,
+  useDeviceCommands,
   useSite,
   useHeatPumpHistory,
 } from '../api/hooks';
@@ -22,6 +25,9 @@ jest.mock('../api/hooks', () => ({
   useDeviceTelemetry: jest.fn(),
   useModeCommand: jest.fn(),
   useSetpointCommand: jest.fn(),
+  useDeviceSchedule: jest.fn(),
+  useUpsertDeviceSchedule: jest.fn(),
+  useDeviceCommands: jest.fn(),
   useSite: jest.fn(),
   useHeatPumpHistory: jest.fn(),
 }));
@@ -101,6 +107,34 @@ describe('DeviceDetailScreen', () => {
     (useModeCommand as jest.Mock).mockReturnValue({
       mutateAsync: jest.fn(),
       isPending: false,
+    });
+
+    (useDeviceSchedule as jest.Mock).mockReturnValue({
+      data: {
+        id: 'sched-1',
+        device_id: 'device-1',
+        name: 'Daily',
+        enabled: true,
+        start_hour: 6,
+        end_hour: 18,
+        target_setpoint: 45,
+        target_mode: 'HEATING',
+        created_at: '2025-01-01T00:00:00.000Z',
+        updated_at: '2025-01-01T00:00:00.000Z',
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    (useUpsertDeviceSchedule as jest.Mock).mockReturnValue({
+      mutateAsync: jest.fn(),
+      isPending: false,
+    });
+
+    (useDeviceCommands as jest.Mock).mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
     });
 
     (useHeatPumpHistory as jest.Mock).mockReturnValue({
@@ -296,6 +330,32 @@ describe('DeviceDetailScreen', () => {
 
     await waitFor(() =>
       expect(screen.getByText(/Setpoint above allowed range/i)).toBeTruthy()
+    );
+  });
+
+  it('opens the schedule modal and calls the save mutation', async () => {
+    const upsertMock = jest.fn().mockResolvedValue({});
+    (useUpsertDeviceSchedule as jest.Mock).mockReturnValue({
+      mutateAsync: upsertMock,
+      isPending: false,
+    });
+
+    render(<DeviceDetailScreen />);
+
+    const editButtons = screen.getAllByText(/Edit schedule/i);
+    fireEvent.press(editButtons[0]);
+    fireEvent.changeText(screen.getByDisplayValue('6'), '7');
+    fireEvent.press(screen.getByText(/Save schedule/i));
+
+    await waitFor(() =>
+      expect(upsertMock).toHaveBeenCalledWith({
+        name: 'Daily',
+        enabled: true,
+        startHour: 7,
+        endHour: 18,
+        targetSetpoint: 45,
+        targetMode: 'HEATING',
+      })
     );
   });
 });

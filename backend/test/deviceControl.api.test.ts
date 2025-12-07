@@ -9,6 +9,7 @@ const setDeviceModeMock = vi.fn();
 const getUserContextMock = vi.fn();
 const getDeviceByIdMock = vi.fn();
 const getLastCommandForDeviceMock = vi.fn();
+const getCommandsForDeviceMock = vi.fn();
 
 vi.mock('../src/services/deviceControlService', async () => {
   const actual = await vi.importActual<typeof import('../src/services/deviceControlService')>(
@@ -27,6 +28,7 @@ vi.mock('../src/services/deviceService', () => ({
 
 vi.mock('../src/repositories/controlCommandsRepository', () => ({
   getLastCommandForDevice: (...args: unknown[]) => getLastCommandForDeviceMock(...(args as [any])),
+  getCommandsForDevice: (...args: unknown[]) => getCommandsForDeviceMock(...(args as [any])),
 }));
 
 vi.mock('../src/services/userService', () => ({
@@ -59,6 +61,7 @@ beforeEach(() => {
   getUserContextMock.mockReset();
   getDeviceByIdMock.mockReset();
   getLastCommandForDeviceMock.mockReset();
+  getCommandsForDeviceMock.mockReset();
   getUserContextMock.mockResolvedValue({
     id: 'user-ctrl',
     organisation_id: 'org-ctrl',
@@ -66,6 +69,7 @@ beforeEach(() => {
     name: 'Controller',
   });
   getDeviceByIdMock.mockResolvedValue({ id: 'device-123', organisation_id: 'org-ctrl' });
+  getCommandsForDeviceMock.mockResolvedValue([]);
 });
 
 describe('control endpoints', () => {
@@ -204,5 +208,114 @@ describe('control endpoints', () => {
       .get('/devices/00000000-0000-0000-0000-000000000556/last-command')
       .set('Authorization', `Bearer ${token}`)
       .expect(404);
+  });
+
+  it('returns control command history including failures', async () => {
+    const commands = [
+      {
+        id: 'cmd-2',
+        device_id: 'device-123',
+        user_id: 'user-ctrl',
+        command_type: 'mode',
+        payload: { mode: 'OFF' },
+        requested_value: { mode: 'OFF' },
+        status: 'failed',
+        requested_at: new Date('2025-01-02T00:00:00.000Z'),
+        completed_at: new Date('2025-01-02T00:01:00.000Z'),
+        error_message: 'throttled',
+        failure_reason: 'THROTTLED',
+        failure_message: 'throttled',
+        source: 'api',
+        user_email: 'ctrl@test.com',
+        user_name: 'Controller',
+      },
+      {
+        id: 'cmd-1',
+        device_id: 'device-123',
+        user_id: 'user-ctrl',
+        command_type: 'setpoint',
+        payload: { metric: 'flow_temp', value: 48 },
+        requested_value: { metric: 'flow_temp', value: 48 },
+        status: 'success',
+        requested_at: new Date('2025-01-01T00:00:00.000Z'),
+        completed_at: new Date('2025-01-01T00:01:00.000Z'),
+        error_message: null,
+        failure_reason: null,
+        failure_message: null,
+        source: 'api',
+        user_email: 'ctrl@test.com',
+        user_name: 'Controller',
+      },
+    ];
+    getCommandsForDeviceMock.mockResolvedValueOnce(commands);
+
+    const res = await request(app)
+      .get('/devices/00000000-0000-0000-0000-000000000777/commands')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(getDeviceByIdMock).toHaveBeenCalledWith(
+      '00000000-0000-0000-0000-000000000777',
+      'org-ctrl'
+    );
+    expect(getCommandsForDeviceMock).toHaveBeenCalledWith('device-123', 20, 0);
+    expect(res.body).toEqual([
+      {
+        id: 'cmd-2',
+        device_id: 'device-123',
+        status: 'failed',
+        command_type: 'mode',
+        requested_value: { mode: 'OFF' },
+        payload: { mode: 'OFF' },
+        requested_at: new Date('2025-01-02T00:00:00.000Z').toISOString(),
+        completed_at: new Date('2025-01-02T00:01:00.000Z').toISOString(),
+        failure_reason: 'THROTTLED',
+        failure_message: 'throttled',
+        actor: {
+          id: 'user-ctrl',
+          email: 'ctrl@test.com',
+          name: 'Controller',
+        },
+      },
+      {
+        id: 'cmd-1',
+        device_id: 'device-123',
+        status: 'success',
+        command_type: 'setpoint',
+        requested_value: { metric: 'flow_temp', value: 48 },
+        payload: { metric: 'flow_temp', value: 48 },
+        requested_at: new Date('2025-01-01T00:00:00.000Z').toISOString(),
+        completed_at: new Date('2025-01-01T00:01:00.000Z').toISOString(),
+        failure_reason: null,
+        failure_message: null,
+        actor: {
+          id: 'user-ctrl',
+          email: 'ctrl@test.com',
+          name: 'Controller',
+        },
+      },
+    ]);
+  });
+
+  it('returns 404 for command history when device is outside the user org', async () => {
+    getDeviceByIdMock.mockResolvedValueOnce(null);
+
+    await request(app)
+      .get('/devices/00000000-0000-0000-0000-000000000888/commands')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(404);
+
+    expect(getCommandsForDeviceMock).not.toHaveBeenCalled();
+  });
+
+  it('returns an empty list when no command history exists', async () => {
+    getCommandsForDeviceMock.mockResolvedValueOnce([]);
+
+    const res = await request(app)
+      .get('/devices/00000000-0000-0000-0000-000000000889/commands')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(res.body).toEqual([]);
   });
 });

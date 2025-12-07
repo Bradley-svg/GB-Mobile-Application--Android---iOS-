@@ -189,6 +189,25 @@ async function seedBaseData(client: Client) {
   `,
     [DEFAULT_IDS.organisation, DEFAULT_IDS.site]
   );
+
+  await client.query(
+    `
+    insert into device_schedules (
+      device_id,
+      name,
+      enabled,
+      start_hour,
+      end_hour,
+      target_setpoint,
+      target_mode,
+      created_at,
+      updated_at
+    )
+    values ($1, 'Demo schedule', true, 6, 18, 20, 'HEATING', now(), now())
+    on conflict (device_id) do nothing
+  `,
+    [DEFAULT_IDS.device]
+  );
 }
 
 async function resetTables(client: Client) {

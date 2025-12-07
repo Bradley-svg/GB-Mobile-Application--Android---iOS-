@@ -6,7 +6,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { useDevices, useSite } from '../../api/hooks';
 import type { ApiDevice, ApiSite, HealthStatus } from '../../api/types';
-import { Screen, Card, IconButton, ErrorCard, EmptyState } from '../../components';
+import {
+  Screen,
+  Card,
+  IconButton,
+  ErrorCard,
+  EmptyState,
+  StatusPill,
+  connectivityDisplay,
+  healthDisplay,
+} from '../../components';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { loadJsonWithMetadata, saveJson, isCacheOlderThan } from '../../utils/storage';
 import { colors } from '../../theme/colors';
@@ -120,6 +129,9 @@ export const SiteOverviewScreen: React.FC = () => {
     );
   }
 
+  const siteHealthPill = healthDisplay((siteData.health as HealthStatus) || siteData.status);
+  const siteConnectivityPill = connectivityDisplay(siteData.status);
+
   return (
     <Screen scroll={false} contentContainerStyle={{ paddingBottom: spacing.xxl }} testID="SiteOverviewScreen">
       <View style={styles.topBar}>
@@ -146,7 +158,15 @@ export const SiteOverviewScreen: React.FC = () => {
               : 'Unknown'}
           </Text>
         </View>
-        {renderStatusPill(siteData.health as HealthStatus, siteData.status)}
+        <View style={styles.pillRow}>
+          <StatusPill label={siteHealthPill.label} tone={siteHealthPill.tone} />
+          <StatusPill
+            label={siteConnectivityPill.label}
+            tone={siteConnectivityPill.tone}
+            style={{ marginLeft: spacing.xs }}
+            testID="site-connectivity-pill"
+          />
+        </View>
       </Card>
 
       {isOffline ? (
@@ -166,48 +186,66 @@ export const SiteOverviewScreen: React.FC = () => {
         keyExtractor={(item) => item.id}
         testID="device-list"
         contentContainerStyle={{ paddingBottom: spacing.xl }}
-        renderItem={({ item }) => (
-          <Card
-            style={styles.deviceCard}
-            testID="device-card"
-            onPress={() => navigation.navigate('DeviceDetail', { deviceId: item.id })}
-          >
-            <View style={styles.deviceRow}>
-              <View style={styles.deviceIcon}>
-                <Ionicons name="thermometer-outline" size={18} color={colors.brandGreen} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[typography.subtitle, styles.title]} numberOfLines={1}>
-                  {item.name}
-                </Text>
-                <Text style={[typography.caption, styles.muted]}>{item.type}</Text>
-                <Text style={[typography.caption, styles.muted]}>
-                  Last seen:{' '}
-                  {item.last_seen?.at
-                    ? new Date(item.last_seen.at).toLocaleString()
-                    : item.last_seen_at
-                    ? new Date(item.last_seen_at).toLocaleString()
-                    : 'Unknown'}
-                </Text>
-              </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                {renderStatusPill(item.health as HealthStatus, item.status)}
-                <View style={styles.quickActions}>
-                  <IconButton
-                    icon={<Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />}
-                    onPress={() => navigation.navigate('DeviceDetail', { deviceId: item.id })}
-                    testID="device-action-detail"
-                  />
+        renderItem={({ item }) => {
+          const deviceHealth = healthDisplay((item.health as HealthStatus) || item.status);
+          const connectivity = connectivityDisplay(item.connectivity_status || item.status);
+          return (
+            <Card
+              style={styles.deviceCard}
+              testID="device-card"
+              onPress={() => navigation.navigate('DeviceDetail', { deviceId: item.id })}
+            >
+              <View style={styles.deviceRow}>
+                <View style={styles.deviceIcon}>
+                  <Ionicons name="thermometer-outline" size={18} color={colors.brandGreen} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[typography.subtitle, styles.title]} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <Text style={[typography.caption, styles.muted]}>{item.type}</Text>
+                  <Text style={[typography.caption, styles.muted]}>
+                    Last seen:{' '}
+                    {item.last_seen?.at
+                      ? new Date(item.last_seen.at).toLocaleString()
+                      : item.last_seen_at
+                      ? new Date(item.last_seen_at).toLocaleString()
+                      : 'Unknown'}
+                  </Text>
+                  {item.firmware_version ? (
+                    <Text style={[typography.caption, styles.muted]}>FW {item.firmware_version}</Text>
+                  ) : null}
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <View style={styles.pillRow}>
+                    <StatusPill
+                      label={connectivity.label}
+                      tone={connectivity.tone}
+                      testID="device-connectivity-pill"
+                    />
+                    <StatusPill
+                      label={deviceHealth.label}
+                      tone={deviceHealth.tone}
+                      style={{ marginLeft: spacing.xs }}
+                    />
+                  </View>
+                  <View style={styles.quickActions}>
+                    <IconButton
+                      icon={<Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />}
+                      onPress={() => navigation.navigate('DeviceDetail', { deviceId: item.id })}
+                      testID="device-action-detail"
+                    />
                   <IconButton
                     icon={<Ionicons name="alert-circle-outline" size={18} color={colors.textSecondary} />}
-                    onPress={() => navigation.navigate('Alerts')}
+                    onPress={() => navigation.navigate('Tabs', { screen: 'Alerts' } as never)}
                     testID="device-action-alerts"
                   />
                 </View>
               </View>
             </View>
-          </Card>
-        )}
+            </Card>
+          );
+        }}
         ListEmptyComponent={
           <EmptyState
             message={isOffline ? 'Offline - no cached devices available yet.' : 'No devices available yet.'}
@@ -216,37 +254,6 @@ export const SiteOverviewScreen: React.FC = () => {
         }
       />
     </Screen>
-  );
-};
-
-const renderStatusPill = (health?: HealthStatus, status?: string | null) => {
-  const normalized = health || (status || '').toLowerCase();
-  let backgroundColor: string = colors.backgroundAlt;
-  let textColor: string = colors.textSecondary;
-  let label = (health || status || 'Unknown').toString();
-
-  if (normalized === 'healthy' || normalized.includes('online') || normalized.includes('healthy')) {
-    backgroundColor = colors.brandSoft;
-    textColor = colors.success;
-    label = 'Healthy';
-  } else if (normalized === 'critical' || normalized.includes('critical')) {
-    backgroundColor = colors.errorSoft;
-    textColor = colors.error;
-    label = 'Critical';
-  } else if (normalized === 'warning' || normalized.includes('warn')) {
-    backgroundColor = colors.warningSoft;
-    textColor = colors.warning;
-    label = 'Warning';
-  } else if (normalized === 'offline' || normalized.includes('off')) {
-    backgroundColor = colors.errorSoft;
-    textColor = colors.error;
-    label = 'Offline';
-  }
-
-  return (
-    <View style={[styles.statusPill, { backgroundColor }]}>
-      <Text style={[typography.label, { color: textColor }]}>{label}</Text>
-    </View>
   );
 };
 
@@ -291,11 +298,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     color: colors.textPrimary,
   },
-  statusPill: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: 16,
-    marginLeft: spacing.md,
+  pillRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   deviceCard: {
     marginBottom: spacing.md,

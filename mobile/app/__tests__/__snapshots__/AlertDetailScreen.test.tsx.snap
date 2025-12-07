@@ -1,0 +1,766 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`AlertDetailScreen shows rule summary and default snooze copy 1`] = `
+<SafeAreaView
+  style={
+    [
+      {
+        "backgroundColor": "#FFFFFF",
+        "flex": 1,
+      },
+      undefined,
+    ]
+  }
+  testID="AlertDetailScreen"
+>
+  <View
+    style={
+      [
+        {
+          "paddingBottom": 32,
+          "paddingHorizontal": 16,
+        },
+        {
+          "paddingBottom": 32,
+        },
+      ]
+    }
+  >
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "flexDirection": "row",
+          "justifyContent": "flex-start",
+          "marginBottom": 12,
+          "marginTop": 16,
+        }
+      }
+    >
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={[Function]}
+        style={
+          [
+            {
+              "alignItems": "center",
+              "backgroundColor": "#FFFFFF",
+              "borderColor": "#E1E5EA",
+              "borderWidth": 1,
+              "elevation": 4,
+              "justifyContent": "center",
+              "shadowColor": "#111111",
+              "shadowOffset": {
+                "height": 6,
+                "width": 0,
+              },
+              "shadowOpacity": 0.08,
+              "shadowRadius": 12,
+            },
+            {
+              "borderRadius": 20,
+              "height": 40,
+              "width": 40,
+            },
+            undefined,
+          ]
+        }
+        testID="alert-back-button"
+      >
+        <Text>
+          chevron-back
+        </Text>
+      </TouchableOpacity>
+    </View>
+    <View
+      style={
+        [
+          {
+            "backgroundColor": "#FFFFFF",
+            "borderColor": "#E1E5EA",
+            "borderRadius": 22,
+            "borderWidth": 1,
+            "elevation": 4,
+            "padding": 16,
+            "shadowColor": "#111111",
+            "shadowOffset": {
+              "height": 6,
+              "width": 0,
+            },
+            "shadowOpacity": 0.08,
+            "shadowRadius": 12,
+          },
+          null,
+          {
+            "marginBottom": 12,
+          },
+        ]
+      }
+    >
+      <View
+        style={
+          [
+            {
+              "alignSelf": "flex-start",
+              "borderColor": "#E1E5EA",
+              "borderRadius": 16,
+              "borderWidth": 1,
+              "marginBottom": 8,
+              "paddingHorizontal": 12,
+              "paddingVertical": 4,
+            },
+            {
+              "backgroundColor": "rgba(220, 38, 38, 0.1)",
+            },
+          ]
+        }
+      >
+        <Text
+          style={
+            [
+              {
+                "fontSize": 12,
+                "fontWeight": "600",
+                "letterSpacing": 0.5,
+              },
+              {
+                "color": "#DC2626",
+              },
+            ]
+          }
+        >
+          CRITICAL
+        </Text>
+      </View>
+      <Text
+        style={
+          [
+            {
+              "fontSize": 26,
+              "fontWeight": "700",
+            },
+            {
+              "color": "#111111",
+            },
+            {
+              "marginBottom": 4,
+            },
+          ]
+        }
+      >
+        High temp
+      </Text>
+      <Text
+        style={
+          [
+            {
+              "fontSize": 12,
+              "fontWeight": "400",
+            },
+            {
+              "color": "#555555",
+            },
+            {
+              "marginBottom": 8,
+            },
+          ]
+        }
+        testID="alert-detail-meta"
+      >
+        Site site-1
+         |
+         
+        Device device-1
+      </Text>
+      <Text
+        style={
+          [
+            {
+              "fontSize": 12,
+              "fontWeight": "400",
+            },
+            {
+              "color": "#555555",
+            },
+          ]
+        }
+      >
+        SENSOR
+         - 
+        ACTIVE
+      </Text>
+    </View>
+    <View
+      style={
+        [
+          {
+            "backgroundColor": "#FFFFFF",
+            "borderColor": "#E1E5EA",
+            "borderRadius": 22,
+            "borderWidth": 1,
+            "elevation": 4,
+            "padding": 16,
+            "shadowColor": "#111111",
+            "shadowOffset": {
+              "height": 6,
+              "width": 0,
+            },
+            "shadowOpacity": 0.08,
+            "shadowRadius": 12,
+          },
+          null,
+          {
+            "marginBottom": 16,
+          },
+        ]
+      }
+    >
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+            "justifyContent": "space-between",
+            "paddingVertical": 4,
+          }
+        }
+      >
+        <Text
+          style={
+            [
+              {
+                "fontSize": 12,
+                "fontWeight": "400",
+              },
+              {
+                "color": "#555555",
+              },
+            ]
+          }
+        >
+          First seen
+        </Text>
+        <Text
+          style={
+            [
+              {
+                "fontSize": 14,
+                "fontWeight": "400",
+              },
+              {
+                "color": "#111111",
+              },
+            ]
+          }
+        >
+          1/1/2025, 2:00:00 AM
+        </Text>
+      </View>
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+            "justifyContent": "space-between",
+            "paddingVertical": 4,
+          }
+        }
+      >
+        <Text
+          style={
+            [
+              {
+                "fontSize": 12,
+                "fontWeight": "400",
+              },
+              {
+                "color": "#555555",
+              },
+            ]
+          }
+        >
+          Last seen
+        </Text>
+        <Text
+          style={
+            [
+              {
+                "fontSize": 14,
+                "fontWeight": "400",
+              },
+              {
+                "color": "#111111",
+              },
+            ]
+          }
+        >
+          1/1/2025, 3:00:00 AM
+        </Text>
+      </View>
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+            "justifyContent": "space-between",
+            "paddingVertical": 4,
+          }
+        }
+      >
+        <Text
+          style={
+            [
+              {
+                "fontSize": 12,
+                "fontWeight": "400",
+              },
+              {
+                "color": "#555555",
+              },
+            ]
+          }
+        >
+          Site
+        </Text>
+        <Text
+          style={
+            [
+              {
+                "fontSize": 14,
+                "fontWeight": "400",
+              },
+              {
+                "color": "#111111",
+              },
+            ]
+          }
+        >
+          site-1
+        </Text>
+      </View>
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+            "justifyContent": "space-between",
+            "paddingVertical": 4,
+          }
+        }
+      >
+        <Text
+          style={
+            [
+              {
+                "fontSize": 12,
+                "fontWeight": "400",
+              },
+              {
+                "color": "#555555",
+              },
+            ]
+          }
+        >
+          Device
+        </Text>
+        <Text
+          style={
+            [
+              {
+                "fontSize": 14,
+                "fontWeight": "400",
+              },
+              {
+                "color": "#111111",
+              },
+            ]
+          }
+        >
+          device-1
+        </Text>
+      </View>
+    </View>
+    <View
+      style={
+        [
+          {
+            "backgroundColor": "#FFFFFF",
+            "borderColor": "#E1E5EA",
+            "borderRadius": 22,
+            "borderWidth": 1,
+            "elevation": 4,
+            "padding": 16,
+            "shadowColor": "#111111",
+            "shadowOffset": {
+              "height": 6,
+              "width": 0,
+            },
+            "shadowOpacity": 0.08,
+            "shadowRadius": 12,
+          },
+          null,
+          {
+            "marginBottom": 16,
+          },
+        ]
+      }
+    >
+      <Text
+        style={
+          [
+            {
+              "fontSize": 16,
+              "fontWeight": "600",
+            },
+            {
+              "color": "#111111",
+            },
+            {
+              "marginBottom": 4,
+            },
+          ]
+        }
+      >
+        Rule
+      </Text>
+      <Text
+        style={
+          [
+            {
+              "fontSize": 14,
+              "fontWeight": "400",
+            },
+            {
+              "color": "#111111",
+            },
+          ]
+        }
+      >
+        High temp rule
+      </Text>
+      <Text
+        style={
+          [
+            {
+              "fontSize": 12,
+              "fontWeight": "400",
+            },
+            {
+              "color": "#555555",
+            },
+          ]
+        }
+      >
+        Metric: 
+        supply_temp
+         (
+        threshold_above
+        )
+      </Text>
+      <Text
+        style={
+          [
+            {
+              "fontSize": 12,
+              "fontWeight": "400",
+            },
+            {
+              "color": "#555555",
+            },
+          ]
+        }
+      >
+        Threshold: 
+        50
+      </Text>
+      <Text
+        style={
+          [
+            {
+              "fontSize": 12,
+              "fontWeight": "400",
+            },
+            {
+              "color": "#555555",
+            },
+          ]
+        }
+      >
+        Severity: 
+        critical
+      </Text>
+    </View>
+    <View
+      style={
+        {
+          "marginBottom": 24,
+        }
+      }
+    >
+      <TouchableOpacity
+        activeOpacity={0.9}
+        disabled={false}
+        onPress={[Function]}
+        style={
+          [
+            {
+              "alignSelf": "stretch",
+              "borderRadius": 16,
+            },
+            undefined,
+            null,
+          ]
+        }
+        testID="acknowledge-button"
+      >
+        <View
+          style={
+            [
+              {
+                "alignItems": "center",
+                "alignSelf": "stretch",
+                "borderRadius": 16,
+                "justifyContent": "center",
+                "minHeight": 48,
+                "paddingVertical": 12,
+              },
+              null,
+            ]
+          }
+        >
+          <Text
+            style={
+              [
+                {
+                  "fontSize": 16,
+                  "fontWeight": "600",
+                },
+                {
+                  "color": "#FFFFFF",
+                  "textAlign": "center",
+                },
+                null,
+              ]
+            }
+          >
+            Acknowledge
+          </Text>
+        </View>
+      </TouchableOpacity>
+      <View
+        style={
+          {
+            "flexDirection": "row",
+            "flexWrap": "wrap",
+            "marginBottom": 8,
+            "marginTop": 8,
+          }
+        }
+      >
+        <TouchableOpacity
+          disabled={false}
+          onPress={[Function]}
+          style={
+            [
+              {
+                "borderColor": "#E1E5EA",
+                "borderRadius": 14,
+                "borderWidth": 1,
+                "marginBottom": 8,
+                "marginRight": 8,
+                "paddingHorizontal": 12,
+                "paddingVertical": 4,
+              },
+              {
+                "backgroundColor": "#39B54A",
+                "borderColor": "#39B54A",
+              },
+            ]
+          }
+        >
+          <Text
+            style={
+              [
+                {
+                  "fontSize": 12,
+                  "fontWeight": "400",
+                },
+                {
+                  "color": "#FFFFFF",
+                },
+              ]
+            }
+          >
+            15m
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          disabled={false}
+          onPress={[Function]}
+          style={
+            [
+              {
+                "borderColor": "#E1E5EA",
+                "borderRadius": 14,
+                "borderWidth": 1,
+                "marginBottom": 8,
+                "marginRight": 8,
+                "paddingHorizontal": 12,
+                "paddingVertical": 4,
+              },
+              {
+                "backgroundColor": "#FFFFFF",
+              },
+            ]
+          }
+        >
+          <Text
+            style={
+              [
+                {
+                  "fontSize": 12,
+                  "fontWeight": "400",
+                },
+                {
+                  "color": "#555555",
+                },
+              ]
+            }
+          >
+            1h
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          disabled={false}
+          onPress={[Function]}
+          style={
+            [
+              {
+                "borderColor": "#E1E5EA",
+                "borderRadius": 14,
+                "borderWidth": 1,
+                "marginBottom": 8,
+                "marginRight": 8,
+                "paddingHorizontal": 12,
+                "paddingVertical": 4,
+              },
+              {
+                "backgroundColor": "#FFFFFF",
+              },
+            ]
+          }
+        >
+          <Text
+            style={
+              [
+                {
+                  "fontSize": 12,
+                  "fontWeight": "400",
+                },
+                {
+                  "color": "#555555",
+                },
+              ]
+            }
+          >
+            4h
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          disabled={false}
+          onPress={[Function]}
+          style={
+            [
+              {
+                "borderColor": "#E1E5EA",
+                "borderRadius": 14,
+                "borderWidth": 1,
+                "marginBottom": 8,
+                "marginRight": 8,
+                "paddingHorizontal": 12,
+                "paddingVertical": 4,
+              },
+              {
+                "backgroundColor": "#FFFFFF",
+              },
+            ]
+          }
+        >
+          <Text
+            style={
+              [
+                {
+                  "fontSize": 12,
+                  "fontWeight": "400",
+                },
+                {
+                  "color": "#555555",
+                },
+              ]
+            }
+          >
+            Until resolved (max 24h)
+          </Text>
+        </TouchableOpacity>
+      </View>
+      <TouchableOpacity
+        activeOpacity={0.9}
+        disabled={false}
+        onPress={[Function]}
+        style={
+          [
+            {
+              "alignSelf": "stretch",
+              "borderRadius": 16,
+            },
+            {
+              "marginTop": 8,
+            },
+            null,
+          ]
+        }
+        testID="mute-button"
+      >
+        <View
+          style={
+            [
+              {
+                "alignItems": "center",
+                "alignSelf": "stretch",
+                "borderRadius": 16,
+                "justifyContent": "center",
+                "minHeight": 48,
+                "paddingVertical": 12,
+              },
+              {
+                "backgroundColor": "transparent",
+                "borderColor": "#39B54A",
+                "borderWidth": 1,
+              },
+              null,
+            ]
+          }
+        >
+          <Text
+            style={
+              [
+                {
+                  "fontSize": 16,
+                  "fontWeight": "600",
+                },
+                {
+                  "color": "#39B54A",
+                  "textAlign": "center",
+                },
+                null,
+              ]
+            }
+          >
+            Mute 15m
+          </Text>
+        </View>
+      </TouchableOpacity>
+    </View>
+  </View>
+</SafeAreaView>
+`;

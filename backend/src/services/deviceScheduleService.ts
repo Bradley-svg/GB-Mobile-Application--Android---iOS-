@@ -30,6 +30,8 @@ type ScheduleInput = {
   targetMode: 'OFF' | 'HEATING' | 'COOLING' | 'AUTO';
 };
 
+// Device schedules are persisted for UX and coordination; enforcement through workers/control
+// channels is advisory for now and will be tightened in later releases.
 function validateHours(startHour: number, endHour: number) {
   const inRange = (val: number) => Number.isInteger(val) && val >= 0 && val <= 24;
   if (!inRange(startHour) || !inRange(endHour)) {
@@ -62,7 +64,9 @@ export async function getDeviceSchedule(
   organisationId: string
 ): Promise<DeviceScheduleRow | null> {
   const device = await getDeviceById(deviceId, organisationId);
-  if (!device) return null;
+  if (!device) {
+    throw new ScheduleValidationError('NOT_FOUND', 'Device not found');
+  }
   return getScheduleForDevice(device.id);
 }
 

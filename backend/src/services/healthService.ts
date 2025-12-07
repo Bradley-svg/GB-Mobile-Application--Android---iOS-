@@ -66,8 +66,12 @@ export type HealthPlusPayload = {
     lastRunAt: string | null;
     lastDurationMs: number | null;
     rulesLoaded: number | null;
+    activeAlertsTotal: number | null;
     activeWarning: number | null;
     activeCritical: number | null;
+    activeInfo: number | null;
+    evaluated: number | null;
+    triggered: number | null;
   };
 };
 
@@ -149,26 +153,47 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
         alertsHeartbeat != null &&
         !isStale(alertsHeartbeat, alertsHeartbeatWindowMs, now));
 
-    const alertsPayload = (alertsEngineStatus?.payload ??
-      {}) as Record<string, unknown> & {
+    type AlertsEngineStatusPayload = {
       lastRunAt?: string | null;
       lastDurationMs?: number | null;
       rulesLoaded?: number | null;
-      activeCounts?: { warning?: number; critical?: number };
+      activeCounts?: { warning?: number; critical?: number; info?: number; total?: number };
+      activeAlertsTotal?: number | null;
+      evaluated?: number | null;
+      triggered?: number | null;
     };
+    const alertsPayload = (alertsEngineStatus?.payload ?? {}) as AlertsEngineStatusPayload;
+    const activeWarning =
+      typeof alertsPayload.activeCounts?.warning === 'number'
+        ? alertsPayload.activeCounts.warning
+        : null;
+    const activeCritical =
+      typeof alertsPayload.activeCounts?.critical === 'number'
+        ? alertsPayload.activeCounts.critical
+        : null;
+    const activeInfo =
+      typeof alertsPayload.activeCounts?.info === 'number' ? alertsPayload.activeCounts.info : null;
+    const totalFromCounts =
+      activeWarning == null && activeCritical == null && activeInfo == null
+        ? null
+        : (activeWarning ?? 0) + (activeCritical ?? 0) + (activeInfo ?? 0);
+    const activeAlertsTotal =
+      typeof alertsPayload.activeAlertsTotal === 'number'
+        ? alertsPayload.activeAlertsTotal
+        : typeof alertsPayload.activeCounts?.total === 'number'
+        ? alertsPayload.activeCounts.total
+        : totalFromCounts;
     const alertsEngine = {
-      lastRunAt: toIso(alertsPayload.lastRunAt as string | null),
+      lastRunAt: toIso(alertsPayload.lastRunAt ?? null),
       lastDurationMs:
         typeof alertsPayload.lastDurationMs === 'number' ? alertsPayload.lastDurationMs : null,
       rulesLoaded: typeof alertsPayload.rulesLoaded === 'number' ? alertsPayload.rulesLoaded : null,
-      activeWarning:
-        typeof alertsPayload.activeCounts?.warning === 'number'
-          ? alertsPayload.activeCounts.warning
-          : null,
-      activeCritical:
-        typeof alertsPayload.activeCounts?.critical === 'number'
-          ? alertsPayload.activeCounts.critical
-          : null,
+      activeAlertsTotal: activeAlertsTotal ?? null,
+      activeWarning,
+      activeCritical,
+      activeInfo,
+      evaluated: typeof alertsPayload.evaluated === 'number' ? alertsPayload.evaluated : null,
+      triggered: typeof alertsPayload.triggered === 'number' ? alertsPayload.triggered : null,
     };
 
     const pushLastSampleAt =
@@ -283,8 +308,12 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
         lastRunAt: null,
         lastDurationMs: null,
         rulesLoaded: null,
+        activeAlertsTotal: null,
         activeWarning: null,
         activeCritical: null,
+        activeInfo: null,
+        evaluated: null,
+        triggered: null,
       },
     };
 

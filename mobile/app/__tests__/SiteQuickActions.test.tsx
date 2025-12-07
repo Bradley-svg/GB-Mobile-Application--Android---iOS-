@@ -1,10 +1,10 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen, within } from '@testing-library/react-native';
 import * as navigation from '@react-navigation/native';
 import { SiteOverviewScreen } from '../screens/Site/SiteOverviewScreen';
 import { useDevices, useSite } from '../api/hooks';
 import { useNetworkBanner } from '../hooks/useNetworkBanner';
-import type { RouteProp } from '@react-navigation/native';
+import type { NavigationProp, RouteProp } from '@react-navigation/native';
 import type { AppStackParamList } from '../navigation/RootNavigator';
 
 jest.mock('../api/hooks', () => ({
@@ -41,7 +41,9 @@ describe('SiteOverview quick actions', () => {
 
   it('navigates to device detail from quick action', () => {
     const navigateSpy = jest.fn();
-    jest.spyOn(navigation, 'useNavigation').mockReturnValue({ navigate: navigateSpy } as any);
+    jest
+      .spyOn(navigation, 'useNavigation')
+      .mockReturnValue({ navigate: navigateSpy } as unknown as NavigationProp<AppStackParamList>);
 
     render(<SiteOverviewScreen />);
 
@@ -51,11 +53,20 @@ describe('SiteOverview quick actions', () => {
 
   it('opens alerts tab from quick action', () => {
     const navigateSpy = jest.fn();
-    jest.spyOn(navigation, 'useNavigation').mockReturnValue({ navigate: navigateSpy } as any);
+    jest
+      .spyOn(navigation, 'useNavigation')
+      .mockReturnValue({ navigate: navigateSpy } as unknown as NavigationProp<AppStackParamList>);
 
     render(<SiteOverviewScreen />);
 
     fireEvent.press(screen.getByTestId('device-action-alerts'));
-    expect(navigateSpy).toHaveBeenCalledWith('Alerts');
+    expect(navigateSpy).toHaveBeenCalledWith('Tabs', { screen: 'Alerts' });
+  });
+
+  it('shows connectivity pills for devices', () => {
+    render(<SiteOverviewScreen />);
+
+    const pill = screen.getByTestId('device-connectivity-pill');
+    expect(within(pill).getByText(/Online/i)).toBeTruthy();
   });
 });

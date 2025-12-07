@@ -7,7 +7,16 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAlerts, useSites } from '../../api/hooks';
 import type { ApiSite, HealthStatus } from '../../api/types';
 import { AppStackParamList } from '../../navigation/RootNavigator';
-import { Screen, Card, IconButton, ErrorCard, EmptyState } from '../../components';
+import {
+  Screen,
+  Card,
+  IconButton,
+  ErrorCard,
+  EmptyState,
+  StatusPill,
+  connectivityDisplay,
+  healthDisplay,
+} from '../../components';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { loadJsonWithMetadata, saveJson, isCacheOlderThan } from '../../utils/storage';
 import { colors, gradients } from '../../theme/colors';
@@ -234,79 +243,62 @@ export const DashboardScreen: React.FC = () => {
         }
         contentContainerStyle={{ paddingBottom: spacing.xl }}
         testID="dashboard-site-list"
-        renderItem={({ item }) => (
-          <Card
-            style={styles.siteCard}
-            testID="site-card"
-            onPress={allowSiteNavigation ? () => navigation.navigate('SiteOverview', { siteId: item.id }) : undefined}
-          >
-            <View style={styles.siteHeader}>
-              <View style={styles.iconBadge}>
-                <Ionicons name="home-outline" size={18} color={colors.brandGreen} />
+        renderItem={({ item }) => {
+          const healthPill = healthDisplay((item.health as HealthStatus) || item.status);
+          const connectivityPill = connectivityDisplay(item.status);
+          return (
+            <Card
+              style={styles.siteCard}
+              testID="site-card"
+              onPress={
+                allowSiteNavigation ? () => navigation.navigate('SiteOverview', { siteId: item.id }) : undefined
+              }
+            >
+              <View style={styles.siteHeader}>
+                <View style={styles.iconBadge}>
+                  <Ionicons name="home-outline" size={18} color={colors.brandGreen} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[typography.subtitle, styles.title]} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <Text style={[typography.caption, styles.muted]} numberOfLines={1}>
+                    {item.city || 'Unknown city'}
+                  </Text>
+                </View>
+                <View style={styles.pillRow}>
+                  <StatusPill label={healthPill.label} tone={healthPill.tone} />
+                  <StatusPill
+                    label={connectivityPill.label}
+                    tone={connectivityPill.tone}
+                    style={{ marginLeft: spacing.xs }}
+                    testID="site-connectivity-pill"
+                  />
+                </View>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[typography.subtitle, styles.title]} numberOfLines={1}>
-                  {item.name}
-                </Text>
-                <Text style={[typography.caption, styles.muted]} numberOfLines={1}>
-                  {item.city || 'Unknown city'}
-                </Text>
+              <View style={styles.siteMeta}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[typography.caption, styles.muted]}>Last seen</Text>
+                  <Text style={[typography.body, styles.title]}>
+                    {item.last_seen?.at
+                      ? new Date(item.last_seen.at).toLocaleString()
+                      : item.last_seen_at
+                      ? new Date(item.last_seen_at).toLocaleString()
+                      : 'Unknown'}
+                  </Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={[typography.caption, styles.muted]}>Status</Text>
+                  <Text style={[typography.body, { color: colors.textSecondary }]}>
+                    {(item.health || item.status || 'Unknown').toString()}
+                  </Text>
+                </View>
               </View>
-              {renderStatusPill(item.health, item.status)}
-            </View>
-            <View style={styles.siteMeta}>
-              <View style={{ flex: 1 }}>
-                <Text style={[typography.caption, styles.muted]}>Last seen</Text>
-                <Text style={[typography.body, styles.title]}>
-                  {item.last_seen?.at
-                    ? new Date(item.last_seen.at).toLocaleString()
-                    : item.last_seen_at
-                    ? new Date(item.last_seen_at).toLocaleString()
-                    : 'Unknown'}
-                </Text>
-              </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={[typography.caption, styles.muted]}>Status</Text>
-                <Text style={[typography.body, { color: colors.textSecondary }]}>
-                  {(item.health || item.status || 'Unknown').toString()}
-                </Text>
-              </View>
-            </View>
-          </Card>
-        )}
+            </Card>
+          );
+        }}
       />
     </Screen>
-  );
-};
-
-const renderStatusPill = (health?: HealthStatus, status?: string | null) => {
-  const normalized = health || (status || '').toLowerCase();
-  let backgroundColor: string = colors.backgroundAlt;
-  let textColor: string = colors.textSecondary;
-  let label = (health || status || 'Unknown').toString();
-
-  if (normalized === 'healthy' || normalized.includes('healthy') || normalized.includes('online')) {
-    backgroundColor = colors.brandSoft;
-    textColor = colors.success;
-    label = 'Healthy';
-  } else if (normalized === 'critical' || normalized.includes('critical')) {
-    backgroundColor = colors.errorSoft;
-    textColor = colors.error;
-    label = 'Critical';
-  } else if (normalized === 'warning' || normalized.includes('warn')) {
-    backgroundColor = colors.warningSoft;
-    textColor = colors.warning;
-    label = 'Warning';
-  } else if (normalized === 'offline' || normalized.includes('off') || normalized.includes('down')) {
-    backgroundColor = colors.errorSoft;
-    textColor = colors.error;
-    label = 'Offline';
-  }
-
-  return (
-    <View style={[styles.statusPill, { backgroundColor }]}>
-      <Text style={[typography.label, { color: textColor }]}>{label}</Text>
-    </View>
   );
 };
 
@@ -398,6 +390,10 @@ const styles = StyleSheet.create({
   healthCount: {
     color: colors.textPrimary,
   },
+  pillRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   sectionTitle: {
     marginBottom: spacing.md,
     color: colors.textPrimary,
@@ -424,11 +420,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.sm,
-  },
-  statusPill: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: 14,
   },
   siteMeta: {
     flexDirection: 'row',

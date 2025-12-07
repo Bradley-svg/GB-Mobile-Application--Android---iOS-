@@ -22,11 +22,25 @@ const formatSubsystemStatus = (
 const formatAlertsEngine = (alertsEngine?: HealthPlusPayload['alertsEngine']) => {
   if (!alertsEngine) return 'Unknown';
   if (!alertsEngine.lastRunAt) return 'No runs yet';
-  const counts =
-    alertsEngine.activeCritical || alertsEngine.activeWarning
-      ? ` | Active: ${alertsEngine.activeWarning ?? 0} warn / ${alertsEngine.activeCritical ?? 0} crit`
-      : '';
-  return `${new Date(alertsEngine.lastRunAt).toLocaleString()} (${alertsEngine.rulesLoaded ?? 0} rules)${counts}`;
+  const duration = alertsEngine.lastDurationMs ? ` • ${alertsEngine.lastDurationMs}ms` : '';
+  return `${new Date(alertsEngine.lastRunAt).toLocaleString()} (${alertsEngine.rulesLoaded ?? 0} rules)${duration}`;
+};
+
+const formatAlertsCounts = (alertsEngine?: HealthPlusPayload['alertsEngine']) => {
+  if (!alertsEngine) return 'Unknown';
+  const warning = alertsEngine.activeWarning ?? 0;
+  const critical = alertsEngine.activeCritical ?? 0;
+  const info = alertsEngine.activeInfo ?? 0;
+  const totalLabel =
+    alertsEngine.activeAlertsTotal != null ? `${alertsEngine.activeAlertsTotal} total` : 'Unknown total';
+  return `${totalLabel} (warn ${warning} / crit ${critical} / info ${info})`;
+};
+
+const formatRuleEvaluations = (alertsEngine?: HealthPlusPayload['alertsEngine']) => {
+  if (!alertsEngine) return 'Unknown';
+  if (alertsEngine.evaluated == null) return 'Not available';
+  const triggered = alertsEngine.triggered ?? 0;
+  return `${triggered} triggered / ${alertsEngine.evaluated} evaluated`;
 };
 
 const Row: React.FC<{ label: string; value: string; testID?: string }> = ({ label, value, testID }) => (
@@ -129,7 +143,13 @@ export const DiagnosticsScreen: React.FC = () => {
               : 'Disabled'
           }
         />
-        <Row label="Alerts engine" value={formatAlertsEngine(healthQuery.data?.alertsEngine)} />
+        <Row
+          label="Alerts engine last run"
+          value={formatAlertsEngine(healthQuery.data?.alertsEngine)}
+          testID="diagnostics-alerts-engine"
+        />
+        <Row label="Active alerts" value={formatAlertsCounts(healthQuery.data?.alertsEngine)} />
+        <Row label="Rule evaluations" value={formatRuleEvaluations(healthQuery.data?.alertsEngine)} />
         <Row
           label="Rules loaded"
           value={`${healthQuery.data?.alertsEngine?.rulesLoaded ?? 0} rules`}

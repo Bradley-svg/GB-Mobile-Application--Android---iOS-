@@ -72,8 +72,8 @@ exports.up = (pgm) => {
     `
     insert into alert_rules (org_id, site_id, device_id, metric, rule_type, threshold, offline_grace_sec, enabled, severity, snooze_default_sec, name, description)
     values
-      ('${DEFAULT_ORG_ID}', null, null, 'supply_temp', 'threshold_above', coalesce(nullif(current_setting(''alert_high_temp_threshold'', true), '''')::double precision, 60), null, true, 'critical', 3600, 'High supply temperature', 'Raises a critical alert when supply temperature exceeds the configured limit.'),
-      ('${DEFAULT_ORG_ID}', null, null, 'connectivity', 'offline_window', null, coalesce(nullif(current_setting(''alert_offline_minutes'', true), '''')::integer, 10) * 60, true, 'warning', 3600, 'Device offline', 'Warns when device has been offline beyond the grace period.')
+      ('${DEFAULT_ORG_ID}', null, null, 'supply_temp', 'threshold_above', coalesce(nullif(current_setting('alert_high_temp_threshold', true), '')::double precision, 60), null, true, 'critical', 3600, 'High supply temperature', 'Raises a critical alert when supply temperature exceeds the configured limit.'),
+      ('${DEFAULT_ORG_ID}', null, null, 'connectivity', 'offline_window', null, coalesce(nullif(current_setting('alert_offline_minutes', true), '')::integer, 10) * 60, true, 'warning', 3600, 'Device offline', 'Warns when device has been offline beyond the grace period.')
     on conflict do nothing
   `
   );

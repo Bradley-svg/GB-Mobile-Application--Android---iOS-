@@ -8,6 +8,7 @@ const getControlStatusMock = vi.fn();
 const getMqttHealthMock = vi.fn();
 const runPushHealthCheckMock = vi.fn();
 const getSystemStatusMock = vi.fn();
+const getSystemStatusByKeyMock = vi.fn();
 const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
 vi.mock('../src/config/db', () => ({
@@ -24,6 +25,7 @@ vi.mock('../src/services/pushService', () => ({
 }));
 vi.mock('../src/services/statusService', () => ({
   getSystemStatus: (...args: unknown[]) => getSystemStatusMock(...args),
+  getSystemStatusByKey: (...args: unknown[]) => getSystemStatusByKeyMock(...args),
 }));
 
 let app: Express;
@@ -77,6 +79,7 @@ beforeEach(() => {
   getMqttHealthMock.mockReset();
   runPushHealthCheckMock.mockReset();
   getSystemStatusMock.mockReset();
+  getSystemStatusByKeyMock.mockReset();
   delete process.env.HEATPUMP_HISTORY_API_KEY;
   delete process.env.HEAT_PUMP_HISTORY_API_KEY;
 
@@ -85,6 +88,7 @@ beforeEach(() => {
   getMqttHealthMock.mockReturnValue(defaultMqtt);
   runPushHealthCheckMock.mockResolvedValue(defaultPushHealth);
   getSystemStatusMock.mockResolvedValue(baseSystemStatus());
+  getSystemStatusByKeyMock.mockResolvedValue(baseSystemStatus());
 
   process.env.NODE_ENV = 'test';
   delete process.env.ALERT_WORKER_ENABLED;

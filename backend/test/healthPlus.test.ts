@@ -8,6 +8,7 @@ const getControlStatusMock = vi.fn();
 const getMqttHealthMock = vi.fn();
 const runPushHealthCheckMock = vi.fn();
 const getSystemStatusMock = vi.fn();
+const getSystemStatusByKeyMock = vi.fn();
 const loggerInfoSpy = vi.fn();
 const loggerWarnSpy = vi.fn();
 const loggerErrorSpy = vi.fn();
@@ -40,6 +41,7 @@ vi.mock('../src/services/pushService', () => ({
 }));
 vi.mock('../src/services/statusService', () => ({
   getSystemStatus: (...args: unknown[]) => getSystemStatusMock(...args),
+  getSystemStatusByKey: (...args: unknown[]) => getSystemStatusByKeyMock(...args),
 }));
 
 let app: Express;
@@ -95,6 +97,7 @@ beforeEach(() => {
   getMqttHealthMock.mockReset();
   runPushHealthCheckMock.mockReset();
   getSystemStatusMock.mockReset();
+  getSystemStatusByKeyMock.mockReset();
   delete process.env.HEATPUMP_HISTORY_API_KEY;
   delete process.env.HEAT_PUMP_HISTORY_API_KEY;
 
@@ -102,6 +105,7 @@ beforeEach(() => {
   getMqttHealthMock.mockReturnValue(defaultMqtt);
   runPushHealthCheckMock.mockResolvedValue(defaultPushHealth);
   getSystemStatusMock.mockResolvedValue(baseSystemStatus());
+  getSystemStatusByKeyMock.mockResolvedValue(baseSystemStatus());
 });
 
 describe('GET /health-plus (baseline)', () => {
@@ -149,8 +153,12 @@ describe('GET /health-plus (baseline)', () => {
         lastRunAt: null,
         lastDurationMs: null,
         rulesLoaded: null,
+        activeAlertsTotal: null,
         activeWarning: null,
         activeCritical: null,
+        activeInfo: null,
+        evaluated: null,
+        triggered: null,
       },
     });
   });
@@ -203,8 +211,12 @@ describe('GET /health-plus (baseline)', () => {
         lastRunAt: null,
         lastDurationMs: null,
         rulesLoaded: null,
+        activeAlertsTotal: null,
         activeWarning: null,
         activeCritical: null,
+        activeInfo: null,
+        evaluated: null,
+        triggered: null,
       },
     });
   });

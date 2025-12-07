@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
 import { SearchScreen } from '../screens/Search/SearchScreen';
 import { useFleetSearch } from '../api/hooks';
 import { useNetworkBanner } from '../hooks/useNetworkBanner';
@@ -51,9 +51,12 @@ describe('SearchScreen', () => {
 
     render(<SearchScreen />);
 
-    expect(screen.getByTestId('search-results')).toBeTruthy();
-    expect(screen.getByText('Demo Site')).toBeTruthy();
-    expect(screen.getByText('Pump')).toBeTruthy();
+    const results = screen.getByTestId('search-results');
+    expect(results).toBeTruthy();
+    const siteCard = screen.getByTestId('search-result-site');
+    expect(within(siteCard).getAllByText('Demo Site').length).toBeGreaterThan(0);
+    const deviceCard = screen.getByTestId('search-result-device');
+    expect(within(deviceCard).getByText('Pump')).toBeTruthy();
   });
 
   it('shows no-results state when search completes with empty payload', () => {
@@ -65,6 +68,7 @@ describe('SearchScreen', () => {
 
     render(<SearchScreen />);
 
+    fireEvent.changeText(screen.getByTestId('search-input'), 'demo');
     expect(screen.getByText(/No results found/i)).toBeTruthy();
   });
 

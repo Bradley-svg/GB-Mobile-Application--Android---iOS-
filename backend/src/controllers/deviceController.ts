@@ -173,9 +173,12 @@ export async function getDeviceSchedule(req: Request, res: Response, next: NextF
     if (!organisationId) return;
 
     const schedule = await getDeviceScheduleService(parsedParams.data.id, organisationId);
-    if (!schedule) return res.json(null);
     return res.json(schedule);
   } catch (err) {
+    if (err instanceof ScheduleValidationError) {
+      const status = err.reason === 'NOT_FOUND' ? 404 : 400;
+      return res.status(status).json({ message: err.message, reason: err.reason });
+    }
     next(err);
   }
 }

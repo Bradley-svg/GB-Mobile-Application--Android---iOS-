@@ -200,12 +200,12 @@ export const SearchScreen: React.FC = () => {
 
       {isOffline ? (
         <Text style={[typography.caption, styles.muted, { marginBottom: spacing.sm }]}>
-          Offline search – based on cached data.
+          Offline search - based on cached data.
         </Text>
       ) : null}
       {isCacheStale ? (
         <Text style={[typography.caption, styles.staleNote]}>
-          Data older than 24 hours – may be out of date.
+          Data older than 24 hours may be out of date.
         </Text>
       ) : null}
 
@@ -239,8 +239,8 @@ export const SearchScreen: React.FC = () => {
 
 const renderHealthPill = (health?: HealthStatus, status?: string | null) => {
   const normalized = health || (status || '').toLowerCase();
-  let backgroundColor = colors.backgroundAlt;
-  let textColor = colors.textSecondary;
+  let backgroundColor: string = colors.backgroundAlt;
+  let textColor: string = colors.textSecondary;
   let label = (health || status || 'Unknown').toString();
 
   if (normalized === 'healthy' || normalized.includes('healthy') || normalized.includes('online')) {

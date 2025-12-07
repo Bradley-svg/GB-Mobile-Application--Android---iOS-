@@ -56,6 +56,10 @@ describe('GET /sites', () => {
           },
         ],
         rowCount: 1,
+      })
+      .mockResolvedValueOnce({
+        rows: [],
+        rowCount: 0,
       });
 
     const res = await request(app)
@@ -63,7 +67,7 @@ describe('GET /sites', () => {
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(queryMock).toHaveBeenCalledTimes(2);
+    expect(queryMock).toHaveBeenCalledTimes(3);
     expect(res.body).toEqual([
       {
         id: 'site-1',
@@ -71,6 +75,13 @@ describe('GET /sites', () => {
         city: 'Cape Town',
         status: 'ok',
         last_seen_at: '2025-01-01T00:00:00.000Z',
+        health: 'offline',
+        last_seen: expect.objectContaining({
+          at: '2025-01-01T00:00:00.000Z',
+          isOffline: true,
+          isStale: true,
+          ageMinutes: expect.any(Number),
+        }),
       },
     ]);
   });

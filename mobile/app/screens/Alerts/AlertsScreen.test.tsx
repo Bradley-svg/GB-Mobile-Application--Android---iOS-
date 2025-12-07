@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import { AlertsScreen } from './AlertsScreen';
 import { useAlerts } from '../../api/hooks';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
-import { loadJson } from '../../utils/storage';
+import { loadJson, loadJsonWithMetadata } from '../../utils/storage';
 
 jest.mock('../../api/hooks');
 jest.mock('../../hooks/useNetworkBanner', () => ({
@@ -11,7 +11,9 @@ jest.mock('../../hooks/useNetworkBanner', () => ({
 }));
 jest.mock('../../utils/storage', () => ({
   loadJson: jest.fn(),
+  loadJsonWithMetadata: jest.fn(),
   saveJson: jest.fn(),
+  isCacheOlderThan: jest.fn().mockReturnValue(false),
 }));
 
 describe('AlertsScreen states', () => {
@@ -19,6 +21,7 @@ describe('AlertsScreen states', () => {
     jest.clearAllMocks();
     (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: false });
     (loadJson as jest.Mock).mockResolvedValue(null);
+    (loadJsonWithMetadata as jest.Mock).mockResolvedValue(null);
   });
 
   it('shows error card with retry', () => {
@@ -52,22 +55,25 @@ describe('AlertsScreen states', () => {
 
   it('shows cached alerts when offline with stored data', async () => {
     (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: true });
-    (loadJson as jest.Mock).mockResolvedValue([
-      {
-        id: 'alert-1',
-        site_id: 'site-1',
-        device_id: 'device-1',
-        severity: 'warning',
-        type: 'sensor',
-        message: 'Cached alert',
-        status: 'active',
-        first_seen_at: '2025-01-01T00:00:00.000Z',
-        last_seen_at: '2025-01-01T01:00:00.000Z',
-        acknowledged_by: null,
-        acknowledged_at: null,
-        muted_until: null,
-      },
-    ]);
+    (loadJsonWithMetadata as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          id: 'alert-1',
+          site_id: 'site-1',
+          device_id: 'device-1',
+          severity: 'warning',
+          type: 'sensor',
+          message: 'Cached alert',
+          status: 'active',
+          first_seen_at: '2025-01-01T00:00:00.000Z',
+          last_seen_at: '2025-01-01T01:00:00.000Z',
+          acknowledged_by: null,
+          acknowledged_at: null,
+          muted_until: null,
+        },
+      ],
+      savedAt: '2025-01-01T00:00:00.000Z',
+    });
     (useAlerts as jest.Mock).mockReturnValue({
       data: undefined,
       isLoading: false,
@@ -83,7 +89,7 @@ describe('AlertsScreen states', () => {
 
   it('shows offline message when there is no cached alert data', async () => {
     (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: true });
-    (loadJson as jest.Mock).mockResolvedValue(null);
+    (loadJsonWithMetadata as jest.Mock).mockResolvedValue(null);
     (useAlerts as jest.Mock).mockReturnValue({
       data: undefined,
       isLoading: false,

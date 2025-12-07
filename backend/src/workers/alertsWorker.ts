@@ -69,6 +69,17 @@ type RuleMetrics = {
   skipped: number;
 };
 
+type ActiveAlertCounts = {
+  warning: number;
+  critical: number;
+  info?: number;
+};
+
+type SeverityWithContext = {
+  severity: AlertRuleRow['severity'];
+  modifier: string;
+};
+
 function parseLockTtlMs() {
   const parsed = Number(process.env.WORKER_LOCK_TTL_SEC);
   if (Number.isFinite(parsed) && parsed > 0) {
@@ -79,6 +90,7 @@ function parseLockTtlMs() {
 
 const lockTtlMs = parseLockTtlMs();
 const ruleRefreshMs = Math.max(60_000, Number(process.env.ALERT_RULE_REFRESH_MINUTES || 5) * 60_000);
+const MIN_RUN_INTERVAL_MS = 15_000;
 
 export async function evaluateOfflineAlerts(now: Date): Promise<OfflineMetrics> {
   const offline = await findOfflineDevices(OFFLINE_MINUTES);
@@ -212,6 +224,36 @@ async function resolveScheduleContext(
   return context;
 }
 
+function withAlertTotals(counts: ActiveAlertCounts) {
+  const warning = counts.warning ?? 0;
+  const critical = counts.critical ?? 0;
+  const info = counts.info ?? 0;
+  return {
+    warning,
+    critical,
+    info,
+    total: warning + critical + info,
+  };
+}
+
+async function resolveSeverityWithSchedule(
+  severity: AlertRuleRow['severity'],
+  siteId: string | null,
+  scheduleCtx: Map<string, ScheduleContext>,
+  now: Date
+): Promise<SeverityWithContext> {
+  if (!siteId) {
+    return { severity, modifier: '' };
+  }
+
+  const ctx = await resolveScheduleContext(siteId, scheduleCtx, now);
+  if (ctx.isLoadShedding && severity === 'critical') {
+    return { severity: 'warning', modifier: ' (load-shedding window)' };
+  }
+
+  return { severity, modifier: '' };
+}
+
 type RuleTarget = {
   deviceId: string;
   siteId: string | null;
@@ -284,17 +326,13 @@ async function evaluateOfflineRule(
     return { triggered: false, skipped: false, cleared: true };
   }
 
-  let severity = rule.severity;
-  let modifier = '';
   const siteId = target.siteId ?? lastSeen.site_id ?? null;
-  if (siteId) {
-    const ctx = await resolveScheduleContext(siteId, scheduleCtx, now);
-    if (ctx.isLoadShedding && severity === 'critical') {
-      // During load shedding we downgrade to warning but keep emitting for diagnostics.
-      severity = 'warning';
-      modifier = ' (load-shedding window)';
-    }
-  }
+  const { severity, modifier } = await resolveSeverityWithSchedule(
+    rule.severity,
+    siteId,
+    scheduleCtx,
+    now
+  );
 
   const message = `${rule.name ?? 'Device offline'}: offline for ${minutesOffline.toFixed(
     1
@@ -314,6 +352,7 @@ async function evaluateOfflineRule(
 async function evaluateRateOfChangeRule(
   rule: AlertRuleRow,
   target: RuleTarget,
+  scheduleCtx: Map<string, ScheduleContext>,
   now: Date
 ) {
   if (!rule.roc_window_sec || !rule.threshold) return { triggered: false, skipped: true };
@@ -334,14 +373,20 @@ async function evaluateRateOfChangeRule(
   }
 
   const minutes = elapsedMs / 60_000;
-  const message = `${rule.name ?? 'Rapid change'}: Δ${delta.toFixed(
+  const { severity, modifier } = await resolveSeverityWithSchedule(
+    rule.severity,
+    target.siteId,
+    scheduleCtx,
+    now
+  );
+  const message = `${rule.name ?? 'Rapid change'}: ${delta.toFixed(
     2
-  )} over ${minutes.toFixed(1)}m (threshold ${rule.threshold})`;
+  )} over ${minutes.toFixed(1)}m (threshold ${rule.threshold})${modifier}`;
   await upsertActiveAlert({
     siteId: target.siteId,
     deviceId: target.deviceId,
     type: 'rule',
-    severity: rule.severity,
+    severity,
     message,
     ruleId: rule.id,
     now,
@@ -349,11 +394,11 @@ async function evaluateRateOfChangeRule(
 
   return { triggered: true, skipped: false };
 }
-
 async function evaluateThresholdRule(
   rule: AlertRuleRow,
   target: RuleTarget,
   metricMap: Map<string, { value: number; ts: Date }>,
+  scheduleCtx: Map<string, ScheduleContext>,
   now: Date
 ) {
   if (rule.threshold == null) return { triggered: false, skipped: true };
@@ -373,12 +418,18 @@ async function evaluateThresholdRule(
     return { triggered: false, skipped: false, cleared: true };
   }
 
-  const message = formatRuleMessage(rule, value);
+  const { severity, modifier } = await resolveSeverityWithSchedule(
+    rule.severity,
+    target.siteId,
+    scheduleCtx,
+    now
+  );
+  const message = formatRuleMessage(rule, value, modifier.trim() || undefined);
   await upsertActiveAlert({
     siteId: target.siteId,
     deviceId: target.deviceId,
     type: 'rule',
-    severity: rule.severity,
+    severity,
     message,
     ruleId: rule.id,
     now,
@@ -418,12 +469,12 @@ async function evaluateRules(now: Date): Promise<RuleMetrics> {
         if (rule.rule_type === 'offline_window') {
           result = await evaluateOfflineRule(rule, target, lastSeenMap, scheduleCtx, now);
         } else if (rule.rule_type === 'rate_of_change') {
-          result = await evaluateRateOfChangeRule(rule, target, now);
+          result = await evaluateRateOfChangeRule(rule, target, scheduleCtx, now);
         } else if (
           rule.rule_type === 'threshold_above' ||
           rule.rule_type === 'threshold_below'
         ) {
-          result = await evaluateThresholdRule(rule, target, metricMap, now);
+          result = await evaluateThresholdRule(rule, target, metricMap, scheduleCtx, now);
         } else {
           metrics.skipped += 1;
           continue;
@@ -467,7 +518,7 @@ export async function runOnce(now: Date = new Date()) {
       ? { evaluatedCount: 0, overThresholdCount: 0 }
       : await evaluateHighTempAlerts(now);
     const durationMs = Date.now() - evalStarted;
-    const activeCounts = await getActiveAlertCountsForOrg();
+    const activeCounts = withAlertTotals(await getActiveAlertCountsForOrg());
 
     log.info(
       {
@@ -476,6 +527,7 @@ export async function runOnce(now: Date = new Date()) {
         highTemp: highTempMetrics,
         rules: ruleMetrics,
         durationMs,
+        activeAlerts: activeCounts,
       },
       'cycle complete'
     );
@@ -494,6 +546,7 @@ export async function runOnce(now: Date = new Date()) {
         rulesLoaded: rulesCache.length,
         triggered: ruleMetrics.triggered,
         evaluated: ruleMetrics.evaluated,
+        activeAlertsTotal: activeCounts.total,
         activeCounts,
       });
     } catch (statusErr) {
@@ -579,14 +632,16 @@ async function stop(code: number | null = 0) {
 }
 
 export async function start() {
-  const intervalSec = Number(process.env.ALERT_WORKER_INTERVAL_SEC || 60);
+  const requestedIntervalSec = Number(process.env.ALERT_WORKER_INTERVAL_SEC || 60);
+  const intervalMs = Math.max(MIN_RUN_INTERVAL_MS, requestedIntervalSec * 1000);
   log.info(
     {
       env: process.env.NODE_ENV || 'development',
       offlineWarnMinutes: OFFLINE_MINUTES,
       offlineCriticalMinutes: OFFLINE_CRITICAL_MINUTES,
       highTempThreshold: HIGH_TEMP_THRESHOLD,
-      intervalSec,
+      intervalSec: requestedIntervalSec,
+      intervalMs,
       lockTtlMs,
       ruleRefreshMs,
     },
@@ -600,7 +655,7 @@ export async function start() {
   }
 
   startRenewLoop();
-  void runManagedCycle(intervalSec * 1000);
+  void runManagedCycle(intervalMs);
 }
 
 if (require.main === module) {
@@ -621,3 +676,5 @@ if (require.main === module) {
 export function getAlertsWorkerState() {
   return { inProgress };
 }
+
+

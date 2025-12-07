@@ -21,12 +21,23 @@ import type {
   ApiDevice,
   ControlFailureReason,
   ControlCommandHistoryRow,
+  DeviceSchedule,
   DeviceTelemetry,
   HeatPumpHistoryRequest,
   TimeRange,
 } from '../../api/types';
 import type { HeatPumpHistoryError } from '../../api/heatPumpHistory/hooks';
-import { Screen, Card, PrimaryButton, IconButton, ErrorCard, PillTabGroup } from '../../components';
+import {
+  Screen,
+  Card,
+  PrimaryButton,
+  IconButton,
+  ErrorCard,
+  PillTabGroup,
+  StatusPill,
+  connectivityDisplay,
+  healthDisplay,
+} from '../../components';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { loadJsonWithMetadata, saveJson, isCacheOlderThan } from '../../utils/storage';
 import { colors, gradients } from '../../theme/colors';
@@ -86,13 +97,20 @@ export const DeviceDetailScreen: React.FC = () => {
   const [isModePending, setIsModePending] = useState(false);
   const [isScheduleModalVisible, setScheduleModalVisible] = useState(false);
   const [scheduleError, setScheduleError] = useState<string | null>(null);
-  const [scheduleForm, setScheduleForm] = useState({
+  const [scheduleForm, setScheduleForm] = useState<{
+    name: string;
+    enabled: boolean;
+    startHour: number;
+    endHour: number;
+    targetSetpoint: number;
+    targetMode: 'OFF' | 'HEATING' | 'COOLING' | 'AUTO';
+  }>({
     name: 'Daily schedule',
     enabled: true,
     startHour: 6,
     endHour: 22,
     targetSetpoint: 45,
-    targetMode: 'HEATING' as const,
+    targetMode: 'HEATING',
   });
 
   const deviceQuery = useDevice(deviceId);
@@ -197,11 +215,23 @@ export const DeviceDetailScreen: React.FC = () => {
     [alertsQuery.data]
   );
 
-  const supplyPoints = telemetryData?.metrics['supply_temp'] || [];
-  const returnPoints = telemetryData?.metrics['return_temp'] || [];
-  const powerPoints = telemetryData?.metrics['power_kw'] || [];
-  const flowPoints = telemetryData?.metrics['flow_rate'] || [];
-  const copPoints = telemetryData?.metrics['cop'] || [];
+  const supplyPoints = useMemo(
+    () => telemetryData?.metrics['supply_temp'] || [],
+    [telemetryData]
+  );
+  const returnPoints = useMemo(
+    () => telemetryData?.metrics['return_temp'] || [],
+    [telemetryData]
+  );
+  const powerPoints = useMemo(
+    () => telemetryData?.metrics['power_kw'] || [],
+    [telemetryData]
+  );
+  const flowPoints = useMemo(
+    () => telemetryData?.metrics['flow_rate'] || [],
+    [telemetryData]
+  );
+  const copPoints = useMemo(() => telemetryData?.metrics['cop'] || [], [telemetryData]);
   const deltaT = useMemo(() => {
     if (supplyPoints.length === 0 || returnPoints.length === 0) return null;
     const latestSupply = supplyPoints[supplyPoints.length - 1]?.value;
@@ -313,6 +343,16 @@ export const DeviceDetailScreen: React.FC = () => {
     historyRequest,
     isOffline,
   ]);
+  const commandRows = useMemo(
+    () =>
+      [...(commandsQuery.data ?? [])].sort(
+        (a, b) => new Date(b.requested_at).getTime() - new Date(a.requested_at).getTime()
+      ),
+    [commandsQuery.data]
+  );
+  const hasCachedCommands = commandRows.length > 0;
+  const showHistorySpinner = commandsQuery.isLoading && (!isOffline || hasCachedCommands);
+  const showOfflineHistoryEmpty = isOffline && !hasCachedCommands;
   const showLoading = (deviceQuery.isLoading || cacheLoading) && !device;
   const deviceNotFound = !device && !showLoading;
   const telemetryLoading = telemetryQuery.isLoading && !telemetryData;
@@ -324,6 +364,8 @@ export const DeviceDetailScreen: React.FC = () => {
   const isOfflineWithCache = isOffline && !!cachedDeviceDetail;
   const showUnknownLastUpdated = !lastUpdatedAt && (hasAnyTelemetryPoints || hasAnyHistoryPoints);
   const cacheStale = isCacheOlderThan(cachedSavedAt ?? cachedDeviceDetail?.cachedAt ?? null, CACHE_STALE_MS);
+  type ModalProps = React.ComponentProps<typeof Modal>;
+  const ModalComponent = (Modal || View) as React.ComponentType<ModalProps>;
 
   if (__DEV__) {
     if (telemetryErrorObj) console.log('Telemetry load error', telemetryErrorObj);
@@ -363,12 +405,9 @@ export const DeviceDetailScreen: React.FC = () => {
   const hasCopData = copData.length > 0;
   const emptyMetricPlaceholder = 'No data for this metric in the selected range.';
   const scheduleData = scheduleQuery.data;
-  const scheduleSummary = scheduleData
-    ? `${scheduleData.enabled ? 'Active' : 'Paused'}: ${formatHour(scheduleData.start_hour)}-${formatHour(
-        scheduleData.end_hour
-      )}, ${scheduleData.target_setpoint}\u00B0C, ${scheduleData.target_mode}`
-    : 'No schedule configured yet.';
-  const commandRows = commandsQuery.data || [];
+  const scheduleSummary = formatScheduleSummary(scheduleData);
+  const healthPill = healthDisplay(device?.status);
+  const connectivityPill = connectivityDisplay(device?.connectivity_status || device?.status);
 
   const onSetpointSave = async () => {
     const value = Number(setpointInput);
@@ -476,14 +515,14 @@ export const DeviceDetailScreen: React.FC = () => {
         targetMode: scheduleForm.targetMode,
       });
       setScheduleModalVisible(false);
-    } catch (err) {
+    } catch {
       setScheduleError('Failed to save schedule. Please try again.');
     }
   };
 
   return (
     <>
-      <Modal visible={isScheduleModalVisible} animationType="slide" transparent>
+      <ModalComponent visible={isScheduleModalVisible} animationType="slide" transparent>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={[typography.title2, styles.title, { marginBottom: spacing.sm }]}>
@@ -527,7 +566,7 @@ export const DeviceDetailScreen: React.FC = () => {
                 />
               </View>
               <View style={styles.inputRow}>
-                <Text style={[typography.caption, styles.muted]}>Setpoint (°C)</Text>
+                <Text style={[typography.caption, styles.muted]}>Setpoint (\u00B0C)</Text>
                 <TextInput
                   value={scheduleForm.targetSetpoint.toString()}
                   onChangeText={(text) =>
@@ -610,36 +649,39 @@ export const DeviceDetailScreen: React.FC = () => {
             </View>
           </View>
         </View>
-      </Modal>
-      <Screen testID="DeviceDetailScreen">
-      <View style={styles.topBar}>
-        <IconButton
-          icon={<Ionicons name="chevron-back" size={20} color={colors.brandGrey} />}
-          onPress={() => navigation.goBack()}
-          testID="device-back-button"
-        />
-        <IconButton icon={<Ionicons name="notifications-outline" size={20} color={colors.brandGrey} />} />
-      </View>
+      </ModalComponent>
+      <Screen scroll contentContainerStyle={{ paddingBottom: spacing.xxl }} testID="DeviceDetailScreen">
+        <View style={styles.topBar}>
+          <IconButton
+            icon={<Ionicons name="chevron-back" size={20} color={colors.brandGrey} />}
+            onPress={() => navigation.goBack()}
+            testID="device-back-button"
+          />
+          <IconButton icon={<Ionicons name="notifications-outline" size={20} color={colors.brandGrey} />} />
+        </View>
 
       <Card style={styles.headerCard} accented>
         <View style={{ flex: 1 }}>
           <Text style={[typography.caption, styles.muted, { marginBottom: spacing.xs }]}>Device</Text>
           <Text style={[typography.title1, styles.title]}>{device.name}</Text>
           <Text style={[typography.body, styles.muted]}>{device.type}</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm }}>
-            {renderStatusPill(device.status)}
-            <Text style={[typography.caption, styles.muted, { marginLeft: spacing.sm }]} numberOfLines={1}>
-              {siteName}
-            </Text>
+          <View style={[styles.pillRow, { marginTop: spacing.sm }]}>
+            <StatusPill label={healthPill.label} tone={healthPill.tone} />
+            <StatusPill
+              label={connectivityPill.label}
+              tone={connectivityPill.tone}
+              style={{ marginLeft: spacing.xs }}
+              testID="device-connectivity-pill"
+            />
           </View>
-          {(device.firmware_version || device.connectivity_status) && (
+          <Text style={[typography.caption, styles.muted, { marginLeft: 0, marginTop: spacing.xs }]} numberOfLines={1}>
+            {siteName}
+          </Text>
+          {device.firmware_version ? (
             <Text style={[typography.caption, styles.muted, { marginTop: spacing.xs }]}>
-              {device.firmware_version ? `Firmware v${device.firmware_version}` : 'Firmware n/a'}
-              {device.connectivity_status
-                ? ` - Connectivity: ${formatConnectivityStatus(device.connectivity_status)}`
-                : ''}
+              FW {device.firmware_version}
             </Text>
-          )}
+          ) : null}
           <Text style={[typography.caption, styles.muted, { marginTop: spacing.xs }]}>
             {lastUpdatedAt
               ? `Last updated at ${new Date(lastUpdatedAt).toLocaleString()}`
@@ -960,6 +1002,9 @@ export const DeviceDetailScreen: React.FC = () => {
                 ? `Updated ${new Date(scheduleData.updated_at).toLocaleString()}`
                 : 'Create a safe setpoint window for this device.'}
             </Text>
+            <Text style={[typography.caption, styles.muted, { marginTop: spacing.xs }]}>
+              Schedules are advisory and not yet automated.
+            </Text>
           </>
         )}
         {scheduleQuery.isError ? (
@@ -969,7 +1014,7 @@ export const DeviceDetailScreen: React.FC = () => {
         ) : null}
         {isOffline ? (
           <Text style={[typography.caption, styles.offlineNote, { marginTop: spacing.xs }]}>
-            Schedule changes require a connection.
+            Schedule read-only while offline.
           </Text>
         ) : null}
       </Card>
@@ -979,26 +1024,32 @@ export const DeviceDetailScreen: React.FC = () => {
           <Text style={[typography.subtitle, styles.title]}>Control history</Text>
           <Text style={[typography.caption, styles.muted]}>Last 5 commands</Text>
         </View>
-        {commandsQuery.isLoading ? (
+        {showHistorySpinner ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.brandGreen} />
             <Text style={[typography.caption, styles.muted, { marginLeft: spacing.sm }]}>
               Loading history...
             </Text>
           </View>
+        ) : showOfflineHistoryEmpty ? (
+          <Text style={[typography.caption, styles.muted]}>History unavailable while offline.</Text>
         ) : commandRows.length === 0 ? (
           <Text style={[typography.caption, styles.muted]}>No recent commands.</Text>
         ) : (
           commandRows.slice(0, 5).map((cmd) => {
-            const status = cmd.status || 'pending';
+            const meta = commandStatusMeta(cmd);
             return (
               <View key={cmd.id} style={styles.historyRow}>
-                <View style={[styles.alertDot, { backgroundColor: commandStatusColor(status) }]} />
+                <View style={[styles.alertDot, { backgroundColor: meta.color }]} />
                 <View style={{ flex: 1 }}>
                   <Text style={[typography.body, styles.title]}>{formatCommandSummary(cmd)}</Text>
                   <Text style={[typography.caption, styles.muted]}>
-                    {status.toUpperCase()} - {new Date(cmd.requested_at).toLocaleString()}
+                    {meta.label.toUpperCase()} • {new Date(cmd.requested_at).toLocaleString()}
+                    {meta.failureLabel ? ` • ${meta.failureLabel}` : ''}
                   </Text>
+                  {cmd.failure_message ? (
+                    <Text style={[typography.caption, styles.errorText]}>{cmd.failure_message}</Text>
+                  ) : null}
                 </View>
               </View>
             );
@@ -1007,6 +1058,11 @@ export const DeviceDetailScreen: React.FC = () => {
         {commandsQuery.isError ? (
           <Text style={[typography.caption, styles.errorText]}>
             Could not load command history.
+          </Text>
+        ) : null}
+        {isOffline && hasCachedCommands ? (
+          <Text style={[typography.caption, styles.muted, { marginTop: spacing.xs }]}>
+            Showing cached history.
           </Text>
         ) : null}
       </Card>
@@ -1044,71 +1100,83 @@ const severityColor = (severity: string) => {
   }
 };
 
-const formatConnectivityStatus = (status?: string | null) => {
-  const normalized = (status || '').toLowerCase();
-  if (!status) return 'Unknown';
-  if (normalized.includes('flap')) return 'Flapping';
-  if (normalized.includes('off')) return 'Offline';
-  if (normalized.includes('on')) return 'Online';
-  return status;
-};
-
 function formatHour(hour: number) {
   const clamped = Math.max(0, Math.min(24, Math.floor(hour)));
   return `${`${clamped}`.padStart(2, '0')}:00`;
 }
 
-const commandStatusColor = (status: string) => {
-  const normalized = (status || '').toLowerCase();
-  if (normalized === 'success') return colors.success;
-  if (normalized === 'failed') return colors.error;
-  return colors.warning;
+function formatScheduleSummary(schedule?: DeviceSchedule | null) {
+  if (!schedule) return 'No schedule configured yet.';
+  const window = `${formatHour(schedule.start_hour)}-${formatHour(schedule.end_hour)}`;
+  const state = schedule.enabled ? 'Active' : 'Paused';
+  return `${state} | ${window} | ${schedule.target_setpoint}\u00B0C | ${schedule.target_mode}`;
+}
+
+const mapFailureReasonLabel = (reason?: string | null) => {
+  const normalized = (reason || '').toUpperCase();
+  switch (normalized) {
+    case 'THROTTLED':
+      return 'Throttled';
+    case 'VALIDATION_ERROR':
+      return 'Validation failed';
+    case 'SEND_FAILED':
+      return 'Send failed';
+    case 'EXTERNAL_ERROR':
+      return 'Upstream error';
+    default:
+      return undefined;
+  }
 };
+
+const commandStatusMeta = (cmd: ControlCommandHistoryRow) => {
+  const normalized = (cmd.status || '').toLowerCase();
+  const failureReason = (cmd.failure_reason || '').toUpperCase();
+  if (failureReason === 'THROTTLED') {
+    return { label: 'Throttled', color: colors.warning, failureLabel: 'Throttled' };
+  }
+  if (normalized === 'failed') {
+    return {
+      label: 'Failed',
+      color: colors.error,
+      failureLabel: mapFailureReasonLabel(failureReason),
+    };
+  }
+  if (normalized === 'success') {
+    return { label: 'Success', color: colors.success, failureLabel: undefined };
+  }
+  return {
+    label: 'Pending',
+    color: colors.warning,
+    failureLabel: mapFailureReasonLabel(failureReason),
+  };
+};
+
+const toRecord = (value: unknown): Record<string, unknown> =>
+  typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
 
 const formatCommandSummary = (cmd: ControlCommandHistoryRow) => {
   const actor = cmd.actor?.name || cmd.actor?.email || 'Unknown user';
-  const requested = (cmd.requested_value as any) || {};
-  const payload = (cmd.payload as any) || {};
+  const requested = toRecord(cmd.requested_value);
+  const payload = toRecord(cmd.payload);
+  const requestedMode = typeof requested.mode === 'string' ? requested.mode : undefined;
+  const payloadMode = typeof payload.mode === 'string' ? payload.mode : undefined;
   if ((cmd.command_type || '').includes('mode')) {
-    const mode = requested.mode || payload.mode || 'N/A';
-    return `Mode ${mode} by ${actor}`;
+    const mode = requestedMode || payloadMode || 'N/A';
+    return `Mode ${mode} (${actor})`;
   }
-  if ((cmd.command_type || '').includes('setpoint') || payload.metric === 'flow_temp') {
-    const value = requested.value ?? payload.value ?? requested.metric ?? '';
-    return `Setpoint ${value ?? ''}\u00B0C by ${actor}`;
+  const requestedValue =
+    typeof requested.value === 'number' || typeof requested.value === 'string'
+      ? requested.value
+      : undefined;
+  const payloadValue =
+    typeof payload.value === 'number' || typeof payload.value === 'string' ? payload.value : undefined;
+  const requestedMetric = typeof requested.metric === 'string' ? requested.metric : undefined;
+  const payloadMetric = typeof payload.metric === 'string' ? payload.metric : undefined;
+  if ((cmd.command_type || '').includes('setpoint') || payloadMetric === 'flow_temp') {
+    const value = requestedValue ?? payloadValue ?? requestedMetric ?? payloadMetric ?? '';
+    return `Setpoint ${value ?? ''}\u00B0C (${actor})`;
   }
-  return `${cmd.command_type} by ${actor}`;
-};
-
-const renderStatusPill = (status?: string | null) => {
-  const normalized = (status || '').toLowerCase();
-  let backgroundColor: string = colors.backgroundAlt;
-  let textColor: string = colors.textSecondary;
-  let label = status || 'Unknown';
-
-  if (normalized.includes('online') || normalized.includes('healthy')) {
-    backgroundColor = colors.brandSoft;
-    textColor = colors.success;
-    label = 'Healthy';
-  } else if (normalized.includes('crit')) {
-    backgroundColor = colors.errorSoft;
-    textColor = colors.error;
-    label = 'Critical';
-  } else if (normalized.includes('warn')) {
-    backgroundColor = colors.warningSoft;
-    textColor = colors.warning;
-    label = 'Warning';
-  } else if (normalized.includes('off')) {
-    backgroundColor = colors.errorSoft;
-    textColor = colors.error;
-    label = 'Offline';
-  }
-
-  return (
-    <View style={[styles.statusPill, { backgroundColor }]}>
-      <Text style={[typography.label, { color: textColor }]}>{label}</Text>
-    </View>
-  );
+  return `${cmd.command_type || 'Command'} (${actor})`;
 };
 
 function computeLastUpdatedAt(telemetry?: DeviceTelemetry | null) {
@@ -1310,10 +1378,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderSubtle,
   },
-  statusPill: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: 16,
+  pillRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   rangeTabs: {
     flexDirection: 'row',
@@ -1471,3 +1538,4 @@ const styles = StyleSheet.create({
     marginRight: spacing.sm,
   },
 });
+

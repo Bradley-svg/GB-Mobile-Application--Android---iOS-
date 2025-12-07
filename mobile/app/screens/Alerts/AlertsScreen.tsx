@@ -134,7 +134,8 @@ export const AlertsScreen: React.FC = () => {
       ) : null}
       {cacheStale ? (
         <Text style={[typography.caption, styles.staleNote]}>
-          Data older than 24 hours – may be out of date{cacheUpdatedLabel ? ` (cached ${cacheUpdatedLabel})` : ''}.
+          Data older than 24 hours may be out of date
+          {cacheUpdatedLabel ? ` (cached ${cacheUpdatedLabel})` : ''}.
         </Text>
       ) : null}
       <Card style={styles.headerCard}>

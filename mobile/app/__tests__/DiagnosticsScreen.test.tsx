@@ -49,6 +49,17 @@ describe('DiagnosticsScreen', () => {
           lastError: null,
         },
         alertsWorker: { healthy: true, lastHeartbeatAt: null },
+        alertsEngine: {
+          lastRunAt: '2025-01-01T00:00:00.000Z',
+          lastDurationMs: 120,
+          rulesLoaded: 2,
+          activeAlertsTotal: 3,
+          activeWarning: 2,
+          activeCritical: 1,
+          activeInfo: 0,
+          evaluated: 5,
+          triggered: 2,
+        },
         push: { enabled: false, lastSampleAt: null, lastError: null },
         mqtt: {
           configured: true,
@@ -71,6 +82,9 @@ describe('DiagnosticsScreen', () => {
     expect(screen.getByText('http://api.test')).toBeTruthy();
     expect(screen.getByTestId('diagnostics-health-status').props.children).toBe('Healthy');
     expect(screen.getByText('user-1')).toBeTruthy();
+    expect(screen.getByTestId('diagnostics-alerts-engine')).toBeTruthy();
+    expect(screen.getByText(/3 total/)).toBeTruthy();
+    expect(screen.getByText(/2 triggered/)).toBeTruthy();
   });
 
   it('shows an error card when diagnostics fail', () => {
