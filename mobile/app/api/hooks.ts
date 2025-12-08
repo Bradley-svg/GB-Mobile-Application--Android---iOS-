@@ -37,3 +37,4 @@ export {
   useUploadSiteDocument,
   useUploadDeviceDocument,
 } from './documents/hooks';
+export { useShareLinks, useCreateShareLink, useRevokeShareLink } from './shareLinks/hooks';

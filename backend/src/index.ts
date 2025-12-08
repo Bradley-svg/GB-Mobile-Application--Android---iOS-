@@ -12,6 +12,7 @@ import heatPumpHistoryRoutes from './routes/heatPumpHistoryRoutes';
 import userPreferencesRoutes from './routes/userPreferencesRoutes';
 import fleetRoutes from './routes/fleetRoutes';
 import documentRoutes from './routes/documentRoutes';
+import shareLinksRoutes from './routes/shareLinksRoutes';
 import { errorHandler } from './middleware/errorHandler';
 import { createCorsMiddleware } from './middleware/corsConfig';
 import { logger } from './config/logger';
@@ -34,6 +35,7 @@ app.use(userPreferencesRoutes);
 app.use(fleetRoutes);
 app.use('/files', express.static(path.resolve(getStorageRoot())));
 app.use(documentRoutes);
+app.use(shareLinksRoutes);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 4000;

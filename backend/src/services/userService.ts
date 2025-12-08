@@ -1,10 +1,12 @@
-import { getUserContextById } from '../repositories/usersRepository';
+import { getUserContextById, type UserRole } from '../repositories/usersRepository';
 
 export type UserContext = {
   id: string;
   email?: string;
   name?: string;
   organisation_id: string | null;
+  role: UserRole;
+  can_impersonate?: boolean;
 };
 
 export async function getUserContext(userId: string): Promise<UserContext | null> {

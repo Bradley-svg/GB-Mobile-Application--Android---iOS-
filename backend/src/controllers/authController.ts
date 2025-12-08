@@ -38,7 +38,7 @@ export async function signup(req: Request, res: Response, next: NextFunction) {
 
   try {
     const user = await registerUser(parsed.data.email, parsed.data.password, parsed.data.name);
-    const tokens = await issueTokens(user.id);
+    const tokens = await issueTokens(user.id, { role: user.role });
     res.json({ ...tokens, user });
   } catch (e: any) {
     if (e.message === 'EMAIL_EXISTS') {
@@ -58,7 +58,7 @@ export async function login(req: Request, res: Response, next: NextFunction) {
 
   try {
     const user = await loginUser(parsed.data.email, parsed.data.password);
-    const tokens = await issueTokens(user.id);
+    const tokens = await issueTokens(user.id, { role: user.role });
     res.json({ ...tokens, user });
   } catch (e: any) {
     if (e.message === 'INVALID_CREDENTIALS') {

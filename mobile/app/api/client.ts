@@ -14,6 +14,7 @@ console.log('Greenbro API base URL at runtime:', apiUrl);
 export const api = axios.create({
   baseURL: apiUrl,
 });
+export const API_BASE_URL = apiUrl;
 
 type RetriableRequestConfig = AxiosRequestConfig & { _retry?: boolean };
 type AuthTokens = { accessToken: string; refreshToken: string };

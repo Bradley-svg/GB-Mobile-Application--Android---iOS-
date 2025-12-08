@@ -53,6 +53,7 @@ vi.mock('../src/services/userService', () => ({
     organisation_id: 'org-wo',
     email: 'wo@test.com',
     name: 'WO Tester',
+    role: 'admin',
   }),
   requireOrganisationId: (user: { organisation_id: string | null }) => {
     if (!user.organisation_id) throw new Error('USER_ORG_MISSING');

@@ -30,6 +30,34 @@ export async function getTelemetryForDevice(
   return res.rows;
 }
 
+export async function getTelemetryForDeviceRange(
+  deviceId: string,
+  from: Date,
+  to: Date,
+  metrics?: string[]
+): Promise<TelemetryMetricRow[]> {
+  const params: any[] = [deviceId, from, to];
+  let metricClause = '';
+  if (metrics && metrics.length > 0) {
+    params.push(metrics);
+    metricClause = 'and metric = ANY($4)';
+  }
+
+  const res = await query<TelemetryMetricRow>(
+    `
+    select metric, ts, value
+    from telemetry_points
+    where device_id = $1
+      and ts between $2 and $3
+      ${metricClause}
+    order by ts asc
+  `,
+    params
+  );
+
+  return res.rows;
+}
+
 export async function insertTelemetryBatch(
   deviceId: string,
   metrics: Record<string, number>,

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, FlatList, ActivityIndicator, StyleSheet, TouchableOpacity, Alert, Linking } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +16,7 @@ import {
   connectivityDisplay,
   healthDisplay,
 } from '../../components';
+import { fetchSiteDevicesCsv } from '../../api/exports';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { loadJsonWithMetadata, saveJson, isCacheOlderThan } from '../../utils/storage';
 import { colors } from '../../theme/colors';
@@ -47,6 +48,7 @@ export const SiteOverviewScreen: React.FC = () => {
   const [cachedSite, setCachedSite] = useState<ApiSite | null>(null);
   const [cachedDevices, setCachedDevices] = useState<ApiDevice[] | null>(null);
   const [cachedAt, setCachedAt] = useState<string | null>(null);
+  const [exportingDevices, setExportingDevices] = useState(false);
 
   useEffect(() => {
     if (site) {
@@ -90,6 +92,21 @@ export const SiteOverviewScreen: React.FC = () => {
   const cacheUpdatedLabel = cachedAt ? new Date(cachedAt).toLocaleString() : null;
   const showLoading = (siteLoading || devicesLoading) && !hasCachedData;
   const shouldShowError = (siteError || devicesError) && !isOffline && !hasCachedData;
+
+  const onExportDevices = async () => {
+    if (isOffline || exportingDevices) return;
+    setExportingDevices(true);
+    try {
+      const csv = await fetchSiteDevicesCsv(siteId);
+      const url = `data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`;
+      await Linking.openURL(url);
+    } catch (err) {
+      console.error('Failed to export devices', err);
+      Alert.alert('Export failed', 'Could not export devices right now.');
+    } finally {
+      setExportingDevices(false);
+    }
+  };
 
   if (showLoading) {
     return (
@@ -158,14 +175,29 @@ export const SiteOverviewScreen: React.FC = () => {
               : 'Unknown'}
           </Text>
         </View>
-        <View style={styles.pillRow}>
-          <StatusPill label={siteHealthPill.label} tone={siteHealthPill.tone} />
-          <StatusPill
-            label={siteConnectivityPill.label}
-            tone={siteConnectivityPill.tone}
-            style={{ marginLeft: spacing.xs }}
-            testID="site-connectivity-pill"
-          />
+        <View style={{ alignItems: 'flex-end' }}>
+          <View style={styles.pillRow}>
+            <StatusPill label={siteHealthPill.label} tone={siteHealthPill.tone} />
+            <StatusPill
+              label={siteConnectivityPill.label}
+              tone={siteConnectivityPill.tone}
+              style={{ marginLeft: spacing.xs }}
+              testID="site-connectivity-pill"
+            />
+          </View>
+          {!isOffline ? (
+            <TouchableOpacity
+              onPress={onExportDevices}
+              disabled={exportingDevices}
+              style={[styles.exportButton, exportingDevices ? styles.exportButtonDisabled : null]}
+              testID="export-devices-button"
+            >
+              <Ionicons name="download-outline" size={16} color={colors.white} />
+              <Text style={[typography.caption, { color: colors.white, marginLeft: spacing.xs }]}>
+                {exportingDevices ? 'Preparing...' : 'Export devices'}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       </Card>
 
@@ -337,6 +369,18 @@ const styles = StyleSheet.create({
   pillRow: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  exportButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.brandGreen,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: 12,
+    marginTop: spacing.sm,
+  },
+  exportButtonDisabled: {
+    backgroundColor: colors.borderSubtle,
   },
   deviceCard: {
     marginBottom: spacing.md,

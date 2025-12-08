@@ -136,6 +136,7 @@ export type AuthUser = {
   email: string;
   name: string;
   organisation_id?: string | null;
+  role?: string | null;
 };
 
 export type AuthTokens = {
@@ -220,5 +221,20 @@ export type FleetSearchResult = {
   meta?: {
     siteCount: number;
     deviceCount: number;
+  };
+};
+
+export type ShareLink = {
+  id: string;
+  scopeType: 'site' | 'device';
+  scopeId: string;
+  permissions: string;
+  expiresAt: string;
+  createdAt: string;
+  token: string;
+  createdBy?: {
+    id: string;
+    email?: string | null;
+    name?: string | null;
   };
 };

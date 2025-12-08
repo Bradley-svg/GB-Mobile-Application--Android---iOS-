@@ -19,6 +19,7 @@ type AuthUser = {
   email: string;
   name: string;
   organisation_id?: string | null;
+  role?: string | null;
 };
 
 type AuthState = {
@@ -163,3 +164,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 }));
+
+export function isAdminOrOwner(role?: string | null) {
+  const value = role ?? useAuthStore.getState().user?.role;
+  return value === 'owner' || value === 'admin';
+}
+
+export function isFacilities(role?: string | null) {
+  const value = role ?? useAuthStore.getState().user?.role;
+  return value === 'facilities';
+}
+
+export function isContractor(role?: string | null) {
+  const value = role ?? useAuthStore.getState().user?.role;
+  return value === 'contractor';
+}

@@ -12,7 +12,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuthStore } from '../../store/authStore';
-import { Screen, Card, PrimaryButton, IconButton } from '../../components';
+import { isAdminOrOwner, isContractor, isFacilities } from '../../store/authStore';
+import { Screen, Card, PrimaryButton, IconButton, StatusPill } from '../../components';
 import { getNotificationPermissionStatus } from '../../hooks/useRegisterPushToken';
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
@@ -78,6 +79,9 @@ export const ProfileScreen: React.FC = () => {
     DEFAULT_NOTIFICATION_PREFERENCES.alertsEnabled;
   const toggleDisabled =
     notificationDenied || preferencesLoading || preferencesFetching || updatePreferences.isPending;
+  const roleLabel = user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Unknown';
+  const canShare = isAdminOrOwner(user?.role) || isFacilities(user?.role);
+  const contractorRole = isContractor(user?.role);
 
   const onToggleNotifications = () => {
     if (!user?.id || toggleDisabled) return;
@@ -111,6 +115,22 @@ export const ProfileScreen: React.FC = () => {
       </Card>
 
       <Card style={styles.listCard}>
+        <View style={styles.listRow}>
+          <View style={styles.rowLeft}>
+            <Ionicons name="shield-checkmark-outline" size={18} color={colors.brandGreen} />
+            <View style={{ marginLeft: spacing.sm }}>
+              <Text style={[typography.body, styles.title]}>Role</Text>
+              <Text style={[typography.caption, styles.muted]}>
+                {roleLabel}{' '}
+                <Text style={[typography.caption, styles.muted]}>
+                  • Some actions may be limited by your role.
+                </Text>
+              </Text>
+            </View>
+          </View>
+          <StatusPill label={roleLabel} tone="muted" />
+        </View>
+        <View style={styles.separator} />
         <View style={styles.listRow}>
           <View style={styles.rowLeft}>
             <Ionicons name="notifications-outline" size={18} color={colors.brandGreen} />
@@ -154,6 +174,42 @@ export const ProfileScreen: React.FC = () => {
           </View>
           <Text style={[typography.caption, styles.muted]}>Light</Text>
         </View>
+        <View style={styles.separator} />
+        <TouchableOpacity
+          style={styles.listRow}
+          activeOpacity={canShare ? 0.85 : 1}
+          onPress={() => {
+            if (canShare) {
+              navigation.navigate('Sharing');
+            }
+          }}
+          disabled={!canShare}
+          testID="sharing-row"
+        >
+          <View style={styles.rowLeft}>
+            <Ionicons
+              name="share-social-outline"
+              size={18}
+              color={canShare ? colors.brandGreen : colors.textSecondary}
+            />
+            <View style={{ marginLeft: spacing.sm }}>
+              <Text style={[typography.body, styles.title]}>Sharing & access</Text>
+              <Text style={[typography.caption, styles.muted]}>
+                Create read-only links for sites and devices.
+              </Text>
+            </View>
+          </View>
+          <Ionicons
+            name={canShare ? 'chevron-forward' : 'lock-closed-outline'}
+            size={16}
+            color={colors.textSecondary}
+          />
+        </TouchableOpacity>
+        {contractorRole ? (
+          <Text style={[typography.caption, styles.muted, { paddingHorizontal: spacing.lg }]}>
+            Contractors can view data but cannot create share links.
+          </Text>
+        ) : null}
         <View style={styles.separator} />
         <TouchableOpacity
           style={styles.listRow}

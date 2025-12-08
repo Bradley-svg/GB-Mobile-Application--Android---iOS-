@@ -67,6 +67,7 @@ beforeEach(() => {
     organisation_id: 'org-ctrl',
     email: 'ctrl@test.com',
     name: 'Controller',
+    role: 'admin',
   });
   getDeviceByIdMock.mockResolvedValue({ id: 'device-123', organisation_id: 'org-ctrl' });
   getCommandsForDeviceMock.mockResolvedValue([]);

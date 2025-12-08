@@ -15,6 +15,8 @@ import {
   upsertDeviceSchedule,
   ScheduleValidationError,
 } from '../services/deviceScheduleService';
+import { ExportError, exportDeviceTelemetryCsv } from '../services/exportService';
+import { canControlDevice, canEditSchedules } from '../services/rbacService';
 
 const deviceIdSchema = z.object({ id: z.string().uuid() });
 const telemetryQuerySchema = z.object({
@@ -38,6 +40,11 @@ const scheduleBodySchema = z.object({
   endHour: z.number().int().min(0).max(24),
   targetSetpoint: z.number(),
   targetMode: z.enum(['OFF', 'HEATING', 'COOLING', 'AUTO']),
+});
+const telemetryExportSchema = z.object({
+  from: z.string().datetime(),
+  to: z.string().datetime(),
+  metrics: z.string().optional(),
 });
 
 export async function getDevice(req: Request, res: Response, next: NextFunction) {
@@ -184,6 +191,10 @@ export async function getDeviceSchedule(req: Request, res: Response, next: NextF
 }
 
 export async function putDeviceSchedule(req: Request, res: Response, next: NextFunction) {
+  if (!canEditSchedules(req.user)) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+
   const parsedParams = deviceIdSchema.safeParse(req.params);
   if (!parsedParams.success) {
     return res.status(400).json({ message: 'Invalid device id' });
@@ -209,6 +220,10 @@ export async function putDeviceSchedule(req: Request, res: Response, next: NextF
 }
 
 export async function sendSetpointCommand(req: Request, res: Response, next: NextFunction) {
+  if (!canControlDevice(req.user)) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+
   const paramsResult = deviceIdSchema.safeParse(req.params);
   if (!paramsResult.success) {
     return res.status(400).json({ message: 'Invalid device id' });
@@ -258,6 +273,10 @@ export async function sendSetpointCommand(req: Request, res: Response, next: Nex
 }
 
 export async function sendModeCommand(req: Request, res: Response, next: NextFunction) {
+  if (!canControlDevice(req.user)) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+
   const paramsResult = deviceIdSchema.safeParse(req.params);
   if (!paramsResult.success) {
     return res.status(400).json({ message: 'Invalid device id' });
@@ -300,5 +319,47 @@ export async function sendModeCommand(req: Request, res: Response, next: NextFun
       default:
         return next(e);
     }
+  }
+}
+
+export async function exportDeviceTelemetryCsvHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  const parsedParams = deviceIdSchema.safeParse(req.params);
+  const parsedQuery = telemetryExportSchema.safeParse(req.query);
+  if (!parsedParams.success || !parsedQuery.success) {
+    return res.status(400).json({ message: 'Invalid request' });
+  }
+
+  const metrics =
+    parsedQuery.data.metrics?.split(',').map((m) => m.trim()).filter((m) => m.length > 0) ?? undefined;
+
+  try {
+    const organisationId = await resolveOrganisationId(req.user!.id, res);
+    if (!organisationId) return;
+
+    const csv = await exportDeviceTelemetryCsv(
+      organisationId,
+      parsedParams.data.id,
+      new Date(parsedQuery.data.from),
+      new Date(parsedQuery.data.to),
+      metrics
+    );
+
+    res
+      .setHeader('Content-Type', 'text/csv')
+      .setHeader(
+        'Content-Disposition',
+        `attachment; filename="device-${parsedParams.data.id}-telemetry.csv"`
+      )
+      .send(csv);
+  } catch (err) {
+    if (err instanceof ExportError) {
+      const status = err.reason === 'NOT_FOUND' ? 404 : 400;
+      return res.status(status).json({ message: err.message });
+    }
+    return next(err);
   }
 }

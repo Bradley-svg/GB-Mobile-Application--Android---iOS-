@@ -28,6 +28,7 @@ import {
   sanitizeSegment,
   toRelativePath,
 } from '../config/storage';
+import { canManageWorkOrders } from '../services/rbacService';
 
 const workOrderIdParamSchema = z.object({ id: z.string().uuid() });
 const deviceIdParamSchema = z.object({ id: z.string().uuid() });
@@ -176,6 +177,10 @@ export async function getWorkOrderHandler(req: Request, res: Response, next: Nex
 }
 
 export async function createWorkOrderHandler(req: Request, res: Response, next: NextFunction) {
+  if (!canManageWorkOrders(req.user)) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+
   const parsedBody = createWorkOrderSchema.safeParse(req.body);
   if (!parsedBody.success) {
     return res.status(400).json({ message: 'Invalid body' });
@@ -215,6 +220,10 @@ export async function createWorkOrderFromAlertHandler(
   res: Response,
   next: NextFunction
 ) {
+  if (!canManageWorkOrders(req.user)) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+
   const parsedParams = workOrderIdParamSchema.safeParse(req.params);
   if (!parsedParams.success) {
     return res.status(400).json({ message: 'Invalid alert id' });
@@ -249,6 +258,10 @@ export async function createWorkOrderFromAlertHandler(
 }
 
 export async function updateWorkOrderHandler(req: Request, res: Response, next: NextFunction) {
+  if (!canManageWorkOrders(req.user)) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+
   const parsedParams = workOrderIdParamSchema.safeParse(req.params);
   if (!parsedParams.success) {
     return res.status(400).json({ message: 'Invalid work order id' });
@@ -295,6 +308,10 @@ export async function updateWorkOrderTasksHandler(
   res: Response,
   next: NextFunction
 ) {
+  if (!canManageWorkOrders(req.user)) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+
   const parsedParams = workOrderIdParamSchema.safeParse(req.params);
   if (!parsedParams.success) {
     return res.status(400).json({ message: 'Invalid work order id' });
@@ -350,6 +367,10 @@ export async function uploadWorkOrderAttachmentHandler(
   res: Response,
   next: NextFunction
 ) {
+  if (!canManageWorkOrders(req.user)) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+
   const parsedParams = workOrderIdParamSchema.safeParse(req.params);
   if (!parsedParams.success) {
     return res.status(400).json({ message: 'Invalid work order id' });
@@ -409,6 +430,10 @@ export async function deleteWorkOrderAttachmentHandler(
   res: Response,
   next: NextFunction
 ) {
+  if (!canManageWorkOrders(req.user)) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+
   const parsedParams = attachmentIdParamSchema.safeParse(req.params);
   if (!parsedParams.success) {
     return res.status(400).json({ message: 'Invalid attachment id' });

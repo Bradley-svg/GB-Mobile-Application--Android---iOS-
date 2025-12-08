@@ -7,7 +7,12 @@ import {
   revokeAllRefreshTokensForUser as revokeAllTokensForUser,
   revokeRefreshToken,
 } from '../repositories/refreshTokensRepository';
-import { findUserByEmail, insertUser } from '../repositories/usersRepository';
+import {
+  findUserByEmail,
+  getUserContextById,
+  insertUser,
+  type UserRole,
+} from '../repositories/usersRepository';
 
 export function resolveJwtSecret() {
   const nodeEnv = process.env.NODE_ENV || 'development';
@@ -24,7 +29,27 @@ export function resolveJwtSecret() {
 const JWT_SECRET = resolveJwtSecret();
 const REFRESH_EXPIRY_DAYS = Number(process.env.REFRESH_TOKEN_DAYS || 30);
 
-export async function registerUser(email: string, password: string, name: string) {
+export type AuthUser = {
+  id: string;
+  email: string;
+  name: string;
+  organisation_id: string | null;
+  role: UserRole;
+};
+
+function isUserRole(value: unknown): value is UserRole {
+  return value === 'owner' || value === 'admin' || value === 'facilities' || value === 'contractor';
+}
+
+async function getRoleForUser(userId: string): Promise<UserRole> {
+  const user = await getUserContextById(userId);
+  if (!user) {
+    throw new Error('USER_NOT_FOUND');
+  }
+  return user.role;
+}
+
+export async function registerUser(email: string, password: string, name: string): Promise<AuthUser> {
   const existing = await findUserByEmail(email);
   if (existing) {
     throw new Error('EMAIL_EXISTS');
@@ -33,10 +58,16 @@ export async function registerUser(email: string, password: string, name: string
   const hash = await bcrypt.hash(password, 10);
 
   const user = await insertUser(email, hash, name);
-  return { id: user.id, email: user.email, name: user.name, organisation_id: user.organisation_id };
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    organisation_id: user.organisation_id,
+    role: user.role,
+  };
 }
 
-export async function loginUser(email: string, password: string) {
+export async function loginUser(email: string, password: string): Promise<AuthUser> {
   const user = await findUserByEmail(email);
   if (!user) {
     throw new Error('INVALID_CREDENTIALS');
@@ -47,19 +78,31 @@ export async function loginUser(email: string, password: string) {
     throw new Error('INVALID_CREDENTIALS');
   }
 
-  return { id: user.id, email: user.email, name: user.name, organisation_id: user.organisation_id };
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    organisation_id: user.organisation_id,
+    role: user.role,
+  };
 }
 
 async function persistRefreshToken(id: string, userId: string, expiresAt: Date) {
   await insertRefreshToken(id, userId, expiresAt);
 }
 
-export async function issueTokens(userId: string, options?: { rotateFromId?: string }) {
-  const accessToken = jwt.sign({ sub: userId, type: 'access' }, JWT_SECRET, { expiresIn: '15m' });
+export async function issueTokens(
+  userId: string,
+  options?: { rotateFromId?: string; role?: UserRole }
+) {
+  const role = options?.role ?? (await getRoleForUser(userId));
+  const accessToken = jwt.sign({ sub: userId, type: 'access', role }, JWT_SECRET, {
+    expiresIn: '15m',
+  });
 
   const refreshTokenId = randomUUID();
   const refreshToken = jwt.sign(
-    { sub: userId, type: 'refresh', jti: refreshTokenId },
+    { sub: userId, type: 'refresh', jti: refreshTokenId, role },
     JWT_SECRET,
     { expiresIn: `${REFRESH_EXPIRY_DAYS}d` }
   );
@@ -75,9 +118,10 @@ export async function issueTokens(userId: string, options?: { rotateFromId?: str
 }
 
 export function verifyAccessToken(token: string) {
-  const decoded = jwt.verify(token, JWT_SECRET) as { sub: string; type: string };
+  const decoded = jwt.verify(token, JWT_SECRET) as { sub: string; type: string; role?: UserRole };
   if (decoded.type !== 'access') throw new Error('INVALID_TOKEN_TYPE');
-  return { userId: decoded.sub };
+  const role = isUserRole(decoded.role) ? decoded.role : 'facilities';
+  return { userId: decoded.sub, role };
 }
 
 export async function verifyRefreshToken(token: string) {

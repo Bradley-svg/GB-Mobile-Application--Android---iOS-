@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getDevicesForSite, getSiteById, getSitesForOrganisation } from '../services/siteService';
 import { resolveOrganisationId } from './organisation';
 import type { HealthStatus } from '../services/healthScoreService';
+import { ExportError, exportSiteDevicesCsv } from '../services/exportService';
 
 const siteIdSchema = z.object({ id: z.string().uuid() });
 const siteQuerySchema = z.object({
@@ -79,5 +80,29 @@ export async function getSiteDevices(req: Request, res: Response, next: NextFunc
     res.json(devices);
   } catch (e) {
     next(e);
+  }
+}
+
+export async function exportSiteDevicesCsvHandler(req: Request, res: Response, next: NextFunction) {
+  const parsedParams = siteIdSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    return res.status(400).json({ message: 'Invalid site id' });
+  }
+
+  try {
+    const organisationId = await resolveOrganisationId(req.user!.id, res);
+    if (!organisationId) return;
+
+    const csv = await exportSiteDevicesCsv(organisationId, parsedParams.data.id);
+    res
+      .setHeader('Content-Type', 'text/csv')
+      .setHeader('Content-Disposition', `attachment; filename="site-${parsedParams.data.id}-devices.csv"`)
+      .send(csv);
+  } catch (err) {
+    if (err instanceof ExportError) {
+      const status = err.reason === 'NOT_FOUND' ? 404 : 400;
+      return res.status(status).json({ message: err.message });
+    }
+    return next(err);
   }
 }

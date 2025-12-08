@@ -69,4 +69,15 @@ describe('SiteOverview quick actions', () => {
     const pill = screen.getByTestId('device-connectivity-pill');
     expect(within(pill).getByText(/Online/i)).toBeTruthy();
   });
+
+  it('shows export button when online', () => {
+    render(<SiteOverviewScreen />);
+    expect(screen.getByTestId('export-devices-button')).toBeTruthy();
+  });
+
+  it('hides export button when offline', () => {
+    (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: true });
+    render(<SiteOverviewScreen />);
+    expect(screen.queryByTestId('export-devices-button')).toBeNull();
+  });
 });

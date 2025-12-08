@@ -17,6 +17,7 @@ import {
   sanitizeSegment,
   toRelativePath,
 } from '../config/storage';
+import { canUploadDocuments } from '../services/rbacService';
 
 const paramsSchema = z.object({ id: z.string().uuid() });
 const documentBodySchema = z.object({
@@ -104,6 +105,10 @@ export async function listDeviceDocumentsHandler(req: Request, res: Response, ne
 }
 
 export async function uploadSiteDocumentHandler(req: Request, res: Response, next: NextFunction) {
+  if (!canUploadDocuments(req.user)) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+
   const parsedParams = paramsSchema.safeParse(req.params);
   if (!parsedParams.success) {
     return res.status(400).json({ message: 'Invalid site id' });
@@ -163,6 +168,10 @@ export async function uploadDeviceDocumentHandler(
   res: Response,
   next: NextFunction
 ) {
+  if (!canUploadDocuments(req.user)) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+
   const parsedParams = paramsSchema.safeParse(req.params);
   if (!parsedParams.success) {
     return res.status(400).json({ message: 'Invalid device id' });

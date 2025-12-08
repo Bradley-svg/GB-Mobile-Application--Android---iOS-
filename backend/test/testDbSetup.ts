@@ -14,6 +14,39 @@ const DEFAULT_IDS = {
   user: '44444444-4444-4444-4444-444444444444',
 };
 
+const DEMO_USERS = {
+  facilities: {
+    id: DEFAULT_IDS.user,
+    email: 'demo@example.com',
+    name: 'Demo User',
+    role: 'facilities' as const,
+  },
+  owner: {
+    id: '44444444-4444-4444-4444-444444444445',
+    email: 'owner@example.com',
+    name: 'Owner User',
+    role: 'owner' as const,
+  },
+  admin: {
+    id: '44444444-4444-4444-4444-444444444446',
+    email: 'admin@example.com',
+    name: 'Admin User',
+    role: 'admin' as const,
+  },
+  contractor: {
+    id: '44444444-4444-4444-4444-444444444447',
+    email: 'contractor@example.com',
+    name: 'Contractor User',
+    role: 'contractor' as const,
+  },
+};
+
+const DEMO_SHARE_LINKS = {
+  site: 'site-share-token',
+  device: 'device-share-token',
+  expired: 'expired-share-token',
+};
+
 const DEMO_HEATPUMP_MAC = '38:18:2B:60:A9:94';
 const MIGRATIONS_DIR = path.resolve(__dirname, '../migrations');
 
@@ -105,14 +138,23 @@ async function seedBaseData(client: Client) {
     [DEFAULT_IDS.organisation, 'Greenbro Demo Org']
   );
 
-  await client.query(
-    `
-    insert into users (id, organisation_id, email, password_hash, name)
-    values ($1, $2, $3, $4, $5)
-    on conflict (id) do nothing
-  `,
-    [DEFAULT_IDS.user, DEFAULT_IDS.organisation, 'demo@example.com', passwordHash, 'Demo User']
-  );
+  const users = [
+    DEMO_USERS.facilities,
+    DEMO_USERS.owner,
+    DEMO_USERS.admin,
+    DEMO_USERS.contractor,
+  ];
+
+  for (const user of users) {
+    await client.query(
+      `
+      insert into users (id, organisation_id, email, password_hash, name, role)
+      values ($1, $2, $3, $4, $5, $6)
+      on conflict (id) do nothing
+    `,
+      [user.id, DEFAULT_IDS.organisation, user.email, passwordHash, user.name, user.role]
+    );
+  }
 
   await client.query(
     `
@@ -178,6 +220,17 @@ async function seedBaseData(client: Client) {
         },
       }),
     ]
+  );
+
+  await client.query(
+    `
+    insert into telemetry_points (device_id, metric, ts, value, quality, created_at)
+    values
+      ($1, 'supply_temp', now() - interval '1 hour', 45.2, 'good', now()),
+      ($1, 'return_temp', now() - interval '1 hour', 39.1, 'good', now()),
+      ($1, 'power_kw', now() - interval '1 hour', 5.4, 'good', now())
+  `,
+    [DEFAULT_IDS.device]
   );
 
   await client.query(
@@ -471,6 +524,36 @@ async function seedBaseData(client: Client) {
   `,
     [DEFAULT_IDS.organisation, DEFAULT_IDS.site, DEFAULT_IDS.user, DEFAULT_IDS.device]
   );
+
+  await client.query(
+    `
+    insert into share_links (
+      id,
+      org_id,
+      created_by_user_id,
+      scope_type,
+      scope_id,
+      token,
+      permissions,
+      expires_at,
+      created_at
+    )
+    values
+      ('aaaaaaaa-1111-2222-3333-444444444444', $1, $2, 'site', $3, $5, 'read_only', now() + interval '7 days', now()),
+      ('bbbbbbbb-1111-2222-3333-444444444444', $1, $2, 'device', $4, $6, 'read_only', now() + interval '14 days', now()),
+      ('cccccccc-1111-2222-3333-444444444444', $1, $2, 'device', $4, $7, 'read_only', now() - interval '1 day', now() - interval '2 days')
+    on conflict (id) do nothing
+  `,
+    [
+      DEFAULT_IDS.organisation,
+      DEMO_USERS.owner.id,
+      DEFAULT_IDS.site,
+      DEFAULT_IDS.device,
+      DEMO_SHARE_LINKS.site,
+      DEMO_SHARE_LINKS.device,
+      DEMO_SHARE_LINKS.expired,
+    ]
+  );
 }
 
 async function resetTables(client: Client) {
@@ -492,6 +575,7 @@ async function resetTables(client: Client) {
         work_order_tasks,
         work_order_attachments,
         documents,
+        share_links,
         work_orders,
         telemetry_points,
         device_snapshots,

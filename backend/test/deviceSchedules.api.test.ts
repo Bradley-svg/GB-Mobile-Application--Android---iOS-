@@ -51,6 +51,7 @@ beforeEach(() => {
     organisation_id: 'org-sched',
     email: 'sched@test.com',
     name: 'Scheduler',
+    role: 'admin',
   });
 });
 

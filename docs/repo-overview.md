@@ -51,6 +51,20 @@ _2025-12-07 sweep: backend and mobile typecheck/lint/tests/build all green local
 - Large-list: Jest sanity for Dashboard and Alerts ensures FlatList virtualization props stay set with 600-800 item fixtures; offline alerts cache path covered.
 - 0.2.x mobile search/health: Dashboard surfaces fleet health counts and recency; Search screen (from Dashboard) hits `/fleet` with text + health chips and supports offline cached search; Site devices show health/last-seen plus quick-action icons; Dashboard/Site/Device/Alerts display 24h cache freshness banners when data is stale.
 
+## RBAC & roles
+- Users now carry `role` (`owner`, `admin`, `facilities`, `contractor`) plus optional `can_impersonate`. Login/refresh/me payloads and JWT claims include the role; `requireAuth` attaches `{ id, role }` to `req.user`.
+- Central `rbacService` exposes `canControlDevice`, `canEditSchedules`, `canManageWorkOrders`, `canUploadDocuments`, `canShareReadOnly`, etc. Control commands, schedule updates, work-order create/update/tasks/attachments, and document uploads enforce these checks (contractors read-only; schedules limited to owner/admin).
+- Test DB seeds one user per role and RBAC vitests cover control/schedule/work-order permissions across roles.
+
+## Share links
+- New `share_links` table (org_id, created_by_user_id, scope_type site/device, scope_id, token unique, permissions text `read_only`, expires_at, revoked_at, created_at). Seeded demo tokens for site/device + expired sample in tests.
+- Authenticated routes: `POST/GET /sites/:id/share-links`, `POST/GET /devices/:id/share-links`, `DELETE /share-links/:id` (owner/admin/facilities only; contractor forbidden). Public route: `GET /public/share/:token` returns read-only site+devices snapshot or device telemetry summary (no sensitive org/user data; invalid/expired -> 404).
+- Mobile: Profile shows role + Sharing entry (disabled for contractors); SharingScreen lists sites/devices and navigates to ShareLinksScreen for per-scope management (create 24h/7d/30d links, copy public URL, revoke). Offline disables actions.
+
+## Exports (CSV)
+- `exportService` powers `GET /sites/:id/export/devices.csv` (device_id/name/firmware/connectivity/last_seen/site_name) and `GET /devices/:id/export/telemetry.csv?from=ISO&to=ISO&metrics=...` (timestamp, metric_name, value) with org scoping. Telemetry export validates window and metric allowlist; both return `text/csv`.
+- Seeds include telemetry points for the demo device so CSV tests have data. Mobile surfaces online-only export buttons on Site/Device screens (fetch CSV via axios and open as data URLs); offline hides the buttons.
+
 ## Cleanup actions
 - Removed unused `src/domain/*` types and `src/utils/organisation.ts` by inlining types into repositories/services and moving the org resolver into `src/controllers/organisation.ts`; `backend/src` now only contains config/controllers/services/repositories/integrations/middleware/routes/workers/scripts/index.ts.
 - Deleted stray runtime logs/tmp bundles/emulator screenshots from the repo and mobile roots so screenshots only live under `docs/`; tightened `.gitignore` (added `build/`, `*.dmp`, stopped hiding `mobile/*.png|*.jpg`).

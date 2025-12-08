@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { View, Text, ActivityIndicator, TextInput, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
+import { View, Text, ActivityIndicator, TextInput, StyleSheet, TouchableOpacity, Modal, ScrollView, Alert, Linking } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -44,6 +44,7 @@ import { colors, gradients } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 import { VictoryAxis, VictoryChart, VictoryLegend, VictoryLine } from 'victory-native';
+import { fetchDeviceTelemetryCsv } from '../../api/exports';
 
 type Route = RouteProp<AppStackParamList, 'DeviceDetail'>;
 type Navigation = NativeStackNavigationProp<AppStackParamList>;
@@ -112,6 +113,7 @@ export const DeviceDetailScreen: React.FC = () => {
     targetSetpoint: 45,
     targetMode: 'HEATING',
   });
+  const [exportingTelemetry, setExportingTelemetry] = useState(false);
 
   const deviceQuery = useDevice(deviceId);
   const siteId = deviceQuery.data?.site_id ?? cachedDeviceDetail?.device.site_id;
@@ -366,6 +368,24 @@ export const DeviceDetailScreen: React.FC = () => {
   const cacheStale = isCacheOlderThan(cachedSavedAt ?? cachedDeviceDetail?.cachedAt ?? null, CACHE_STALE_MS);
   type ModalProps = React.ComponentProps<typeof Modal>;
   const ModalComponent = (Modal || View) as React.ComponentType<ModalProps>;
+
+  const onExportTelemetry = async () => {
+    if (isOffline || exportingTelemetry) return;
+    setExportingTelemetry(true);
+    try {
+      const now = new Date();
+      const windowMs = RANGE_TO_WINDOW_MS[range] ?? RANGE_TO_WINDOW_MS['24h'];
+      const from = new Date(now.getTime() - windowMs);
+      const csv = await fetchDeviceTelemetryCsv(deviceId, from.toISOString(), now.toISOString());
+      const url = `data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`;
+      await Linking.openURL(url);
+    } catch (err) {
+      console.error('Failed to export telemetry', err);
+      Alert.alert('Export failed', 'Could not export telemetry right now.');
+    } finally {
+      setExportingTelemetry(false);
+    }
+  };
 
   if (__DEV__) {
     if (telemetryErrorObj) console.log('Telemetry load error', telemetryErrorObj);
@@ -770,6 +790,22 @@ export const DeviceDetailScreen: React.FC = () => {
           onChange={setRange}
         />
       </View>
+      {!isOffline ? (
+        <TouchableOpacity
+          onPress={onExportTelemetry}
+          disabled={exportingTelemetry}
+          style={[
+            styles.exportButton,
+            exportingTelemetry ? styles.exportButtonDisabled : styles.exportButtonEnabled,
+          ]}
+          testID='export-telemetry-button'
+        >
+          <Ionicons name="download-outline" size={16} color={colors.white} />
+          <Text style={[typography.caption, { color: colors.white, marginLeft: spacing.xs }]}>
+            {exportingTelemetry ? 'Preparing...' : 'Export telemetry'}
+          </Text>
+        </TouchableOpacity>
+      ) : null}
 
       {telemetryLoading && (
         <View style={styles.loadingRow}>
@@ -1422,6 +1458,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: spacing.lg,
+  },
+  exportButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    marginBottom: spacing.md,
+    alignSelf: 'flex-start',
+  },
+  exportButtonEnabled: {
+    backgroundColor: colors.brandGreen,
+  },
+  exportButtonDisabled: {
+    backgroundColor: colors.borderSubtle,
   },
   loadingRow: {
     flexDirection: 'row',

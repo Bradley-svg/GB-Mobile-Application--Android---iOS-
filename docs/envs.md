@@ -10,6 +10,10 @@ Centralised reference for backend and mobile environment variables across dev/st
 - `JWT_SECRET`: Secret for signing JWT access tokens. Use a long, random value in non-dev environments.
 - `REFRESH_TOKEN_DAYS`: Refresh token lifetime (days).
 - `AUTH_ALLOW_PUBLIC_SIGNUP`: Toggle for open signup (`false` by default).
+- `USER ROLE SEMANTICS`: Roles are stored on each user row (`owner`, `admin`, `facilities`, `contractor`).
+  - Owner/Admin: full control (device control, schedules, work orders, share links, document uploads).
+  - Facilities: device control + work orders/doc uploads + share links; schedules follow backend RBAC (currently admin/owner).
+  - Contractor: read-only across sites/devices/alerts/telemetry; no share links or uploads.
 - `CORS_ALLOWED_ORIGINS`: Comma-separated allowlist for browser origins (prod/staging should be explicit; dev can allow-all).
 - `LOG_LEVEL`: Structured JSON logger level (`info` default).
 - `APP_VERSION`: Optional version string surfaced on `/health-plus`.

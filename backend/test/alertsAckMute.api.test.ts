@@ -49,6 +49,7 @@ beforeEach(() => {
     email: 'user@example.com',
     name: 'Test User',
     organisation_id: 'org-1',
+    role: 'admin',
   });
 });
 

@@ -31,7 +31,13 @@ describe('ProfileScreen notifications', () => {
     (useNavigation as jest.Mock).mockReturnValue({ navigate: navigateMock });
     navigateMock.mockReset();
     useAuthStore.setState({
-      user: { id: 'user-1', email: 'user@example.com', name: 'User One', organisation_id: null },
+      user: {
+        id: 'user-1',
+        email: 'user@example.com',
+        name: 'User One',
+        organisation_id: null,
+        role: 'admin',
+      },
       accessToken: 'access',
       refreshToken: 'refresh',
       isHydrated: true,

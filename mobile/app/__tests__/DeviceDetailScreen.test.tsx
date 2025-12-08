@@ -358,4 +358,15 @@ describe('DeviceDetailScreen', () => {
       })
     );
   });
+
+  it('shows export button when online', () => {
+    render(<DeviceDetailScreen />);
+    expect(screen.getByTestId('export-telemetry-button')).toBeTruthy();
+  });
+
+  it('hides export button when offline', () => {
+    (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: true });
+    render(<DeviceDetailScreen />);
+    expect(screen.queryByTestId('export-telemetry-button')).toBeNull();
+  });
 });
