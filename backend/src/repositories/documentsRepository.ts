@@ -106,6 +106,22 @@ export async function createDocument(input: CreateDocumentInput): Promise<Docume
   return res.rows[0];
 }
 
+export async function findDocumentByRelativePath(
+  relativePath: string
+): Promise<DocumentRow | null> {
+  const res = await query<DocumentRow>(
+    `
+    select *
+    from documents
+    where relative_path = $1
+    limit 1
+  `,
+    [relativePath]
+  );
+
+  return res.rows[0] ?? null;
+}
+
 export async function deleteDocument(orgId: string, documentId: string): Promise<DocumentRow | null> {
   const res = await query<DocumentRow>(
     `

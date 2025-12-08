@@ -62,3 +62,7 @@ export function canShareReadOnly(user: RoleInput) {
 export function canExportData(user: RoleInput) {
   return hasRole(user, ['owner', 'admin', 'facilities']);
 }
+
+export function canViewFiles(user: RoleInput) {
+  return hasRole(user, ['owner', 'admin', 'facilities', 'contractor']);
+}

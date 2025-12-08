@@ -1,7 +1,7 @@
 # Build Progress Report - 2025-12-08
 
 ## Executive Summary
-- Backend migrations, Postgres-backed tests, and TypeScript build now pass locally on Node 20/Postgres 16 after fixing auth RBAC fixtures and refresh-token query mocks; history scoping and exports permissions need attention and `/files` is publicly served.
+- Backend migrations, Postgres-backed tests, and TypeScript build now pass locally on Node 20/Postgres 16 after fixing auth RBAC fixtures and refresh-token query mocks; history scoping and exports permissions need attention and `/files` is now auth/org-scoped instead of publicly served.
 - Mobile typecheck and Jest suites pass (with multiple `act()` warnings); `npm run lint` currently fails on six `no-explicit-any` errors in share-link tests. Offline caching covers dashboard/site/device/alerts/search/work orders. Branding uses the official assets/palette.
 - Roadmap fit: 0.2 fleet visibility/search and core telemetry/control flows are present; 0.3 alerts/rules/control and 0.4 work orders/maintenance are partial but usable; 0.5 sharing/reporting is partially delivered; PV integrations, dark mode, commissioning, richer reporting remain open.
 
@@ -11,16 +11,15 @@
 - Telemetry/history: MQTT ingest is primary; HTTP ingest returns 501. Telemetry downsampled per metric. Heat-pump history posts vendor body (`aggregation/from/to/mode/fields/mac`) with `application/json-patch+json` + `x-api-key`, timeout + circuit breaker, normalises arbitrary series. Tests: `telemetryService.test.ts`, `heatPumpHistoryClient.test.ts`, `heatPumpHistory.api.test.ts`. Risks: history requests are not org/mac scoped; default dev URL is used if env unset even in prod; validation only checks timestamp order.
 - Alerts/rules/worker: Worker lock (`worker_locks`), offline/high-temp plus rule engine (threshold/ROC/offline) with load-shedding downgrades, push notify on critical, heartbeat + metrics into `system_status` and `/health-plus`. Tests: `alertsWorker.*`, `alerts*.api.test.ts`, `alertsAckMute.api.test.ts`, `alertRules*`. Risk: single-worker assumption; relies on site schedules for load-shedding context.
 - Device control/schedules: HTTP or MQTT control with throttle window (`CONTROL_COMMAND_THROTTLE_MS`), validation errors recorded in command history, per-device schedules with validation. Tests: `deviceControlService.test.ts`, `deviceControl.api.test.ts`, `deviceSchedules.api.test.ts`, `deviceControlValidationService.test.ts`. Risks: commands blocked if CONTROL/MQTT envs unset; UI not role-gated (backend rejects).
-- Work orders/tasks/attachments/SLA: Status transitions enforced, SLA breach recomputed, checklist replace, maintenance summary buckets, attachments stored under `FILE_STORAGE_ROOT`. Tests: `workOrders*.test.ts`, `workOrdersMaintenance.api.test.ts`, `workOrderAttachments.api.test.ts`, `workOrdersService.sla.test.ts`. Risks: `/files` serves attachments without auth; storage dirs tracked in repo tree; no AV scanning.
-- Documents/storage: Site/device upload + list, path sanitisation, public URL mapping. Tests: `documents.api.test.ts`. Risk: same `/files` public exposure.
+- Work orders/tasks/attachments/SLA: Status transitions enforced, SLA breach recomputed, checklist replace, maintenance summary buckets, attachments stored under `FILE_STORAGE_ROOT`. Tests: `workOrders*.test.ts`, `workOrdersMaintenance.api.test.ts`, `workOrderAttachments.api.test.ts`, `workOrdersService.sla.test.ts`. Risks: no AV scanning; CDN/signed-URL fronting still TODO even though `/files` now requires auth + org scope.
+- Documents/storage: Site/device upload + list, path sanitisation, public URL mapping. Tests: `documents.api.test.ts`. Risk: `/files` now auth/org-scoped but still lacks AV/signed URLs/AV scanning.
 - CSV exports/reporting: Site devices CSV and device telemetry CSV with range validation/metric allowlist, org scoped. Tests: `exportCsv.api.test.ts`. Risk: no RBAC guard (`canExportData` unused) so any authenticated role can export; potential heavy queries without paging.
 - Share links: 90-day max expiry, read-only, site/device payloads with telemetry snapshot, revoke + public resolver. Tests: `shareLinks.api.test.ts`, `shareLinksPublic.api.test.ts`. Risk: None beyond token handling; still read-only only.
 - Health/diagnostics: `/health-plus` aggregates DB/MQTT/control/heatPumpHistory/push/alerts worker/storage/maintenance; relies on `system_status` rows. Tests: `healthPlus.test.ts`, `healthPlus.mqttControlStatus.test.ts`. Risk: requires migrations + seeded status row.
 - Issues/Risks
   - P1: Heat-pump history not org/device scoped; default dev URL used when env unset (even in prod) risks data leakage or upstream noise.
   - P1: CSV export endpoints lack explicit RBAC; any authenticated role can export org data.
-  - P1: `/files` static serving exposes documents/attachments without auth; consider signed URLs or auth middleware.
-  - P2: `backend/storage`, `backend/uploads`, `backend/uploads-test` are not gitignored; risk of committing artifacts.
+  - P2: `/files` now auth/org-scoped but still lacks AV scanning/signed URL flow; CDN/proxy frontends must forward auth.
   - P3: No password reset/2FA/lockout flow (known gap).
 
 ## Mobile Status
@@ -45,7 +44,7 @@
 - `/health-plus` expected healthy when DB reachable, storage writable, alerts worker heartbeat recent, control/mqtt configured flags accurate, heat-pump history last success recent, maintenance counts returned.
 
 ## Codebase Hygiene
-- Gitignore covers node_modules/dist; runtime dirs `backend/storage`, `backend/uploads`, `backend/uploads-test` are not ignored (risk of accidental commits). `logs/`/`archive/` already isolated.
+- Gitignore covers node_modules/dist; runtime dirs `backend/storage`, `backend/uploads`, `backend/uploads-test` are now ignored to avoid accidental commits. `logs/`/`archive/` already isolated.
 - Docs now note backend migrations/tests passing on 2025-12-08; mobile lint now green (act() warnings still noted).
 - Audit snapshots: backend 6 moderate + 2 high (dev tooling: vitest/vite/node-pg-migrate/glob); mobile 3 low (Expo CLI/send). No changes applied.
 - No obvious dead code flagged by quick `rg` scans; legacy assets live under `archive/` only.
@@ -55,12 +54,11 @@
 - **P1:**
   1) Add RBAC guard for CSV exports (use `canExportData`) or explicitly document role access; align with permission expectations.
   2) Scope heat-pump history to org/device and require env URL/API key in non-dev to avoid hitting default dev endpoint.
-  3) Protect `/files` (docs/attachments) via auth or signed URLs before production exposure.
+  3) Add AV scanning and/or signed URL/CDN fronting for `/files` now that auth/org scoping is enforced.
 - **P2:**
   1) Resolve Jest `act()` warnings (DeviceDetail/Profile/WorkOrder/Site tests) to reduce noise.
-  2) Gitignore `backend/storage`, `backend/uploads`, `backend/uploads-test` to prevent artifact commits.
-  3) Refresh documentation (repo overview/feature map) to reflect current lint/test status and partial features.
-  4) Add front-end role gating for control/ack/mute/export actions to mirror RBAC.
+  2) Refresh documentation (repo overview/feature map) to reflect current lint/test status and partial features.
+  3) Add front-end role gating for control/ack/mute/export actions to mirror RBAC.
 - **P3:**
   1) Broader observability/metrics beyond `/health-plus` (push metrics, alert engine stats export).
   2) Plan Expo/React Native upgrades to clear audit advisories.
