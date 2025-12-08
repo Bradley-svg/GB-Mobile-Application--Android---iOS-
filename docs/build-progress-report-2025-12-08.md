@@ -2,7 +2,7 @@
 
 ## Executive Summary
 - Backend migrations, Postgres-backed tests, and TypeScript build now pass locally on Node 20/Postgres 16 after fixing auth RBAC fixtures and refresh-token query mocks; history scoping and exports permissions need attention and `/files` is now auth/org-scoped instead of publicly served.
-- Mobile typecheck and Jest suites pass (with multiple `act()` warnings); `npm run lint` currently fails on six `no-explicit-any` errors in share-link tests. Offline caching covers dashboard/site/device/alerts/search/work orders. Branding uses the official assets/palette.
+- Mobile typecheck, lint (share-link `no-explicit-any` break fixed), and Jest suites pass with `act()` warnings still present from global wrappers. Offline caching covers dashboard/site/device/alerts/search/work orders. Branding uses the official assets/palette.
 - Roadmap fit: 0.2 fleet visibility/search and core telemetry/control flows are present; 0.3 alerts/rules/control and 0.4 work orders/maintenance are partial but usable; 0.5 sharing/reporting is partially delivered; PV integrations, dark mode, commissioning, richer reporting remain open.
 
 ## Backend Status
@@ -23,7 +23,7 @@
   - P3: No password reset/2FA/lockout flow (known gap).
 
 ## Mobile Status
-- Commands: `npm run typecheck` (pass); `npm run lint` (pass after typing share-link tests); `npm test -- --runInBand` (pass) with fewer `act()` warnings after wrapping the noisiest suites (Profile, DeviceDetail, WorkOrderDetail, SiteOverview), though some warnings remain from global wrappers (useNetworkBanner/netinfo and RootNavigator flows).
+- Commands: `npm run typecheck` (pass); `npm run lint` (pass after typing share-link tests that briefly failed `no-explicit-any`); `npm test -- --runInBand` (pass) with fewer `act()` warnings after wrapping the noisiest suites (Profile, DeviceDetail, WorkOrderDetail, SiteOverview), though some warnings remain from global wrappers (useNetworkBanner/netinfo and RootNavigator flows).
 - Dashboard/Search: Hero metrics (sites/online devices/active alerts), health/connectivity chips, offline banner + cache age, search with health filters and offline cached results. Risk: stale cache beyond 24h only warned; backend errors show generic messaging.
 - Site overview: Site status/last-seen/health pills, device cards with firmware + quick actions, CSV export (online only), documents link; offline shows cached data + stale note.
 - Device detail: Telemetry charts (1h/24h/7d) for supply/return/power/flow/COP, delta-T tile, Azure history card (compressor current) with error mapping, control setpoint/mode with throttle/error messages, schedule edit modal, command history, active alerts, telemetry export (online). Risks: UI not role-gated (contractor can attempt control/exports, backend denies); history disabled offline; multiple `act()` warnings in tests.
@@ -33,7 +33,7 @@
 - Sharing & access: Profile shows role pill; Sharing screen gated to owner/admin/facilities, site/device share-link management (create 24h/7d/30d, copy, revoke) with offline disable. Risk: copied link uses `API_BASE_URL` so bad env misconfig breaks links.
 - Profile/Diagnostics: Push preference toggle persists via `/user/preferences`; session-expired banner; Diagnostics shows `/health-plus` snapshot (control/MQTT/heatPumpHistory/alerts engine counts, push status). No dark mode.
 - Issues/Risks
-  - P1: Mobile lint failing (6 `no-explicit-any` in share-link tests) blocks lint gate.
+  - P1: No current lint/test blockers; share-link `no-explicit-any` lint break was fixed by typing helpers.
   - P2: Widespread `act()` warnings in Jest suites hide real regressions.
   - P2: Control/ack/mute/export UI not role-gated; relies on backend errors for contractors.
   - P3: Env-dependent URLs (API_BASE_URL in share copy/diagnostics) must be set per deployment.
@@ -44,8 +44,8 @@
 - `/health-plus` expected healthy when DB reachable, storage writable, alerts worker heartbeat recent, control/mqtt configured flags accurate, heat-pump history last success recent, maintenance counts returned.
 
 ## Codebase Hygiene
-- Gitignore covers node_modules/dist; runtime dirs `backend/storage`, `backend/uploads`, `backend/uploads-test` are now ignored to avoid accidental commits. `logs/`/`archive/` already isolated.
-- Docs now note backend migrations/tests passing on 2025-12-08; mobile lint now green (act() warnings still noted).
+- Gitignore covers node_modules/dist; runtime dirs `backend/storage`, `backend/uploads`, `backend/uploads-test` are now ignored to avoid accidental commits. `logs/`/`archive/` already isolated and `archive/logs/` cleaned + ignored.
+- Docs now note backend migrations/tests passing on 2025-12-08 against Postgres and the share-link lint break now resolved; mobile lint now green (act() warnings still noted).
 - Audit snapshots: backend 6 moderate + 2 high (dev tooling: vitest/vite/node-pg-migrate/glob); mobile 3 low (Expo CLI/send). No changes applied.
 - No obvious dead code flagged by quick `rg` scans; legacy assets live under `archive/` only.
 

@@ -1,7 +1,7 @@
 **Greenbro Build Status (local sweep 2025-12-08)**
 
 - **Backend**
-- Commands executed this sweep (Node 20 / Postgres 16): `npm run migrate:dev`; `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm run migrate:test`; `npm test`; `npm run build` — all passed. Typecheck/lint last known green on 2025-12-07 (not rerun). Fixes: auth refresh tests now return user context with role, schedule RBAC tokens include role claims, and control spy cleanup lives in `afterAll`. Vitest held to single-thread/file-serial in `vitest.config.ts`; no Jest `--runInBand` flag needed.
+- Commands executed this sweep (Node 20 / Postgres 16): `npm run migrate:dev`; `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm run migrate:test`; `npm test`; `npm run build` — all passed on Postgres-backed runs; migrations/tests now run against Postgres each sweep. Typecheck/lint last known green on 2025-12-07 (not rerun). Fixes: auth refresh tests now return user context with role, schedule RBAC tokens include role claims, and control spy cleanup lives in `afterAll`. Vitest held to single-thread/file-serial in `vitest.config.ts`; no Jest `--runInBand` flag needed.
   - Migrations: node-pg-migrate baseline under `backend/migrations/` (includes `worker_locks`); `npm run migrate:dev` / `npm run migrate:test` wire to DATABASE_URL/TEST_DATABASE_URL; test harness runs migrations before seeding. Legacy `sql/*.sql` references removed to keep migrations as the source of truth.
   - `STAGING_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_staging npm run staging:bootstrap` (env guard) applied migrations and demo seed on a local staging DB for a dry-run; summary `{"stage":"staging","db":"ok","migrations":"applied","seed":"ok"}`.
   - Preferences: `/user/preferences` GET/PUT backed by `user_preferences` (`alerts_enabled` default true) with API coverage for auth/validation/default/update paths.
@@ -51,7 +51,7 @@
     ```
 
 - **Mobile**
-  - npm run typecheck, npm run lint, npm test -- --runInBand all green locally after wiring preferences to `/user/preferences` (latest spot run: `npm test -- --runInBand app/__tests__/DashboardLargeList.test.tsx app/__tests__/AlertsLargeList.test.tsx`).
+  - npm run typecheck, npm run lint, npm test -- --runInBand all green locally after wiring preferences to `/user/preferences` (lint briefly failed on share-link `no-explicit-any` but is now typed/fixed; `act()` warnings still appear from global wrappers). Latest spot run: `npm test -- --runInBand app/__tests__/DashboardLargeList.test.tsx app/__tests__/AlertsLargeList.test.tsx`.
   - Branding: horizontal logo now uses the gear-as-O artwork (`docs/branding/official/greenbro-logo-horizontal-gearO.png` → `mobile/assets/greenbro/greenbro-logo-horizontal.png`); icon and splash remain unchanged. Files touched: the two logo PNGs and `mobile/app/navigation/RootNavigator.tsx` for the header logo component.
   - Cleanup this sweep: deleted emulator screenshots/Metro/logcat/bundle tmp files from the mobile root so only canonical assets remain under `assets/greenbro/`.
   - Detox scaffolded for Android with `detox.config.js`, Jest circus runner under `e2e/`, Android instrumentation runner + DetoxButler (`android/app/src/androidTest/...`), and scripts `npm run e2e:build:android`, `npm run e2e:test:android` (headless).

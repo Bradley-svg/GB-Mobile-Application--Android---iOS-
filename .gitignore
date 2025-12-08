@@ -16,6 +16,7 @@ mobile/artifacts
 
 # Logs & temp
 logs/
+archive/logs/
 *.log
 *.err
 *.dmp
