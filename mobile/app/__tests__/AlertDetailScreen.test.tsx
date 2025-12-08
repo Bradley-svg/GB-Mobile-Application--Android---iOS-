@@ -1,6 +1,6 @@
 import React from 'react';
 import { Alert } from 'react-native';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import * as navigation from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import { AlertDetailScreen } from '../screens/Alerts/AlertDetailScreen';
@@ -14,6 +14,7 @@ import {
 } from '../api/hooks';
 import type { AppStackParamList } from '../navigation/RootNavigator';
 import { useNetworkBanner } from '../hooks/useNetworkBanner';
+import { useAuthStore } from '../store/authStore';
 
 jest.mock('../api/hooks', () => ({
   useAlerts: jest.fn(),
@@ -71,6 +72,16 @@ describe('AlertDetailScreen', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    act(() => {
+      useAuthStore.setState({
+        user: {
+          id: 'user-1',
+          email: 'owner@example.com',
+          name: 'Owner',
+          role: 'owner',
+        },
+      });
+    });
 
     (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: false });
     (navigation.useNavigation as jest.Mock).mockReturnValue({
@@ -127,6 +138,9 @@ describe('AlertDetailScreen', () => {
   afterEach(() => {
     (navigation.useRoute as jest.Mock).mockReset();
     (navigation.useRoute as jest.Mock).mockReturnValue({ params: {} });
+    act(() => {
+      useAuthStore.setState({ user: null });
+    });
   });
 
   it('calls acknowledge and mute mutations with correct payloads', async () => {
@@ -166,6 +180,26 @@ describe('AlertDetailScreen', () => {
     expect(ackButton.props.disabled).toBe(true);
     expect(muteButton.props.disabled).toBe(true);
     expect(screen.getByText(/requires network connection/i)).toBeTruthy();
+  });
+
+  it('disables alert actions for contractors', () => {
+    act(() => {
+      useAuthStore.setState({
+        user: {
+          id: 'user-contract',
+          email: 'contractor@example.com',
+          name: 'Contractor',
+          role: 'contractor',
+        },
+      });
+    });
+
+    render(<AlertDetailScreen />);
+
+    expect(screen.getByTestId('acknowledge-button')).toHaveProp('disabled', true);
+    expect(screen.getByTestId('mute-button')).toHaveProp('disabled', true);
+    expect(screen.getByTestId('create-work-order-button')).toHaveProp('disabled', true);
+    expect(screen.queryAllByText(/Read-only access/i).length).toBeGreaterThan(0);
   });
 
   it('sends correct snooze payloads for each chip', () => {

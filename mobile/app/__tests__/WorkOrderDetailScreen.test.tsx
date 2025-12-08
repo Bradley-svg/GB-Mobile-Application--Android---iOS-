@@ -10,6 +10,7 @@ import {
   useUploadWorkOrderAttachment,
 } from '../api/hooks';
 import { useNetworkBanner } from '../hooks/useNetworkBanner';
+import { useAuthStore } from '../store/authStore';
 
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
@@ -65,6 +66,16 @@ describe('WorkOrderDetailScreen', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    act(() => {
+      useAuthStore.setState({
+        user: {
+          id: 'user-1',
+          email: 'owner@example.com',
+          name: 'Owner',
+          role: 'owner',
+        },
+      });
+    });
     (navigation.useNavigation as jest.Mock).mockReturnValue({
       navigate: navigateMock,
       goBack: goBackMock,
@@ -130,5 +141,31 @@ describe('WorkOrderDetailScreen', () => {
 
     expect(screen.getByTestId('start-work-button')).toHaveProp('disabled', true);
     expect(screen.getByTestId('save-notes-button')).toHaveProp('disabled', true);
+  });
+
+  it('renders contractor read-only state', async () => {
+    act(() => {
+      useAuthStore.setState({
+        user: {
+          id: 'user-contract',
+          email: 'contractor@example.com',
+          name: 'Contractor',
+          role: 'contractor',
+        },
+      });
+    });
+
+    await renderWorkOrderScreen();
+
+    expect(screen.queryAllByText(/Read-only access/i).length).toBeGreaterThan(0);
+    expect(screen.getByTestId('start-work-button')).toHaveProp('disabled', true);
+    expect(screen.getByTestId('save-notes-button')).toHaveProp('disabled', true);
+    expect(screen.queryByTestId('add-attachment-button')).toBeNull();
+  });
+
+  afterEach(() => {
+    act(() => {
+      useAuthStore.setState({ user: null });
+    });
   });
 });

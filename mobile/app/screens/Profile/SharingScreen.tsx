@@ -39,7 +39,7 @@ export const SharingScreen: React.FC = () => {
         <Card style={[styles.infoCard, { maxWidth: 420 }]}>
           <Text style={[typography.title2, styles.title]}>Sharing unavailable</Text>
           <Text style={[typography.body, styles.muted, { marginTop: spacing.xs }]}>
-            Your role does not allow creating share links. Contact an owner or admin for access.
+            Read-only access for your role. Contact an owner or admin for access to manage share links.
           </Text>
         </Card>
       </Screen>

@@ -45,6 +45,7 @@ import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
 import { VictoryAxis, VictoryChart, VictoryLegend, VictoryLine } from 'victory-native';
 import { fetchDeviceTelemetryCsv } from '../../api/exports';
+import { isContractor, useAuthStore } from '../../store/authStore';
 
 type Route = RouteProp<AppStackParamList, 'DeviceDetail'>;
 type Navigation = NativeStackNavigationProp<AppStackParamList>;
@@ -76,7 +77,7 @@ type HistoryStatus =
   | 'otherError'
   | 'offline'
   | 'disabled';
-type CommandDisabledReason = 'offline' | 'deviceOffline' | 'unconfigured' | null;
+type CommandDisabledReason = 'offline' | 'deviceOffline' | 'unconfigured' | 'readOnly' | null;
 
 export const DeviceDetailScreen: React.FC = () => {
   const route = useRoute<Route>();
@@ -130,6 +131,9 @@ export const DeviceDetailScreen: React.FC = () => {
   const refetchTelemetry = telemetryQuery.refetch;
   const mac = deviceQuery.data?.mac ?? cachedDeviceDetail?.device.mac ?? null;
   const { isOffline } = useNetworkBanner();
+  const userRole = useAuthStore((s) => s.user?.role);
+  const contractorReadOnly = isContractor(userRole);
+  const readOnlyCopy = 'Read-only access for your role.';
 
   useEffect(() => {
     if (!isOffline) return;
@@ -274,7 +278,9 @@ export const DeviceDetailScreen: React.FC = () => {
   const deviceStatus = (device?.status || '').toLowerCase();
   const isDeviceOffline = deviceStatus.includes('off') || deviceStatus.includes('down');
   const isControlConfigured = Boolean(device?.external_id);
-  const commandsDisabledReason: CommandDisabledReason = isOffline
+  const commandsDisabledReason: CommandDisabledReason = contractorReadOnly
+    ? 'readOnly'
+    : isOffline
     ? 'offline'
     : isDeviceOffline
     ? 'deviceOffline'
@@ -370,7 +376,7 @@ export const DeviceDetailScreen: React.FC = () => {
   const ModalComponent = (Modal || View) as React.ComponentType<ModalProps>;
 
   const onExportTelemetry = async () => {
-    if (isOffline || exportingTelemetry) return;
+    if (isOffline || exportingTelemetry || contractorReadOnly) return;
     setExportingTelemetry(true);
     try {
       const now = new Date();
@@ -426,6 +432,8 @@ export const DeviceDetailScreen: React.FC = () => {
   const emptyMetricPlaceholder = 'No data for this metric in the selected range.';
   const scheduleData = scheduleQuery.data;
   const scheduleSummary = formatScheduleSummary(scheduleData);
+  const scheduleReadOnly = contractorReadOnly || isOffline;
+  const exportDisabled = exportingTelemetry || contractorReadOnly;
   const healthPill = healthDisplay(device?.status);
   const connectivityPill = connectivityDisplay(device?.connectivity_status || device?.status);
 
@@ -497,6 +505,10 @@ export const DeviceDetailScreen: React.FC = () => {
   };
 
   const onSaveSchedule = async () => {
+    if (contractorReadOnly) {
+      setScheduleError(readOnlyCopy);
+      return;
+    }
     if (isOffline) {
       setScheduleError('Schedule changes require a connection.');
       return;
@@ -554,6 +566,7 @@ export const DeviceDetailScreen: React.FC = () => {
                 <TextInput
                   value={scheduleForm.name}
                   onChangeText={(text) => setScheduleForm((prev) => ({ ...prev, name: text }))}
+                  editable={!scheduleReadOnly}
                   style={styles.input}
                 />
               </View>
@@ -568,6 +581,7 @@ export const DeviceDetailScreen: React.FC = () => {
                     }))
                   }
                   keyboardType="numeric"
+                  editable={!scheduleReadOnly}
                   style={styles.input}
                 />
               </View>
@@ -582,6 +596,7 @@ export const DeviceDetailScreen: React.FC = () => {
                     }))
                   }
                   keyboardType="numeric"
+                  editable={!scheduleReadOnly}
                   style={styles.input}
                 />
               </View>
@@ -598,6 +613,7 @@ export const DeviceDetailScreen: React.FC = () => {
                     }))
                   }
                   keyboardType="numeric"
+                  editable={!scheduleReadOnly}
                   style={styles.input}
                 />
               </View>
@@ -617,7 +633,7 @@ export const DeviceDetailScreen: React.FC = () => {
                           : { backgroundColor: colors.backgroundAlt },
                       ]}
                       onPress={() => setScheduleForm((prev) => ({ ...prev, targetMode: mode }))}
-                      disabled={scheduleMutation.isPending}
+                      disabled={scheduleMutation.isPending || scheduleReadOnly}
                     >
                       <Text
                         style={[
@@ -636,7 +652,7 @@ export const DeviceDetailScreen: React.FC = () => {
                 onPress={() =>
                   setScheduleForm((prev) => ({ ...prev, enabled: !prev.enabled }))
                 }
-                disabled={scheduleMutation.isPending}
+                disabled={scheduleMutation.isPending || scheduleReadOnly}
               >
                 <Text style={[typography.body, styles.title]}>Enabled</Text>
                 <Ionicons
@@ -653,12 +669,17 @@ export const DeviceDetailScreen: React.FC = () => {
                   Schedule changes require a connection.
                 </Text>
               ) : null}
+              {contractorReadOnly ? (
+                <Text style={[typography.caption, styles.offlineNote, { marginTop: spacing.xs }]}>
+                  {readOnlyCopy}
+                </Text>
+              ) : null}
             </ScrollView>
             <View style={styles.modalActions}>
               <PrimaryButton
                 label={scheduleMutation.isPending ? 'Saving...' : 'Save schedule'}
                 onPress={onSaveSchedule}
-                disabled={scheduleMutation.isPending || isOffline}
+                disabled={scheduleMutation.isPending || isOffline || contractorReadOnly}
               />
               <PrimaryButton
                 label="Cancel"
@@ -763,6 +784,11 @@ export const DeviceDetailScreen: React.FC = () => {
             : 'Offline and no cached data for this device.'}
         </Text>
       ) : null}
+      {contractorReadOnly ? (
+        <Text style={[typography.caption, styles.offlineNote, { marginBottom: spacing.md }]}>
+          {readOnlyCopy} Controls, schedules, and exports are disabled for contractors.
+        </Text>
+      ) : null}
       {cacheStale ? (
         <Text style={[typography.caption, styles.offlineNote, { marginBottom: spacing.md, color: colors.warning }]}>
           Data older than 24 hours – may be out of date.
@@ -793,10 +819,10 @@ export const DeviceDetailScreen: React.FC = () => {
       {!isOffline ? (
         <TouchableOpacity
           onPress={onExportTelemetry}
-          disabled={exportingTelemetry}
+          disabled={exportDisabled}
           style={[
             styles.exportButton,
-            exportingTelemetry ? styles.exportButtonDisabled : styles.exportButtonEnabled,
+            exportDisabled ? styles.exportButtonDisabled : styles.exportButtonEnabled,
           ]}
           testID='export-telemetry-button'
         >
@@ -805,6 +831,11 @@ export const DeviceDetailScreen: React.FC = () => {
             {exportingTelemetry ? 'Preparing...' : 'Export telemetry'}
           </Text>
         </TouchableOpacity>
+      ) : null}
+      {contractorReadOnly ? (
+        <Text style={[typography.caption, styles.muted, { marginBottom: spacing.md }]}>
+          {readOnlyCopy}
+        </Text>
       ) : null}
 
       {telemetryLoading && (
@@ -958,6 +989,7 @@ export const DeviceDetailScreen: React.FC = () => {
             setCommandError(null);
           }}
           keyboardType="numeric"
+          editable={!contractorReadOnly}
           style={styles.input}
         />
         {setpointError ? (
@@ -1030,15 +1062,16 @@ export const DeviceDetailScreen: React.FC = () => {
           <Text style={[typography.subtitle, styles.title]}>Schedule</Text>
           <TouchableOpacity
             onPress={() => setScheduleModalVisible(true)}
-            disabled={isOffline}
+            disabled={isOffline || contractorReadOnly}
+            testID="edit-schedule-button"
           >
             <Text
               style={[
                 typography.caption,
-                isOffline ? styles.muted : styles.title,
+                isOffline || contractorReadOnly ? styles.muted : styles.title,
               ]}
             >
-              {isOffline ? 'Offline' : 'Edit schedule'}
+              {isOffline ? 'Offline' : contractorReadOnly ? 'Read-only' : 'Edit schedule'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -1070,6 +1103,11 @@ export const DeviceDetailScreen: React.FC = () => {
         {isOffline ? (
           <Text style={[typography.caption, styles.offlineNote, { marginTop: spacing.xs }]}>
             Schedule read-only while offline.
+          </Text>
+        ) : null}
+        {contractorReadOnly ? (
+          <Text style={[typography.caption, styles.offlineNote, { marginTop: spacing.xs }]}>
+            {readOnlyCopy}
           </Text>
         ) : null}
       </Card>
@@ -1270,6 +1308,8 @@ function mapTelemetryError(error: unknown) {
 
 function mapControlDisabledMessage(reason: CommandDisabledReason) {
   switch (reason) {
+    case 'readOnly':
+      return 'Read-only access for your role.';
     case 'offline':
       return 'Commands are unavailable while offline.';
     case 'deviceOffline':

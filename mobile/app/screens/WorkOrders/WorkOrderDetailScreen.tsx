@@ -29,6 +29,7 @@ import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { colors, gradients } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
+import { isContractor, useAuthStore } from '../../store/authStore';
 
 type WorkOrderDetailRouteParams = RouteProp<AppStackParamList, 'WorkOrderDetail'>;
 type WorkOrderDetailNavigation = NativeStackNavigationProp<AppStackParamList, 'WorkOrderDetail'>;
@@ -121,6 +122,10 @@ export const WorkOrderDetailScreen: React.FC = () => {
   const attachmentsQuery = useWorkOrderAttachments(workOrderId);
   const uploadAttachment = useUploadWorkOrderAttachment(workOrderId);
   const { isOffline } = useNetworkBanner();
+  const userRole = useAuthStore((s) => s.user?.role);
+  const contractorReadOnly = isContractor(userRole);
+  const isReadOnly = isOffline || contractorReadOnly;
+  const readOnlyCopy = 'Read-only access for your role.';
   const [notes, setNotes] = useState<string>('');
   const [actionError, setActionError] = useState<string | null>(null);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
@@ -148,6 +153,10 @@ export const WorkOrderDetailScreen: React.FC = () => {
 
   const onChangeStatus = async (next: WorkOrderStatus) => {
     if (!workOrder) return;
+    if (contractorReadOnly) {
+      setActionError(readOnlyCopy);
+      return;
+    }
     if (isOffline) {
       setActionError('Read-only while offline.');
       return;
@@ -163,6 +172,10 @@ export const WorkOrderDetailScreen: React.FC = () => {
 
   const onSaveNotes = async () => {
     if (!workOrder) return;
+    if (contractorReadOnly) {
+      setActionError(readOnlyCopy);
+      return;
+    }
     if (isOffline) {
       setActionError('Read-only while offline.');
       return;
@@ -178,6 +191,10 @@ export const WorkOrderDetailScreen: React.FC = () => {
 
   const onToggleTask = async (task: WorkOrderTask) => {
     if (!workOrder) return;
+    if (contractorReadOnly) {
+      setActionError(readOnlyCopy);
+      return;
+    }
     if (isOffline) {
       setActionError('Read-only while offline.');
       return;
@@ -258,6 +275,10 @@ export const WorkOrderDetailScreen: React.FC = () => {
   };
 
   const uploadSelectedFile = async (selector: () => Promise<UploadAttachmentInput | null>) => {
+    if (contractorReadOnly) {
+      setAttachmentError(readOnlyCopy);
+      return;
+    }
     if (isOffline) {
       setAttachmentError('Attachments can only be added when online.');
       return;
@@ -274,6 +295,10 @@ export const WorkOrderDetailScreen: React.FC = () => {
   };
 
   const startAttachmentFlow = () => {
+    if (contractorReadOnly) {
+      setAttachmentError(readOnlyCopy);
+      return;
+    }
     if (isOffline) {
       setAttachmentError('Attachments can only be added when online.');
       return;
@@ -287,6 +312,10 @@ export const WorkOrderDetailScreen: React.FC = () => {
 
   const onOpenSlaEdit = () => {
     if (!workOrder) return;
+    if (contractorReadOnly) {
+      setActionError(readOnlyCopy);
+      return;
+    }
     if (isOffline) {
       setActionError('SLA changes require a connection');
       return;
@@ -301,6 +330,10 @@ export const WorkOrderDetailScreen: React.FC = () => {
 
   const onSaveSla = async () => {
     if (!workOrder) return;
+    if (contractorReadOnly) {
+      setActionError(readOnlyCopy);
+      return;
+    }
     if (isOffline) {
       setActionError('SLA changes require a connection');
       return;
@@ -341,14 +374,14 @@ export const WorkOrderDetailScreen: React.FC = () => {
           <PrimaryButton
             label={updateStatus.isPending ? 'Starting...' : 'Start work'}
             onPress={() => onChangeStatus('in_progress')}
-            disabled={updateStatus.isPending || isOffline}
+            disabled={updateStatus.isPending || isReadOnly}
             testID="start-work-button"
           />
           <PrimaryButton
             label="Cancel"
             onPress={() => onChangeStatus('cancelled')}
             variant="outline"
-            disabled={updateStatus.isPending || isOffline}
+            disabled={updateStatus.isPending || isReadOnly}
             style={{ marginTop: spacing.sm }}
             testID="cancel-workorder-button"
           />
@@ -361,14 +394,14 @@ export const WorkOrderDetailScreen: React.FC = () => {
         <PrimaryButton
           label={updateStatus.isPending ? 'Marking...' : 'Mark as done'}
           onPress={() => onChangeStatus('done')}
-          disabled={updateStatus.isPending || isOffline}
+          disabled={updateStatus.isPending || isReadOnly}
           testID="complete-workorder-button"
         />
         <PrimaryButton
           label="Cancel"
           onPress={() => onChangeStatus('cancelled')}
           variant="outline"
-          disabled={updateStatus.isPending || isOffline}
+          disabled={updateStatus.isPending || isReadOnly}
           style={{ marginTop: spacing.sm }}
           testID="cancel-workorder-button"
         />
@@ -415,6 +448,9 @@ export const WorkOrderDetailScreen: React.FC = () => {
         {isOffline ? (
           <StatusPill label="Offline (read-only)" tone="muted" style={{ marginLeft: spacing.sm }} />
         ) : null}
+        {contractorReadOnly ? (
+          <StatusPill label="Read-only role" tone="muted" style={{ marginLeft: spacing.sm }} />
+        ) : null}
       </View>
 
       <Card style={styles.headerCard}>
@@ -456,7 +492,7 @@ export const WorkOrderDetailScreen: React.FC = () => {
           <TouchableOpacity
             style={styles.slaEditButton}
             onPress={onOpenSlaEdit}
-            disabled={isOffline}
+            disabled={isReadOnly}
             testID="edit-sla-button"
           >
             <Ionicons name="time-outline" size={16} color={colors.brandGreen} />
@@ -555,7 +591,7 @@ export const WorkOrderDetailScreen: React.FC = () => {
               <PrimaryButton
                 label={updateSla.isPending ? 'Saving...' : 'Save SLA'}
                 onPress={onSaveSla}
-                disabled={updateSla.isPending || isOffline}
+                disabled={updateSla.isPending || isReadOnly}
                 testID="save-sla-button"
               />
               <PrimaryButton
@@ -576,6 +612,11 @@ export const WorkOrderDetailScreen: React.FC = () => {
             SLA changes require a connection
           </Text>
         ) : null}
+        {contractorReadOnly ? (
+          <Text style={[typography.caption, styles.muted, { marginTop: spacing.xs }]}>
+            {readOnlyCopy}
+          </Text>
+        ) : null}
       </Card>
 
       <Card style={styles.detailCard}>
@@ -588,7 +629,7 @@ export const WorkOrderDetailScreen: React.FC = () => {
               key={task.id}
               style={styles.taskRow}
               onPress={() => onToggleTask(task)}
-              disabled={isOffline || updateTasks.isPending}
+              disabled={isReadOnly || updateTasks.isPending}
               testID={`task-${task.id}`}
             >
               <Ionicons
@@ -608,6 +649,11 @@ export const WorkOrderDetailScreen: React.FC = () => {
             </TouchableOpacity>
           ))
         )}
+        {isReadOnly ? (
+          <Text style={[typography.caption, styles.muted, { marginTop: spacing.xs }]}>
+            {contractorReadOnly ? readOnlyCopy : 'Checklist read-only while offline.'}
+          </Text>
+        ) : null}
       </Card>
 
       <Card style={styles.detailCard}>
@@ -618,17 +664,22 @@ export const WorkOrderDetailScreen: React.FC = () => {
           placeholder="Add notes, observations, and readings..."
           value={notes}
           onChangeText={setNotes}
-          editable={!isOffline}
+          editable={!isReadOnly}
           testID="workorder-notes-input"
         />
         <PrimaryButton
           label={updateStatus.isPending ? 'Saving...' : 'Save notes'}
           onPress={onSaveNotes}
-          disabled={updateStatus.isPending || isOffline}
+          disabled={updateStatus.isPending || isReadOnly}
           variant="outline"
           style={{ marginTop: spacing.sm }}
           testID="save-notes-button"
         />
+        {isReadOnly ? (
+          <Text style={[typography.caption, styles.muted, { marginTop: spacing.xs }]}>
+            {contractorReadOnly ? readOnlyCopy : 'Notes are read-only while offline.'}
+          </Text>
+        ) : null}
       </Card>
 
       <Card style={styles.detailCard}>
@@ -672,9 +723,9 @@ export const WorkOrderDetailScreen: React.FC = () => {
         {attachmentError ? (
           <Text style={[typography.caption, styles.errorText]}>{attachmentError}</Text>
         ) : null}
-        {isOffline ? (
+        {isOffline || contractorReadOnly ? (
           <Text style={[typography.caption, styles.muted, { marginTop: spacing.sm }]}>
-            Attachments can only be added when online.
+            {contractorReadOnly ? readOnlyCopy : 'Attachments can only be added when online.'}
           </Text>
         ) : (
           <PrimaryButton
@@ -711,6 +762,9 @@ export const WorkOrderDetailScreen: React.FC = () => {
           <Text style={[typography.caption, styles.muted]}>
             Read-only while offline. Reconnect to update status or checklist.
           </Text>
+        ) : null}
+        {contractorReadOnly ? (
+          <Text style={[typography.caption, styles.muted]}>{readOnlyCopy}</Text>
         ) : null}
       </Card>
     </Screen>

@@ -18,6 +18,7 @@ import type { RouteProp } from '@react-navigation/native';
 import type { AppStackParamList } from '../navigation/RootNavigator';
 import { useNetworkBanner } from '../hooks/useNetworkBanner';
 import { loadJsonWithMetadata } from '../utils/storage';
+import { useAuthStore } from '../store/authStore';
 
 jest.mock('../api/hooks', () => ({
   useDevice: jest.fn(),
@@ -50,6 +51,9 @@ describe('DeviceDetailScreen', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    act(() => {
+      useAuthStore.setState({ user: null });
+    });
 
     (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: false });
     (loadJsonWithMetadata as jest.Mock).mockResolvedValue(null);
@@ -151,6 +155,9 @@ describe('DeviceDetailScreen', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+    act(() => {
+      useAuthStore.setState({ user: null });
+    });
   });
 
   it('shows placeholders when telemetry metrics are empty', async () => {
@@ -247,6 +254,26 @@ describe('DeviceDetailScreen', () => {
     expect(offlineCommandMessages.length).toBeGreaterThan(0);
     const setpointButton = screen.getByTestId('setpoint-button');
     expect(setpointButton.props.disabled).toBe(true);
+  });
+
+  it('renders contractor read-only state', async () => {
+    act(() => {
+      useAuthStore.setState({
+        user: {
+          id: 'user-contract',
+          email: 'contractor@example.com',
+          name: 'Contractor',
+          role: 'contractor',
+        },
+      });
+    });
+
+    await renderDeviceDetail();
+
+    expect(screen.queryAllByText(/Read-only access/i).length).toBeGreaterThan(0);
+    expect(screen.getByTestId('setpoint-button')).toHaveProp('disabled', true);
+    expect(screen.getByTestId('export-telemetry-button')).toHaveProp('disabled', true);
+    expect(screen.getByTestId('edit-schedule-button')).toHaveProp('disabled', true);
   });
 
   it('shows offline empty state when no cached device exists', async () => {

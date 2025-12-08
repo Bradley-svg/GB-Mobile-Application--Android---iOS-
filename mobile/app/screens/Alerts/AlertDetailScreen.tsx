@@ -17,6 +17,7 @@ import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { colors, gradients } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
+import { isContractor, useAuthStore } from '../../store/authStore';
 
 type AlertDetailRouteParams = RouteProp<AppStackParamList, 'AlertDetail'>;
 type AlertDetailNavigation = NativeStackNavigationProp<AppStackParamList, 'AlertDetail'>;
@@ -37,6 +38,9 @@ export const AlertDetailScreen: React.FC = () => {
   const [actionError, setActionError] = useState<string | null>(null);
   const [workOrderError, setWorkOrderError] = useState<string | null>(null);
   const [snoozeMinutes, setSnoozeMinutes] = useState<number>(60);
+  const userRole = useAuthStore((s) => s.user?.role);
+  const contractorReadOnly = isContractor(userRole);
+  const readOnlyCopy = 'Read-only access for your role.';
   const deviceIdForRules = alertItem?.device_id ?? '';
   const rulesQuery = useAlertRulesForDevice(deviceIdForRules);
   const createFromAlert = useCreateWorkOrderFromAlert(alertId);
@@ -87,6 +91,10 @@ export const AlertDetailScreen: React.FC = () => {
 
   const onAcknowledge = async () => {
     setActionError(null);
+    if (contractorReadOnly) {
+      setActionError(readOnlyCopy);
+      return;
+    }
     if (isOffline) {
       setActionError('Offline - acknowledgment requires a connection.');
       return;
@@ -103,6 +111,10 @@ export const AlertDetailScreen: React.FC = () => {
 
   const onMute = async () => {
     setActionError(null);
+    if (contractorReadOnly) {
+      setActionError(readOnlyCopy);
+      return;
+    }
     if (isOffline) {
       setActionError('Offline - muting requires a connection.');
       return;
@@ -119,6 +131,10 @@ export const AlertDetailScreen: React.FC = () => {
 
   const onCreateWorkOrder = async () => {
     setWorkOrderError(null);
+    if (contractorReadOnly) {
+      setWorkOrderError(readOnlyCopy);
+      return;
+    }
     if (isOffline) {
       setWorkOrderError('Work orders require a connection.');
       return;
@@ -223,7 +239,7 @@ export const AlertDetailScreen: React.FC = () => {
           label={acknowledge.isPending ? 'Acknowledging...' : 'Acknowledge'}
           onPress={onAcknowledge}
           testID="acknowledge-button"
-          disabled={acknowledge.isPending || isOffline}
+          disabled={acknowledge.isPending || isOffline || contractorReadOnly}
         />
         <View style={styles.snoozeRow}>
           {[15, 60, 240, 1440].map((minutes) => {
@@ -238,7 +254,7 @@ export const AlertDetailScreen: React.FC = () => {
                     : { backgroundColor: colors.background },
                 ]}
                 onPress={() => setSnoozeMinutes(minutes)}
-                disabled={mute.isPending || isResolved}
+                disabled={mute.isPending || isResolved || contractorReadOnly}
               >
                 <Text
                   style={[
@@ -256,7 +272,7 @@ export const AlertDetailScreen: React.FC = () => {
           label={mute.isPending ? 'Muting...' : `Mute ${formatSnoozeLabel(snoozeMinutes)}`}
           onPress={onMute}
           testID="mute-button"
-          disabled={mute.isPending || isOffline || isResolved}
+          disabled={mute.isPending || isOffline || isResolved || contractorReadOnly}
           variant="outline"
           style={{ marginTop: spacing.sm }}
         />
@@ -270,6 +286,9 @@ export const AlertDetailScreen: React.FC = () => {
           <Text style={[typography.caption, styles.offlineNote]}>
             Requires network connection to acknowledge or mute alerts.
           </Text>
+        ) : null}
+        {contractorReadOnly ? (
+          <Text style={[typography.caption, styles.offlineNote]}>{readOnlyCopy}</Text>
         ) : null}
       </View>
 
@@ -300,13 +319,16 @@ export const AlertDetailScreen: React.FC = () => {
         <PrimaryButton
           label={createFromAlert.isPending ? 'Creating...' : 'Create work order'}
           onPress={onCreateWorkOrder}
-          disabled={createFromAlert.isPending || isOffline}
+          disabled={createFromAlert.isPending || isOffline || contractorReadOnly}
           testID="create-work-order-button"
         />
         {isOffline ? (
           <Text style={[typography.caption, styles.offlineNote]}>
             Work orders require a connection.
           </Text>
+        ) : null}
+        {contractorReadOnly ? (
+          <Text style={[typography.caption, styles.offlineNote]}>{readOnlyCopy}</Text>
         ) : null}
         {workOrderError ? (
           <Text style={[typography.caption, styles.errorText]}>{workOrderError}</Text>

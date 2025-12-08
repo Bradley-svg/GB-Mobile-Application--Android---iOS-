@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import * as navigation from '@react-navigation/native';
 import { SharingScreen } from '../screens/Profile/SharingScreen';
 import { useSites, useDevices } from '../api/hooks';
@@ -20,6 +20,9 @@ jest.mock('../hooks/useNetworkBanner', () => ({
 describe('SharingScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    act(() => {
+      useAuthStore.setState({ user: null });
+    });
     (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: false });
     (useSites as jest.Mock).mockReturnValue({
       data: [{ id: 'site-1', name: 'Site One', city: 'Cape Town', device_count: 2 }],
@@ -34,8 +37,10 @@ describe('SharingScreen', () => {
   });
 
   it('allows owners to navigate to share links', () => {
-    useAuthStore.setState({
-      user: { id: 'user-1', email: 'owner@example.com', name: 'Owner', role: 'owner' },
+    act(() => {
+      useAuthStore.setState({
+        user: { id: 'user-1', email: 'owner@example.com', name: 'Owner', role: 'owner' },
+      });
     });
     const navigate = jest.fn();
     const navigationMock: Partial<NavigationProp<AppStackParamList>> = { navigate };
@@ -60,13 +65,15 @@ describe('SharingScreen', () => {
   });
 
   it('shows unavailable state for contractors', () => {
-    useAuthStore.setState({
-      user: {
-        id: 'user-2',
-        email: 'contractor@example.com',
-        name: 'Contractor',
-        role: 'contractor',
-      },
+    act(() => {
+      useAuthStore.setState({
+        user: {
+          id: 'user-2',
+          email: 'contractor@example.com',
+          name: 'Contractor',
+          role: 'contractor',
+        },
+      });
     });
     const route: RouteProp<AppStackParamList, 'Sharing'> = {
       key: 'Sharing',
@@ -82,6 +89,13 @@ describe('SharingScreen', () => {
     const { getByText, queryByTestId } = render(<SharingScreen />);
 
     expect(getByText(/Sharing unavailable/i)).toBeTruthy();
+    expect(getByText(/Read-only access/i)).toBeTruthy();
     expect(queryByTestId('manage-site-share')).toBeNull();
+  });
+
+  afterEach(() => {
+    act(() => {
+      useAuthStore.setState({ user: null });
+    });
   });
 });
