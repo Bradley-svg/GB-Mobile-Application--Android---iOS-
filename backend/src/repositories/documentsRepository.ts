@@ -122,6 +122,20 @@ export async function findDocumentByRelativePath(
   return res.rows[0] ?? null;
 }
 
+export async function findDocumentById(documentId: string): Promise<DocumentRow | null> {
+  const res = await query<DocumentRow>(
+    `
+    select *
+    from documents
+    where id = $1
+    limit 1
+  `,
+    [documentId]
+  );
+
+  return res.rows[0] ?? null;
+}
+
 export async function deleteDocument(orgId: string, documentId: string): Promise<DocumentRow | null> {
   const res = await query<DocumentRow>(
     `

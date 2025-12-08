@@ -355,7 +355,6 @@ export async function listWorkOrderAttachmentsHandler(
 
     const workOrder = await getWorkOrder(organisationId, parsedParams.data.id);
     if (!workOrder) {
-      await fs.promises.unlink(file.path).catch(() => {});
       return res.status(404).json({ message: 'Not found' });
     }
 

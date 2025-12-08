@@ -7,6 +7,7 @@ const SPLASH_PATH = './assets/greenbro/greenbro-splash.png';
 export default ({ config }: ConfigContext): ExpoConfig => {
   // EXPO_PUBLIC_API_URL is baked into the bundle and exposed via Constants.expoConfig.extra.apiUrl
   const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:4000';
+  const useSignedFileUrls = process.env.EXPO_PUBLIC_USE_SIGNED_FILE_URLS === 'true';
 
   return {
     ...config,
@@ -42,6 +43,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     extra: {
       ...(config.extra || {}),
       apiUrl,
+      useSignedFileUrls,
     },
   };
 };

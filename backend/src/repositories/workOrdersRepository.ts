@@ -532,6 +532,22 @@ export async function findWorkOrderAttachmentByRelativePath(
   return res.rows[0] ?? null;
 }
 
+export async function findWorkOrderAttachmentById(
+  attachmentId: string
+): Promise<WorkOrderAttachmentRow | null> {
+  const res = await query<WorkOrderAttachmentRow>(
+    `
+    select *
+    from work_order_attachments
+    where id = $1
+    limit 1
+  `,
+    [attachmentId]
+  );
+
+  return res.rows[0] ?? null;
+}
+
 export async function deleteWorkOrderAttachment(
   organisationId: string,
   attachmentId: string,

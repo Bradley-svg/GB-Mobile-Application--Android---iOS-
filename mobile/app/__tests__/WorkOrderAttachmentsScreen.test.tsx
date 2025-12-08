@@ -1,5 +1,6 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { Linking } from 'react-native';
 import * as navigation from '@react-navigation/native';
 import { WorkOrderDetailScreen } from '../screens/WorkOrders/WorkOrderDetailScreen';
 import {
@@ -8,9 +9,18 @@ import {
   useUpdateWorkOrderTasks,
   useWorkOrderAttachments,
   useUploadWorkOrderAttachment,
+  useSignedFileUrl,
 } from '../api/hooks';
 import { useNetworkBanner } from '../hooks/useNetworkBanner';
+import { shouldUseSignedFileUrls } from '../api/client';
 
+jest.mock('react-native', () => {
+  const actual = jest.requireActual('react-native');
+  return {
+    ...actual,
+    Linking: { openURL: jest.fn() },
+  };
+});
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),
   useNavigation: jest.fn(),
@@ -22,9 +32,14 @@ jest.mock('../api/hooks', () => ({
   useUpdateWorkOrderTasks: jest.fn(),
   useWorkOrderAttachments: jest.fn(),
   useUploadWorkOrderAttachment: jest.fn(),
+  useSignedFileUrl: jest.fn(),
 }));
 jest.mock('../hooks/useNetworkBanner', () => ({
   useNetworkBanner: jest.fn(),
+}));
+jest.mock('../api/client', () => ({
+  api: { defaults: { baseURL: 'http://example.com' } },
+  shouldUseSignedFileUrls: jest.fn(() => false),
 }));
 
 describe('WorkOrderDetailScreen attachments', () => {
@@ -48,6 +63,7 @@ describe('WorkOrderDetailScreen attachments', () => {
   };
 
   beforeEach(() => {
+    jest.clearAllMocks();
     (navigation.useNavigation as jest.Mock).mockReturnValue({
       navigate: jest.fn(),
       goBack: jest.fn(),
@@ -74,6 +90,8 @@ describe('WorkOrderDetailScreen attachments', () => {
       isPending: false,
     });
     (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: false });
+    (useSignedFileUrl as jest.Mock).mockReturnValue({ mutateAsync: jest.fn() });
+    (shouldUseSignedFileUrls as jest.Mock).mockReturnValue(false);
   });
 
   it('renders empty state when no attachments', () => {
@@ -117,5 +135,24 @@ describe('WorkOrderDetailScreen attachments', () => {
 
     expect(screen.queryByTestId('add-attachment-button')).toBeNull();
     expect(screen.getByText(/Attachments can only be added when online/i)).toBeTruthy();
+  });
+
+  it('uses signed URLs when the feature flag is enabled', async () => {
+    const mutateAsync = jest.fn().mockResolvedValue('/files/signed/abc');
+    (useSignedFileUrl as jest.Mock).mockReturnValue({ mutateAsync });
+    (shouldUseSignedFileUrls as jest.Mock).mockReturnValue(true);
+    (useWorkOrderAttachments as jest.Mock).mockReturnValue({
+      data: [{ id: 'a1', originalName: 'photo.jpg', mimeType: 'image/jpeg', url: '/files/a1' }],
+      isLoading: false,
+      isFetching: false,
+    });
+    const openSpy = (Linking.openURL as jest.Mock).mockResolvedValueOnce();
+
+    render(<WorkOrderDetailScreen />);
+    fireEvent.press(screen.getByTestId('attachment-a1'));
+
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith('a1'));
+    expect(openSpy).toHaveBeenCalledWith('http://example.com/files/signed/abc');
+    openSpy.mockRestore();
   });
 });

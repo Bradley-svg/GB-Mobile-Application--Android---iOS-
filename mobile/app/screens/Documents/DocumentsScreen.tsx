@@ -4,14 +4,14 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { AppStackParamList } from '../../navigation/RootNavigator';
-import { useDeviceDocuments, useSiteDocuments } from '../../api/hooks';
+import { useDeviceDocuments, useSiteDocuments, useSignedFileUrl } from '../../api/hooks';
 import type { Document } from '../../api/documents/types';
 import { Screen, Card, IconButton, StatusPill, EmptyState, ErrorCard } from '../../components';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { colors } from '../../theme/colors';
 import { typography } from '../../theme/typography';
 import { spacing } from '../../theme/spacing';
-import { api } from '../../api/client';
+import { api, shouldUseSignedFileUrls } from '../../api/client';
 
 type Route = RouteProp<AppStackParamList, 'Documents'>;
 type Navigation = NativeStackNavigationProp<AppStackParamList>;
@@ -41,6 +41,7 @@ export const DocumentsScreen: React.FC = () => {
 
   const siteDocuments = useSiteDocuments(siteId || '');
   const deviceDocuments = useDeviceDocuments(deviceId || '');
+  const signedFileUrl = useSignedFileUrl();
   const query = scope === 'site' ? siteDocuments : deviceDocuments;
 
   const documents = query.data ?? [];
@@ -50,7 +51,16 @@ export const DocumentsScreen: React.FC = () => {
   }, [query.dataUpdatedAt]);
 
   const openDocument = async (doc: Document) => {
-    const target = buildDocumentUrl(doc.url);
+    let target = buildDocumentUrl(doc.url);
+    if (shouldUseSignedFileUrls()) {
+      try {
+        const signedUrl = await signedFileUrl.mutateAsync(doc.id);
+        target = buildDocumentUrl(signedUrl);
+      } catch (err) {
+        console.error('Failed to open document', err);
+        return;
+      }
+    }
     if (!target) return;
     try {
       await Linking.openURL(target);

@@ -20,9 +20,10 @@ import {
   useWorkOrder,
   useWorkOrderAttachments,
   useUploadWorkOrderAttachment,
+  useSignedFileUrl,
 } from '../../api/hooks';
 import type { WorkOrderAttachment, WorkOrderStatus, WorkOrderTask } from '../../api/workOrders/types';
-import { api } from '../../api/client';
+import { api, shouldUseSignedFileUrls } from '../../api/client';
 import { Screen, Card, PrimaryButton, StatusPill, IconButton, PillTabGroup } from '../../components';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
@@ -121,6 +122,7 @@ export const WorkOrderDetailScreen: React.FC = () => {
   const updateTasks = useUpdateWorkOrderTasks();
   const attachmentsQuery = useWorkOrderAttachments(workOrderId);
   const uploadAttachment = useUploadWorkOrderAttachment(workOrderId);
+  const signedFileUrl = useSignedFileUrl();
   const { isOffline } = useNetworkBanner();
   const userRole = useAuthStore((s) => s.user?.role);
   const contractorReadOnly = isContractor(userRole);
@@ -221,7 +223,17 @@ export const WorkOrderDetailScreen: React.FC = () => {
   const attachments: WorkOrderAttachment[] = attachmentsQuery.data ?? workOrder?.attachments ?? [];
 
   const onOpenAttachment = async (attachment: WorkOrderAttachment) => {
-    const target = buildAttachmentUrl(attachment.url);
+    let target = buildAttachmentUrl(attachment.url);
+    if (shouldUseSignedFileUrls()) {
+      try {
+        const signedUrl = await signedFileUrl.mutateAsync(attachment.id);
+        target = buildAttachmentUrl(signedUrl);
+      } catch (err) {
+        console.error('Failed to fetch signed attachment URL', err);
+        setAttachmentError('Could not open attachment. Please try again.');
+        return;
+      }
+    }
     if (!target) return;
     try {
       await Linking.openURL(target);

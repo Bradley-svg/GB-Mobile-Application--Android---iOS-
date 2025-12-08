@@ -1,13 +1,12 @@
+import fs from 'fs';
 import path from 'path';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import type { Express } from 'express';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { query } from '../src/config/db';
 
-const scanFileMock = vi
-  .fn<[string], Promise<'clean' | 'infected' | 'error'>>()
-  .mockResolvedValue('clean');
+const scanFileMock = vi.fn<[string], Promise<'clean' | 'infected' | 'error'>>();
 
 vi.mock('../src/services/virusScanner', () => ({
   scanFile: (...args: unknown[]) => scanFileMock(...(args as [string])),
@@ -27,6 +26,7 @@ const USER_ID = '44444444-4444-4444-4444-444444444444';
 
 let app: Express;
 let token: string;
+let lastScannedPath: string | null = null;
 
 beforeAll(async () => {
   process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
@@ -39,8 +39,19 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
+  lastScannedPath = null;
   scanFileMock.mockReset();
-  scanFileMock.mockResolvedValue('clean');
+  scanFileMock.mockImplementation(async (filePath: string) => {
+    lastScannedPath = filePath;
+    return 'clean';
+  });
+});
+
+afterAll(async () => {
+  const storageRoot = process.env.FILE_STORAGE_ROOT;
+  if (storageRoot) {
+    await fs.promises.rm(storageRoot, { recursive: true, force: true }).catch(() => {});
+  }
 });
 
 describe('documents API', () => {
@@ -82,7 +93,10 @@ describe('documents API', () => {
     );
     const beforeCount = Number(beforeCountRes.rows[0]?.count ?? 0);
 
-    scanFileMock.mockResolvedValueOnce('infected');
+    scanFileMock.mockImplementationOnce(async (filePath: string) => {
+      lastScannedPath = filePath;
+      return 'infected';
+    });
 
     const res = await request(app)
       .post(`/sites/${SITE_ID}/documents`)
@@ -101,5 +115,40 @@ describe('documents API', () => {
     );
     const afterCount = Number(afterCountRes.rows[0]?.count ?? 0);
     expect(afterCount).toBe(beforeCount);
+    expect(lastScannedPath).toBeTruthy();
+    expect(fs.existsSync(lastScannedPath!)).toBe(false);
+  });
+
+  it('returns 503 and discards files when the scanner errors', async () => {
+    const beforeCountRes = await query<{ count: string }>(
+      'select count(*) as count from documents where site_id = $1',
+      [SITE_ID]
+    );
+    const beforeCount = Number(beforeCountRes.rows[0]?.count ?? 0);
+
+    scanFileMock.mockImplementationOnce(async (filePath: string) => {
+      lastScannedPath = filePath;
+      return 'error';
+    });
+
+    const res = await request(app)
+      .post(`/sites/${SITE_ID}/documents`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', Buffer.from('unscannable'), {
+        filename: 'scan-error.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(503);
+
+    expect(res.body.code).toBe('ERR_FILE_SCAN_FAILED');
+
+    const afterCountRes = await query<{ count: string }>(
+      'select count(*) as count from documents where site_id = $1',
+      [SITE_ID]
+    );
+    const afterCount = Number(afterCountRes.rows[0]?.count ?? 0);
+    expect(afterCount).toBe(beforeCount);
+    expect(lastScannedPath).toBeTruthy();
+    expect(fs.existsSync(lastScannedPath!)).toBe(false);
   });
 });

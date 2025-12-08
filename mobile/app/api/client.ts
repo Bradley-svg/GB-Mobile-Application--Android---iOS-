@@ -4,7 +4,16 @@ import { useAuthStore } from '../store/authStore';
 
 type ExpoExtra = {
   apiUrl?: string;
+  useSignedFileUrls?: boolean | string;
 };
+
+const rawUseSignedFileUrls =
+  (Constants.expoConfig?.extra as ExpoExtra | undefined)?.useSignedFileUrls ??
+  process.env.EXPO_PUBLIC_USE_SIGNED_FILE_URLS;
+const useSignedFileUrls =
+  typeof rawUseSignedFileUrls === 'string'
+    ? rawUseSignedFileUrls.toLowerCase() === 'true'
+    : Boolean(rawUseSignedFileUrls);
 
 const apiUrl =
   (Constants.expoConfig?.extra as ExpoExtra | undefined)?.apiUrl ?? 'http://10.0.2.2:4000';
@@ -15,6 +24,10 @@ export const api = axios.create({
   baseURL: apiUrl,
 });
 export const API_BASE_URL = apiUrl;
+export const USE_SIGNED_FILE_URLS = useSignedFileUrls;
+export function shouldUseSignedFileUrls() {
+  return USE_SIGNED_FILE_URLS;
+}
 
 type RetriableRequestConfig = AxiosRequestConfig & { _retry?: boolean };
 type AuthTokens = { accessToken: string; refreshToken: string };

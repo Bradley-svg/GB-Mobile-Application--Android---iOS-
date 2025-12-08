@@ -19,6 +19,8 @@ Centralised reference for backend and mobile environment variables across dev/st
 - `APP_VERSION`: Optional version string surfaced on `/health-plus`.
 - `FILE_STORAGE_ROOT`: Root path for uploaded files (defaults to `./storage` in local dev).
 - `FILE_STORAGE_BASE_URL`: Base URL used when returning `/files/...` links.
+- `FILE_SIGNING_SECRET`: Optional HMAC secret for issuing `/files/:id/signed-url` tokens; when unset signed URLs are disabled and `/files/:id/signed-url` returns `ERR_FILE_SIGNING_DISABLED`.
+- Signed URLs: issue tokens with `POST /files/:id/signed-url` (requires auth + org/role checks) and consume with `GET /files/signed/:token`; uploads are still AV-scanned before they land in `FILE_STORAGE_ROOT` regardless of signing.
 - `AV_SCANNER_ENABLED`: Enable antivirus scanning for uploads when `true`; in tests or when unset the scanner is stubbed and always reports clean.
 - `AV_SCANNER_CMD`: Optional command/binary for scanning when enabled (defaults to `clamscan --no-summary` if unset).
 - `AV_SCANNER_HOST` / `AV_SCANNER_PORT`: Optional clamd target; when both are set uploads are streamed to the daemon instead of running a local command.
@@ -55,5 +57,6 @@ Centralised reference for backend and mobile environment variables across dev/st
   - Dev (LAN/real devices): `http://<your-lan-ip>:4000`
   - Staging: `https://staging-api.greenbro.co.za` (pending DNS/host bring-up)
   - Production: `https://api.greenbro.co.za`
+- `EXPO_PUBLIC_USE_SIGNED_FILE_URLS`: Optional boolean to fetch a signed file URL before opening attachments/documents (default false; keeps using JWT-protected `/files` when unset).
 - Expo push: configure the Expo project and push notification credentials per environment; ensure staging devices use staging backends to avoid cross-environment pushes.
 - Notification preferences: persisted via backend `/user/preferences` (alertsEnabled toggle) and cached locally via AsyncStorage; no extra mobile envs beyond the API URL.

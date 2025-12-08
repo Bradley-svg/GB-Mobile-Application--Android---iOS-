@@ -6,9 +6,7 @@ import type { Express } from 'express';
 import { beforeAll, afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { query } from '../src/config/db';
 
-const scanFileMock = vi
-  .fn<[string], Promise<'clean' | 'infected' | 'error'>>()
-  .mockResolvedValue('clean');
+const scanFileMock = vi.fn<[string], Promise<'clean' | 'infected' | 'error'>>();
 
 vi.mock('../src/services/virusScanner', () => ({
   scanFile: (...args: unknown[]) => scanFileMock(...(args as [string])),
@@ -30,6 +28,7 @@ const OTHER_USER_ID = 'cccccccc-1111-2222-3333-dddddddddddd';
 let app: Express;
 let token: string;
 let otherOrgToken: string;
+let lastScannedPath: string | null = null;
 
 beforeAll(async () => {
   process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
@@ -60,8 +59,12 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
+  lastScannedPath = null;
   scanFileMock.mockReset();
-  scanFileMock.mockResolvedValue('clean');
+  scanFileMock.mockImplementation(async (filePath: string) => {
+    lastScannedPath = filePath;
+    return 'clean';
+  });
 });
 
 afterAll(async () => {
@@ -101,7 +104,10 @@ describe('work order attachments API', () => {
     );
     const beforeCount = Number(beforeCountRes.rows[0]?.count ?? 0);
 
-    scanFileMock.mockResolvedValueOnce('infected');
+    scanFileMock.mockImplementationOnce(async (filePath: string) => {
+      lastScannedPath = filePath;
+      return 'infected';
+    });
 
     const uploadRes = await request(app)
       .post(`/work-orders/${WORK_ORDER_ID}/attachments`)
@@ -120,6 +126,41 @@ describe('work order attachments API', () => {
     );
     const afterCount = Number(afterCountRes.rows[0]?.count ?? 0);
     expect(afterCount).toBe(beforeCount);
+    expect(lastScannedPath).toBeTruthy();
+    expect(fs.existsSync(lastScannedPath!)).toBe(false);
+  });
+
+  it('returns 503 on scanner errors without persisting attachments', async () => {
+    const beforeCountRes = await query<{ count: string }>(
+      'select count(*) as count from work_order_attachments where work_order_id = $1',
+      [WORK_ORDER_ID]
+    );
+    const beforeCount = Number(beforeCountRes.rows[0]?.count ?? 0);
+
+    scanFileMock.mockImplementationOnce(async (filePath: string) => {
+      lastScannedPath = filePath;
+      return 'error';
+    });
+
+    const uploadRes = await request(app)
+      .post(`/work-orders/${WORK_ORDER_ID}/attachments`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', Buffer.from('broken'), {
+        filename: 'scan-error.txt',
+        contentType: 'text/plain',
+      })
+      .expect(503);
+
+    expect(uploadRes.body.code).toBe('ERR_FILE_SCAN_FAILED');
+
+    const afterCountRes = await query<{ count: string }>(
+      'select count(*) as count from work_order_attachments where work_order_id = $1',
+      [WORK_ORDER_ID]
+    );
+    const afterCount = Number(afterCountRes.rows[0]?.count ?? 0);
+    expect(afterCount).toBe(beforeCount);
+    expect(lastScannedPath).toBeTruthy();
+    expect(fs.existsSync(lastScannedPath!)).toBe(false);
   });
 
   it('enforces organisation scoping', async () => {

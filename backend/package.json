@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
     "test": "vitest run",
+    "test:av": "cross-env AV_SCANNER_ENABLED=true AV_SCANNER_CMD=\"node ./test/fixtures/av-sim.js\" vitest run test/virusScanner.test.ts",
     "test:watch": "vitest watch",
     "migrate": "node-pg-migrate up -m ./migrations -d DATABASE_URL",
     "migrate:test": "node-pg-migrate up -m ./migrations -d TEST_DATABASE_URL",

@@ -327,6 +327,34 @@ describe('GET /health-plus heat pump history', () => {
 });
 
 describe('GET /health-plus antivirus status', () => {
+  it('includes antivirus block when configured and recently successful', async () => {
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ ok: 1 }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ open_count: '0', overdue_count: '0' }], rowCount: 1 });
+
+    const lastRunAt = new Date().toISOString();
+    getVirusScannerStatusMock.mockReturnValue({
+      configured: true,
+      enabled: true,
+      target: 'command',
+      lastRunAt,
+      lastResult: 'clean',
+      lastError: null,
+    });
+
+    const res = await request(app).get('/health-plus').expect(200);
+
+    expect(res.body.antivirus).toMatchObject({
+      configured: true,
+      enabled: true,
+      target: 'command',
+      lastRunAt,
+      lastResult: 'clean',
+      lastError: null,
+    });
+    expect(res.body.ok).toBe(true);
+  });
+
   it('marks ok false when antivirus is configured but failing', async () => {
     queryMock
       .mockResolvedValueOnce({ rows: [{ ok: 1 }], rowCount: 1 })
