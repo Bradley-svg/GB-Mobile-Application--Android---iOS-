@@ -3,8 +3,24 @@ import path from 'path';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import type { Express } from 'express';
-import { beforeAll, afterAll, describe, expect, it } from 'vitest';
+import { beforeAll, afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { query } from '../src/config/db';
+
+const scanFileMock = vi
+  .fn<[string], Promise<'clean' | 'infected' | 'error'>>()
+  .mockResolvedValue('clean');
+
+vi.mock('../src/services/virusScanner', () => ({
+  scanFile: (...args: unknown[]) => scanFileMock(...(args as [string])),
+  getVirusScannerStatus: () => ({
+    configured: false,
+    enabled: false,
+    target: null,
+    lastRunAt: null,
+    lastResult: null,
+    lastError: null,
+  }),
+}));
 
 const WORK_ORDER_ID = '55555555-5555-5555-5555-555555555555';
 const DEFAULT_USER_ID = '44444444-4444-4444-4444-444444444444';
@@ -43,6 +59,11 @@ beforeAll(async () => {
   otherOrgToken = jwt.sign({ sub: OTHER_USER_ID, type: 'access' }, process.env.JWT_SECRET);
 });
 
+beforeEach(() => {
+  scanFileMock.mockReset();
+  scanFileMock.mockResolvedValue('clean');
+});
+
 afterAll(async () => {
   const storageRoot = process.env.FILE_STORAGE_ROOT;
   if (storageRoot) {
@@ -71,6 +92,34 @@ describe('work order attachments API', () => {
       (att) => att.id === uploadRes.body.id
     );
     expect(found).toBeDefined();
+  });
+
+  it('rejects infected uploads and does not persist attachments', async () => {
+    const beforeCountRes = await query<{ count: string }>(
+      'select count(*) as count from work_order_attachments where work_order_id = $1',
+      [WORK_ORDER_ID]
+    );
+    const beforeCount = Number(beforeCountRes.rows[0]?.count ?? 0);
+
+    scanFileMock.mockResolvedValueOnce('infected');
+
+    const uploadRes = await request(app)
+      .post(`/work-orders/${WORK_ORDER_ID}/attachments`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', Buffer.from('evil'), {
+        filename: 'bad.txt',
+        contentType: 'text/plain',
+      })
+      .expect(400);
+
+    expect(uploadRes.body.code).toBe('ERR_FILE_INFECTED');
+
+    const afterCountRes = await query<{ count: string }>(
+      'select count(*) as count from work_order_attachments where work_order_id = $1',
+      [WORK_ORDER_ID]
+    );
+    const afterCount = Number(afterCountRes.rows[0]?.count ?? 0);
+    expect(afterCount).toBe(beforeCount);
   });
 
   it('enforces organisation scoping', async () => {

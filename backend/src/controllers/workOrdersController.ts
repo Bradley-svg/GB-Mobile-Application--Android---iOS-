@@ -29,6 +29,7 @@ import {
   toRelativePath,
 } from '../config/storage';
 import { canManageWorkOrders } from '../services/rbacService';
+import { scanFile } from '../services/virusScanner';
 
 const workOrderIdParamSchema = z.object({ id: z.string().uuid() });
 const deviceIdParamSchema = z.object({ id: z.string().uuid() });
@@ -353,7 +354,10 @@ export async function listWorkOrderAttachmentsHandler(
     if (!organisationId) return;
 
     const workOrder = await getWorkOrder(organisationId, parsedParams.data.id);
-    if (!workOrder) return res.status(404).json({ message: 'Not found' });
+    if (!workOrder) {
+      await fs.promises.unlink(file.path).catch(() => {});
+      return res.status(404).json({ message: 'Not found' });
+    }
 
     const attachments = workOrder.attachments ?? [];
     res.json(attachments.map((att) => mapAttachmentResponse(att)));
@@ -381,6 +385,8 @@ export async function uploadWorkOrderAttachmentHandler(
     return res.status(400).json({ message: 'File is required' });
   }
 
+  let destinationPath: string | null = null;
+
   try {
     const organisationId = await resolveOrganisationId(req.user!.id, res);
     if (!organisationId) return;
@@ -388,22 +394,27 @@ export async function uploadWorkOrderAttachmentHandler(
     const workOrder = await getWorkOrder(organisationId, parsedParams.data.id);
     if (!workOrder) return res.status(404).json({ message: 'Not found' });
 
+    const scanResult = await scanFile(file.path);
+    if (scanResult === 'infected') {
+      await fs.promises.unlink(file.path).catch(() => {});
+      return res
+        .status(400)
+        .json({ message: 'File failed antivirus scan', code: 'ERR_FILE_INFECTED' });
+    }
+    if (scanResult === 'error') {
+      await fs.promises.unlink(file.path).catch(() => {});
+      return res
+        .status(503)
+        .json({ message: 'Antivirus scan unavailable', code: 'ERR_FILE_SCAN_FAILED' });
+    }
+
     const originalName = file.originalname || 'upload';
     const storedName = `${Date.now()}-${sanitizeSegment(originalName)}`;
-    const destinationPath = getWorkOrderAttachmentPath(
-      organisationId,
-      parsedParams.data.id,
-      storedName
-    );
+    destinationPath = getWorkOrderAttachmentPath(organisationId, parsedParams.data.id, storedName);
     const destinationDir = path.dirname(destinationPath);
 
-    try {
-      await ensureDirExists(destinationDir);
-      await fs.promises.rename(file.path, destinationPath);
-    } catch (err) {
-      await fs.promises.unlink(file.path).catch(() => {});
-      throw err;
-    }
+    await ensureDirExists(destinationDir);
+    await fs.promises.rename(file.path, destinationPath);
 
     const relativePath = toRelativePath(destinationPath);
     const created = await createWorkOrderAttachment({
@@ -421,6 +432,10 @@ export async function uploadWorkOrderAttachmentHandler(
 
     res.status(201).json(mapAttachmentResponse(created));
   } catch (err) {
+    await fs.promises.unlink(file.path).catch(() => {});
+    if (destinationPath) {
+      await fs.promises.unlink(destinationPath).catch(() => {});
+    }
     next(err);
   }
 }

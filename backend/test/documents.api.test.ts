@@ -2,7 +2,24 @@ import path from 'path';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import type { Express } from 'express';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { query } from '../src/config/db';
+
+const scanFileMock = vi
+  .fn<[string], Promise<'clean' | 'infected' | 'error'>>()
+  .mockResolvedValue('clean');
+
+vi.mock('../src/services/virusScanner', () => ({
+  scanFile: (...args: unknown[]) => scanFileMock(...(args as [string])),
+  getVirusScannerStatus: () => ({
+    configured: false,
+    enabled: false,
+    target: null,
+    lastRunAt: null,
+    lastResult: null,
+    lastError: null,
+  }),
+}));
 
 const SITE_ID = '22222222-2222-2222-2222-222222222222';
 const DEVICE_ID = '33333333-3333-3333-3333-333333333333';
@@ -19,6 +36,11 @@ beforeAll(async () => {
   const mod = await import('../src/index');
   app = mod.default;
   token = jwt.sign({ sub: USER_ID, type: 'access' }, process.env.JWT_SECRET);
+});
+
+beforeEach(() => {
+  scanFileMock.mockReset();
+  scanFileMock.mockResolvedValue('clean');
 });
 
 describe('documents API', () => {
@@ -51,5 +73,33 @@ describe('documents API', () => {
 
     expect(uploadRes.body.title).toBe('Upload test');
     expect(uploadRes.body.url).toContain('/files/');
+  });
+
+  it('rejects infected uploads and does not persist documents', async () => {
+    const beforeCountRes = await query<{ count: string }>(
+      'select count(*) as count from documents where site_id = $1',
+      [SITE_ID]
+    );
+    const beforeCount = Number(beforeCountRes.rows[0]?.count ?? 0);
+
+    scanFileMock.mockResolvedValueOnce('infected');
+
+    const res = await request(app)
+      .post(`/sites/${SITE_ID}/documents`)
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', Buffer.from('infected body'), {
+        filename: 'virus.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(400);
+
+    expect(res.body.code).toBe('ERR_FILE_INFECTED');
+
+    const afterCountRes = await query<{ count: string }>(
+      'select count(*) as count from documents where site_id = $1',
+      [SITE_ID]
+    );
+    const afterCount = Number(afterCountRes.rows[0]?.count ?? 0);
+    expect(afterCount).toBe(beforeCount);
   });
 });

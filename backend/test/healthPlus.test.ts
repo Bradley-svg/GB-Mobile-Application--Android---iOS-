@@ -9,6 +9,7 @@ const getMqttHealthMock = vi.fn();
 const runPushHealthCheckMock = vi.fn();
 const getSystemStatusMock = vi.fn();
 const getSystemStatusByKeyMock = vi.fn();
+const getVirusScannerStatusMock = vi.fn();
 const loggerInfoSpy = vi.fn();
 const loggerWarnSpy = vi.fn();
 const loggerErrorSpy = vi.fn();
@@ -42,6 +43,9 @@ vi.mock('../src/services/pushService', () => ({
 vi.mock('../src/services/statusService', () => ({
   getSystemStatus: (...args: unknown[]) => getSystemStatusMock(...args),
   getSystemStatusByKey: (...args: unknown[]) => getSystemStatusByKeyMock(...args),
+}));
+vi.mock('../src/services/virusScanner', () => ({
+  getVirusScannerStatus: (...args: unknown[]) => getVirusScannerStatusMock(...args),
 }));
 
 let app: Express;
@@ -98,6 +102,7 @@ beforeEach(() => {
   runPushHealthCheckMock.mockReset();
   getSystemStatusMock.mockReset();
   getSystemStatusByKeyMock.mockReset();
+  getVirusScannerStatusMock.mockReset();
   delete process.env.HEATPUMP_HISTORY_URL;
   delete process.env.HEAT_PUMP_HISTORY_URL;
   delete process.env.HEATPUMP_HISTORY_API_KEY;
@@ -108,6 +113,14 @@ beforeEach(() => {
   runPushHealthCheckMock.mockResolvedValue(defaultPushHealth);
   getSystemStatusMock.mockResolvedValue(baseSystemStatus());
   getSystemStatusByKeyMock.mockResolvedValue(baseSystemStatus());
+  getVirusScannerStatusMock.mockReturnValue({
+    configured: false,
+    enabled: false,
+    target: null,
+    lastRunAt: null,
+    lastResult: null,
+    lastError: null,
+  });
 });
 
 describe('GET /health-plus (baseline)', () => {
@@ -151,6 +164,14 @@ describe('GET /health-plus (baseline)', () => {
       push: {
         enabled: false,
         lastSampleAt: null,
+        lastError: null,
+      },
+      antivirus: {
+        configured: false,
+        enabled: false,
+        target: null,
+        lastRunAt: null,
+        lastResult: null,
         lastError: null,
       },
       storage: {
@@ -218,6 +239,14 @@ describe('GET /health-plus (baseline)', () => {
       push: {
         enabled: false,
         lastSampleAt: null,
+        lastError: null,
+      },
+      antivirus: {
+        configured: false,
+        enabled: false,
+        target: null,
+        lastRunAt: null,
+        lastResult: null,
         lastError: null,
       },
       storage: {
@@ -293,6 +322,36 @@ describe('GET /health-plus heat pump history', () => {
     expect(res.body.heatPumpHistory.configured).toBe(true);
     expect(res.body.heatPumpHistory.lastErrorAt).toBe(recentError.toISOString());
     expect(res.body.heatPumpHistory.healthy).toBe(false);
+    expect(res.body.ok).toBe(false);
+  });
+});
+
+describe('GET /health-plus antivirus status', () => {
+  it('marks ok false when antivirus is configured but failing', async () => {
+    queryMock
+      .mockResolvedValueOnce({ rows: [{ ok: 1 }], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [{ open_count: '0', overdue_count: '0' }], rowCount: 1 });
+
+    const lastRunAt = new Date().toISOString();
+    getVirusScannerStatusMock.mockReturnValue({
+      configured: true,
+      enabled: true,
+      target: 'command',
+      lastRunAt,
+      lastResult: 'error',
+      lastError: 'timeout',
+    });
+
+    const res = await request(app).get('/health-plus').expect(200);
+
+    expect(res.body.antivirus).toMatchObject({
+      configured: true,
+      enabled: true,
+      target: 'command',
+      lastRunAt,
+      lastResult: 'error',
+      lastError: 'timeout',
+    });
     expect(res.body.ok).toBe(false);
   });
 });

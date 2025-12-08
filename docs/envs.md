@@ -17,6 +17,11 @@ Centralised reference for backend and mobile environment variables across dev/st
 - `CORS_ALLOWED_ORIGINS`: Comma-separated allowlist for browser origins (prod/staging should be explicit; dev can allow-all).
 - `LOG_LEVEL`: Structured JSON logger level (`info` default).
 - `APP_VERSION`: Optional version string surfaced on `/health-plus`.
+- `FILE_STORAGE_ROOT`: Root path for uploaded files (defaults to `./storage` in local dev).
+- `FILE_STORAGE_BASE_URL`: Base URL used when returning `/files/...` links.
+- `AV_SCANNER_ENABLED`: Enable antivirus scanning for uploads when `true`; in tests or when unset the scanner is stubbed and always reports clean.
+- `AV_SCANNER_CMD`: Optional command/binary for scanning when enabled (defaults to `clamscan --no-summary` if unset).
+- `AV_SCANNER_HOST` / `AV_SCANNER_PORT`: Optional clamd target; when both are set uploads are streamed to the daemon instead of running a local command.
 - `HEATPUMP_HISTORY_URL`: Base URL for the Azure heat-pump history API (required outside `NODE_ENV=development`; endpoint returns 503 when missing).
 - `HEATPUMP_HISTORY_API_KEY`: API key for the history API (required outside `NODE_ENV=development`; endpoint returns 503 when missing).
 - `HEATPUMP_HISTORY_TIMEOUT_MS`: Request timeout for the history API client (milliseconds).

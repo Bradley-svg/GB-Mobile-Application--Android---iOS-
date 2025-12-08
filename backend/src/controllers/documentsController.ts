@@ -18,6 +18,7 @@ import {
   toRelativePath,
 } from '../config/storage';
 import { canUploadDocuments } from '../services/rbacService';
+import { scanFile } from '../services/virusScanner';
 
 const paramsSchema = z.object({ id: z.string().uuid() });
 const documentBodySchema = z.object({
@@ -47,6 +48,21 @@ const mapDocument = (doc: {
   createdAt: doc.created_at,
   originalName: doc.original_name,
 });
+
+async function ensureCleanUpload(file: Express.Multer.File, res: Response) {
+  const scanResult = await scanFile(file.path);
+  if (scanResult === 'infected') {
+    await fs.promises.unlink(file.path).catch(() => {});
+    res.status(400).json({ message: 'File failed antivirus scan', code: 'ERR_FILE_INFECTED' });
+    return false;
+  }
+  if (scanResult === 'error') {
+    await fs.promises.unlink(file.path).catch(() => {});
+    res.status(503).json({ message: 'Antivirus scan unavailable', code: 'ERR_FILE_SCAN_FAILED' });
+    return false;
+  }
+  return true;
+}
 
 async function persistDocumentFile(
   scope: 'site' | 'device',
@@ -129,7 +145,13 @@ export async function uploadSiteDocumentHandler(req: Request, res: Response, nex
     if (!organisationId) return;
 
     const site = await getSiteById(parsedParams.data.id, organisationId);
-    if (!site) return res.status(404).json({ message: 'Not found' });
+    if (!site) {
+      await fs.promises.unlink(file.path).catch(() => {});
+      return res.status(404).json({ message: 'Not found' });
+    }
+
+    const clean = await ensureCleanUpload(file, res);
+    if (!clean) return;
 
     const { storedName, originalName, relativePath, destination } = await persistDocumentFile(
       'site',
@@ -192,7 +214,13 @@ export async function uploadDeviceDocumentHandler(
     if (!organisationId) return;
 
     const device = await getDeviceById(parsedParams.data.id, organisationId);
-    if (!device) return res.status(404).json({ message: 'Not found' });
+    if (!device) {
+      await fs.promises.unlink(file.path).catch(() => {});
+      return res.status(404).json({ message: 'Not found' });
+    }
+
+    const clean = await ensureCleanUpload(file, res);
+    if (!clean) return;
 
     const { storedName, originalName, relativePath, destination } = await persistDocumentFile(
       'device',

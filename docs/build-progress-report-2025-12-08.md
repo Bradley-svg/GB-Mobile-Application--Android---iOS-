@@ -4,6 +4,7 @@
 - Backend migrations, Postgres-backed tests, and TypeScript build now pass locally on Node 20/Postgres 16; added regression coverage for CSV export RBAC (owner/admin/facilities vs contractor), heat-pump history scoping/env gating, and `/files` org isolation.
 - Mobile typecheck, lint (share-link `no-explicit-any` break fixed), and Jest suites pass with the noisy `act()` warnings from RootNavigator flows quieted via targeted mocks. Offline caching covers dashboard/site/device/alerts/search/work orders. Branding uses the official assets/palette.
 - Roadmap fit: 0.2 fleet visibility/search and core telemetry/control flows are present; 0.3 alerts/rules/control and 0.4 work orders/maintenance are partial but usable; 0.5 sharing/reporting is partially delivered; PV integrations, dark mode, commissioning, richer reporting remain open.
+- New: pluggable AV scanning wraps work-order attachments and site/device document uploads (stubbed when disabled or in tests) and surfaces config/last-scan on `/health-plus`; infected uploads return `ERR_FILE_INFECTED` without persisting.
 
 ## Backend Status
 - Commands this run (Node 20 / Postgres 16): `npm run migrate:dev` (pass), `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm run migrate:test` (pass), `npm test` (pass), `npm run build` (pass). Typecheck/lint not rerun in this pass.
@@ -11,13 +12,13 @@
 - Telemetry/history: MQTT ingest is primary; HTTP ingest returns 501. Telemetry downsampled per metric. Heat-pump history posts vendor body (`aggregation/from/to/mode/fields/mac`) with `application/json-patch+json` + `x-api-key`, timeout + circuit breaker, normalises arbitrary series. Tests: `telemetryService.test.ts`, `heatPumpHistoryClient.test.ts`, `heatPumpHistory.api.test.ts`. Risks: vendor call disabled outside development if URL/API key unset; relies on upstream availability; validation only checks timestamp order.
 - Alerts/rules/worker: Worker lock (`worker_locks`), offline/high-temp plus rule engine (threshold/ROC/offline) with load-shedding downgrades, push notify on critical, heartbeat + metrics into `system_status` and `/health-plus`. Tests: `alertsWorker.*`, `alerts*.api.test.ts`, `alertsAckMute.api.test.ts`, `alertRules*`. Risk: single-worker assumption; relies on site schedules for load-shedding context.
 - Device control/schedules: HTTP or MQTT control with throttle window (`CONTROL_COMMAND_THROTTLE_MS`), validation errors recorded in command history, per-device schedules with validation. Tests: `deviceControlService.test.ts`, `deviceControl.api.test.ts`, `deviceSchedules.api.test.ts`, `deviceControlValidationService.test.ts`. Risks: commands blocked if CONTROL/MQTT envs unset; UI not role-gated (backend rejects).
-- Work orders/tasks/attachments/SLA: Status transitions enforced, SLA breach recomputed, checklist replace, maintenance summary buckets, attachments stored under `FILE_STORAGE_ROOT`. Tests: `workOrders*.test.ts`, `workOrdersMaintenance.api.test.ts`, `workOrderAttachments.api.test.ts`, `workOrdersService.sla.test.ts`. Risks: no AV scanning; CDN/signed-URL fronting still TODO even though `/files` now requires auth + org scope.
-- Documents/storage: Site/device upload + list, path sanitisation, public URL mapping. Tests: `documents.api.test.ts`. Risk: `/files` now auth/org-scoped but still lacks AV/signed URLs/AV scanning.
+- Work orders/tasks/attachments/SLA: Status transitions enforced, SLA breach recomputed, checklist replace, maintenance summary buckets, attachments stored under `FILE_STORAGE_ROOT`. Antivirus scanning (stubbed in tests/when disabled) runs before persisting and rejects infected uploads. Tests: `workOrders*.test.ts`, `workOrdersMaintenance.api.test.ts`, `workOrderAttachments.api.test.ts`, `workOrdersService.sla.test.ts`. Risks: scanner must be configured/enabled in prod; CDN/signed-URL fronting still TODO even though `/files` now requires auth + org scope.
+- Documents/storage: Site/device upload + list, path sanitisation, public URL mapping. Antivirus scanning sits in front of uploads with the same stub-in-tests behaviour. Tests: `documents.api.test.ts`. Risk: ensure AV envs are set in non-test environments; signed URLs/CDN still TODO.
 - CSV exports/reporting: Site devices CSV and device telemetry CSV with range validation/metric allowlist, org scoped, and RBAC (`owner|admin|facilities`). Tests: `exportCsv.api.test.ts`. Risk: potential heavy queries without paging and wide date ranges.
 - Share links: 90-day max expiry, read-only, site/device payloads with telemetry snapshot, revoke + public resolver. Tests: `shareLinks.api.test.ts`, `shareLinksPublic.api.test.ts`. Risk: None beyond token handling; still read-only only.
 - Health/diagnostics: `/health-plus` aggregates DB/MQTT/control/heatPumpHistory/push/alerts worker/storage/maintenance; relies on `system_status` rows. Tests: `healthPlus.test.ts`, `healthPlus.mqttControlStatus.test.ts`. Risk: requires migrations + seeded status row.
 - Issues/Risks
-  - P1: `/files` is auth/org-scoped but still lacks AV scanning/signed URL flow; CDN/proxy frontends must forward auth.
+  - P1: `/files` is auth/org-scoped but still lacks signed URL/CDN flow; AV scanning is present but only active when AV envs are set—ensure prod points at a real scanner.
   - P2: Heat-pump history depends on upstream availability and URL/API key config (disabled outside dev when unset).
   - P3: No password reset/2FA/lockout flow (known gap).
 
@@ -50,7 +51,7 @@
 ## Prioritised Next Steps
 - **P0:** None blocking production identified.
 - **P1:**
-  1) Add AV scanning and/or signed URL/CDN fronting for `/files` now that auth/org scoping is enforced.
+  1) Enforce signed URL/CDN fronting for `/files` now that AV scanning is in place; ensure prod/staging set AV_SCANNER_* envs to hit a real scanner.
 - **P2:**
   1) Keep Jest noise low by wrapping new async UI flows in `act`/`waitFor` (RootNavigator suites are quiet after mocking heavy screens).
   2) Refresh documentation (repo overview/feature map) to reflect current lint/test status and partial features.

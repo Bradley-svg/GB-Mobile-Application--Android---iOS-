@@ -7,6 +7,7 @@ import { type SystemStatus, getSystemStatus, getSystemStatusByKey } from './stat
 import { logger } from '../config/logger';
 import { getStorageRoot } from '../config/storage';
 import { getHeatPumpHistoryConfig } from '../integrations/heatPumpHistoryClient';
+import { getVirusScannerStatus } from './virusScanner';
 
 const MQTT_INGEST_STALE_MS = 5 * 60 * 1000;
 const MQTT_ERROR_WINDOW_MS = 5 * 60 * 1000;
@@ -65,6 +66,14 @@ export type HealthPlusPayload = {
     lastSampleAt: string | null;
     lastError: string | null;
   };
+  antivirus: {
+    configured: boolean;
+    enabled: boolean;
+    target: 'command' | 'socket' | null;
+    lastRunAt: string | null;
+    lastResult: 'clean' | 'infected' | 'error' | null;
+    lastError: string | null;
+  };
   maintenance?: {
     openCount: number;
     overdueCount: number;
@@ -105,6 +114,7 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
     (process.env.ALERT_WORKER_ENABLED || 'true').toLowerCase() !== 'false';
   const alertsExpected = env === 'production' && alertsWorkerEnabled;
   const heatPumpConfigured = getHeatPumpHistoryConfig().configured;
+  const antivirusStatus = getVirusScannerStatus();
 
   try {
     const dbRes = await query('select 1 as ok');
@@ -242,6 +252,7 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
       ? !heatPumpConfigured
       : !heatPumpConfigured ||
         (heatPumpSuccessRecent && (!heatPumpErrorRecent || (heatPumpLastSuccessAt as Date) >= (heatPumpLastErrorAt as Date)));
+    const antivirusHealthy = !antivirusStatus.configured || antivirusStatus.lastResult !== 'error';
 
     const ok = statusLoadFailed
       ? dbOk
@@ -250,7 +261,8 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
         (!controlSnapshot.configured || controlHealthy) &&
         (!alertsExpected || alertsHealthy) &&
         (!push.enabled || !push.lastError) &&
-        (!heatPumpConfigured || heatPumpHealthy);
+        (!heatPumpConfigured || heatPumpHealthy) &&
+        antivirusHealthy;
 
     const body: HealthPlusPayload = {
       ok,
@@ -283,6 +295,14 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
         healthy: alertsHealthy,
       },
       push,
+      antivirus: {
+        configured: antivirusStatus.configured,
+        enabled: antivirusStatus.enabled,
+        target: antivirusStatus.target,
+        lastRunAt: antivirusStatus.lastRunAt,
+        lastResult: antivirusStatus.lastResult,
+        lastError: antivirusStatus.lastError,
+      },
       maintenance: undefined,
       storage: {
         root: storageRoot,
@@ -357,6 +377,14 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
         enabled: pushEnabled,
         lastSampleAt: null,
         lastError: null,
+      },
+      antivirus: {
+        configured: antivirusStatus.configured,
+        enabled: antivirusStatus.enabled,
+        target: antivirusStatus.target,
+        lastRunAt: antivirusStatus.lastRunAt,
+        lastResult: antivirusStatus.lastResult,
+        lastError: antivirusStatus.lastError,
       },
       storage: {
         root: getStorageRoot(),
