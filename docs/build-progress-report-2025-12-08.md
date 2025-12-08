@@ -1,13 +1,13 @@
 # Build Progress Report - 2025-12-08
 
 ## Executive Summary
-- Backend TypeScript lint/build succeed; tests and migrations were not run this pass because no Postgres/`TEST_DATABASE_URL` was available. Domains remain wired (auth/RBAC, alerts worker, control, heat-pump history, work orders, share links), but history scoping and exports permissions need attention and `/files` is publicly served.
+- Backend migrations, Postgres-backed tests, and TypeScript build now pass locally on Node 20/Postgres 16 after fixing auth RBAC fixtures and refresh-token query mocks; history scoping and exports permissions need attention and `/files` is publicly served.
 - Mobile typecheck and Jest suites pass (with multiple `act()` warnings); `npm run lint` currently fails on six `no-explicit-any` errors in share-link tests. Offline caching covers dashboard/site/device/alerts/search/work orders. Branding uses the official assets/palette.
 - Roadmap fit: 0.2 fleet visibility/search and core telemetry/control flows are present; 0.3 alerts/rules/control and 0.4 work orders/maintenance are partial but usable; 0.5 sharing/reporting is partially delivered; PV integrations, dark mode, commissioning, richer reporting remain open.
 
 ## Backend Status
-- Commands: `npm run typecheck` (pass), `npm run lint` (pass), `npm run build` (pass); migrations/tests not run (no Postgres/`TEST_DATABASE_URL`).
-- Auth/RBAC/share: JWT login/refresh with refresh rotation; optional signup gate; roles (`owner|admin|facilities|contractor`) attached to tokens; RBAC guards control/schedules/work orders/doc uploads/share links. Tests: `authRoutes.api.test.ts`, `authRbac.test.ts`, `authConfig.test.ts`. Risks: no password reset/2FA; share links read-only only.
+- Commands this run (Node 20 / Postgres 16): `npm run migrate:dev` (pass), `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm run migrate:test` (pass), `npm test` (pass), `npm run build` (pass). Typecheck/lint not rerun in this pass.
+- Auth/RBAC/share: JWT login/refresh with refresh rotation; optional signup gate; roles (`owner|admin|facilities|contractor`) attached to tokens; RBAC guards control/schedules/work orders/doc uploads/share links. This sweep fixed test fixtures by returning user context in auth refresh mocks and by signing schedule tokens with role claims. Tests: `authRoutes.api.test.ts`, `authRbac.test.ts`, `authConfig.test.ts`. Risks: no password reset/2FA; share links read-only only.
 - Telemetry/history: MQTT ingest is primary; HTTP ingest returns 501. Telemetry downsampled per metric. Heat-pump history posts vendor body (`aggregation/from/to/mode/fields/mac`) with `application/json-patch+json` + `x-api-key`, timeout + circuit breaker, normalises arbitrary series. Tests: `telemetryService.test.ts`, `heatPumpHistoryClient.test.ts`, `heatPumpHistory.api.test.ts`. Risks: history requests are not org/mac scoped; default dev URL is used if env unset even in prod; validation only checks timestamp order.
 - Alerts/rules/worker: Worker lock (`worker_locks`), offline/high-temp plus rule engine (threshold/ROC/offline) with load-shedding downgrades, push notify on critical, heartbeat + metrics into `system_status` and `/health-plus`. Tests: `alertsWorker.*`, `alerts*.api.test.ts`, `alertsAckMute.api.test.ts`, `alertRules*`. Risk: single-worker assumption; relies on site schedules for load-shedding context.
 - Device control/schedules: HTTP or MQTT control with throttle window (`CONTROL_COMMAND_THROTTLE_MS`), validation errors recorded in command history, per-device schedules with validation. Tests: `deviceControlService.test.ts`, `deviceControl.api.test.ts`, `deviceSchedules.api.test.ts`, `deviceControlValidationService.test.ts`. Risks: commands blocked if CONTROL/MQTT envs unset; UI not role-gated (backend rejects).
@@ -17,7 +17,6 @@
 - Share links: 90-day max expiry, read-only, site/device payloads with telemetry snapshot, revoke + public resolver. Tests: `shareLinks.api.test.ts`, `shareLinksPublic.api.test.ts`. Risk: None beyond token handling; still read-only only.
 - Health/diagnostics: `/health-plus` aggregates DB/MQTT/control/heatPumpHistory/push/alerts worker/storage/maintenance; relies on `system_status` rows. Tests: `healthPlus.test.ts`, `healthPlus.mqttControlStatus.test.ts`. Risk: requires migrations + seeded status row.
 - Issues/Risks
-  - P1: Backend migrations/tests not run this pass (no DB); runtime stability unverified.
   - P1: Heat-pump history not org/device scoped; default dev URL used when env unset (even in prod) risks data leakage or upstream noise.
   - P1: CSV export endpoints lack explicit RBAC; any authenticated role can export org data.
   - P1: `/files` static serving exposes documents/attachments without auth; consider signed URLs or auth middleware.
@@ -47,7 +46,7 @@
 
 ## Codebase Hygiene
 - Gitignore covers node_modules/dist; runtime dirs `backend/storage`, `backend/uploads`, `backend/uploads-test` are not ignored (risk of accidental commits). `logs/`/`archive/` already isolated.
-- Docs (`docs/repo-overview.md`, `docs/mobile-feature-map-0.2.0.md`) still claim lint/tests were green on 2025-12-07; current run has mobile lint failures and backend tests skipped.
+- Docs now note backend migrations/tests passing on 2025-12-08; mobile lint remains red in share-link tests.
 - Audit snapshots: backend 6 moderate + 2 high (dev tooling: vitest/vite/node-pg-migrate/glob); mobile 3 low (Expo CLI/send). No changes applied.
 - No obvious dead code flagged by quick `rg` scans; legacy assets live under `archive/` only.
 
@@ -55,10 +54,9 @@
 - **P0:** None blocking production identified.
 - **P1:**
   1) Fix mobile lint (`app/__tests__/ShareLinksScreen.test.tsx`, `app/__tests__/SharingScreen.test.tsx` `no-explicit-any`) so CI passes.
-  2) Run backend migrations + tests with Postgres (`npm run migrate:dev`/`migrate:test`; `TEST_DATABASE_URL` + `ALLOW_TEST_DB_RESET=true`) and record results.
-  3) Add RBAC guard for CSV exports (use `canExportData`) or explicitly document role access; align with permission expectations.
-  4) Scope heat-pump history to org/device and require env URL/API key in non-dev to avoid hitting default dev endpoint.
-  5) Protect `/files` (docs/attachments) via auth or signed URLs before production exposure.
+  2) Add RBAC guard for CSV exports (use `canExportData`) or explicitly document role access; align with permission expectations.
+  3) Scope heat-pump history to org/device and require env URL/API key in non-dev to avoid hitting default dev endpoint.
+  4) Protect `/files` (docs/attachments) via auth or signed URLs before production exposure.
 - **P2:**
   1) Resolve Jest `act()` warnings (DeviceDetail/Profile/WorkOrder/Site tests) to reduce noise.
   2) Gitignore `backend/storage`, `backend/uploads`, `backend/uploads-test` to prevent artifact commits.

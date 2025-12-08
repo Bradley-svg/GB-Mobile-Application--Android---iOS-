@@ -1,6 +1,6 @@
 import request from 'supertest';
 import type { Express } from 'express';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as deviceControlService from '../src/services/deviceControlService';
 import { resetTestDb } from './testDbSetup';
 

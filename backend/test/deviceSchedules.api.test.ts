@@ -39,7 +39,7 @@ beforeAll(async () => {
   process.env.JWT_SECRET = 'test-secret';
   const mod = await import('../src/index');
   app = mod.default;
-  token = jwt.sign({ sub: 'user-sched', type: 'access' }, process.env.JWT_SECRET!);
+  token = jwt.sign({ sub: 'user-sched', type: 'access', role: 'admin' }, process.env.JWT_SECRET!);
 });
 
 beforeEach(() => {

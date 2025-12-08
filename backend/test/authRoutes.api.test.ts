@@ -105,6 +105,22 @@ describe('/auth/refresh', () => {
         return { rows: [], rowCount: 1 };
       }
 
+      if (text.includes('from users')) {
+        return {
+          rows: [
+            {
+              id: params?.[0] ?? 'user-1',
+              email: 'user-1@example.com',
+              name: 'User One',
+              organisation_id: 'org-1',
+              role: 'admin',
+              can_impersonate: false,
+            },
+          ],
+          rowCount: 1,
+        };
+      }
+
       throw new Error(`Unexpected query: ${text}`);
     });
 
