@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react-native';
 import * as navigation from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ShareLinksScreen } from '../screens/Sharing/ShareLinksScreen';
 import {
   useCreateShareLink,
@@ -35,7 +36,10 @@ describe('ShareLinksScreen', () => {
     (useCreateShareLink as jest.Mock).mockReturnValue({ mutate: jest.fn(), isPending: false });
     (useRevokeShareLink as jest.Mock).mockReturnValue({ mutate: jest.fn(), isPending: false });
     jest.spyOn(navigation, 'useRoute').mockReturnValue(route);
-    jest.spyOn(navigation, 'useNavigation').mockReturnValue({ goBack: jest.fn() } as any);
+    const nav: Partial<NativeStackNavigationProp<AppStackParamList>> = { goBack: jest.fn() };
+    jest
+      .spyOn(navigation, 'useNavigation')
+      .mockReturnValue(nav as NativeStackNavigationProp<AppStackParamList>);
   });
 
   it('renders empty state when there are no links', () => {

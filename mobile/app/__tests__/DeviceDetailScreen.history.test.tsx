@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { DeviceDetailScreen } from '../screens/Device/DeviceDetailScreen';
 import {
   useDevice,
@@ -47,6 +47,11 @@ const baseDevice = {
 };
 
 describe('DeviceDetailScreen heat pump history', () => {
+  const renderDeviceDetail = async () => {
+    render(<DeviceDetailScreen />);
+    await act(async () => {});
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
 
@@ -131,11 +136,11 @@ describe('DeviceDetailScreen heat pump history', () => {
     jest.restoreAllMocks();
   });
 
-  it('passes the device MAC and live/raw params to the history hook', () => {
+  it('passes the device MAC and live/raw params to the history hook', async () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2025-01-01T12:00:00.000Z'));
 
-    render(<DeviceDetailScreen />);
+    await renderDeviceDetail();
 
     const [params] = (useHeatPumpHistory as jest.Mock).mock.calls[0] as [
       HeatPumpHistoryRequest,
@@ -151,7 +156,7 @@ describe('DeviceDetailScreen heat pump history', () => {
     jest.useRealTimers();
   });
 
-  it('renders compressor current chart when history data exists', () => {
+  it('renders compressor current chart when history data exists', async () => {
     (useHeatPumpHistory as jest.Mock).mockReturnValue({
       data: {
         series: [
@@ -165,27 +170,27 @@ describe('DeviceDetailScreen heat pump history', () => {
       isError: false,
     });
 
-    render(<DeviceDetailScreen />);
+    await renderDeviceDetail();
 
     expect(screen.getByText('Compressor current (A)')).toBeTruthy();
     expect(screen.queryByText('No history for this period.')).toBeNull();
     expect(screen.getByTestId('heatPumpHistoryChart')).toBeTruthy();
   });
 
-  it('shows placeholder when no history points are available', () => {
+  it('shows placeholder when no history points are available', async () => {
     (useHeatPumpHistory as jest.Mock).mockReturnValue({
       data: { series: [] },
       isLoading: false,
       isError: false,
     });
 
-    render(<DeviceDetailScreen />);
+    await renderDeviceDetail();
 
     expect(screen.getByText('Compressor current (A)')).toBeTruthy();
     expect(screen.getByText('No history for this period.')).toBeTruthy();
   });
 
-  it('shows an inline error when the history request fails', () => {
+  it('shows an inline error when the history request fails', async () => {
     const refetchMock = jest.fn();
     (useHeatPumpHistory as jest.Mock).mockReturnValue({
       data: undefined,
@@ -195,7 +200,7 @@ describe('DeviceDetailScreen heat pump history', () => {
       error: { status: 500, message: 'boom' },
     });
 
-    render(<DeviceDetailScreen />);
+    await renderDeviceDetail();
 
     expect(screen.getByText('Could not load heat pump history.')).toBeTruthy();
     expect(screen.getByText(/failed to load history/i)).toBeTruthy();
@@ -204,7 +209,7 @@ describe('DeviceDetailScreen heat pump history', () => {
     expect(refetchMock).toHaveBeenCalled();
   });
 
-  it('shows a temporary unavailable message when backend returns 503', () => {
+  it('shows a temporary unavailable message when backend returns 503', async () => {
     (useHeatPumpHistory as jest.Mock).mockReturnValue({
       data: undefined,
       isLoading: false,
@@ -212,12 +217,12 @@ describe('DeviceDetailScreen heat pump history', () => {
       error: { status: 503, message: 'circuit open' },
     });
 
-    render(<DeviceDetailScreen />);
+    await renderDeviceDetail();
 
     expect(screen.getByText(/History unavailable, please try again later/i)).toBeTruthy();
   });
 
-  it('shows an upstream failure message for 502 errors', () => {
+  it('shows an upstream failure message for 502 errors', async () => {
     (useHeatPumpHistory as jest.Mock).mockReturnValue({
       data: undefined,
       isLoading: false,
@@ -225,12 +230,12 @@ describe('DeviceDetailScreen heat pump history', () => {
       error: { status: 502, message: 'upstream failed' },
     });
 
-    render(<DeviceDetailScreen />);
+    await renderDeviceDetail();
 
     expect(screen.getByText(/History temporarily unavailable/i)).toBeTruthy();
   });
 
-  it('disables history when mac is missing', () => {
+  it('disables history when mac is missing', async () => {
     (useDevice as jest.Mock).mockReturnValue({
       data: { ...baseDevice, mac: null },
       isLoading: false,
@@ -243,7 +248,7 @@ describe('DeviceDetailScreen heat pump history', () => {
       isError: false,
     });
 
-    render(<DeviceDetailScreen />);
+    await renderDeviceDetail();
 
     expect(useHeatPumpHistory).toHaveBeenCalled();
     const [, options] = (useHeatPumpHistory as jest.Mock).mock.calls[0] as [
@@ -254,8 +259,8 @@ describe('DeviceDetailScreen heat pump history', () => {
     expect(screen.getByText(/History unavailable for this device/i)).toBeTruthy();
   });
 
-  it('allows selecting 1h, 24h, and 7d ranges for telemetry and history', () => {
-    render(<DeviceDetailScreen />);
+  it('allows selecting 1h, 24h, and 7d ranges for telemetry and history', async () => {
+    await renderDeviceDetail();
 
     expect((useDeviceTelemetry as jest.Mock).mock.calls[0][1]).toBe('24h');
 
@@ -268,7 +273,7 @@ describe('DeviceDetailScreen heat pump history', () => {
     expect(ranges).toContain('7d');
   });
 
-  it('shows a stale warning when telemetry is older than fifteen minutes', () => {
+  it('shows a stale warning when telemetry is older than fifteen minutes', async () => {
     jest.spyOn(Date, 'now').mockReturnValue(new Date('2025-01-01T12:00:00Z').getTime());
     (useDeviceTelemetry as jest.Mock).mockReturnValue({
       data: {
@@ -285,12 +290,12 @@ describe('DeviceDetailScreen heat pump history', () => {
       isError: false,
     });
 
-    render(<DeviceDetailScreen />);
+    await renderDeviceDetail();
 
     expect(screen.getByText(/older than 15 minutes/i)).toBeTruthy();
   });
 
-  it('does not show the stale warning when telemetry is recent', () => {
+  it('does not show the stale warning when telemetry is recent', async () => {
     jest.spyOn(Date, 'now').mockReturnValue(new Date('2025-01-01T12:00:00Z').getTime());
     (useDeviceTelemetry as jest.Mock).mockReturnValue({
       data: {
@@ -307,12 +312,12 @@ describe('DeviceDetailScreen heat pump history', () => {
       isError: false,
     });
 
-    render(<DeviceDetailScreen />);
+    await renderDeviceDetail();
 
     expect(screen.queryByText(/older than 15 minutes/i)).toBeNull();
   });
 
-  it('shows an unknown last updated message when telemetry timestamps are missing but history exists', () => {
+  it('shows an unknown last updated message when telemetry timestamps are missing but history exists', async () => {
     (useHeatPumpHistory as jest.Mock).mockReturnValue({
       data: {
         series: [
@@ -326,12 +331,12 @@ describe('DeviceDetailScreen heat pump history', () => {
       isError: false,
     });
 
-    render(<DeviceDetailScreen />);
+    await renderDeviceDetail();
 
     expect(screen.getByText(/Last updated time unavailable/i)).toBeTruthy();
   });
 
-  it('renders control history rows with failure reasons', () => {
+  it('renders control history rows with failure reasons', async () => {
     (useDeviceCommands as jest.Mock).mockReturnValue({
       data: [
         {
@@ -365,14 +370,14 @@ describe('DeviceDetailScreen heat pump history', () => {
       isError: false,
     });
 
-    render(<DeviceDetailScreen />);
+    await renderDeviceDetail();
 
     expect(screen.getByText(/Setpoint 48/)).toBeTruthy();
     expect(screen.getByText(/THROTTLED/)).toBeTruthy();
     expect(screen.getByText(/throttled/)).toBeTruthy();
   });
 
-  it('shows offline placeholder when no cached history exists', () => {
+  it('shows offline placeholder when no cached history exists', async () => {
     (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: true });
     (useDeviceCommands as jest.Mock).mockReturnValue({
       data: [],
@@ -380,7 +385,7 @@ describe('DeviceDetailScreen heat pump history', () => {
       isError: false,
     });
 
-    render(<DeviceDetailScreen />);
+    await renderDeviceDetail();
 
     expect(screen.getAllByText(/History unavailable while offline/i).length).toBeGreaterThan(0);
   });

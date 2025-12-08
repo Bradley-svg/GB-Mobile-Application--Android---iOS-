@@ -1,6 +1,6 @@
 import { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { act, render } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { RootNavigator } from '../navigation/RootNavigator';
@@ -24,14 +24,16 @@ const unauthorizedError = (config: InternalAxiosRequestConfig) =>
 describe('session expired handling', () => {
   afterEach(() => {
     api.defaults.adapter = originalAdapter;
-    useAuthStore.setState({
-      accessToken: null,
-      refreshToken: null,
-      user: null,
-      isHydrated: true,
-      sessionExpired: false,
-      notificationPreferences: { alertsEnabled: true },
-      preferencesHydrated: false,
+    act(() => {
+      useAuthStore.setState({
+        accessToken: null,
+        refreshToken: null,
+        user: null,
+        isHydrated: true,
+        sessionExpired: false,
+        notificationPreferences: { alertsEnabled: true },
+        preferencesHydrated: false,
+      });
     });
   });
 
@@ -43,14 +45,16 @@ describe('session expired handling', () => {
       throw unauthorizedError(config);
     };
 
-    useAuthStore.setState({
-      accessToken: 'old-access',
-      refreshToken: 'refresh-token',
-      user: { id: 'user-1', email: 'user@test.com', name: 'Test User', organisation_id: null },
-      isHydrated: true,
-      sessionExpired: false,
-      notificationPreferences: { alertsEnabled: true },
-      preferencesHydrated: false,
+    act(() => {
+      useAuthStore.setState({
+        accessToken: 'old-access',
+        refreshToken: 'refresh-token',
+        user: { id: 'user-1', email: 'user@test.com', name: 'Test User', organisation_id: null },
+        isHydrated: true,
+        sessionExpired: false,
+        notificationPreferences: { alertsEnabled: true },
+        preferencesHydrated: false,
+      });
     });
 
     await expect(api.get('/sites')).rejects.toBeInstanceOf(Error);
@@ -65,7 +69,9 @@ describe('session expired handling', () => {
   it('shows and hides the session expired banner around login', async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
     const { setSessionExpired, setAuth } = useAuthStore.getState();
-    setSessionExpired(true);
+    await act(async () => {
+      setSessionExpired(true);
+    });
 
     const { getByText, queryByText, rerender } = render(
       <QueryClientProvider client={queryClient}>
@@ -75,10 +81,12 @@ describe('session expired handling', () => {
 
     expect(getByText(/session has expired/i)).toBeTruthy();
 
-    await setAuth({
-      accessToken: 'new-access',
-      refreshToken: 'new-refresh',
-      user: { id: 'user-2', email: 'user2@test.com', name: 'User Two', organisation_id: null },
+    await act(async () => {
+      await setAuth({
+        accessToken: 'new-access',
+        refreshToken: 'new-refresh',
+        user: { id: 'user-2', email: 'user2@test.com', name: 'User Two', organisation_id: null },
+      });
     });
 
     rerender(

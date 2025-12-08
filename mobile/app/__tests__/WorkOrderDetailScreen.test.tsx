@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import * as navigation from '@react-navigation/native';
 import { WorkOrderDetailScreen } from '../screens/WorkOrders/WorkOrderDetailScreen';
 import {
@@ -58,6 +58,10 @@ describe('WorkOrderDetailScreen', () => {
   const statusMutate = jest.fn();
   const tasksMutate = jest.fn();
   const uploadMutate = jest.fn();
+  const renderWorkOrderScreen = async () => {
+    render(<WorkOrderDetailScreen />);
+    await act(async () => {});
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -95,17 +99,21 @@ describe('WorkOrderDetailScreen', () => {
   });
 
   it('updates status when action pressed', async () => {
-    render(<WorkOrderDetailScreen />);
+    await renderWorkOrderScreen();
 
-    fireEvent.press(screen.getByTestId('start-work-button'));
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('start-work-button'));
+    });
 
     expect(statusMutate).toHaveBeenCalledWith({ workOrderId: 'wo-1', status: 'in_progress' });
   });
 
   it('toggles task completion', async () => {
-    render(<WorkOrderDetailScreen />);
+    await renderWorkOrderScreen();
 
-    fireEvent.press(screen.getByTestId('task-task-1'));
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('task-task-1'));
+    });
 
     expect(tasksMutate).toHaveBeenCalledWith({
       workOrderId: 'wo-1',

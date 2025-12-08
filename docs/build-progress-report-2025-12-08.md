@@ -24,14 +24,14 @@
   - P3: No password reset/2FA/lockout flow (known gap).
 
 ## Mobile Status
-- Commands: `npm run typecheck` (pass); `npm run lint` (fail: `@typescript-eslint/no-explicit-any` in `app/__tests__/ShareLinksScreen.test.tsx` and `SharingScreen.test.tsx`); `npm test -- --runInBand` (pass) with numerous `act()` warnings (Profile, DeviceDetail, WorkOrderDetail, SiteOverview, etc.) and noisy console logs.
+- Commands: `npm run typecheck` (pass); `npm run lint` (pass after typing share-link tests); `npm test -- --runInBand` (pass) with fewer `act()` warnings after wrapping the noisiest suites (Profile, DeviceDetail, WorkOrderDetail, SiteOverview), though some warnings remain from global wrappers (useNetworkBanner/netinfo and RootNavigator flows).
 - Dashboard/Search: Hero metrics (sites/online devices/active alerts), health/connectivity chips, offline banner + cache age, search with health filters and offline cached results. Risk: stale cache beyond 24h only warned; backend errors show generic messaging.
 - Site overview: Site status/last-seen/health pills, device cards with firmware + quick actions, CSV export (online only), documents link; offline shows cached data + stale note.
 - Device detail: Telemetry charts (1h/24h/7d) for supply/return/power/flow/COP, delta-T tile, Azure history card (compressor current) with error mapping, control setpoint/mode with throttle/error messages, schedule edit modal, command history, active alerts, telemetry export (online). Risks: UI not role-gated (contractor can attempt control/exports, backend denies); history disabled offline; multiple `act()` warnings in tests.
 - Alerts + detail: Alerts list with severity filters/offline cache; detail shows rule metadata, snooze chips (15m/1h/4h/until resolved), ack/mute actions, work-order creation; offline disables actions. Risk: ack/mute not role-gated; generic error messages.
 - Work orders/Maintenance: List with SLA/due pills and filters, offline cached; detail (per tests) handles status transitions, checklist, attachments; maintenance calendar from `/maintenance/summary`. Risks: offline actions disabled but caches rely on previous session; `act()` warnings.
 - Documents/vault: Site/device documents list with category/status pills, opens via API base URL; offline read-only banner when cached; no mobile upload UI.
-- Sharing & access: Profile shows role pill; Sharing screen gated to owner/admin/facilities, site/device share-link management (create 24h/7d/30d, copy, revoke) with offline disable. Risks: lint failures sit in share-link tests; copied link uses `API_BASE_URL` so bad env misconfig breaks links.
+- Sharing & access: Profile shows role pill; Sharing screen gated to owner/admin/facilities, site/device share-link management (create 24h/7d/30d, copy, revoke) with offline disable. Risk: copied link uses `API_BASE_URL` so bad env misconfig breaks links.
 - Profile/Diagnostics: Push preference toggle persists via `/user/preferences`; session-expired banner; Diagnostics shows `/health-plus` snapshot (control/MQTT/heatPumpHistory/alerts engine counts, push status). No dark mode.
 - Issues/Risks
   - P1: Mobile lint failing (6 `no-explicit-any` in share-link tests) blocks lint gate.
@@ -46,17 +46,16 @@
 
 ## Codebase Hygiene
 - Gitignore covers node_modules/dist; runtime dirs `backend/storage`, `backend/uploads`, `backend/uploads-test` are not ignored (risk of accidental commits). `logs/`/`archive/` already isolated.
-- Docs now note backend migrations/tests passing on 2025-12-08; mobile lint remains red in share-link tests.
+- Docs now note backend migrations/tests passing on 2025-12-08; mobile lint now green (act() warnings still noted).
 - Audit snapshots: backend 6 moderate + 2 high (dev tooling: vitest/vite/node-pg-migrate/glob); mobile 3 low (Expo CLI/send). No changes applied.
 - No obvious dead code flagged by quick `rg` scans; legacy assets live under `archive/` only.
 
 ## Prioritised Next Steps
 - **P0:** None blocking production identified.
 - **P1:**
-  1) Fix mobile lint (`app/__tests__/ShareLinksScreen.test.tsx`, `app/__tests__/SharingScreen.test.tsx` `no-explicit-any`) so CI passes.
-  2) Add RBAC guard for CSV exports (use `canExportData`) or explicitly document role access; align with permission expectations.
-  3) Scope heat-pump history to org/device and require env URL/API key in non-dev to avoid hitting default dev endpoint.
-  4) Protect `/files` (docs/attachments) via auth or signed URLs before production exposure.
+  1) Add RBAC guard for CSV exports (use `canExportData`) or explicitly document role access; align with permission expectations.
+  2) Scope heat-pump history to org/device and require env URL/API key in non-dev to avoid hitting default dev endpoint.
+  3) Protect `/files` (docs/attachments) via auth or signed URLs before production exposure.
 - **P2:**
   1) Resolve Jest `act()` warnings (DeviceDetail/Profile/WorkOrder/Site tests) to reduce noise.
   2) Gitignore `backend/storage`, `backend/uploads`, `backend/uploads-test` to prevent artifact commits.

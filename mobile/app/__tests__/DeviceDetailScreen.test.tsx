@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { DeviceDetailScreen } from '../screens/Device/DeviceDetailScreen';
 import {
   useDevice,
@@ -43,6 +43,11 @@ jest.mock('../utils/storage', () => ({
 }));
 
 describe('DeviceDetailScreen', () => {
+  const renderDeviceDetail = async () => {
+    render(<DeviceDetailScreen />);
+    await act(async () => {});
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
 
@@ -148,21 +153,21 @@ describe('DeviceDetailScreen', () => {
     jest.restoreAllMocks();
   });
 
-  it('shows placeholders when telemetry metrics are empty', () => {
-    render(<DeviceDetailScreen />);
+  it('shows placeholders when telemetry metrics are empty', async () => {
+    await renderDeviceDetail();
 
     const placeholders = screen.getAllByText('No data for this metric in the selected range.');
     expect(placeholders).toHaveLength(4);
   });
 
-  it('prevents out-of-range setpoint updates', () => {
+  it('prevents out-of-range setpoint updates', async () => {
     const setpointMock = jest.fn();
     (useSetpointCommand as jest.Mock).mockReturnValue({
       mutateAsync: setpointMock,
       isPending: false,
     });
 
-    render(<DeviceDetailScreen />);
+    await renderDeviceDetail();
 
     fireEvent.changeText(screen.getByTestId('setpoint-input'), '10');
     fireEvent.press(screen.getByText('Update setpoint'));
@@ -171,7 +176,7 @@ describe('DeviceDetailScreen', () => {
     expect(screen.getByText(/Flow temperature must be between 30-60/)).toBeTruthy();
   });
 
-  it('shows telemetry error with retry action', () => {
+  it('shows telemetry error with retry action', async () => {
     const refetchMock = jest.fn();
     (useDeviceTelemetry as jest.Mock).mockReturnValue({
       data: undefined,
@@ -181,7 +186,7 @@ describe('DeviceDetailScreen', () => {
       error: new Error('fail'),
     });
 
-    render(<DeviceDetailScreen />);
+    await renderDeviceDetail();
 
     const retryButton = screen.getByText('Retry');
     fireEvent.press(retryButton);
@@ -234,7 +239,7 @@ describe('DeviceDetailScreen', () => {
       isError: false,
     });
 
-    render(<DeviceDetailScreen />);
+    await renderDeviceDetail();
 
     expect(await screen.findByText('Offline - showing cached data (read-only).')).toBeTruthy();
     expect(screen.getByText('Cached Device')).toBeTruthy();
@@ -258,7 +263,7 @@ describe('DeviceDetailScreen', () => {
       isError: false,
     });
 
-    render(<DeviceDetailScreen />);
+    await renderDeviceDetail();
 
     expect(await screen.findByText('Offline and no cached data for this device.')).toBeTruthy();
   });
@@ -288,7 +293,7 @@ describe('DeviceDetailScreen', () => {
       isError: false,
     });
 
-    render(<DeviceDetailScreen />);
+    await renderDeviceDetail();
 
     fireEvent.press(screen.getByText('Update setpoint'));
 
@@ -324,7 +329,7 @@ describe('DeviceDetailScreen', () => {
       isError: false,
     });
 
-    render(<DeviceDetailScreen />);
+    await renderDeviceDetail();
 
     fireEvent.press(screen.getByText('Update setpoint'));
 
@@ -340,7 +345,7 @@ describe('DeviceDetailScreen', () => {
       isPending: false,
     });
 
-    render(<DeviceDetailScreen />);
+    await renderDeviceDetail();
 
     const editButtons = screen.getAllByText(/Edit schedule/i);
     fireEvent.press(editButtons[0]);
@@ -359,14 +364,14 @@ describe('DeviceDetailScreen', () => {
     );
   });
 
-  it('shows export button when online', () => {
-    render(<DeviceDetailScreen />);
+  it('shows export button when online', async () => {
+    await renderDeviceDetail();
     expect(screen.getByTestId('export-telemetry-button')).toBeTruthy();
   });
 
-  it('hides export button when offline', () => {
+  it('hides export button when offline', async () => {
     (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: true });
-    render(<DeviceDetailScreen />);
+    await renderDeviceDetail();
     expect(screen.queryByTestId('export-telemetry-button')).toBeNull();
   });
 });

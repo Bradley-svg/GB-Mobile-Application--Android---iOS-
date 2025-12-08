@@ -5,7 +5,7 @@ import { SharingScreen } from '../screens/Profile/SharingScreen';
 import { useSites, useDevices } from '../api/hooks';
 import { useNetworkBanner } from '../hooks/useNetworkBanner';
 import { useAuthStore } from '../store/authStore';
-import type { NavigationProp } from '@react-navigation/native';
+import type { NavigationProp, RouteProp } from '@react-navigation/native';
 import type { AppStackParamList } from '../navigation/RootNavigator';
 
 jest.mock('../api/hooks', () => ({
@@ -36,12 +36,18 @@ describe('SharingScreen', () => {
   it('allows owners to navigate to share links', () => {
     useAuthStore.setState({
       user: { id: 'user-1', email: 'owner@example.com', name: 'Owner', role: 'owner' },
-    } as any);
+    });
     const navigate = jest.fn();
+    const navigationMock: Partial<NavigationProp<AppStackParamList>> = { navigate };
     jest
       .spyOn(navigation, 'useNavigation')
-      .mockReturnValue({ navigate } as unknown as NavigationProp<AppStackParamList>);
-    jest.spyOn(navigation, 'useRoute').mockReturnValue({ params: {} } as any);
+      .mockReturnValue(navigationMock as NavigationProp<AppStackParamList>);
+    const route: RouteProp<AppStackParamList, 'Sharing'> = {
+      key: 'Sharing',
+      name: 'Sharing',
+      params: undefined,
+    };
+    jest.spyOn(navigation, 'useRoute').mockReturnValue(route);
 
     render(<SharingScreen />);
 
@@ -55,10 +61,23 @@ describe('SharingScreen', () => {
 
   it('shows unavailable state for contractors', () => {
     useAuthStore.setState({
-      user: { id: 'user-2', email: 'contractor@example.com', name: 'Contractor', role: 'contractor' },
-    } as any);
-    jest.spyOn(navigation, 'useRoute').mockReturnValue({ params: {} } as any);
-    jest.spyOn(navigation, 'useNavigation').mockReturnValue({} as any);
+      user: {
+        id: 'user-2',
+        email: 'contractor@example.com',
+        name: 'Contractor',
+        role: 'contractor',
+      },
+    });
+    const route: RouteProp<AppStackParamList, 'Sharing'> = {
+      key: 'Sharing',
+      name: 'Sharing',
+      params: undefined,
+    };
+    jest.spyOn(navigation, 'useRoute').mockReturnValue(route);
+    const navigationMock: Partial<NavigationProp<AppStackParamList>> = {};
+    jest
+      .spyOn(navigation, 'useNavigation')
+      .mockReturnValue(navigationMock as NavigationProp<AppStackParamList>);
 
     const { getByText, queryByTestId } = render(<SharingScreen />);
 

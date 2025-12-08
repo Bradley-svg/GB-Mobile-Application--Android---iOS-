@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, within } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, within } from '@testing-library/react-native';
 import * as navigation from '@react-navigation/native';
 import { SiteOverviewScreen } from '../screens/Site/SiteOverviewScreen';
 import { useDevices, useSite } from '../api/hooks';
@@ -16,6 +16,10 @@ jest.mock('../hooks/useNetworkBanner', () => ({
 }));
 
 describe('SiteOverview quick actions', () => {
+  const renderSiteOverview = async () => {
+    render(<SiteOverviewScreen />);
+    await act(async () => {});
+  };
   beforeEach(() => {
     jest.clearAllMocks();
     const route: RouteProp<AppStackParamList, 'SiteOverview'> = {
@@ -39,45 +43,45 @@ describe('SiteOverview quick actions', () => {
     });
   });
 
-  it('navigates to device detail from quick action', () => {
+  it('navigates to device detail from quick action', async () => {
     const navigateSpy = jest.fn();
     jest
       .spyOn(navigation, 'useNavigation')
       .mockReturnValue({ navigate: navigateSpy } as unknown as NavigationProp<AppStackParamList>);
 
-    render(<SiteOverviewScreen />);
+    await renderSiteOverview();
 
     fireEvent.press(screen.getByTestId('device-action-detail'));
     expect(navigateSpy).toHaveBeenCalledWith('DeviceDetail', { deviceId: 'device-1' });
   });
 
-  it('opens alerts tab from quick action', () => {
+  it('opens alerts tab from quick action', async () => {
     const navigateSpy = jest.fn();
     jest
       .spyOn(navigation, 'useNavigation')
       .mockReturnValue({ navigate: navigateSpy } as unknown as NavigationProp<AppStackParamList>);
 
-    render(<SiteOverviewScreen />);
+    await renderSiteOverview();
 
     fireEvent.press(screen.getByTestId('device-action-alerts'));
     expect(navigateSpy).toHaveBeenCalledWith('Tabs', { screen: 'Alerts' });
   });
 
-  it('shows connectivity pills for devices', () => {
-    render(<SiteOverviewScreen />);
+  it('shows connectivity pills for devices', async () => {
+    await renderSiteOverview();
 
     const pill = screen.getByTestId('device-connectivity-pill');
     expect(within(pill).getByText(/Online/i)).toBeTruthy();
   });
 
-  it('shows export button when online', () => {
-    render(<SiteOverviewScreen />);
+  it('shows export button when online', async () => {
+    await renderSiteOverview();
     expect(screen.getByTestId('export-devices-button')).toBeTruthy();
   });
 
-  it('hides export button when offline', () => {
+  it('hides export button when offline', async () => {
     (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: true });
-    render(<SiteOverviewScreen />);
+    await renderSiteOverview();
     expect(screen.queryByTestId('export-devices-button')).toBeNull();
   });
 });

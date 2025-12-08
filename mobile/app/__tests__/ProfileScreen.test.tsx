@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ProfileScreen } from '../screens/Profile/ProfileScreen';
 import {
@@ -25,6 +25,11 @@ jest.mock('@react-navigation/native', () => ({
 
 describe('ProfileScreen notifications', () => {
   const navigateMock = jest.fn();
+  const renderProfile = async () => {
+    const utils = render(<ProfileScreen />);
+    await act(async () => {});
+    return utils;
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -60,7 +65,7 @@ describe('ProfileScreen notifications', () => {
   it('disables toggle and shows settings prompt when OS permissions are denied', async () => {
     (getNotificationPermissionStatus as jest.Mock).mockResolvedValue('denied');
 
-    const { getByTestId, getByText } = render(<ProfileScreen />);
+    const { getByTestId, getByText } = await renderProfile();
 
     await waitFor(() => {
       expect(getByTestId('notification-permission-warning')).toBeTruthy();
@@ -79,9 +84,11 @@ describe('ProfileScreen notifications', () => {
       isPending: false,
     });
 
-    const { getByTestId } = render(<ProfileScreen />);
+    const { getByTestId } = await renderProfile();
 
-    fireEvent(getByTestId('notification-preference-toggle'), 'valueChange', false);
+    await act(async () => {
+      fireEvent(getByTestId('notification-preference-toggle'), 'valueChange', false);
+    });
 
     await waitFor(() => {
       expect(mutate).toHaveBeenCalledWith({ alertsEnabled: false }, expect.any(Object));
@@ -109,9 +116,11 @@ describe('ProfileScreen notifications', () => {
       isPending: false,
     });
 
-    const { getByTestId, getByText } = render(<ProfileScreen />);
+    const { getByTestId, getByText } = await renderProfile();
 
-    fireEvent(getByTestId('notification-preference-toggle'), 'valueChange', true);
+    await act(async () => {
+      fireEvent(getByTestId('notification-preference-toggle'), 'valueChange', true);
+    });
 
     await waitFor(() => {
       expect(mutate).toHaveBeenCalledWith({ alertsEnabled: true }, expect.any(Object));
@@ -121,24 +130,24 @@ describe('ProfileScreen notifications', () => {
     expect(getByText(/Could not update notification preference/i)).toBeTruthy();
   });
 
-  it('navigates to diagnostics from the about row', () => {
-    const { getByTestId } = render(<ProfileScreen />);
+  it('navigates to diagnostics from the about row', async () => {
+    const { getByTestId } = await renderProfile();
 
     fireEvent.press(getByTestId('diagnostics-row'));
 
     expect(navigateMock).toHaveBeenCalledWith('Diagnostics');
   });
 
-  it('navigates to work orders from the profile list', () => {
-    const { getByTestId } = render(<ProfileScreen />);
+  it('navigates to work orders from the profile list', async () => {
+    const { getByTestId } = await renderProfile();
 
     fireEvent.press(getByTestId('workorders-row'));
 
     expect(navigateMock).toHaveBeenCalledWith('WorkOrders');
   });
 
-  it('navigates to maintenance from the profile list', () => {
-    const { getByTestId } = render(<ProfileScreen />);
+  it('navigates to maintenance from the profile list', async () => {
+    const { getByTestId } = await renderProfile();
 
     fireEvent.press(getByTestId('maintenance-row'));
 
