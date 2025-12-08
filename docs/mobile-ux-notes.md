@@ -3,11 +3,11 @@
 - Device Detail: supports 1h/24h/7d ranges with stale-data banner when telemetry is cached or lagging; history and navigation regression tests cover the flows.
 - Offline caching: Dashboard, Site, Device, and Alerts cache recent data and surface read-only banners with commands/ack/mute disabled when offline.
 - Push notifications: Profile toggle persists `alertsEnabled` locally; disabled if OS permission is denied; `useRegisterPushToken` skips backend registration unless OS permission is granted and alertsEnabled is true.
-- Branding: screens use the palette from `docs/branding/README.md` via `mobile/app/theme/colors.ts`. Horizontal logo (gear-as-O from `mobile/assets/greenbro/greenbro-logo-horizontal.png`) sits on auth/login and the Dashboard header; tabs, pills, and chips use brandGreen for active states and muted greys when inactive.
+- Branding: defer to `docs/branding/README.md` for logo/palette. Screens pull tokens from `mobile/app/theme/colors.ts`; auth/login and the Dashboard header render the exported gear-as-O logo at `mobile/assets/greenbro/greenbro-logo-horizontal.png`.
 - Visual spot-checks: Login logo + button, Dashboard hero + pills/cards, Alerts severity chips + filters, Site/Device status chips and cards, Profile toggles and dividers.
 
 ## Branding QA (2025-12-06)
-- Source: `docs/branding/README.md` (palette + assets). App assets live in `mobile/assets/greenbro/` with originals in `docs/branding/official/`.
+- Source: `docs/branding/README.md` (single source of truth). App assets live in `mobile/assets/greenbro/` with masters in `docs/branding/official/`.
 - Reference screens for review: Login (centered horizontal logo), Dashboard (hero gradient + cards/pills), Device Detail (charts + controls + status pills), Alerts list/detail (severity pills + filters), Profile (notification toggle and dividers).
 
 ## Optional manual smoke
