@@ -27,9 +27,9 @@ import { api, shouldUseSignedFileUrls } from '../../api/client';
 import { Screen, Card, PrimaryButton, StatusPill, IconButton, PillTabGroup } from '../../components';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
-import { colors, gradients } from '../../theme/colors';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppTheme } from '../../theme/types';
 import { typography } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
 import { isContractor, useAuthStore } from '../../store/authStore';
 
 type WorkOrderDetailRouteParams = RouteProp<AppStackParamList, 'WorkOrderDetail'>;
@@ -124,6 +124,9 @@ export const WorkOrderDetailScreen: React.FC = () => {
   const uploadAttachment = useUploadWorkOrderAttachment(workOrderId);
   const signedFileUrl = useSignedFileUrl();
   const { isOffline } = useNetworkBanner();
+  const { theme } = useAppTheme();
+  const { colors, gradients, spacing } = theme;
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const userRole = useAuthStore((s) => s.user?.role);
   const contractorReadOnly = isContractor(userRole);
   const isReadOnly = isOffline || contractorReadOnly;
@@ -783,125 +786,126 @@ export const WorkOrderDetailScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: { color: colors.textPrimary },
-  muted: { color: colors.textSecondary },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  headerCard: {
-    marginBottom: spacing.md,
-  },
-  slaHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  slaEditButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: 12,
-    backgroundColor: colors.backgroundAlt,
-  },
-  slaQuickRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: spacing.xs,
-  },
-  slaQuickButton: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.backgroundAlt,
-    marginRight: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-  },
-  priority: {
-    color: colors.brandGrey,
-  },
-  alertChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: 14,
-    backgroundColor: colors.backgroundAlt,
-    marginTop: spacing.sm,
-  },
-  detailCard: {
-    marginBottom: spacing.md,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.xs,
-  },
-  actionRow: {
-    gap: spacing.sm,
-  },
-  taskRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-  },
-  slaInput: {
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    borderRadius: 12,
-    padding: spacing.sm,
-    color: colors.textPrimary,
-    backgroundColor: colors.backgroundAlt,
-  },
-  notesInput: {
-    minHeight: 96,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    borderRadius: 12,
-    padding: spacing.sm,
-    color: colors.textPrimary,
-    backgroundColor: colors.backgroundAlt,
-    textAlignVertical: 'top',
-  },
-  errorText: { color: colors.error, marginTop: spacing.sm },
-  warningText: { color: colors.warning },
-  attachmentsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-  },
-  attachmentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-  },
-  attachmentIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.backgroundAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    title: { color: theme.colors.textPrimary },
+    muted: { color: theme.colors.textSecondary },
+    topBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: theme.spacing.lg,
+      marginBottom: theme.spacing.md,
+    },
+    headerCard: {
+      marginBottom: theme.spacing.md,
+    },
+    slaHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    slaEditButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
+      borderRadius: 12,
+      backgroundColor: theme.colors.backgroundAlt,
+    },
+    slaQuickRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      marginTop: theme.spacing.xs,
+    },
+    slaQuickButton: {
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSubtle,
+      backgroundColor: theme.colors.backgroundAlt,
+      marginRight: theme.spacing.sm,
+      marginTop: theme.spacing.xs,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: theme.spacing.sm,
+    },
+    priority: {
+      color: theme.colors.brandGrey,
+    },
+    alertChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
+      borderRadius: 14,
+      backgroundColor: theme.colors.backgroundAlt,
+      marginTop: theme.spacing.sm,
+    },
+    detailCard: {
+      marginBottom: theme.spacing.md,
+    },
+    detailRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: theme.spacing.xs,
+    },
+    actionRow: {
+      gap: theme.spacing.sm,
+    },
+    taskRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: theme.spacing.xs,
+    },
+    slaInput: {
+      borderWidth: 1,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: 12,
+      padding: theme.spacing.sm,
+      color: theme.colors.textPrimary,
+      backgroundColor: theme.colors.backgroundAlt,
+    },
+    notesInput: {
+      minHeight: 96,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: 12,
+      padding: theme.spacing.sm,
+      color: theme.colors.textPrimary,
+      backgroundColor: theme.colors.backgroundAlt,
+      textAlignVertical: 'top',
+    },
+    errorText: { color: theme.colors.error, marginTop: theme.spacing.sm },
+    warningText: { color: theme.colors.warning },
+    attachmentsHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: theme.spacing.sm,
+    },
+    attachmentRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: theme.spacing.xs,
+    },
+    attachmentIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: theme.colors.backgroundAlt,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: theme.spacing.sm,
+    },
+  });

@@ -46,6 +46,13 @@ const Alert = {
   alert: jest.fn(),
 };
 
+const Linking = {
+  openURL: jest.fn(),
+  canOpenURL: jest.fn(async () => true),
+  addEventListener: jest.fn(),
+  removeEventListener: jest.fn(),
+};
+
 const StyleSheet = {
   create: (styles) => styles,
   flatten: (styles) => styles,
@@ -65,4 +72,5 @@ module.exports = {
   Switch,
   StyleSheet,
   Alert,
+  Linking,
 };

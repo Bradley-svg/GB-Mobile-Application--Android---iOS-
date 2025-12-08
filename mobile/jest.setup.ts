@@ -96,6 +96,14 @@ jest.mock('@expo/vector-icons', () => {
   };
 });
 
+jest.mock('react-native', () => {
+  const actual = jest.requireActual('react-native');
+  return {
+    ...actual,
+    useColorScheme: jest.fn(() => 'light'),
+  };
+});
+
 jest.mock('expo-linear-gradient', () => {
   const React = require('react');
   const { View } = require('react-native');

@@ -7,9 +7,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { API_BASE_URL } from '../../api/client';
 import { useCreateShareLink, useRevokeShareLink, useShareLinks } from '../../api/shareLinks/hooks';
 import { Screen, Card, EmptyState } from '../../components';
-import { colors } from '../../theme/colors';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppTheme } from '../../theme/types';
 import { typography } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 
@@ -27,6 +27,9 @@ export const ShareLinksScreen: React.FC = () => {
   const route = useRoute<Route>();
   const { scope, id, name } = route.params;
   const { isOffline } = useNetworkBanner();
+  const { theme } = useAppTheme();
+  const { colors, spacing } = theme;
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
   const linksQuery = useShareLinks(scope, id);
   const createLink = useCreateShareLink();
   const revokeLink = useRevokeShareLink();
@@ -150,70 +153,71 @@ export const ShareLinksScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  backButton: {
-    marginRight: spacing.sm,
-    padding: spacing.xs,
-  },
-  infoCard: {
-    padding: spacing.lg,
-    marginBottom: spacing.lg,
-  },
-  muted: { color: colors.textSecondary },
-  title: { color: colors.textPrimary },
-  warning: { color: colors.warning, marginTop: spacing.xs },
-  sectionTitle: {
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-    color: colors.textPrimary,
-  },
-  presetRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  presetButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 12,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    marginRight: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  buttonEnabled: {
-    backgroundColor: colors.brandGreen,
-  },
-  buttonDisabled: {
-    backgroundColor: colors.borderSubtle,
-  },
-  linkCard: {
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-    padding: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  actions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  iconButton: {
-    padding: spacing.sm,
-    borderRadius: 12,
-    marginLeft: spacing.xs,
-  },
-  copyButton: {
-    backgroundColor: colors.brandGreen,
-  },
-  revokeButton: {
-    backgroundColor: colors.error,
-  },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: theme.spacing.lg,
+      marginBottom: theme.spacing.sm,
+    },
+    backButton: {
+      marginRight: theme.spacing.sm,
+      padding: theme.spacing.xs,
+    },
+    infoCard: {
+      padding: theme.spacing.lg,
+      marginBottom: theme.spacing.lg,
+    },
+    muted: { color: theme.colors.textSecondary },
+    title: { color: theme.colors.textPrimary },
+    warning: { color: theme.colors.warning, marginTop: theme.spacing.xs },
+    sectionTitle: {
+      marginHorizontal: theme.spacing.lg,
+      marginBottom: theme.spacing.sm,
+      color: theme.colors.textPrimary,
+    },
+    presetRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      marginHorizontal: theme.spacing.lg,
+      marginBottom: theme.spacing.md,
+    },
+    presetButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 12,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.xs,
+      marginRight: theme.spacing.sm,
+      marginBottom: theme.spacing.sm,
+    },
+    buttonEnabled: {
+      backgroundColor: theme.colors.brandGreen,
+    },
+    buttonDisabled: {
+      backgroundColor: theme.colors.borderSubtle,
+    },
+    linkCard: {
+      marginHorizontal: theme.spacing.lg,
+      marginBottom: theme.spacing.sm,
+      padding: theme.spacing.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    actions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    iconButton: {
+      padding: theme.spacing.sm,
+      borderRadius: 12,
+      marginLeft: theme.spacing.xs,
+    },
+    copyButton: {
+      backgroundColor: theme.colors.brandGreen,
+    },
+    revokeButton: {
+      backgroundColor: theme.colors.error,
+    },
+  });

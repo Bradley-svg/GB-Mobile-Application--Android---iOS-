@@ -5,9 +5,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { useSites, useDevices } from '../../api/hooks';
 import { Screen, Card, StatusPill, EmptyState, connectivityDisplay, healthDisplay } from '../../components';
-import { colors } from '../../theme/colors';
-import { typography } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppTheme } from '../../theme/types';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { isAdminOrOwner, isFacilities, useAuthStore } from '../../store/authStore';
@@ -26,6 +25,9 @@ export const SharingScreen: React.FC = () => {
   );
   const { data: devices = [], isLoading: devicesLoading } = useDevices(selectedSite?.id || '');
   const { isOffline } = useNetworkBanner();
+  const { theme } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { colors, spacing, typography } = theme;
 
   useEffect(() => {
     if (!selectedSiteId && sites.length > 0) {
@@ -181,63 +183,66 @@ export const SharingScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  infoCard: {
-    marginTop: spacing.lg,
-    marginBottom: spacing.lg,
-    padding: spacing.lg,
-  },
-  title: { color: colors.textPrimary },
-  muted: { color: colors.textSecondary },
-  warning: { color: colors.warning, marginTop: spacing.sm },
-  sectionTitle: {
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-    color: colors.textPrimary,
-  },
-  sectionPadding: { paddingHorizontal: spacing.lg },
-  rowCard: {
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-    padding: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  manageButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: 12,
-  },
-  manageButtonEnabled: {
-    backgroundColor: colors.brandGreen,
-  },
-  manageButtonDisabled: {
-    backgroundColor: colors.borderSubtle,
-  },
-  siteChips: {
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  chip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: 12,
-    marginRight: spacing.sm,
-    borderWidth: 1,
-  },
-  chipActive: {
-    backgroundColor: colors.brandGreen,
-    borderColor: colors.brandGreen,
-  },
-  chipInactive: {
-    backgroundColor: colors.backgroundAlt,
-    borderColor: colors.borderSubtle,
-  },
-});
+const createStyles = (theme: AppTheme) => {
+  const { colors, spacing } = theme;
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    infoCard: {
+      marginTop: spacing.lg,
+      marginBottom: spacing.lg,
+      padding: spacing.lg,
+    },
+    title: { color: colors.textPrimary },
+    muted: { color: colors.textSecondary },
+    warning: { color: colors.warning, marginTop: spacing.sm },
+    sectionTitle: {
+      marginHorizontal: spacing.lg,
+      marginBottom: spacing.sm,
+      color: colors.textPrimary,
+    },
+    sectionPadding: { paddingHorizontal: spacing.lg },
+    rowCard: {
+      marginHorizontal: spacing.lg,
+      marginBottom: spacing.sm,
+      padding: spacing.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    manageButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      borderRadius: 12,
+    },
+    manageButtonEnabled: {
+      backgroundColor: colors.brandGreen,
+    },
+    manageButtonDisabled: {
+      backgroundColor: colors.borderSubtle,
+    },
+    siteChips: {
+      paddingHorizontal: spacing.lg,
+      marginBottom: spacing.sm,
+    },
+    chip: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      borderRadius: 12,
+      marginRight: spacing.sm,
+      borderWidth: 1,
+    },
+    chipActive: {
+      backgroundColor: colors.brandGreen,
+      borderColor: colors.brandGreen,
+    },
+    chipInactive: {
+      backgroundColor: colors.backgroundAlt,
+      borderColor: colors.borderSubtle,
+    },
+  });
+};

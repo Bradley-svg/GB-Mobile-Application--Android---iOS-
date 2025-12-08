@@ -6,29 +6,14 @@ import type { MaintenanceSummary, MaintenanceSummaryItem } from '../../api/workO
 import { Screen, Card, EmptyState, ErrorCard } from '../../components';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { loadJsonWithMetadata, saveJson, isCacheOlderThan } from '../../utils/storage';
-import { colors, gradients } from '../../theme/colors';
-import { typography } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppTheme } from '../../theme/types';
 
 const CACHE_KEY = 'maintenance-summary-cache';
 const CACHE_STALE_MS = 12 * 60 * 60 * 1000;
 
-type SummaryChipProps = { label: string; count: number; tone: 'open' | 'overdue' | 'soon'; testID?: string };
-
-const SummaryChip: React.FC<SummaryChipProps> = ({ label, count, tone, testID }) => {
-  const palette =
-    tone === 'overdue'
-      ? { bg: colors.errorSoft, fg: colors.error }
-      : tone === 'soon'
-      ? { bg: colors.warningSoft, fg: colors.warning }
-      : { bg: colors.brandSoft, fg: colors.brandGreen };
-  return (
-    <View style={[styles.chip, { backgroundColor: palette.bg }]} testID={testID}>
-      <Text style={[typography.caption, { color: palette.fg }]}>{label}</Text>
-      <Text style={[typography.title2, { color: palette.fg }]}>{count}</Text>
-    </View>
-  );
-};
+type SummaryTone = 'open' | 'overdue' | 'soon';
+type ItemTone = 'overdue' | 'open' | 'done';
 
 const startOfDay = (date: Date) => {
   const d = new Date(date);
@@ -54,35 +39,53 @@ const itemStatusLabel = (item: MaintenanceSummaryItem) => {
   return diffDays === 1 ? 'Due tomorrow' : `Due in ${diffDays} days`;
 };
 
-const renderItemRow = (item: MaintenanceSummaryItem, tone: 'overdue' | 'open' | 'done') => {
-  const accent =
-    tone === 'overdue'
-      ? colors.error
-      : tone === 'open'
-      ? gradients.brandPrimary.start
-      : colors.brandGreen;
-  return (
-    <View key={item.workOrderId} style={styles.itemRow} testID="maintenance-item">
-      <View style={[styles.itemAccent, { backgroundColor: accent }]} />
-      <View style={{ flex: 1 }}>
-        <Text style={[typography.body, styles.title]} numberOfLines={2}>
-          {item.title}
-        </Text>
-        <Text style={[typography.caption, styles.muted]} numberOfLines={2}>
-          {item.siteName || 'Unknown site'}
-          {item.deviceName ? ` > ${item.deviceName}` : ''}
-        </Text>
-        <Text style={[typography.caption, styles.muted]}>{itemStatusLabel(item)}</Text>
-      </View>
-    </View>
-  );
-};
-
 export const MaintenanceCalendarScreen: React.FC = () => {
   const { data, isLoading, isError, refetch } = useMaintenanceSummary();
   const { isOffline } = useNetworkBanner();
   const [cachedSummary, setCachedSummary] = useState<MaintenanceSummary | null>(null);
   const [cachedAt, setCachedAt] = useState<string | null>(null);
+  const { theme } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { colors, spacing, typography, gradients } = theme;
+
+  const renderSummaryChip = (label: string, count: number, tone: SummaryTone, testID?: string) => {
+    const palette =
+      tone === 'overdue'
+        ? { bg: colors.errorSoft, fg: colors.error }
+        : tone === 'soon'
+        ? { bg: colors.warningSoft, fg: colors.warning }
+        : { bg: colors.brandSoft, fg: colors.brandGreen };
+    return (
+      <View style={[styles.chip, { backgroundColor: palette.bg }]} testID={testID}>
+        <Text style={[typography.caption, { color: palette.fg }]}>{label}</Text>
+        <Text style={[typography.title2, { color: palette.fg }]}>{count}</Text>
+      </View>
+    );
+  };
+
+  const renderItemRow = (item: MaintenanceSummaryItem, tone: ItemTone) => {
+    const accent =
+      tone === 'overdue'
+        ? colors.error
+        : tone === 'open'
+        ? gradients.brandPrimary.start
+        : colors.brandGreen;
+    return (
+      <View key={item.workOrderId} style={styles.itemRow} testID="maintenance-item">
+        <View style={[styles.itemAccent, { backgroundColor: accent }]} />
+        <View style={{ flex: 1 }}>
+          <Text style={[typography.body, styles.title]} numberOfLines={2}>
+            {item.title}
+          </Text>
+          <Text style={[typography.caption, styles.muted]} numberOfLines={2}>
+            {item.siteName || 'Unknown site'}
+            {item.deviceName ? ` > ${item.deviceName}` : ''}
+          </Text>
+          <Text style={[typography.caption, styles.muted]}>{itemStatusLabel(item)}</Text>
+        </View>
+      </View>
+    );
+  };
 
   useEffect(() => {
     if (!data || isOffline) return;
@@ -162,19 +165,9 @@ export const MaintenanceCalendarScreen: React.FC = () => {
               Calendar & reminders
             </Text>
             <View style={styles.chipRow}>
-              <SummaryChip label="Open" count={summary.openCount} tone="open" testID="maintenance-open-count" />
-              <SummaryChip
-                label="Overdue"
-                count={summary.overdueCount}
-                tone="overdue"
-                testID="maintenance-overdue-count"
-              />
-              <SummaryChip
-                label="Due soon"
-                count={summary.dueSoonCount}
-                tone="soon"
-                testID="maintenance-due-soon-count"
-              />
+              {renderSummaryChip('Open', summary.openCount, 'open', 'maintenance-open-count')}
+              {renderSummaryChip('Overdue', summary.overdueCount, 'overdue', 'maintenance-overdue-count')}
+              {renderSummaryChip('Due soon', summary.dueSoonCount, 'soon', 'maintenance-due-soon-count')}
             </View>
           </Card>
 
@@ -208,50 +201,53 @@ export const MaintenanceCalendarScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: { color: colors.textPrimary },
-  muted: { color: colors.textSecondary },
-  summaryCard: {
-    marginBottom: spacing.md,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.sm,
-  },
-  chip: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: 14,
-    marginRight: spacing.sm,
-  },
-  dayCard: {
-    marginBottom: spacing.sm,
-  },
-  itemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-  },
-  itemAccent: {
-    width: 6,
-    height: 38,
-    borderRadius: 6,
-    marginRight: spacing.sm,
-  },
-  banner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.sm,
-    borderRadius: 12,
-    backgroundColor: colors.backgroundAlt,
-    marginBottom: spacing.sm,
-  },
-});
+const createStyles = (theme: AppTheme) => {
+  const { colors, spacing } = theme;
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    title: { color: colors.textPrimary },
+    muted: { color: colors.textSecondary },
+    summaryCard: {
+      marginBottom: spacing.md,
+    },
+    chipRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: spacing.sm,
+    },
+    chip: {
+      flex: 1,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderRadius: 14,
+      marginRight: spacing.sm,
+    },
+    dayCard: {
+      marginBottom: spacing.sm,
+    },
+    itemRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: spacing.xs,
+    },
+    itemAccent: {
+      width: 6,
+      height: 38,
+      borderRadius: 6,
+      marginRight: spacing.sm,
+    },
+    banner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: spacing.sm,
+      borderRadius: 12,
+      backgroundColor: colors.backgroundAlt,
+      marginBottom: spacing.sm,
+    },
+  });
+};

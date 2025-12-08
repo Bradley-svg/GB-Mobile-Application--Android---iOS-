@@ -5,9 +5,9 @@ import * as Device from 'expo-device';
 import { Screen, Card, ErrorCard } from '../../components';
 import { useHealthPlus } from '../../api/health/hooks';
 import { useAuthStore } from '../../store/authStore';
-import { colors } from '../../theme/colors';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppTheme } from '../../theme/types';
 import { typography } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
 import type { HealthPlusPayload } from '../../api/types';
 
 const formatSubsystemStatus = (
@@ -43,18 +43,20 @@ const formatRuleEvaluations = (alertsEngine?: HealthPlusPayload['alertsEngine'])
   return `${triggered} triggered / ${alertsEngine.evaluated} evaluated`;
 };
 
-const Row: React.FC<{ label: string; value: string; testID?: string }> = ({ label, value, testID }) => (
-  <View style={styles.row} testID={testID}>
-    <Text style={[typography.caption, styles.muted]}>{label}</Text>
-    <Text style={[typography.body, styles.title, styles.rowValue]} numberOfLines={1}>
-      {value}
-    </Text>
-  </View>
-);
-
 export const DiagnosticsScreen: React.FC = () => {
   const healthQuery = useHealthPlus();
   const userId = useAuthStore((s) => s.user?.id);
+  const { theme } = useAppTheme();
+  const { colors, spacing } = theme;
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const Row: React.FC<{ label: string; value: string; testID?: string }> = ({ label, value, testID }) => (
+    <View style={styles.row} testID={testID}>
+      <Text style={[typography.caption, styles.muted]}>{label}</Text>
+      <Text style={[typography.body, styles.title, styles.rowValue]} numberOfLines={1}>
+        {value}
+      </Text>
+    </View>
+  );
 
   const version = Constants.expoConfig?.version ?? 'Unknown';
   const apiUrl =
@@ -165,51 +167,52 @@ export const DiagnosticsScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: { color: colors.textPrimary },
-  muted: { color: colors.textSecondary },
-  block: {
-    marginBottom: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  blockTitle: {
-    marginBottom: spacing.sm,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-  },
-  rowValue: {
-    marginLeft: spacing.sm,
-    textAlign: 'right',
-  },
-  chipRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  chip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-  },
-  chipOk: {
-    backgroundColor: colors.brandSoft,
-    borderColor: colors.brandGreen,
-  },
-  chipOkText: { color: colors.brandGreen },
-  chipIssue: {
-    backgroundColor: colors.warningSoft,
-    borderColor: colors.warning,
-  },
-  chipIssueText: { color: colors.warning },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    title: { color: theme.colors.textPrimary },
+    muted: { color: theme.colors.textSecondary },
+    block: {
+      marginBottom: theme.spacing.lg,
+      paddingVertical: theme.spacing.md,
+    },
+    blockTitle: {
+      marginBottom: theme.spacing.sm,
+    },
+    row: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: theme.spacing.xs,
+    },
+    rowValue: {
+      marginLeft: theme.spacing.sm,
+      textAlign: 'right',
+    },
+    chipRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: theme.spacing.sm,
+    },
+    chip: {
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.xs,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSubtle,
+    },
+    chipOk: {
+      backgroundColor: theme.colors.brandSoft,
+      borderColor: theme.colors.brandGreen,
+    },
+    chipOkText: { color: theme.colors.brandGreen },
+    chipIssue: {
+      backgroundColor: theme.colors.warningSoft,
+      borderColor: theme.colors.warning,
+    },
+    chipIssueText: { color: theme.colors.warning },
+  });

@@ -18,9 +18,8 @@ import { getNotificationPermissionStatus } from '../../hooks/useRegisterPushToke
 import { useNotificationPreferencesQuery, useUpdateNotificationPreferencesMutation } from '../../api/preferences/hooks';
 import { DEFAULT_NOTIFICATION_PREFERENCES } from '../../api/preferences/storage';
 import { AppStackParamList } from '../../navigation/RootNavigator';
-import { colors } from '../../theme/colors';
-import { typography } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppTheme } from '../../theme/types';
 
 type Navigation = NativeStackNavigationProp<AppStackParamList>;
 
@@ -79,6 +78,13 @@ export const ProfileScreen: React.FC = () => {
   const roleLabel = user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Unknown';
   const canShare = isAdminOrOwner(user?.role) || isFacilities(user?.role);
   const contractorRole = isContractor(user?.role);
+  const { theme, mode, resolvedScheme } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { colors, spacing, typography } = theme;
+  const themeLabel =
+    mode === 'system'
+      ? `System (${resolvedScheme})`
+      : mode.charAt(0).toUpperCase() + mode.slice(1);
 
   const onToggleNotifications = () => {
     if (!user?.id || toggleDisabled) return;
@@ -169,7 +175,9 @@ export const ProfileScreen: React.FC = () => {
             <Ionicons name="moon-outline" size={18} color={colors.brandGreen} />
             <Text style={[typography.body, styles.title, { marginLeft: spacing.sm }]}>Theme</Text>
           </View>
-          <Text style={[typography.caption, styles.muted]}>Light</Text>
+          <Text style={[typography.caption, styles.muted]} testID="profile-theme-label">
+            {themeLabel}
+          </Text>
         </View>
         <View style={styles.separator} />
         <TouchableOpacity
@@ -259,61 +267,64 @@ export const ProfileScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  heroCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: spacing.xl,
-    marginBottom: spacing.lg,
-    padding: spacing.lg,
-  },
-  avatar: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: colors.brandGreen,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.md,
-  },
-  title: { color: colors.textPrimary },
-  muted: { color: colors.textSecondary },
-  listCard: {
-    marginBottom: spacing.xl,
-    paddingVertical: spacing.sm,
-  },
-  listRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  rowLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  permissionHint: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.sm,
-  },
-  warningText: {
-    color: colors.warning,
-    marginTop: spacing.xs,
-    marginBottom: spacing.xs,
-  },
-  settingsLink: {
-    alignSelf: 'flex-start',
-    paddingVertical: spacing.xs,
-  },
-  errorText: {
-    color: colors.error,
-    marginTop: spacing.xs,
-    paddingHorizontal: spacing.lg,
-  },
-  separator: {
-    height: 1,
-    backgroundColor: colors.borderSubtle,
-    marginHorizontal: spacing.lg,
-  },
-});
+const createStyles = (theme: AppTheme) => {
+  const { colors, spacing } = theme;
+  return StyleSheet.create({
+    heroCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: spacing.xl,
+      marginBottom: spacing.lg,
+      padding: spacing.lg,
+    },
+    avatar: {
+      width: 54,
+      height: 54,
+      borderRadius: 27,
+      backgroundColor: colors.brandGreen,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: spacing.md,
+    },
+    title: { color: colors.textPrimary },
+    muted: { color: colors.textSecondary },
+    listCard: {
+      marginBottom: spacing.xl,
+      paddingVertical: spacing.sm,
+    },
+    listRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+    },
+    rowLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    permissionHint: {
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.sm,
+    },
+    warningText: {
+      color: colors.warning,
+      marginTop: spacing.xs,
+      marginBottom: spacing.xs,
+    },
+    settingsLink: {
+      alignSelf: 'flex-start',
+      paddingVertical: spacing.xs,
+    },
+    errorText: {
+      color: colors.error,
+      marginTop: spacing.xs,
+      paddingHorizontal: spacing.lg,
+    },
+    separator: {
+      height: 1,
+      backgroundColor: colors.borderSubtle,
+      marginHorizontal: spacing.lg,
+    },
+  });
+};

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, FlatList, ActivityIndicator, StyleSheet, TouchableOpacity, Alert, Linking } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
@@ -19,9 +19,8 @@ import {
 import { fetchSiteDevicesCsv } from '../../api/exports';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { loadJsonWithMetadata, saveJson, isCacheOlderThan } from '../../utils/storage';
-import { colors } from '../../theme/colors';
-import { typography } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppTheme } from '../../theme/types';
 
 type Navigation = NativeStackNavigationProp<AppStackParamList>;
 type Route = RouteProp<AppStackParamList, 'SiteOverview'>;
@@ -49,6 +48,9 @@ export const SiteOverviewScreen: React.FC = () => {
   const [cachedDevices, setCachedDevices] = useState<ApiDevice[] | null>(null);
   const [cachedAt, setCachedAt] = useState<string | null>(null);
   const [exportingDevices, setExportingDevices] = useState(false);
+  const { theme } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { colors, spacing, typography } = theme;
 
   useEffect(() => {
     if (site) {
@@ -308,100 +310,103 @@ export const SiteOverviewScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  errorCard: {
-    padding: spacing.lg,
-  },
-  title: {
-    color: colors.textPrimary,
-  },
-  muted: {
-    color: colors.textSecondary,
-  },
-  topBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  headerCard: {
-    marginBottom: spacing.xl,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderLeftWidth: 4,
-    borderColor: colors.brandGreen,
-  },
-  offlineNote: {
-    marginBottom: spacing.md,
-  },
-  staleNote: {
-    color: colors.warning,
-    marginBottom: spacing.md,
-  },
-  quickLinkCard: {
-    marginBottom: spacing.md,
-    padding: spacing.lg,
-  },
-  quickLinkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  quickLinkIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.backgroundAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-  sectionTitle: {
-    marginBottom: spacing.md,
-    color: colors.textPrimary,
-  },
-  pillRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  exportButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.brandGreen,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: 12,
-    marginTop: spacing.sm,
-  },
-  exportButtonDisabled: {
-    backgroundColor: colors.borderSubtle,
-  },
-  deviceCard: {
-    marginBottom: spacing.md,
-    padding: spacing.lg,
-  },
-  deviceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  deviceIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.brandSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-  quickActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: spacing.sm,
-  },
-});
+const createStyles = (theme: AppTheme) => {
+  const { colors, spacing } = theme;
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    errorCard: {
+      padding: spacing.lg,
+    },
+    title: {
+      color: colors.textPrimary,
+    },
+    muted: {
+      color: colors.textSecondary,
+    },
+    topBar: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: spacing.lg,
+      marginBottom: spacing.md,
+    },
+    headerCard: {
+      marginBottom: spacing.xl,
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+      borderLeftWidth: 4,
+      borderColor: colors.brandGreen,
+    },
+    offlineNote: {
+      marginBottom: spacing.md,
+    },
+    staleNote: {
+      color: colors.warning,
+      marginBottom: spacing.md,
+    },
+    quickLinkCard: {
+      marginBottom: spacing.md,
+      padding: spacing.lg,
+    },
+    quickLinkRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    quickLinkIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.backgroundAlt,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: spacing.sm,
+    },
+    sectionTitle: {
+      marginBottom: spacing.md,
+      color: colors.textPrimary,
+    },
+    pillRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    exportButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.brandGreen,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      borderRadius: 12,
+      marginTop: spacing.sm,
+    },
+    exportButtonDisabled: {
+      backgroundColor: colors.borderSubtle,
+    },
+    deviceCard: {
+      marginBottom: spacing.md,
+      padding: spacing.lg,
+    },
+    deviceRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    deviceIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: colors.brandSoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: spacing.sm,
+    },
+    quickActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: spacing.sm,
+    },
+  });
+};

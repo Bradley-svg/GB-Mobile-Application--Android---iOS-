@@ -1,10 +1,23 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { View, Text, ActivityIndicator, TextInput, StyleSheet, TouchableOpacity, Modal, ScrollView, Alert, Linking } from 'react-native';
+import {
+  View,
+  Text,
+  ActivityIndicator,
+  TextInput,
+  StyleSheet,
+  TouchableOpacity,
+  Modal,
+  ScrollView,
+  Alert,
+  Linking,
+} from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { AppStackParamList } from '../../navigation/RootNavigator';
+import { VictoryAxis, VictoryChart, VictoryLegend, VictoryLine } from 'victory-native';
+import type { HeatPumpHistoryError } from '../../api/heatPumpHistory/hooks';
+import { fetchDeviceTelemetryCsv } from '../../api/exports';
 import {
   useDevice,
   useDeviceAlerts,
@@ -26,7 +39,6 @@ import type {
   HeatPumpHistoryRequest,
   TimeRange,
 } from '../../api/types';
-import type { HeatPumpHistoryError } from '../../api/heatPumpHistory/hooks';
 import {
   Screen,
   Card,
@@ -40,12 +52,10 @@ import {
 } from '../../components';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { loadJsonWithMetadata, saveJson, isCacheOlderThan } from '../../utils/storage';
-import { colors, gradients } from '../../theme/colors';
-import { typography } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
-import { VictoryAxis, VictoryChart, VictoryLegend, VictoryLine } from 'victory-native';
-import { fetchDeviceTelemetryCsv } from '../../api/exports';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppTheme } from '../../theme/types';
 import { isContractor, useAuthStore } from '../../store/authStore';
+import { AppStackParamList } from '../../navigation/RootNavigator';
 
 type Route = RouteProp<AppStackParamList, 'DeviceDetail'>;
 type Navigation = NativeStackNavigationProp<AppStackParamList>;
@@ -134,6 +144,9 @@ export const DeviceDetailScreen: React.FC = () => {
   const userRole = useAuthStore((s) => s.user?.role);
   const contractorReadOnly = isContractor(userRole);
   const readOnlyCopy = 'Read-only access for your role.';
+  const { theme } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { colors, gradients, spacing, typography } = theme;
 
   useEffect(() => {
     if (!isOffline) return;
@@ -423,6 +436,80 @@ export const DeviceDetailScreen: React.FC = () => {
   }
 
   if (!device) return null;
+
+  const mapFailureReasonLabel = (reason?: string | null) => {
+    const normalized = (reason || '').toUpperCase();
+    switch (normalized) {
+      case 'THROTTLED':
+        return 'Throttled';
+      case 'VALIDATION_ERROR':
+        return 'Validation failed';
+      case 'SEND_FAILED':
+        return 'Send failed';
+      case 'EXTERNAL_ERROR':
+        return 'Upstream error';
+      default:
+        return undefined;
+    }
+  };
+
+  const commandStatusMeta = (cmd: ControlCommandHistoryRow) => {
+    const normalized = (cmd.status || '').toLowerCase();
+    const failureReason = (cmd.failure_reason || '').toUpperCase();
+    if (failureReason === 'THROTTLED') {
+      return { label: 'Throttled', color: colors.warning, failureLabel: 'Throttled' };
+    }
+    if (normalized === 'failed') {
+      return {
+        label: 'Failed',
+        color: colors.error,
+        failureLabel: mapFailureReasonLabel(failureReason),
+      };
+    }
+    if (normalized === 'success') {
+      return { label: 'Success', color: colors.success, failureLabel: undefined };
+    }
+    return {
+      label: 'Pending',
+      color: colors.warning,
+      failureLabel: mapFailureReasonLabel(failureReason),
+    };
+  };
+
+  const severityColor = (severity: string) => {
+    switch (severity) {
+      case 'critical':
+        return colors.error;
+      case 'warning':
+        return colors.warning;
+      default:
+        return gradients.brandPrimary.end;
+    }
+  };
+
+  const renderMetricCard = (
+    title: string,
+    accent: string,
+    hasData: boolean,
+    chart: React.ReactNode,
+    emptyText: string
+  ) => (
+    <Card style={styles.metricCard}>
+      <View style={styles.metricHeader}>
+        <View style={[styles.metricDot, { backgroundColor: accent }]} />
+        <Text style={[typography.subtitle, styles.title]}>{title}</Text>
+      </View>
+      {hasData ? (
+        <View>{chart}</View>
+      ) : (
+        <Text
+          style={[typography.caption, styles.muted, { textAlign: 'center', marginTop: spacing.md }]}
+        >
+          {emptyText}
+        </Text>
+      )}
+    </Card>
+  );
 
   const hasSupplyData = supplyData.length > 0;
   const hasReturnData = returnData.length > 0;
@@ -1182,17 +1269,6 @@ export const DeviceDetailScreen: React.FC = () => {
   );
 };
 
-const severityColor = (severity: string) => {
-  switch (severity) {
-    case 'critical':
-      return colors.error;
-    case 'warning':
-      return colors.warning;
-    default:
-      return gradients.brandPrimary.end;
-  }
-};
-
 function formatHour(hour: number) {
   const clamped = Math.max(0, Math.min(24, Math.floor(hour)));
   return `${`${clamped}`.padStart(2, '0')}:00`;
@@ -1204,45 +1280,6 @@ function formatScheduleSummary(schedule?: DeviceSchedule | null) {
   const state = schedule.enabled ? 'Active' : 'Paused';
   return `${state} | ${window} | ${schedule.target_setpoint}\u00B0C | ${schedule.target_mode}`;
 }
-
-const mapFailureReasonLabel = (reason?: string | null) => {
-  const normalized = (reason || '').toUpperCase();
-  switch (normalized) {
-    case 'THROTTLED':
-      return 'Throttled';
-    case 'VALIDATION_ERROR':
-      return 'Validation failed';
-    case 'SEND_FAILED':
-      return 'Send failed';
-    case 'EXTERNAL_ERROR':
-      return 'Upstream error';
-    default:
-      return undefined;
-  }
-};
-
-const commandStatusMeta = (cmd: ControlCommandHistoryRow) => {
-  const normalized = (cmd.status || '').toLowerCase();
-  const failureReason = (cmd.failure_reason || '').toUpperCase();
-  if (failureReason === 'THROTTLED') {
-    return { label: 'Throttled', color: colors.warning, failureLabel: 'Throttled' };
-  }
-  if (normalized === 'failed') {
-    return {
-      label: 'Failed',
-      color: colors.error,
-      failureLabel: mapFailureReasonLabel(failureReason),
-    };
-  }
-  if (normalized === 'success') {
-    return { label: 'Success', color: colors.success, failureLabel: undefined };
-  }
-  return {
-    label: 'Pending',
-    color: colors.warning,
-    failureLabel: mapFailureReasonLabel(failureReason),
-  };
-};
 
 const toRecord = (value: unknown): Record<string, unknown> =>
   typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
@@ -1374,295 +1411,276 @@ function mapHistoryError(status: HistoryStatus) {
   return undefined;
 }
 
-const renderMetricCard = (
-  title: string,
-  accent: string,
-  hasData: boolean,
-  chart: React.ReactNode,
-  emptyText: string
-) => (
-  <Card style={styles.metricCard}>
-    <View style={styles.metricHeader}>
-      <View style={[styles.metricDot, { backgroundColor: accent }]} />
-      <Text style={[typography.subtitle, styles.title]}>{title}</Text>
-    </View>
-    {hasData ? (
-      <View>{chart}</View>
-    ) : (
-      <Text style={[typography.caption, styles.muted, { textAlign: 'center', marginTop: spacing.md }]}>
-        {emptyText}
-      </Text>
-    )}
-  </Card>
-);
-
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    color: colors.textPrimary,
-  },
-  muted: {
-    color: colors.textSecondary,
-  },
-  staleText: {
-    color: colors.warning,
-    marginTop: spacing.xs,
-  },
-  offlineNote: {
-    color: colors.textSecondary,
-  },
-  topBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  headerCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.lg,
-    marginBottom: spacing.xl,
-  },
-  quickLinkCard: {
-    marginBottom: spacing.md,
-    padding: spacing.lg,
-  },
-  quickLinkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  quickLinkIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.backgroundAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-  dialWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-  },
-  dialOuter: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    borderWidth: 10,
-    borderColor: colors.borderSubtle,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.brandSoft,
-  },
-  dialInner: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  powerColumn: {
-    alignItems: 'center',
-    marginLeft: spacing.md,
-  },
-  powerSwitch: {
-    width: 24,
-    height: 90,
-    borderRadius: 16,
-    backgroundColor: colors.brandSoft,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    justifyContent: 'flex-start',
-    padding: spacing.xs,
-  },
-  powerThumb: {
-    width: 20,
-    height: 28,
-    borderRadius: 12,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-  },
-  pillRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  rangeTabs: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  exportButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 12,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    marginBottom: spacing.md,
-    alignSelf: 'flex-start',
-  },
-  exportButtonEnabled: {
-    backgroundColor: colors.brandGreen,
-  },
-  exportButtonDisabled: {
-    backgroundColor: colors.borderSubtle,
-  },
-  loadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  metricCard: {
-    marginBottom: spacing.md,
-  },
-  metricHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  metricDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: spacing.sm,
-  },
-  deltaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-  },
-  scheduleCard: {
-    marginBottom: spacing.md,
-  },
-  scheduleHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  historyCard: {
-    marginBottom: spacing.md,
-  },
-  historyLoadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: spacing.sm,
-  },
-  cardPlaceholder: {
-    color: colors.textSecondary,
-    marginTop: spacing.sm,
-  },
-  cardError: {
-    color: colors.error,
-    marginTop: spacing.sm,
-  },
-  chartWrapper: {
-    marginTop: spacing.sm,
-  },
-  controlCard: {
-    marginTop: spacing.md,
-    marginBottom: spacing.md,
-  },
-  controlHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.backgroundAlt,
-    borderRadius: 16,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  errorText: {
-    color: colors.error,
-    marginBottom: spacing.sm,
-  },
-  commandError: {
-    marginBottom: spacing.md,
-    padding: spacing.md,
-    borderRadius: 12,
-    backgroundColor: colors.errorSoft,
-    borderWidth: 1,
-    borderColor: colors.error,
-  },
-  errorCard: {
-    marginBottom: spacing.md,
-    padding: spacing.md,
-  },
-  pendingText: {
-    marginTop: spacing.xs,
-  },
-  modeCard: {
-    marginBottom: spacing.md,
-  },
-  modeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  modeChip: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    marginRight: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  inputRow: {
-    marginBottom: spacing.sm,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: spacing.sm,
-  },
-  historyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  modalCard: {
-    backgroundColor: colors.background,
-    borderRadius: 16,
-    padding: spacing.lg,
-    maxHeight: '85%',
-  },
-  modalActions: {
-    marginTop: spacing.md,
-  },
-  alertCard: {
-    marginBottom: spacing.xl,
-  },
-  alertRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-  },
-  alertDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: spacing.sm,
-  },
-});
+const createStyles = (theme: AppTheme) => {
+  const { colors, spacing } = theme;
+  return StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    title: {
+      color: colors.textPrimary,
+    },
+    muted: {
+      color: colors.textSecondary,
+    },
+    staleText: {
+      color: colors.warning,
+      marginTop: spacing.xs,
+    },
+    offlineNote: {
+      color: colors.textSecondary,
+    },
+    topBar: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: spacing.lg,
+      marginBottom: spacing.md,
+    },
+    headerCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: spacing.lg,
+      marginBottom: spacing.xl,
+    },
+    quickLinkCard: {
+      marginBottom: spacing.md,
+      padding: spacing.lg,
+    },
+    quickLinkRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    quickLinkIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.backgroundAlt,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: spacing.sm,
+    },
+    dialWrapper: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: spacing.md,
+    },
+    dialOuter: {
+      width: 110,
+      height: 110,
+      borderRadius: 55,
+      borderWidth: 10,
+      borderColor: colors.borderSubtle,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.brandSoft,
+    },
+    dialInner: {
+      width: 70,
+      height: 70,
+      borderRadius: 35,
+      backgroundColor: colors.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    powerColumn: {
+      alignItems: 'center',
+      marginLeft: spacing.md,
+    },
+    powerSwitch: {
+      width: 24,
+      height: 90,
+      borderRadius: 16,
+      backgroundColor: colors.brandSoft,
+      borderWidth: 1,
+      borderColor: colors.borderSubtle,
+      justifyContent: 'flex-start',
+      padding: spacing.xs,
+    },
+    powerThumb: {
+      width: 20,
+      height: 28,
+      borderRadius: 12,
+      backgroundColor: colors.white,
+      borderWidth: 1,
+      borderColor: colors.borderSubtle,
+    },
+    pillRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    rangeTabs: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: spacing.lg,
+    },
+    exportButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 12,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      marginBottom: spacing.md,
+      alignSelf: 'flex-start',
+    },
+    exportButtonEnabled: {
+      backgroundColor: colors.brandGreen,
+    },
+    exportButtonDisabled: {
+      backgroundColor: colors.borderSubtle,
+    },
+    loadingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: spacing.md,
+    },
+    metricCard: {
+      marginBottom: spacing.md,
+    },
+    metricHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: spacing.sm,
+    },
+    metricDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      marginRight: spacing.sm,
+    },
+    deltaRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+    },
+    scheduleCard: {
+      marginBottom: spacing.md,
+    },
+    scheduleHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.sm,
+    },
+    historyCard: {
+      marginBottom: spacing.md,
+    },
+    historyLoadingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: spacing.sm,
+    },
+    cardPlaceholder: {
+      color: colors.textSecondary,
+      marginTop: spacing.sm,
+    },
+    cardError: {
+      color: colors.error,
+      marginTop: spacing.sm,
+    },
+    chartWrapper: {
+      marginTop: spacing.sm,
+    },
+    controlCard: {
+      marginTop: spacing.md,
+      marginBottom: spacing.md,
+    },
+    controlHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.sm,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.borderSubtle,
+      backgroundColor: colors.backgroundAlt,
+      borderRadius: 16,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    errorText: {
+      color: colors.error,
+      marginBottom: spacing.sm,
+    },
+    commandError: {
+      marginBottom: spacing.md,
+      padding: spacing.md,
+      borderRadius: 12,
+      backgroundColor: colors.errorSoft,
+      borderWidth: 1,
+      borderColor: colors.error,
+    },
+    errorCard: {
+      marginBottom: spacing.md,
+      padding: spacing.md,
+    },
+    pendingText: {
+      marginTop: spacing.xs,
+    },
+    modeCard: {
+      marginBottom: spacing.md,
+    },
+    modeRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+    },
+    modeChip: {
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: colors.borderSubtle,
+      marginRight: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    inputRow: {
+      marginBottom: spacing.sm,
+    },
+    toggleRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: spacing.sm,
+    },
+    historyRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: spacing.xs,
+    },
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: colors.overlay,
+      justifyContent: 'center',
+      padding: spacing.lg,
+    },
+    modalCard: {
+      backgroundColor: colors.background,
+      borderRadius: 16,
+      padding: spacing.lg,
+      maxHeight: '85%',
+    },
+    modalActions: {
+      marginTop: spacing.md,
+    },
+    alertCard: {
+      marginBottom: spacing.xl,
+    },
+    alertRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: spacing.xs,
+    },
+    alertDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      marginRight: spacing.sm,
+    },
+  });
+};
 

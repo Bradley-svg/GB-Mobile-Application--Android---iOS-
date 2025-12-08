@@ -5,6 +5,10 @@ import App from '../../App';
 import { useAuthStore } from '../store/authStore';
 import { api } from '../api/client';
 
+jest.mock('../screens/Maintenance/MaintenanceCalendarScreen', () => ({
+  MaintenanceCalendarScreen: () => null,
+}));
+
 const demoSite = {
   id: 'site-1',
   name: 'Demo Site',
@@ -213,7 +217,7 @@ describe('AppNavigation flow', () => {
     fireEvent.press(await screen.findByText('Login'));
     await waitFor(() => expect(mockLogin).toHaveBeenCalled());
 
-    const sites = screen.getAllByText('Demo Site');
+    const sites = await screen.findAllByText('Demo Site');
     expect(sites.length).toBeGreaterThan(0);
     expect(screen.getAllByText('Demo Device').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Compressor current (A)').length).toBeGreaterThan(0);

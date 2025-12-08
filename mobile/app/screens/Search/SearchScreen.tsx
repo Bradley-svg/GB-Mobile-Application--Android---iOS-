@@ -7,9 +7,9 @@ import { useFleetSearch } from '../../api/hooks';
 import type { FleetSearchResult, HealthStatus } from '../../api/types';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { Screen, Card, IconButton, EmptyState, PillTab } from '../../components';
-import { colors } from '../../theme/colors';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppTheme } from '../../theme/types';
 import { typography } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { isCacheOlderThan, loadJsonWithMetadata, saveJson } from '../../utils/storage';
 
@@ -25,6 +25,9 @@ type SearchItem =
 export const SearchScreen: React.FC = () => {
   const navigation = useNavigation<Navigation>();
   const { isOffline } = useNetworkBanner();
+  const { theme } = useAppTheme();
+  const { colors, spacing } = theme;
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [query, setQuery] = useState('');
   const [healthFilter, setHealthFilter] = useState<HealthStatus[]>([]);
   const [cachedResults, setCachedResults] = useState<FleetSearchResult | null>(null);
@@ -114,6 +117,37 @@ export const SearchScreen: React.FC = () => {
       })) ?? [];
     return [...siteItems, ...deviceItems];
   }, [results]);
+
+  const renderHealthPill = (health?: HealthStatus, status?: string | null) => {
+    const normalized = health || (status || '').toLowerCase();
+    let backgroundColor: string = colors.backgroundAlt;
+    let textColor: string = colors.textSecondary;
+    let label = (health || status || 'Unknown').toString();
+
+    if (normalized === 'healthy' || normalized.includes('healthy') || normalized.includes('online')) {
+      backgroundColor = colors.brandSoft;
+      textColor = colors.success;
+      label = 'Healthy';
+    } else if (normalized === 'critical' || normalized.includes('critical')) {
+      backgroundColor = colors.errorSoft;
+      textColor = colors.error;
+      label = 'Critical';
+    } else if (normalized === 'warning' || normalized.includes('warn')) {
+      backgroundColor = colors.warningSoft;
+      textColor = colors.warning;
+      label = 'Warning';
+    } else if (normalized === 'offline' || normalized.includes('off')) {
+      backgroundColor = colors.errorSoft;
+      textColor = colors.error;
+      label = 'Offline';
+    }
+
+    return (
+      <View style={[styles.healthPill, { backgroundColor }]}>
+        <Text style={[typography.label, { color: textColor }]}>{label}</Text>
+      </View>
+    );
+  };
 
   const renderItem = ({ item }: { item: SearchItem }) => {
     if (item.type === 'site') {
@@ -237,90 +271,60 @@ export const SearchScreen: React.FC = () => {
   );
 };
 
-const renderHealthPill = (health?: HealthStatus, status?: string | null) => {
-  const normalized = health || (status || '').toLowerCase();
-  let backgroundColor: string = colors.backgroundAlt;
-  let textColor: string = colors.textSecondary;
-  let label = (health || status || 'Unknown').toString();
-
-  if (normalized === 'healthy' || normalized.includes('healthy') || normalized.includes('online')) {
-    backgroundColor = colors.brandSoft;
-    textColor = colors.success;
-    label = 'Healthy';
-  } else if (normalized === 'critical' || normalized.includes('critical')) {
-    backgroundColor = colors.errorSoft;
-    textColor = colors.error;
-    label = 'Critical';
-  } else if (normalized === 'warning' || normalized.includes('warn')) {
-    backgroundColor = colors.warningSoft;
-    textColor = colors.warning;
-    label = 'Warning';
-  } else if (normalized === 'offline' || normalized.includes('off')) {
-    backgroundColor = colors.errorSoft;
-    textColor = colors.error;
-    label = 'Offline';
-  }
-
-  return (
-    <View style={[styles.healthPill, { backgroundColor }]}>
-      <Text style={[typography.label, { color: textColor }]}>{label}</Text>
-    </View>
-  );
-};
-
-const styles = StyleSheet.create({
-  title: { color: colors.textPrimary },
-  muted: { color: colors.textSecondary },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    borderRadius: 14,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    marginVertical: spacing.md,
-    backgroundColor: colors.backgroundAlt,
-  },
-  searchInput: {
-    flex: 1,
-    ...typography.body,
-    color: colors.textPrimary,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: spacing.md,
-  },
-  resultCard: {
-    padding: spacing.md,
-  },
-  resultRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  iconBadge: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.brandSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-  healthPill: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: 14,
-    marginLeft: spacing.sm,
-  },
-  loadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: spacing.md,
-  },
-  staleNote: {
-    color: colors.warning,
-    marginBottom: spacing.sm,
-  },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    title: { color: theme.colors.textPrimary },
+    muted: { color: theme.colors.textSecondary },
+    searchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: 14,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
+      marginVertical: theme.spacing.md,
+      backgroundColor: theme.colors.backgroundAlt,
+    },
+    searchInput: {
+      flex: 1,
+      ...typography.body,
+      color: theme.colors.textPrimary,
+    },
+    filterRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      marginBottom: theme.spacing.md,
+    },
+    resultCard: {
+      padding: theme.spacing.md,
+    },
+    resultRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    iconBadge: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      backgroundColor: theme.colors.brandSoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: theme.spacing.sm,
+    },
+    healthPill: {
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.xs,
+      borderRadius: 14,
+      marginLeft: theme.spacing.sm,
+    },
+    loadingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: theme.spacing.md,
+    },
+    staleNote: {
+      color: theme.colors.warning,
+      marginBottom: theme.spacing.sm,
+    },
+  });

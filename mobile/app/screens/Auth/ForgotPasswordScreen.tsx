@@ -51,7 +51,6 @@ export const ForgotPasswordScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
     logoRow: {
