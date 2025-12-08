@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Text } from 'react-native';
+import { Button, Text, useColorScheme } from 'react-native';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppThemeProvider, THEME_PREFERENCE_KEY } from '../theme/ThemeProvider';
@@ -31,7 +31,7 @@ describe('AppThemeProvider', () => {
   });
 
   it('resolves system scheme by default', async () => {
-    (require('react-native').useColorScheme as jest.Mock).mockReturnValue('dark');
+    (useColorScheme as jest.Mock).mockReturnValue('dark');
     const { findByTestId } = render(
       <AppThemeProvider>
         <ThemeProbe />
@@ -43,7 +43,7 @@ describe('AppThemeProvider', () => {
   });
 
   it('persists and applies selected mode', async () => {
-    (require('react-native').useColorScheme as jest.Mock).mockReturnValue('light');
+    (useColorScheme as jest.Mock).mockReturnValue('light');
     (AsyncStorage.getItem as jest.Mock).mockResolvedValueOnce('light');
 
     const { findByTestId, getByTestId } = render(

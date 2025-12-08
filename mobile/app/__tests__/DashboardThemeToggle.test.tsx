@@ -35,7 +35,7 @@ const ModeProbe: React.FC = () => {
 
 describe('Dashboard theme toggle', () => {
   it('updates theme mode when toggled', async () => {
-    const { findAllByTestId, getByTestId, getByText } = render(
+    const { findAllByTestId, getByTestId } = render(
       <AppThemeProvider>
         <ModeProbe />
         <DashboardScreen />

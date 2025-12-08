@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { SafeAreaView, ScrollView, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import type { AppTheme } from '../theme/types';
 import { useAppTheme } from '../theme/useAppTheme';
+import { ThemedStatusBar } from '../theme/ThemedStatusBar';
 
 type ScreenProps = {
   children: React.ReactNode;
@@ -21,22 +22,21 @@ export const Screen: React.FC<ScreenProps> = ({
   const { theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  if (scroll) {
-    return (
-      <SafeAreaView style={[styles.screen, style]} testID={testID}>
-        <ScrollView
-          contentContainerStyle={[styles.screenContent, contentContainerStyle]}
-          showsVerticalScrollIndicator={false}
-        >
-          {children}
-        </ScrollView>
-      </SafeAreaView>
-    );
-  }
+  const content = scroll ? (
+    <ScrollView
+      contentContainerStyle={[styles.screenContent, contentContainerStyle]}
+      showsVerticalScrollIndicator={false}
+    >
+      {children}
+    </ScrollView>
+  ) : (
+    <View style={[styles.screenContent, contentContainerStyle]}>{children}</View>
+  );
 
   return (
     <SafeAreaView style={[styles.screen, style]} testID={testID}>
-      <View style={[styles.screenContent, contentContainerStyle]}>{children}</View>
+      <ThemedStatusBar />
+      {content}
     </SafeAreaView>
   );
 };

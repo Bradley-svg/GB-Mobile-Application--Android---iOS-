@@ -28,6 +28,9 @@ export type ThemeColors = {
   infoSoft: string;
   overlay: string;
   shadow: string;
+  chartPrimary: string;
+  chartSecondary: string;
+  chartAreaPrimary: string;
 };
 
 export type ThemeGradients = {
@@ -65,6 +68,9 @@ export const lightColors: ThemeColors = {
   infoSoft: 'rgba(37, 99, 235, 0.12)',
   overlay: 'rgba(0, 0, 0, 0.08)',
   shadow: 'rgba(0, 0, 0, 0.12)',
+  chartPrimary: '#39B54A',
+  chartSecondary: '#D97706',
+  chartAreaPrimary: 'rgba(22, 163, 74, 0.12)',
 };
 
 export const darkColors: ThemeColors = {
@@ -97,6 +103,9 @@ export const darkColors: ThemeColors = {
   infoSoft: 'rgba(56, 189, 248, 0.16)',
   overlay: 'rgba(0, 0, 0, 0.5)',
   shadow: 'rgba(0, 0, 0, 0.5)',
+  chartPrimary: '#39B54A',
+  chartSecondary: '#F59E0B',
+  chartAreaPrimary: 'rgba(34, 197, 94, 0.18)',
 };
 
 export const lightGradients: ThemeGradients = {

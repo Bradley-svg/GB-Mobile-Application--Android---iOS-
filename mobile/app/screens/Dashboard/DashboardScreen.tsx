@@ -84,7 +84,7 @@ export const DashboardScreen: React.FC = () => {
       { label: 'Online devices', value: onlineDevices },
       { label: 'Active alerts', value: alerts?.length ?? 0, color: colors.error },
     ];
-  }, [alerts?.length, sites]);
+  }, [alerts?.length, colors.error, sites]);
 
   const healthCounts = useMemo(() => {
     return sites.reduce(
@@ -177,7 +177,10 @@ export const DashboardScreen: React.FC = () => {
       <Card style={styles.themeCard} testID="dashboard-theme-toggle">
         <View style={styles.themeRow}>
           <Text style={[typography.subtitle, styles.title]}>Appearance</Text>
-          <Text style={[typography.caption, styles.muted]}>
+          <Text
+            style={[typography.caption, styles.muted]}
+            testID={`current-theme-label-${mode === 'system' ? resolvedScheme : mode}`}
+          >
             {mode === 'system'
               ? `Following device (${resolvedScheme})`
               : `${mode.charAt(0).toUpperCase() + mode.slice(1)} mode`}

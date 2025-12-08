@@ -11,6 +11,8 @@ import { useNetworkBanner } from './app/hooks/useNetworkBanner';
 import { queryClient } from './app/queryClient';
 import { AppThemeProvider } from './app/theme/ThemeProvider';
 import { useAppTheme } from './app/theme/useAppTheme';
+import { useSyncNavigationBar } from './app/theme/useSyncNavigationBar';
+import { ThemedStatusBar } from './app/theme/ThemedStatusBar';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -23,6 +25,7 @@ Notifications.setNotificationHandler({
 const AppContent: React.FC = () => {
   console.log('App: render start');
   const { theme } = useAppTheme();
+  useSyncNavigationBar();
   const { isHydrated, user, accessToken, hydrateFromSecureStore, setUser, clearAuth, sessionExpired } =
     useAuthStore();
   const [authChecked, setAuthChecked] = useState(false);
@@ -92,6 +95,7 @@ const AppContent: React.FC = () => {
           backgroundColor: theme.colors.background,
         }}
       >
+        <ThemedStatusBar />
         <Text style={{ color: theme.colors.textPrimary }}>Loading...</Text>
       </View>
     );

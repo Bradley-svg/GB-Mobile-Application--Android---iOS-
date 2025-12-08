@@ -53,6 +53,7 @@ import {
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { loadJsonWithMetadata, saveJson, isCacheOlderThan } from '../../utils/storage';
 import { useAppTheme } from '../../theme/useAppTheme';
+import { getChartTheme } from '../../theme/chartTheme';
 import type { AppTheme } from '../../theme/types';
 import { isContractor, useAuthStore } from '../../store/authStore';
 import { AppStackParamList } from '../../navigation/RootNavigator';
@@ -146,7 +147,22 @@ export const DeviceDetailScreen: React.FC = () => {
   const readOnlyCopy = 'Read-only access for your role.';
   const { theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const chartTheme = useMemo(() => getChartTheme(theme), [theme]);
   const { colors, gradients, spacing, typography } = theme;
+  const chartAxisStyle = useMemo(
+    () => ({
+      axis: { stroke: chartTheme.axisColor },
+      tickLabels: { fill: chartTheme.axisColor, fontSize: 10 },
+    }),
+    [chartTheme.axisColor]
+  );
+  const chartDependentAxisStyle = useMemo(
+    () => ({
+      ...chartAxisStyle,
+      grid: { stroke: chartTheme.gridColor, strokeDasharray: '4,4' },
+    }),
+    [chartAxisStyle, chartTheme.gridColor]
+  );
 
   useEffect(() => {
     if (!isOffline) return;
@@ -949,30 +965,31 @@ export const DeviceDetailScreen: React.FC = () => {
         <View testID="telemetry-section">
           {renderMetricCard(
             'Flow temperatures (C)',
-            gradients.brandPrimary.start,
+            chartTheme.linePrimary,
             hasSupplyData || hasReturnData,
             <VictoryChart scale={{ x: 'time' }}>
-              <VictoryAxis tickFormat={formatAxisTick} tickCount={xTickCount} />
-              <VictoryAxis dependentAxis />
+              <VictoryAxis tickFormat={formatAxisTick} tickCount={xTickCount} style={chartAxisStyle} />
+              <VictoryAxis dependentAxis style={chartDependentAxisStyle} />
               <VictoryLegend
                 x={40}
                 y={0}
                 orientation="horizontal"
                 gutter={20}
                 data={[
-                  { name: 'Supply', symbol: { fill: colors.brandGreen } },
-                  { name: 'Return', symbol: { fill: colors.warning } },
+                  { name: 'Supply', symbol: { fill: chartTheme.linePrimary } },
+                  { name: 'Return', symbol: { fill: chartTheme.lineSecondary } },
                 ]}
+                style={{ labels: { fill: chartTheme.axisColor } }}
               />
-              <VictoryLine data={supplyData} style={{ data: { stroke: colors.brandGreen } }} />
-              <VictoryLine data={returnData} style={{ data: { stroke: colors.warning } }} />
+              <VictoryLine data={supplyData} style={{ data: { stroke: chartTheme.linePrimary } }} />
+              <VictoryLine data={returnData} style={{ data: { stroke: chartTheme.lineSecondary } }} />
             </VictoryChart>,
             emptyMetricPlaceholder
           )}
 
           {renderMetricCard(
             'ΔT (Supply - Return)',
-            colors.brandGrey,
+            chartTheme.lineSecondary,
             deltaT !== null,
             <View style={styles.deltaRow}>
               <Text style={[typography.title1, styles.title]}>{deltaT?.toFixed(1)}°C</Text>
@@ -983,36 +1000,36 @@ export const DeviceDetailScreen: React.FC = () => {
 
           {renderMetricCard(
             'Power (kW)',
-            colors.brandGreen,
+            chartTheme.linePrimary,
             hasPowerData,
             <VictoryChart scale={{ x: 'time' }}>
-              <VictoryAxis tickFormat={formatAxisTick} tickCount={xTickCount} />
-              <VictoryAxis dependentAxis />
-              <VictoryLine data={powerData} style={{ data: { stroke: colors.brandGreen } }} />
+              <VictoryAxis tickFormat={formatAxisTick} tickCount={xTickCount} style={chartAxisStyle} />
+              <VictoryAxis dependentAxis style={chartDependentAxisStyle} />
+              <VictoryLine data={powerData} style={{ data: { stroke: chartTheme.linePrimary } }} />
             </VictoryChart>,
             emptyMetricPlaceholder
           )}
 
           {renderMetricCard(
             'Flow rate (L/s)',
-            gradients.brandPrimary.start,
+            chartTheme.linePrimary,
             hasFlowData,
             <VictoryChart scale={{ x: 'time' }}>
-              <VictoryAxis tickFormat={formatAxisTick} tickCount={xTickCount} />
-              <VictoryAxis dependentAxis />
-              <VictoryLine data={flowData} style={{ data: { stroke: gradients.brandPrimary.start } }} />
+              <VictoryAxis tickFormat={formatAxisTick} tickCount={xTickCount} style={chartAxisStyle} />
+              <VictoryAxis dependentAxis style={chartDependentAxisStyle} />
+              <VictoryLine data={flowData} style={{ data: { stroke: chartTheme.linePrimary } }} />
             </VictoryChart>,
             emptyMetricPlaceholder
           )}
 
           {renderMetricCard(
             'COP',
-            colors.warning,
+            chartTheme.lineSecondary,
             hasCopData,
             <VictoryChart scale={{ x: 'time' }}>
-              <VictoryAxis tickFormat={formatAxisTick} tickCount={xTickCount} />
-              <VictoryAxis dependentAxis />
-              <VictoryLine data={copData} style={{ data: { stroke: colors.warning } }} />
+              <VictoryAxis tickFormat={formatAxisTick} tickCount={xTickCount} style={chartAxisStyle} />
+              <VictoryAxis dependentAxis style={chartDependentAxisStyle} />
+              <VictoryLine data={copData} style={{ data: { stroke: chartTheme.lineSecondary } }} />
             </VictoryChart>,
             emptyMetricPlaceholder
           )}
@@ -1044,9 +1061,9 @@ export const DeviceDetailScreen: React.FC = () => {
         ) : historyStatus === 'ok' && heatPumpSeries.length > 0 ? (
           <View testID="heatPumpHistoryChart" style={styles.chartWrapper}>
             <VictoryChart scale={{ x: 'time' }}>
-              <VictoryAxis dependentAxis />
-              <VictoryAxis tickFormat={(t) => formatAxisTick(t)} tickCount={xTickCount} />
-              <VictoryLine data={heatPumpSeries} style={{ data: { stroke: colors.brandGreen } }} />
+              <VictoryAxis dependentAxis style={chartDependentAxisStyle} />
+              <VictoryAxis tickFormat={(t) => formatAxisTick(t)} tickCount={xTickCount} style={chartAxisStyle} />
+              <VictoryLine data={heatPumpSeries} style={{ data: { stroke: chartTheme.linePrimary } }} />
             </VictoryChart>
           </View>
         ) : historyStatus !== 'ok' ? (

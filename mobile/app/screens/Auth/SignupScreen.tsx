@@ -18,7 +18,7 @@ type AuthNavigation = NativeStackNavigationProp<AuthStackParamList>;
 export const SignupScreen: React.FC = () => {
   const navigation = useNavigation<AuthNavigation>();
   const { theme } = useAppTheme();
-  const { colors, spacing } = theme;
+  const { spacing } = theme;
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   return (

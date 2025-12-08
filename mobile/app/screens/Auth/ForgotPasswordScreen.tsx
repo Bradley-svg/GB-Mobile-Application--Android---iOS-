@@ -18,7 +18,7 @@ type AuthNavigation = NativeStackNavigationProp<AuthStackParamList>;
 export const ForgotPasswordScreen: React.FC = () => {
   const navigation = useNavigation<AuthNavigation>();
   const { theme } = useAppTheme();
-  const { colors, spacing } = theme;
+  const { colors } = theme;
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   return (
