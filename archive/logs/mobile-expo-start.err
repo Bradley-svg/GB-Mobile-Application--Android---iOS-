@@ -1,8 +1,0 @@
-The following packages should be updated for best compatibility with the installed expo version:
-  @react-native-async-storage/async-storage@1.24.0 - expected version: 1.23.1
-  react-native@0.76.3 - expected version: 0.74.5
-  react-native-svg@15.15.0 - expected version: 15.2.0
-  @types/react@18.3.27 - expected version: ~18.2.79
-  typescript@5.9.3 - expected version: ~5.3.3
-Your project may not work correctly until you install the expected versions of the packages.
-Error: UNKNOWN: unknown error, scandir 'D:\GB-Mobile-Application--Android---iOS-\mobile\node_modules_old\neo-async-bad-tmp'
