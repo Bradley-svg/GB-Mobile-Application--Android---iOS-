@@ -1,0 +1,70 @@
+# Build Progress Report - 2025-12-08
+
+## Executive Summary
+- Backend TypeScript lint/build succeed; tests and migrations were not run this pass because no Postgres/`TEST_DATABASE_URL` was available. Domains remain wired (auth/RBAC, alerts worker, control, heat-pump history, work orders, share links), but history scoping and exports permissions need attention and `/files` is publicly served.
+- Mobile typecheck and Jest suites pass (with multiple `act()` warnings); `npm run lint` currently fails on six `no-explicit-any` errors in share-link tests. Offline caching covers dashboard/site/device/alerts/search/work orders. Branding uses the official assets/palette.
+- Roadmap fit: 0.2 fleet visibility/search and core telemetry/control flows are present; 0.3 alerts/rules/control and 0.4 work orders/maintenance are partial but usable; 0.5 sharing/reporting is partially delivered; PV integrations, dark mode, commissioning, richer reporting remain open.
+
+## Backend Status
+- Commands: `npm run typecheck` (pass), `npm run lint` (pass), `npm run build` (pass); migrations/tests not run (no Postgres/`TEST_DATABASE_URL`).
+- Auth/RBAC/share: JWT login/refresh with refresh rotation; optional signup gate; roles (`owner|admin|facilities|contractor`) attached to tokens; RBAC guards control/schedules/work orders/doc uploads/share links. Tests: `authRoutes.api.test.ts`, `authRbac.test.ts`, `authConfig.test.ts`. Risks: no password reset/2FA; share links read-only only.
+- Telemetry/history: MQTT ingest is primary; HTTP ingest returns 501. Telemetry downsampled per metric. Heat-pump history posts vendor body (`aggregation/from/to/mode/fields/mac`) with `application/json-patch+json` + `x-api-key`, timeout + circuit breaker, normalises arbitrary series. Tests: `telemetryService.test.ts`, `heatPumpHistoryClient.test.ts`, `heatPumpHistory.api.test.ts`. Risks: history requests are not org/mac scoped; default dev URL is used if env unset even in prod; validation only checks timestamp order.
+- Alerts/rules/worker: Worker lock (`worker_locks`), offline/high-temp plus rule engine (threshold/ROC/offline) with load-shedding downgrades, push notify on critical, heartbeat + metrics into `system_status` and `/health-plus`. Tests: `alertsWorker.*`, `alerts*.api.test.ts`, `alertsAckMute.api.test.ts`, `alertRules*`. Risk: single-worker assumption; relies on site schedules for load-shedding context.
+- Device control/schedules: HTTP or MQTT control with throttle window (`CONTROL_COMMAND_THROTTLE_MS`), validation errors recorded in command history, per-device schedules with validation. Tests: `deviceControlService.test.ts`, `deviceControl.api.test.ts`, `deviceSchedules.api.test.ts`, `deviceControlValidationService.test.ts`. Risks: commands blocked if CONTROL/MQTT envs unset; UI not role-gated (backend rejects).
+- Work orders/tasks/attachments/SLA: Status transitions enforced, SLA breach recomputed, checklist replace, maintenance summary buckets, attachments stored under `FILE_STORAGE_ROOT`. Tests: `workOrders*.test.ts`, `workOrdersMaintenance.api.test.ts`, `workOrderAttachments.api.test.ts`, `workOrdersService.sla.test.ts`. Risks: `/files` serves attachments without auth; storage dirs tracked in repo tree; no AV scanning.
+- Documents/storage: Site/device upload + list, path sanitisation, public URL mapping. Tests: `documents.api.test.ts`. Risk: same `/files` public exposure.
+- CSV exports/reporting: Site devices CSV and device telemetry CSV with range validation/metric allowlist, org scoped. Tests: `exportCsv.api.test.ts`. Risk: no RBAC guard (`canExportData` unused) so any authenticated role can export; potential heavy queries without paging.
+- Share links: 90-day max expiry, read-only, site/device payloads with telemetry snapshot, revoke + public resolver. Tests: `shareLinks.api.test.ts`, `shareLinksPublic.api.test.ts`. Risk: None beyond token handling; still read-only only.
+- Health/diagnostics: `/health-plus` aggregates DB/MQTT/control/heatPumpHistory/push/alerts worker/storage/maintenance; relies on `system_status` rows. Tests: `healthPlus.test.ts`, `healthPlus.mqttControlStatus.test.ts`. Risk: requires migrations + seeded status row.
+- Issues/Risks
+  - P1: Backend migrations/tests not run this pass (no DB); runtime stability unverified.
+  - P1: Heat-pump history not org/device scoped; default dev URL used when env unset (even in prod) risks data leakage or upstream noise.
+  - P1: CSV export endpoints lack explicit RBAC; any authenticated role can export org data.
+  - P1: `/files` static serving exposes documents/attachments without auth; consider signed URLs or auth middleware.
+  - P2: `backend/storage`, `backend/uploads`, `backend/uploads-test` are not gitignored; risk of committing artifacts.
+  - P3: No password reset/2FA/lockout flow (known gap).
+
+## Mobile Status
+- Commands: `npm run typecheck` (pass); `npm run lint` (fail: `@typescript-eslint/no-explicit-any` in `app/__tests__/ShareLinksScreen.test.tsx` and `SharingScreen.test.tsx`); `npm test -- --runInBand` (pass) with numerous `act()` warnings (Profile, DeviceDetail, WorkOrderDetail, SiteOverview, etc.) and noisy console logs.
+- Dashboard/Search: Hero metrics (sites/online devices/active alerts), health/connectivity chips, offline banner + cache age, search with health filters and offline cached results. Risk: stale cache beyond 24h only warned; backend errors show generic messaging.
+- Site overview: Site status/last-seen/health pills, device cards with firmware + quick actions, CSV export (online only), documents link; offline shows cached data + stale note.
+- Device detail: Telemetry charts (1h/24h/7d) for supply/return/power/flow/COP, delta-T tile, Azure history card (compressor current) with error mapping, control setpoint/mode with throttle/error messages, schedule edit modal, command history, active alerts, telemetry export (online). Risks: UI not role-gated (contractor can attempt control/exports, backend denies); history disabled offline; multiple `act()` warnings in tests.
+- Alerts + detail: Alerts list with severity filters/offline cache; detail shows rule metadata, snooze chips (15m/1h/4h/until resolved), ack/mute actions, work-order creation; offline disables actions. Risk: ack/mute not role-gated; generic error messages.
+- Work orders/Maintenance: List with SLA/due pills and filters, offline cached; detail (per tests) handles status transitions, checklist, attachments; maintenance calendar from `/maintenance/summary`. Risks: offline actions disabled but caches rely on previous session; `act()` warnings.
+- Documents/vault: Site/device documents list with category/status pills, opens via API base URL; offline read-only banner when cached; no mobile upload UI.
+- Sharing & access: Profile shows role pill; Sharing screen gated to owner/admin/facilities, site/device share-link management (create 24h/7d/30d, copy, revoke) with offline disable. Risks: lint failures sit in share-link tests; copied link uses `API_BASE_URL` so bad env misconfig breaks links.
+- Profile/Diagnostics: Push preference toggle persists via `/user/preferences`; session-expired banner; Diagnostics shows `/health-plus` snapshot (control/MQTT/heatPumpHistory/alerts engine counts, push status). No dark mode.
+- Issues/Risks
+  - P1: Mobile lint failing (6 `no-explicit-any` in share-link tests) blocks lint gate.
+  - P2: Widespread `act()` warnings in Jest suites hide real regressions.
+  - P2: Control/ack/mute/export UI not role-gated; relies on backend errors for contractors.
+  - P3: Env-dependent URLs (API_BASE_URL in share copy/diagnostics) must be set per deployment.
+
+## Operational Readiness
+- Dev: Follow `docs/dev-run-notes.md` (Postgres + MQTT). Set `TEST_DATABASE_URL` and `ALLOW_TEST_DB_RESET=true` before running backend tests/migrations. Heat-pump and control envs can stay unset locally; `/health-plus` will mark them unconfigured but healthy.
+- Staging: Not exercised this run; needs staging DB/API + `HEATPUMP_HISTORY_URL`/`API_KEY`, control API/MQTT creds, and alerts worker running so `/health-plus` shows live heartbeats.
+- `/health-plus` expected healthy when DB reachable, storage writable, alerts worker heartbeat recent, control/mqtt configured flags accurate, heat-pump history last success recent, maintenance counts returned.
+
+## Codebase Hygiene
+- Gitignore covers node_modules/dist; runtime dirs `backend/storage`, `backend/uploads`, `backend/uploads-test` are not ignored (risk of accidental commits). `logs/`/`archive/` already isolated.
+- Docs (`docs/repo-overview.md`, `docs/mobile-feature-map-0.2.0.md`) still claim lint/tests were green on 2025-12-07; current run has mobile lint failures and backend tests skipped.
+- Audit snapshots: backend 6 moderate + 2 high (dev tooling: vitest/vite/node-pg-migrate/glob); mobile 3 low (Expo CLI/send). No changes applied.
+- No obvious dead code flagged by quick `rg` scans; legacy assets live under `archive/` only.
+
+## Prioritised Next Steps
+- **P0:** None blocking production identified.
+- **P1:**
+  1) Fix mobile lint (`app/__tests__/ShareLinksScreen.test.tsx`, `app/__tests__/SharingScreen.test.tsx` `no-explicit-any`) so CI passes.
+  2) Run backend migrations + tests with Postgres (`npm run migrate:dev`/`migrate:test`; `TEST_DATABASE_URL` + `ALLOW_TEST_DB_RESET=true`) and record results.
+  3) Add RBAC guard for CSV exports (use `canExportData`) or explicitly document role access; align with permission expectations.
+  4) Scope heat-pump history to org/device and require env URL/API key in non-dev to avoid hitting default dev endpoint.
+  5) Protect `/files` (docs/attachments) via auth or signed URLs before production exposure.
+- **P2:**
+  1) Resolve Jest `act()` warnings (DeviceDetail/Profile/WorkOrder/Site tests) to reduce noise.
+  2) Gitignore `backend/storage`, `backend/uploads`, `backend/uploads-test` to prevent artifact commits.
+  3) Refresh documentation (repo overview/feature map) to reflect current lint/test status and partial features.
+  4) Add front-end role gating for control/ack/mute/export actions to mirror RBAC.
+- **P3:**
+  1) Broader observability/metrics beyond `/health-plus` (push metrics, alert engine stats export).
+  2) Plan Expo/React Native upgrades to clear audit advisories.
+  3) Expand offline cache expiry/enforcement and queued action handling for work orders/alerts/control.
