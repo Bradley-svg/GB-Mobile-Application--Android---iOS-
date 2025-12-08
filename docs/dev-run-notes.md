@@ -1,94 +1,43 @@
-## Local dev run & screenshots (0.1.0 – no staging)
+# Local dev run & smoke (Windows + VS Code)
 
-### Backend – local API run flow
-From repo root:
-```bash
-cd backend
+## Backend API (`http://localhost:4000`)
+- `.env` (local-only) should match: `PORT=4000`, `NODE_ENV=development`, `DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_dev`, `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test`, `JWT_SECRET=local-dev-secret-change-me`, `ALLOW_TEST_DB_RESET=true`, `FILE_STORAGE_ROOT=./storage`, `FILE_STORAGE_BASE_URL=http://localhost:4000/files`, leave `HEATPUMP_*`, `MQTT_URL`, `CONTROL_API_*` empty for UI testing.
+- Commands (PowerShell):
+  1) `cd backend`
+  2) `npm install`
+  3) `npm run migrate:dev`
+  4) `node scripts/init-local-db.js` (seeds demo org/site/device/user, alert rules + alerts, schedules, work orders + tasks/attachments, documents, share links, telemetry; demo user `demo@greenbro.com` / `password`; demo MAC pinned to `38:18:2B:60:A9:94`)
+  5) `npm run dev` (binds to `http://localhost:4000`)
+- Health check: `curl http://localhost:4000/health-plus` should return `{ env: "development", db: "ok", ok: true }` plus blocks for `mqtt`, `control`, `heatPumpHistory` (configured: false if HEATPUMP_* unset), `alertsEngine`, `maintenance`, and `storage` (writable). If `heatPumpHistory.configured` is false/disabled, that is expected for local UI tests.
 
-# 1) Install deps (only if not already done)
-npm install
+## Mobile / Metro (Android dev client)
+- API base: `EXPO_PUBLIC_API_URL` if set; otherwise falls back to `http://10.0.2.2:4000` (Android emulator -> host loopback). Icons/splash/header use `mobile/assets/greenbro/greenbro-icon-1024.png`, `greenbro-splash.png`, and `greenbro-logo-horizontal.png`.
+- Commands:
+  1) `cd mobile`
+  2) `npm install`
+  3) `npx expo start --dev-client --localhost -c --port 8082`
+- In another terminal (emulator running): `adb reverse tcp:8082 tcp:8082` and `adb reverse tcp:4000 tcp:4000`.
+- Launch dev client: `adb shell am start -n com.greenbro.mobile/.MainActivity`
+- If the dev client is missing/out-of-date: `npx expo run:android --variant debug` then re-run the start command above.
 
-# 2) Migrate dev DB
-npm run migrate:dev
+## Smoke walkthrough (Android emulator)
+- Login: white background, horizontal GREENBR(gear)O logo, brand gradient button. Use `demo@greenbro.com` / `password`.
+- Dashboard: fleet summary (sites/devices/alerts/health), search entry, connectivity pills, no offline banner when online, brand greens/greys only.
+- Search: `/fleet` search over sites/devices/alerts with health filter chips; offline uses cached data and shows stale indicator.
+- Site overview: site card status/last seen, device list with health + connectivity pills, last seen, quick actions (Device, Alerts, Documents).
+- Device detail: hero (name/firmware/connectivity), telemetry charts (1h/24h/7d tabs), “Compressor current (A)” history card shows “history disabled/unavailable” if HEATPUMP_* unset; control panel/setpoint/mode disabled when offline; schedule card + edit modal; control history from `/devices/:id/commands`; Documents link to documents screen.
+- Alerts: list with severity/health filters + offline cache; alert detail shows rule summary, snooze chips (15m/1h/4h/until resolved, max 24h), “Create work order” button and linked work-order preview.
+- Work orders & maintenance: list with status filter chips/SLA pills; detail supports status transitions (open → in_progress → done/cancelled), notes, checklist toggles, attachments card; maintenance calendar shows upcoming items from SLA/maintenance summary.
+- Documents: site/device documents list with upload/delete online-only; URLs point at `/files` using seeded documents.
+- Sharing & access: Profile shows role pill (Owner) and “Sharing & access” → Share Links screen (list/create/revoke) for Admin/Owner; contractor flow remains disabled/read-only.
+- Diagnostics: Diagnostics screen shows `/health-plus` snapshot (db/mqtt/control/heatPumpHistory/alertsEngine/push/storage/workOrders) and alerts engine metrics (last run/duration/rules/active counts).
+- Offline smoke: toggle Airplane Mode → offline banner; Dashboard/Site/Device/Alerts use cached data and mark it stale; control/ack/mute/work-order mutations disabled with clear messaging.
 
-# 3) Seed demo org/site/device/user (demo@greenbro.com)
-node scripts/init-local-db.js
+## Tests / verification commands (manual run as needed)
+- Backend: `cd backend && npm run typecheck && npm run lint && TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm test && npm run build`
+- Mobile: `cd mobile && npm run typecheck && npm run lint && npm test -- --runInBand`
+- CI mirrors this (`npm test` plain for backend; `npm test -- --runInBand` for mobile). Detox configs remain intact; do not run Detox here.
 
-# 4) Run dev server on http://localhost:4000
-npm run dev
-```
-Prereqs: Postgres is running; `backend/.env` has `DATABASE_URL`, `JWT_SECRET`, etc.
-
-If you don’t want to hit Azure while grabbing screenshots, leave `HEATPUMP_HISTORY_URL` and `HEATPUMP_HISTORY_API_KEY` unset in `.env`. The Device screen’s history card will show the “temporarily unavailable / disabled” copy instead of blowing up on vendor errors.
-
-- Fleet search + health: `/sites` and `/sites/:id` now return `health` + `last_seen` summaries; `/sites/:id/devices` includes the same. `/fleet` supports `q`, repeated `health`, and `tag` (no-op for now) query params and returns both sites/devices for the Search screen; defaults remain if filters are omitted.
-
-### Mobile / Metro + dev client
-From repo root:
-```bash
-cd mobile
-
-# 1) Install deps
-npm install
-
-# 2) Start Metro on 8082 in dev-client mode
-npx expo start --dev-client --localhost -c --port 8082
-```
-In a third terminal, map emulator ports back to host:
-```bash
-adb reverse tcp:8082 tcp:8082
-adb reverse tcp:4000 tcp:4000
-```
-Then:
-- If dev client is already installed:
-```bash
-adb shell am start -n com.greenbro.mobile/.MainActivity
-```
-- If not:
-```bash
-cd mobile
-npx expo run:android --variant debug
-# …then re-run adb shell am start …
-```
-The dev client pulls the JS bundle from Metro and talks to the backend at `http://10.0.2.2:4000` (Android alias for localhost:4000), already baked into the app config.
-
-### Manual screenshot flow (0.1.0)
-With backend + Metro + emulator running, capture in this order:
-1) Login screen (before logging in)  
-2) Dashboard (after login)  
-3) Site detail (tap the seeded demo site)  
-4) Device detail: Telemetry cards  
-5) Device detail: “Compressor current (A)” history card  
-6) Device detail: Last command panel  
-7) Alerts tab (list)  
-8) Alert detail (after tapping an alert)  
-9) Profile screen (notification prefs + branding)  
-10) Optional: Airplane mode on emulator to capture offline banner / offline Dashboard  
-Login credentials: `demo@greenbro.com` with the seed script password (typically `password`).
-
-### What does not block screenshots
-- Staging DNS/DB: not required; everything runs against `http://localhost:4000` (backend) and `http://10.0.2.2:4000` from the emulator.
-- Detox E2E: optional; not needed for manual screen captures.
-- Azure heat-pump API issues: if `HEATPUMP_HISTORY_URL`/`HEATPUMP_HISTORY_API_KEY` are unset or the upstream is unhappy, the Device history card will show the appropriate “temporarily unavailable / disabled” or “no history” copy — acceptable for UI screenshots.
-
-## Dev run on 2025-12-07 (local stack setup)
-- Commands: `cd backend && npm install && npm run migrate:dev && node scripts/init-local-db.js` (now seeds demo user), backend dev server via `Start-Process ... npm run dev`, health check `Invoke-RestMethod http://localhost:4000/health-plus`; backend checks `npm run typecheck`, `npm run lint`, `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm test`, `npm run build`; mobile `cd mobile && npm install && npx expo start --dev-client --localhost -c --port 8082`, emulator port reverse `adb reverse tcp:8082 tcp:8082 && adb reverse tcp:4000 tcp:4000`, dev client launch `adb shell am start -n com.greenbro.mobile/.MainActivity`.
-- Env: backend `.env` set for dev (`PORT=4000`, `NODE_ENV=development`, dev/test DB URLs, `ALLOW_TEST_DB_RESET=true`, HEATPUMP history left blank); mobile `.env` uses `EXPO_PUBLIC_API_URL=http://10.0.2.2:4000`.
-- Issues/fixes: `psql` not on PATH (used `C:\Program Files\PostgreSQL\16\bin\psql.exe`), seed script was missing a user so `backend/scripts/init-local-db.js` now inserts `demo@greenbro.com` with bcrypt hash for `password`.
-- API sanity: demo login works; `/sites`, `/sites/:id/devices`, `/devices/:id`, telemetry, and `/alerts` all return seeded data; `/devices/:id/commands` returns an empty array until commands exist; `/devices/:id/schedule` returns the seeded daily schedule for the demo device; `/health-plus` includes the `alertsEngine` block; Profile `/user/preferences` returns defaults with alerts enabled.
-
-## Dev run on 2025-12-07
-- Backend: typecheck, lint, `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm test`, and build all green on Node 20/Postgres 16 after inlining `src/domain/*` types into repositories/services and moving the org resolver into `src/controllers/organisation.ts`. `backend/sql/` stays removed; migrations remain the schema source.
-- Mobile: `npm run typecheck`, `npm run lint`, `npm test -- --runInBand` all green (expected console noise from mocks/act warnings) with emulator screenshots/Metro/logcat/bundle tmp files deleted from the mobile root.
-- Tooling cleanup: `.gitignore` tightened (added `build/`, `*.dmp`, stopped hiding `mobile/*.png|*.jpg`); stray runtime logs at the repo root removed.
-### health-plus (dev)
-
-Last recorded sample (2025-12-05; not rerun this sweep):
-
-{"ok":true,"env":"development","db":"ok","version":"0.1.0-dev","mqtt":{"configured":false,"lastIngestAt":null,"lastErrorAt":"2025-12-05T12:49:30.201Z","lastError":"","healthy":true},"control":{"configured":false,"lastCommandAt":null,"lastErrorAt":null,"lastError":"CONTROL_CHANNEL_UNCONFIGURED","healthy":true},"heatPumpHistory":{"configured":false,"lastSuccessAt":null,"lastErrorAt":null,"lastError":null,"healthy":true},"alertsWorker":{"lastHeartbeatAt":null,"healthy":true},"push":{"enabled":false,"lastSampleAt":"2025-12-06T15:13:56.588Z","lastError":null}}
-
-### Heat-pump history E2E checklist (2025-12-07)
-- backend/.env (dev only): set `HEATPUMP_HISTORY_URL=https://za-iot-dev-api.azurewebsites.net/api/HeatPumpHistory/historyHeatPump`, `HEATPUMP_HISTORY_API_KEY=M1t0o9bGqWf2Y0KxX4iJ7aRuR9f8ZqDdG6vN2pLwS3uT0cA5hK8jM3cR0qE4uY9`, `HEATPUMP_HISTORY_TIMEOUT_MS=10000` (keep .env local; do not commit real keys).
-- Vendor curl sanity (run before debugging our code): the contract must return 200 for a direct POST with the vendor body (aggregation/from/to/mode/fields/mac as per MAC `38:18:2B:60:A9:94` and `metric_compCurrentA`). If the vendor curl returns 4xx/5xx, resolve with the vendor first.
-- Backend wrapper sanity: login via `/auth/login` with `demo@greenbro.com` / `password`, then call `curl -H "Authorization: Bearer <access_token>" -H "Content-Type: application/json-patch+json" -X POST http://localhost:4000/heat-pump-history -d '{ "aggregation": "raw", "from": "<iso-from>", "to": "<iso-to>", "mode": "live", "fields": [{ "field": "metric_compCurrentA", "unit": "A", "decimals": 1, "displayName": "Current", "propertyName": "" }], "mac": "38:18:2B:60:A9:94" }'` and expect 200 with `{ "series": [{ "field": "metric_compCurrentA", "points": [...] }] }`. Upstream failures should surface 502; circuit-open should surface 503.
-- Mobile Device Detail sanity: with backend + Metro running, login as demo user → Dashboard → Demo Site → Demo Device → Compressor current (A). Expect loading spinner that becomes a chart with points; if empty window shows “No history for this period.”; 503 shows “History temporarily unavailable, please try again later.”; 502 shows “Error loading history from the data source.”
+## Branding quick-check
+- Canonical assets only: `docs/branding/official/greenbro-logo-horizontal-gearO.{svg,png}`, `mobile/assets/greenbro/greenbro-logo-horizontal.png`, `greenbro-splash.png`, `greenbro-icon-1024.png`.
+- Quick grep sanity: run the two `rg` checks referenced in `docs/branding/README.md`; expected hits are limited to that warning, and app assets already point to the official PNG.

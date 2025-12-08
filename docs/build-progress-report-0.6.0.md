@@ -17,3 +17,7 @@
 - Share links are read-only with fixed permissions; no SSO/2FA/impersonation UI yet.
 - CSV export is in-memory and geared to small datasets; streaming/pagination still TODO.
 - Sharing/export buttons hide offline; data-URL open is a temporary download approach pending a file manager/downloader pass.
+
+## Verification commands (local)
+- Backend: `cd backend && npm run typecheck && npm run lint && TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm test && npm run build`
+- Mobile: `cd mobile && npm run typecheck && npm run lint && npm test -- --runInBand`
