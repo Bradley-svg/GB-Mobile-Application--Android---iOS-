@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleProp, StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-native';
-import { colors } from '../theme/colors';
-import { spacing } from '../theme/spacing';
-import { softShadow } from './styles';
+import { useAppTheme } from '../theme/useAppTheme';
+import type { AppTheme } from '../theme/types';
+import { createSoftShadow } from './styles';
 
 type CardProps = {
   children: React.ReactNode;
@@ -13,6 +13,9 @@ type CardProps = {
 };
 
 export const Card: React.FC<CardProps> = ({ children, style, onPress, testID, accented }) => {
+  const { theme } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   if (onPress) {
     return (
       <TouchableOpacity
@@ -33,18 +36,19 @@ export const Card: React.FC<CardProps> = ({ children, style, onPress, testID, ac
   );
 };
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.background,
-    borderRadius: 22,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    ...softShadow,
-  },
-  accented: {
-    borderLeftWidth: 4,
-    borderColor: colors.brandGreen,
-    paddingLeft: spacing.md + spacing.xs,
-  },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: theme.colors.card,
+      borderRadius: theme.radius.lg,
+      padding: theme.spacing.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSubtle,
+      ...createSoftShadow(theme),
+    },
+    accented: {
+      borderLeftWidth: 4,
+      borderColor: theme.colors.brandGreen,
+      paddingLeft: theme.spacing.md + theme.spacing.xs,
+    },
+  });

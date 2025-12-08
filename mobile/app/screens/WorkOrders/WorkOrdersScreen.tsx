@@ -9,9 +9,9 @@ import { Screen, Card, PillTabGroup, ErrorCard, EmptyState, StatusPill } from '.
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { loadJsonWithMetadata, saveJson, isCacheOlderThan } from '../../utils/storage';
-import { colors, gradients } from '../../theme/colors';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppTheme } from '../../theme/types';
 import { typography } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
 
 type Navigation = NativeStackNavigationProp<AppStackParamList, 'WorkOrders'>;
 
@@ -29,17 +29,6 @@ const statusPillFor = (status: WorkOrderStatus) => {
     case 'cancelled':
     default:
       return { label: 'Cancelled', tone: 'muted' as const };
-  }
-};
-
-const severityColor = (severity?: string | null) => {
-  switch (severity) {
-    case 'critical':
-      return colors.error;
-    case 'warning':
-      return colors.warning;
-    default:
-      return gradients.brandPrimary.start;
   }
 };
 
@@ -103,8 +92,21 @@ export const WorkOrdersScreen: React.FC = () => {
     status: statusFilter === 'all' ? undefined : statusFilter,
   });
   const { isOffline } = useNetworkBanner();
+  const { theme } = useAppTheme();
+  const { colors, gradients, spacing } = theme;
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [cachedOrders, setCachedOrders] = useState<WorkOrder[] | null>(null);
   const [cachedAt, setCachedAt] = useState<string | null>(null);
+  const severityColor = (severity?: string | null) => {
+    switch (severity) {
+      case 'critical':
+        return colors.error;
+      case 'warning':
+        return colors.warning;
+      default:
+        return gradients.brandPrimary.start;
+    }
+  };
 
   useEffect(() => {
     if (!data || isOffline) return;
@@ -321,61 +323,62 @@ export const WorkOrdersScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: { color: colors.textPrimary },
-  muted: { color: colors.textSecondary },
-  headerCard: {
-    marginBottom: spacing.md,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  filterRow: {
-    marginTop: spacing.md,
-  },
-  orderCard: {
-    paddingVertical: spacing.md,
-  },
-  orderHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  calendarButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: 12,
-    backgroundColor: colors.backgroundAlt,
-  },
-  priority: {
-    color: colors.brandGrey,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.sm,
-  },
-  alertBadge: {
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-    borderRadius: 8,
-    backgroundColor: colors.backgroundAlt,
-  },
-  offlineNote: { color: colors.textSecondary, marginBottom: spacing.xs },
-  staleNote: { color: colors.textSecondary, marginBottom: spacing.xs },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    title: { color: theme.colors.textPrimary },
+    muted: { color: theme.colors.textSecondary },
+    headerCard: {
+      marginBottom: theme.spacing.md,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    filterRow: {
+      marginTop: theme.spacing.md,
+    },
+    orderCard: {
+      paddingVertical: theme.spacing.md,
+    },
+    orderHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: theme.spacing.sm,
+    },
+    badgeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    calendarButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
+      borderRadius: 12,
+      backgroundColor: theme.colors.backgroundAlt,
+    },
+    priority: {
+      color: theme.colors.brandGrey,
+    },
+    metaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: theme.spacing.sm,
+    },
+    alertBadge: {
+      paddingHorizontal: theme.spacing.xs,
+      paddingVertical: 2,
+      borderRadius: 8,
+      backgroundColor: theme.colors.backgroundAlt,
+    },
+    offlineNote: { color: theme.colors.textSecondary, marginBottom: theme.spacing.xs },
+    staleNote: { color: theme.colors.textSecondary, marginBottom: theme.spacing.xs },
+  });

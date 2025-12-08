@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { PrimaryButton } from './PrimaryButton';
-import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
-import { spacing } from '../theme/spacing';
+import type { AppTheme } from '../theme/types';
+import { useAppTheme } from '../theme/useAppTheme';
 
 type Props = {
   title: string;
@@ -13,26 +13,30 @@ type Props = {
 };
 
 export const ErrorCard: React.FC<Props> = ({ title, message, onRetry, testID }) => {
+  const { theme } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   return (
     <View style={styles.card} testID={testID}>
-      <Text style={[typography.title2, styles.title, { marginBottom: spacing.xs }]}>{title}</Text>
+      <Text style={[typography.title2, styles.title, { marginBottom: theme.spacing.xs }]}>{title}</Text>
       {message ? (
-        <Text style={[typography.body, styles.muted, { marginBottom: spacing.md }]}>{message}</Text>
+        <Text style={[typography.body, styles.muted, { marginBottom: theme.spacing.md }]}>{message}</Text>
       ) : null}
       {onRetry ? <PrimaryButton label="Retry" onPress={onRetry} /> : null}
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  card: {
-    padding: spacing.lg,
-    backgroundColor: colors.background,
-    borderRadius: 16,
-    borderColor: colors.borderSubtle,
-    borderWidth: 1,
-    width: '100%',
-  },
-  title: { color: colors.textPrimary },
-  muted: { color: colors.textSecondary },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    card: {
+      padding: theme.spacing.lg,
+      backgroundColor: theme.colors.card,
+      borderRadius: theme.radius.md,
+      borderColor: theme.colors.borderSubtle,
+      borderWidth: 1,
+      width: '100%',
+    },
+    title: { color: theme.colors.textPrimary },
+    muted: { color: theme.colors.textSecondary },
+  });

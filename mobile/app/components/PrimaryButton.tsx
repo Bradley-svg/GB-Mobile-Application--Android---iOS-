@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, gradients } from '../theme/colors';
-import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
+import type { AppTheme } from '../theme/types';
+import { useAppTheme } from '../theme/useAppTheme';
 
 type PrimaryButtonProps = {
   label: string;
@@ -22,15 +22,12 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
   style,
   testID,
 }) => {
+  const { theme } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const isOutline = variant === 'outline';
+
   const content = isOutline ? (
-    <View
-      style={[
-        styles.primaryButton,
-        styles.outline,
-        disabled ? styles.outlineDisabled : null,
-      ]}
-    >
+    <View style={[styles.primaryButton, styles.outline, disabled ? styles.outlineDisabled : null]}>
       <Text
         style={[
           typography.subtitle,
@@ -45,8 +42,8 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
     <LinearGradient
       colors={
         disabled
-          ? [colors.backgroundAlt, colors.backgroundAlt]
-          : [gradients.brandPrimary.start, gradients.brandPrimary.end]
+          ? [theme.colors.backgroundAlt, theme.colors.backgroundAlt]
+          : [theme.gradients.brandPrimary.start, theme.gradients.brandPrimary.end]
       }
       start={{ x: 0, y: 0.5 }}
       end={{ x: 1, y: 0.5 }}
@@ -77,42 +74,43 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  touchable: {
-    alignSelf: 'stretch',
-    borderRadius: 16,
-  },
-  primaryButton: {
-    paddingVertical: spacing.md,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'stretch',
-    minHeight: 48,
-  },
-  outline: {
-    borderWidth: 1,
-    borderColor: colors.brandGreen,
-    backgroundColor: 'transparent',
-  },
-  outlineText: {
-    color: colors.brandGreen,
-    textAlign: 'center',
-  },
-  solidText: {
-    color: colors.background,
-    textAlign: 'center',
-  },
-  disabledText: {
-    color: colors.textSecondary,
-  },
-  disabledOpacity: {
-    opacity: 0.9,
-  },
-  disabledButton: {
-    backgroundColor: colors.backgroundAlt,
-  },
-  outlineDisabled: {
-    borderColor: colors.textSecondary,
-  },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    touchable: {
+      alignSelf: 'stretch',
+      borderRadius: theme.radius.md,
+    },
+    primaryButton: {
+      paddingVertical: theme.spacing.md,
+      borderRadius: theme.radius.md,
+      alignItems: 'center',
+      justifyContent: 'center',
+      alignSelf: 'stretch',
+      minHeight: 48,
+    },
+    outline: {
+      borderWidth: 1,
+      borderColor: theme.colors.brandGreen,
+      backgroundColor: 'transparent',
+    },
+    outlineText: {
+      color: theme.colors.brandGreen,
+      textAlign: 'center',
+    },
+    solidText: {
+      color: theme.colors.textInverse,
+      textAlign: 'center',
+    },
+    disabledText: {
+      color: theme.colors.textSecondary,
+    },
+    disabledOpacity: {
+      opacity: 0.9,
+    },
+    disabledButton: {
+      backgroundColor: theme.colors.backgroundAlt,
+    },
+    outlineDisabled: {
+      borderColor: theme.colors.textSecondary,
+    },
+  });

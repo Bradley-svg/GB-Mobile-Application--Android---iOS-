@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, TextInput, Alert, StyleSheet, Image } from 'react-native';
 import axios from 'axios';
 import { useLogin } from '../../api/hooks';
 import { Screen, Card, PrimaryButton } from '../../components';
 import { useAuthStore } from '../../store/authStore';
-import { colors } from '../../theme/colors';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppTheme } from '../../theme/types';
 import { typography } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
 import GreenbroLogo from '../../../assets/greenbro/greenbro-logo-horizontal.png';
 
 export const LoginScreen: React.FC = () => {
@@ -15,6 +15,9 @@ export const LoginScreen: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const loginMutation = useLogin();
   const setSessionExpired = useAuthStore((s) => s.setSessionExpired);
+  const { theme } = useAppTheme();
+  const { colors, spacing } = theme;
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   const onLogin = async () => {
     const trimmedEmail = email.trim();
@@ -112,44 +115,45 @@ export const LoginScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  logoRow: {
-    alignItems: 'center',
-    marginTop: spacing.xl,
-    marginBottom: spacing.lg,
-  },
-  logo: {
-    width: 260,
-    height: 70,
-  },
-  hero: {
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  title: { color: colors.textPrimary },
-  muted: { color: colors.textSecondary },
-  formCard: {
-    padding: spacing.lg,
-    marginBottom: spacing.xl,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.backgroundAlt,
-    borderRadius: 16,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    marginBottom: spacing.md,
-    color: colors.textPrimary,
-  },
-  notice: {
-    marginTop: spacing.lg,
-    padding: spacing.md,
-    borderRadius: 12,
-    backgroundColor: colors.backgroundAlt,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-  },
-  noticePrimary: { color: colors.textPrimary, marginBottom: spacing.xs },
-  noticeSecondary: { color: colors.textSecondary },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    logoRow: {
+      alignItems: 'center',
+      marginTop: theme.spacing.xl,
+      marginBottom: theme.spacing.lg,
+    },
+    logo: {
+      width: 260,
+      height: 70,
+    },
+    hero: {
+      alignItems: 'center',
+      marginBottom: theme.spacing.lg,
+    },
+    title: { color: theme.colors.textPrimary },
+    muted: { color: theme.colors.textSecondary },
+    formCard: {
+      padding: theme.spacing.lg,
+      marginBottom: theme.spacing.xl,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: theme.colors.borderSubtle,
+      backgroundColor: theme.colors.backgroundAlt,
+      borderRadius: 16,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
+      marginBottom: theme.spacing.md,
+      color: theme.colors.textPrimary,
+    },
+    notice: {
+      marginTop: theme.spacing.lg,
+      padding: theme.spacing.md,
+      borderRadius: 12,
+      backgroundColor: theme.colors.backgroundAlt,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSubtle,
+    },
+    noticePrimary: { color: theme.colors.textPrimary, marginBottom: theme.spacing.xs },
+    noticeSecondary: { color: theme.colors.textSecondary },
+  });

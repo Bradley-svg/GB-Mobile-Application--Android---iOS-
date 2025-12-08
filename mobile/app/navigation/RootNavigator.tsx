@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -21,10 +21,9 @@ import { MaintenanceCalendarScreen } from '../screens/Maintenance/MaintenanceCal
 import { DocumentsScreen } from '../screens/Documents/DocumentsScreen';
 import { SharingScreen } from '../screens/Profile/SharingScreen';
 import { ShareLinksScreen } from '../screens/Sharing/ShareLinksScreen';
-import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
-import { spacing } from '../theme/spacing';
-import { surfaceStyles } from '../components';
+import { useAppTheme } from '../theme/useAppTheme';
+import { createSurfaceStyles } from '../components';
 import GreenbroLogo from '../../assets/greenbro/greenbro-logo-horizontal.png';
 
 const GreenbroHeaderLogo: React.FC = () => (
@@ -76,8 +75,11 @@ const tabButton = (testID: string) => {
 };
 
 function AuthNavigator() {
+  const { theme } = useAppTheme();
   return (
-    <AuthStack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+    <AuthStack.Navigator
+      screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.background } }}
+    >
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="Signup" component={SignupScreen} />
       <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
@@ -86,6 +88,10 @@ function AuthNavigator() {
 }
 
 function AppTabs() {
+  const { theme } = useAppTheme();
+  const surface = useMemo(() => createSurfaceStyles(theme), [theme]);
+  const spacing = theme.spacing;
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -99,8 +105,8 @@ function AppTabs() {
           height: 90,
           paddingBottom: spacing.md,
         },
-        tabBarActiveTintColor: colors.brandGreen,
-        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarActiveTintColor: theme.colors.brandGreen,
+        tabBarInactiveTintColor: theme.colors.textSecondary,
         tabBarLabelStyle: { ...typography.caption, marginBottom: spacing.xs },
         tabBarItemStyle: { height: 70 },
         tabBarBackground: () => (
@@ -112,10 +118,10 @@ function AppTabs() {
               bottom: spacing.md,
               height: 68,
               borderRadius: 28,
-              backgroundColor: colors.background,
+              backgroundColor: theme.colors.card,
               borderWidth: 1,
-              borderColor: colors.borderSubtle,
-              ...surfaceStyles.shadow,
+              borderColor: theme.colors.borderSubtle,
+              ...surface.shadow,
             }}
           />
         ),
@@ -133,12 +139,12 @@ function AppTabs() {
                 style={{
                   padding: focused ? spacing.md : spacing.sm,
                   borderRadius: 16,
-                  backgroundColor: focused ? colors.brandSoft : colors.backgroundAlt,
+                  backgroundColor: focused ? theme.colors.brandSoft : theme.colors.backgroundAlt,
                   borderWidth: focused ? 0 : 1,
-                  borderColor: colors.borderSubtle,
+                  borderColor: theme.colors.borderSubtle,
                 }}
               >
-                <Ionicons name={iconName} size={22} color={focused ? colors.brandGreen : color} />
+                <Ionicons name={iconName} size={22} color={focused ? theme.colors.brandGreen : color} />
               </View>
             </View>
           );
@@ -154,7 +160,7 @@ function AppTabs() {
           tabBarButton: tabButton('tab-dashboard'),
           headerShown: true,
           headerTitle: () => <GreenbroHeaderLogo />,
-          headerStyle: { backgroundColor: colors.background },
+          headerStyle: { backgroundColor: theme.colors.background },
           headerShadowVisible: false,
         }}
       />
@@ -181,8 +187,9 @@ function AppTabs() {
 }
 
 function AppNavigator() {
+  const { theme } = useAppTheme();
   return (
-    <AppStack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+    <AppStack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.background } }}>
       <AppStack.Screen name="Tabs" component={AppTabs} />
       <AppStack.Screen name="SiteOverview" component={SiteOverviewScreen} />
       <AppStack.Screen name="DeviceDetail" component={DeviceDetailScreen} />
@@ -208,9 +215,25 @@ export const RootNavigator: React.FC<RootNavigatorProps> = ({ isAuthenticated, s
   console.log('RootNavigator: rendering', {
     stack: isAuthenticated ? 'App' : 'Auth',
   });
+  const { theme, resolvedScheme } = useAppTheme();
+  const spacing = theme.spacing;
+  const navigationTheme = useMemo(
+    () => ({
+      dark: resolvedScheme === 'dark',
+      colors: {
+        background: theme.colors.background,
+        card: theme.colors.card,
+        primary: theme.colors.brandGreen,
+        text: theme.colors.textPrimary,
+        border: theme.colors.borderSubtle,
+        notification: theme.colors.error,
+      },
+    }),
+    [resolvedScheme, theme]
+  );
 
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={navigationTheme}>
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         {isAuthenticated ? (
           <RootStack.Screen name="App" component={AppNavigator} />
@@ -221,14 +244,14 @@ export const RootNavigator: React.FC<RootNavigatorProps> = ({ isAuthenticated, s
                 {sessionExpired ? (
                   <View
                     style={{
-                      backgroundColor: colors.backgroundAlt,
+                      backgroundColor: theme.colors.backgroundAlt,
                       paddingVertical: spacing.sm,
                       paddingHorizontal: spacing.md,
                       borderBottomWidth: 1,
-                      borderColor: colors.borderSubtle,
+                      borderColor: theme.colors.borderSubtle,
                     }}
                   >
-                    <Text style={[typography.caption, { color: colors.textPrimary }]}>
+                    <Text style={[typography.caption, { color: theme.colors.textPrimary }]}>
                       Your session has expired. Please log in again.
                     </Text>
                   </View>

@@ -14,14 +14,15 @@ import {
   ErrorCard,
   EmptyState,
   StatusPill,
+  PillTabGroup,
   connectivityDisplay,
   healthDisplay,
 } from '../../components';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { loadJsonWithMetadata, saveJson, isCacheOlderThan } from '../../utils/storage';
-import { colors, gradients } from '../../theme/colors';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppTheme, ThemeMode } from '../../theme/types';
 import { typography } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
 
 type Navigation = NativeStackNavigationProp<AppStackParamList>;
 const CACHE_STALE_MS = 24 * 60 * 60 * 1000;
@@ -32,6 +33,9 @@ export const DashboardScreen: React.FC = () => {
   const { data, isLoading, isError, refetch } = useSites();
   const { data: alerts } = useAlerts({ status: 'active' });
   const { isOffline } = useNetworkBanner();
+  const { theme, mode, setMode, resolvedScheme } = useAppTheme();
+  const { colors, gradients, spacing } = theme;
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [cachedSites, setCachedSites] = useState<ApiSite[] | null>(null);
   const [cachedSitesSavedAt, setCachedSitesSavedAt] = useState<string | null>(null);
 
@@ -102,6 +106,20 @@ export const DashboardScreen: React.FC = () => {
     return 'All data current';
   }, [sites]);
 
+  const healthChipStyle = (state: HealthStatus) => {
+    switch (state) {
+      case 'healthy':
+        return { backgroundColor: colors.brandSoft, borderColor: colors.brandSoft };
+      case 'warning':
+        return { backgroundColor: colors.warningSoft, borderColor: colors.warningSoft };
+      case 'critical':
+        return { backgroundColor: colors.errorSoft, borderColor: colors.errorSoft };
+      case 'offline':
+      default:
+        return { backgroundColor: colors.backgroundAlt, borderColor: colors.borderSubtle };
+    }
+  };
+
   if (showLoading) {
     return (
       <Screen scroll={false} contentContainerStyle={styles.center} testID="DashboardScreen">
@@ -156,6 +174,26 @@ export const DashboardScreen: React.FC = () => {
         <Text style={[typography.body, styles.muted]}>Search sites and devices</Text>
       </TouchableOpacity>
 
+      <Card style={styles.themeCard} testID="dashboard-theme-toggle">
+        <View style={styles.themeRow}>
+          <Text style={[typography.subtitle, styles.title]}>Appearance</Text>
+          <Text style={[typography.caption, styles.muted]}>
+            {mode === 'system'
+              ? `Following device (${resolvedScheme})`
+              : `${mode.charAt(0).toUpperCase() + mode.slice(1)} mode`}
+          </Text>
+        </View>
+        <PillTabGroup
+          value={mode}
+          options={[
+            { value: 'light' as ThemeMode, label: 'Light' },
+            { value: 'dark' as ThemeMode, label: 'Dark' },
+            { value: 'system' as ThemeMode, label: 'System' },
+          ]}
+          onChange={(value) => setMode(value as ThemeMode)}
+        />
+      </Card>
+
       {isOffline ? (
         <Card style={styles.offlineCard} testID="dashboard-offline-banner">
           <Text style={[typography.caption, styles.offlineNote]}>
@@ -168,14 +206,14 @@ export const DashboardScreen: React.FC = () => {
           ) : null}
           {cacheStale ? (
             <Text style={[typography.caption, styles.staleNote]}>
-              Data older than 24 hours – may be out of date.
+              Data older than 24 hours may be out of date.
             </Text>
           ) : null}
         </Card>
       ) : cacheStale ? (
         <Card style={styles.offlineCard}>
           <Text style={[typography.caption, styles.staleNote]}>
-            Data older than 24 hours – may be out of date.
+            Data older than 24 hours may be out of date.
           </Text>
           {cacheUpdatedLabel ? (
             <Text style={[typography.caption, styles.offlineNote]}>
@@ -302,140 +340,136 @@ export const DashboardScreen: React.FC = () => {
   );
 };
 
-const healthChipStyle = (state: HealthStatus) => {
-  switch (state) {
-    case 'healthy':
-      return { backgroundColor: colors.brandSoft, borderColor: colors.brandSoft };
-    case 'warning':
-      return { backgroundColor: colors.warningSoft, borderColor: colors.warningSoft };
-    case 'critical':
-      return { backgroundColor: colors.errorSoft, borderColor: colors.errorSoft };
-    case 'offline':
-    default:
-      return { backgroundColor: colors.backgroundAlt, borderColor: colors.borderSubtle };
-  }
-};
-
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  errorCard: {
-    padding: spacing.lg,
-  },
-  title: {
-    color: colors.textPrimary,
-  },
-  muted: {
-    color: colors.textSecondary,
-  },
-  heroCard: {
-    padding: spacing.lg,
-    borderRadius: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.xl,
-    marginBottom: spacing.lg,
-    borderWidth: 1,
-    borderColor: gradients.brandPrimary.end,
-  },
-  heroTitle: {
-    color: colors.white,
-  },
-  heroMuted: {
-    color: colors.white,
-  },
-  offlineCard: {
-    marginBottom: spacing.md,
-    backgroundColor: colors.backgroundAlt,
-  },
-  offlineNote: {
-    color: colors.textSecondary,
-    marginBottom: spacing.sm,
-  },
-  staleNote: {
-    color: colors.warning,
-    marginBottom: spacing.xs,
-  },
-  metricsCard: {
-    marginBottom: spacing.xl,
-  },
-  metricsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  metric: {
-    flex: 1,
-  },
-  healthRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: spacing.md,
-  },
-  healthChip: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    borderRadius: 14,
-    marginHorizontal: spacing.xs,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-  },
-  healthLabel: {
-    color: colors.textSecondary,
-  },
-  healthCount: {
-    color: colors.textPrimary,
-  },
-  pillRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  sectionTitle: {
-    marginBottom: spacing.md,
-    color: colors.textPrimary,
-  },
-  gridRow: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  siteCard: {
-    width: '48%',
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  siteHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  iconBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.brandSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-  siteMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    paddingTop: spacing.sm,
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    borderRadius: 14,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    marginBottom: spacing.md,
-    backgroundColor: colors.backgroundAlt,
-  },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    errorCard: {
+      padding: theme.spacing.lg,
+    },
+    title: {
+      color: theme.colors.textPrimary,
+    },
+    muted: {
+      color: theme.colors.textSecondary,
+    },
+    heroCard: {
+      padding: theme.spacing.lg,
+      borderRadius: 24,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: theme.spacing.xl,
+      marginBottom: theme.spacing.lg,
+      borderWidth: 1,
+      borderColor: theme.gradients.brandPrimary.end,
+    },
+    heroTitle: {
+      color: theme.colors.white,
+    },
+    heroMuted: {
+      color: theme.colors.white,
+    },
+    themeCard: {
+      marginBottom: theme.spacing.md,
+    },
+    themeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: theme.spacing.sm,
+    },
+    offlineCard: {
+      marginBottom: theme.spacing.md,
+      backgroundColor: theme.colors.backgroundAlt,
+    },
+    offlineNote: {
+      color: theme.colors.textSecondary,
+      marginBottom: theme.spacing.sm,
+    },
+    staleNote: {
+      color: theme.colors.warning,
+      marginBottom: theme.spacing.xs,
+    },
+    metricsCard: {
+      marginBottom: theme.spacing.xl,
+    },
+    metricsRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+    },
+    metric: {
+      flex: 1,
+    },
+    healthRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: theme.spacing.md,
+    },
+    healthChip: {
+      flex: 1,
+      paddingVertical: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.sm,
+      borderRadius: 14,
+      marginHorizontal: theme.spacing.xs,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSubtle,
+    },
+    healthLabel: {
+      color: theme.colors.textSecondary,
+    },
+    healthCount: {
+      color: theme.colors.textPrimary,
+    },
+    pillRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    sectionTitle: {
+      marginBottom: theme.spacing.md,
+      color: theme.colors.textPrimary,
+    },
+    gridRow: {
+      flex: 1,
+      justifyContent: 'space-between',
+    },
+    siteCard: {
+      width: '48%',
+      padding: theme.spacing.lg,
+      marginBottom: theme.spacing.md,
+    },
+    siteHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: theme.spacing.md,
+    },
+    iconBadge: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: theme.colors.brandSoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: theme.spacing.sm,
+    },
+    siteMeta: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-end',
+      paddingTop: theme.spacing.sm,
+    },
+    searchBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: theme.colors.borderSubtle,
+      borderRadius: 14,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
+      marginBottom: theme.spacing.md,
+      backgroundColor: theme.colors.backgroundAlt,
+    },
+  });

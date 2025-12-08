@@ -8,9 +8,9 @@ import { useDeviceDocuments, useSiteDocuments, useSignedFileUrl } from '../../ap
 import type { Document } from '../../api/documents/types';
 import { Screen, Card, IconButton, StatusPill, EmptyState, ErrorCard } from '../../components';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
-import { colors } from '../../theme/colors';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppTheme } from '../../theme/types';
 import { typography } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
 import { api, shouldUseSignedFileUrls } from '../../api/client';
 
 type Route = RouteProp<AppStackParamList, 'Documents'>;
@@ -43,6 +43,9 @@ export const DocumentsScreen: React.FC = () => {
   const deviceDocuments = useDeviceDocuments(deviceId || '');
   const signedFileUrl = useSignedFileUrl();
   const query = scope === 'site' ? siteDocuments : deviceDocuments;
+  const { theme } = useAppTheme();
+  const { colors, spacing } = theme;
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   const documents = query.data ?? [];
   const cachedLabel = useMemo(() => {
@@ -137,7 +140,7 @@ export const DocumentsScreen: React.FC = () => {
                   ) : null}
                   <Text style={[typography.caption, styles.muted]}>
                     {item.originalName || item.title}
-                    {item.sizeBytes ? ` • ${(item.sizeBytes / 1024).toFixed(1)} KB` : ''}
+                    {item.sizeBytes ? ` - ${(item.sizeBytes / 1024).toFixed(1)} KB` : ''}
                   </Text>
                 </View>
                 <StatusPill label={item.category || 'other'} tone={categoryTone(item.category)} />
@@ -156,30 +159,31 @@ export const DocumentsScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  center: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: { color: colors.textPrimary },
-  muted: { color: colors.textSecondary },
-  documentCard: {
-    marginBottom: spacing.sm,
-  },
-  docIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.backgroundAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    topBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: theme.spacing.lg,
+      marginBottom: theme.spacing.md,
+    },
+    center: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    title: { color: theme.colors.textPrimary },
+    muted: { color: theme.colors.textSecondary },
+    documentCard: {
+      marginBottom: theme.spacing.sm,
+    },
+    docIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: theme.colors.backgroundAlt,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: theme.spacing.sm,
+    },
+  });

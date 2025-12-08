@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { SafeAreaView, ScrollView, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
-import { colors } from '../theme/colors';
-import { spacing } from '../theme/spacing';
+import type { AppTheme } from '../theme/types';
+import { useAppTheme } from '../theme/useAppTheme';
 
 type ScreenProps = {
   children: React.ReactNode;
@@ -18,6 +18,9 @@ export const Screen: React.FC<ScreenProps> = ({
   contentContainerStyle,
   testID,
 }) => {
+  const { theme } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   if (scroll) {
     return (
       <SafeAreaView style={[styles.screen, style]} testID={testID}>
@@ -38,13 +41,14 @@ export const Screen: React.FC<ScreenProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  screenContent: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xxl,
-  },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    screen: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    screenContent: {
+      paddingHorizontal: theme.spacing.lg,
+      paddingBottom: theme.spacing.xxl,
+    },
+  });

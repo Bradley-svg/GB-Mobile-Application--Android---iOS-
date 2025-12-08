@@ -7,9 +7,10 @@ import { RootNavigator } from './app/navigation/RootNavigator';
 import { useAuthStore } from './app/store/authStore';
 import { api } from './app/api/client';
 import { useRegisterPushToken } from './app/hooks/useRegisterPushToken';
-import { colors } from './app/theme/colors';
 import { useNetworkBanner } from './app/hooks/useNetworkBanner';
 import { queryClient } from './app/queryClient';
+import { AppThemeProvider } from './app/theme/ThemeProvider';
+import { useAppTheme } from './app/theme/useAppTheme';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -19,8 +20,9 @@ Notifications.setNotificationHandler({
   }),
 });
 
-export default function App() {
+const AppContent: React.FC = () => {
   console.log('App: render start');
+  const { theme } = useAppTheme();
   const { isHydrated, user, accessToken, hydrateFromSecureStore, setUser, clearAuth, sessionExpired } =
     useAuthStore();
   const [authChecked, setAuthChecked] = useState(false);
@@ -82,8 +84,15 @@ export default function App() {
       hasAccessToken: !!accessToken,
     });
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <Text>Loading...</Text>
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: theme.colors.background,
+        }}
+      >
+        <Text style={{ color: theme.colors.textPrimary }}>Loading...</Text>
       </View>
     );
   }
@@ -95,18 +104,18 @@ export default function App() {
   });
   return (
     <QueryClientProvider client={queryClient}>
-      <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
         {isOffline ? (
           <View
             style={{
-              backgroundColor: colors.backgroundAlt,
+              backgroundColor: theme.colors.backgroundAlt,
               paddingVertical: 8,
               paddingHorizontal: 12,
               borderBottomWidth: 1,
-              borderColor: colors.borderSubtle,
+              borderColor: theme.colors.borderSubtle,
             }}
           >
-            <Text style={{ color: colors.textSecondary }}>
+            <Text style={{ color: theme.colors.textSecondary }}>
               {"You're offline. Showing last known data where available."}
             </Text>
           </View>
@@ -114,5 +123,13 @@ export default function App() {
         <RootNavigator isAuthenticated={isAuthenticated} sessionExpired={sessionExpired} />
       </View>
     </QueryClientProvider>
+  );
+};
+
+export default function App() {
+  return (
+    <AppThemeProvider>
+      <AppContent />
+    </AppThemeProvider>
   );
 }

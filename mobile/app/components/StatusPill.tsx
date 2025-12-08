@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
-import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
+import type { AppTheme } from '../theme/types';
+import { useAppTheme } from '../theme/useAppTheme';
 
 type Tone = 'success' | 'warning' | 'error' | 'muted';
 
@@ -12,15 +13,25 @@ type StatusPillProps = {
   testID?: string;
 };
 
-const toneStyles: Record<Tone, { backgroundColor: string; color: string }> = {
-  success: { backgroundColor: colors.successSoft, color: colors.success },
-  warning: { backgroundColor: colors.warningSoft, color: colors.warning },
-  error: { backgroundColor: colors.errorSoft, color: colors.error },
-  muted: { backgroundColor: colors.backgroundAlt, color: colors.textSecondary },
+const tonePalette = (theme: AppTheme, tone: Tone) => {
+  switch (tone) {
+    case 'success':
+      return { backgroundColor: theme.colors.successSoft, color: theme.colors.success };
+    case 'warning':
+      return { backgroundColor: theme.colors.warningSoft, color: theme.colors.warning };
+    case 'error':
+      return { backgroundColor: theme.colors.errorSoft, color: theme.colors.error };
+    case 'muted':
+    default:
+      return { backgroundColor: theme.colors.backgroundAlt, color: theme.colors.textSecondary };
+  }
 };
 
 export const StatusPill: React.FC<StatusPillProps> = ({ label, tone = 'muted', style, testID }) => {
-  const palette = toneStyles[tone] || toneStyles.muted;
+  const { theme } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const palette = tonePalette(theme, tone);
+
   return (
     <View style={[styles.pill, { backgroundColor: palette.backgroundColor }, style]} testID={testID}>
       <Text style={[typography.label, { color: palette.color }]}>{label}</Text>
@@ -53,10 +64,11 @@ export const healthDisplay = (health?: string | null): { label: string; tone: To
   return { label: health, tone: 'muted' };
 };
 
-const styles = StyleSheet.create({
-  pill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    pill: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: theme.radius.md,
+    },
+  });

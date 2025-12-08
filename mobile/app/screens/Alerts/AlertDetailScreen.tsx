@@ -14,9 +14,9 @@ import {
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { Screen, Card, PrimaryButton, IconButton } from '../../components';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
-import { colors, gradients } from '../../theme/colors';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppTheme } from '../../theme/types';
 import { typography } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
 import { isContractor, useAuthStore } from '../../store/authStore';
 
 type AlertDetailRouteParams = RouteProp<AppStackParamList, 'AlertDetail'>;
@@ -35,6 +35,19 @@ export const AlertDetailScreen: React.FC = () => {
   const acknowledge = useAcknowledgeAlert();
   const mute = useMuteAlert();
   const { isOffline } = useNetworkBanner();
+  const { theme } = useAppTheme();
+  const { colors, spacing, gradients } = theme;
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const severityStyles = (severity: string) => {
+    switch (severity) {
+      case 'critical':
+        return { backgroundColor: colors.errorSoft, textColor: colors.error };
+      case 'warning':
+        return { backgroundColor: colors.warningSoft, textColor: colors.warning };
+      default:
+        return { backgroundColor: colors.brandSoft, textColor: gradients.brandPrimary.start };
+    }
+  };
   const [actionError, setActionError] = useState<string | null>(null);
   const [workOrderError, setWorkOrderError] = useState<string | null>(null);
   const [snoozeMinutes, setSnoozeMinutes] = useState<number>(60);
@@ -347,71 +360,61 @@ const formatSnoozeLabel = (minutes: number) => {
   return `${minutes}m`;
 };
 
-const severityStyles = (severity: string) => {
-  switch (severity) {
-    case 'critical':
-      return { backgroundColor: colors.errorSoft, textColor: colors.error };
-    case 'warning':
-      return { backgroundColor: colors.warningSoft, textColor: colors.warning };
-    default:
-      return { backgroundColor: colors.brandSoft, textColor: gradients.brandPrimary.start };
-  }
-};
-
-const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: { color: colors.textPrimary },
-  muted: { color: colors.textSecondary },
-  topBar: {
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    marginTop: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  headerCard: {
-    marginBottom: spacing.md,
-  },
-  severityPill: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: 16,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-  },
-  detailCard: {
-    marginBottom: spacing.lg,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-  },
-  actions: {
-    marginBottom: spacing.xl,
-  },
-  snoozeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  snoozeChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    marginRight: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  errorText: { color: colors.error, marginTop: spacing.sm },
-  offlineNote: { color: colors.textSecondary, marginTop: spacing.sm },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    title: { color: theme.colors.textPrimary },
+    muted: { color: theme.colors.textSecondary },
+    topBar: {
+      flexDirection: 'row',
+      justifyContent: 'flex-start',
+      alignItems: 'center',
+      marginTop: theme.spacing.lg,
+      marginBottom: theme.spacing.md,
+    },
+    headerCard: {
+      marginBottom: theme.spacing.md,
+    },
+    severityPill: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.xs,
+      borderRadius: 16,
+      marginBottom: theme.spacing.sm,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSubtle,
+    },
+    detailCard: {
+      marginBottom: theme.spacing.lg,
+    },
+    detailRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: theme.spacing.xs,
+    },
+    actions: {
+      marginBottom: theme.spacing.xl,
+    },
+    snoozeRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      marginTop: theme.spacing.sm,
+      marginBottom: theme.spacing.sm,
+    },
+    snoozeChip: {
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.xs,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSubtle,
+      marginRight: theme.spacing.sm,
+      marginBottom: theme.spacing.sm,
+    },
+    errorText: { color: theme.colors.error, marginTop: theme.spacing.sm },
+    offlineNote: { color: theme.colors.textSecondary, marginTop: theme.spacing.sm },
+  });

@@ -1,12 +1,23 @@
-import { colors, gradients } from './colors';
+import { colors, gradients, darkColors, darkGradients, lightColors, lightGradients } from './colors';
+import { radius } from './radius';
 import { spacing } from './spacing';
 import { typography } from './typography';
+import { darkTheme, lightTheme } from './themes';
 
-export const theme = {
+export const theme = lightTheme;
+
+export {
   colors,
   gradients,
   spacing,
   typography,
+  radius,
+  lightTheme,
+  darkTheme,
+  lightColors,
+  darkColors,
+  lightGradients,
+  darkGradients,
 };
 
-export { colors, gradients, spacing, typography };
+export * from './types';

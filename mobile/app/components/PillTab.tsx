@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity } from 'react-native';
-import { colors } from '../theme/colors';
-import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
+import type { AppTheme } from '../theme/types';
+import { useAppTheme } from '../theme/useAppTheme';
 
 type PillTabProps = {
   label: string;
@@ -11,44 +11,50 @@ type PillTabProps = {
   testID?: string;
 };
 
-export const PillTab: React.FC<PillTabProps> = ({ label, selected, onPress, testID }) => (
-  <TouchableOpacity
-    onPress={onPress}
-    activeOpacity={0.9}
-    style={[styles.pillTab, selected ? styles.pillSelected : styles.pillUnselected]}
-    testID={testID}
-  >
-    <Text
-      style={[
-        typography.label,
-        selected ? styles.labelSelected : styles.labelUnselected,
-        { textTransform: 'uppercase' },
-      ]}
-    >
-      {label}
-    </Text>
-  </TouchableOpacity>
-);
+export const PillTab: React.FC<PillTabProps> = ({ label, selected, onPress, testID }) => {
+  const { theme } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
-const styles = StyleSheet.create({
-  pillTab: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  pillSelected: {
-    backgroundColor: colors.brandGreen,
-    borderColor: colors.brandGreen,
-  },
-  pillUnselected: {
-    backgroundColor: colors.backgroundAlt,
-    borderColor: colors.borderSubtle,
-  },
-  labelSelected: {
-    color: colors.background,
-  },
-  labelUnselected: {
-    color: colors.textSecondary,
-  },
-});
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.9}
+      style={[styles.pillTab, selected ? styles.pillSelected : styles.pillUnselected]}
+      testID={testID}
+    >
+      <Text
+        style={[
+          typography.label,
+          selected ? styles.labelSelected : styles.labelUnselected,
+          { textTransform: 'uppercase' },
+        ]}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+};
+
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    pillTab: {
+      paddingHorizontal: theme.spacing.lg,
+      paddingVertical: theme.spacing.sm,
+      borderRadius: 20,
+      borderWidth: 1,
+    },
+    pillSelected: {
+      backgroundColor: theme.colors.brandGreen,
+      borderColor: theme.colors.brandGreen,
+    },
+    pillUnselected: {
+      backgroundColor: theme.colors.backgroundAlt,
+      borderColor: theme.colors.borderSubtle,
+    },
+    labelSelected: {
+      color: theme.colors.textInverse,
+    },
+    labelUnselected: {
+      color: theme.colors.textSecondary,
+    },
+  });

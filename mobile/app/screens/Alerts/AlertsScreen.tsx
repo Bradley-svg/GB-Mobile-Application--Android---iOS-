@@ -9,9 +9,9 @@ import { Screen, Card, PillTabGroup, IconButton, ErrorCard, EmptyState } from '.
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { loadJsonWithMetadata, saveJson, isCacheOlderThan } from '../../utils/storage';
 import type { Alert } from '../../api/types';
-import { colors, gradients } from '../../theme/colors';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppTheme } from '../../theme/types';
 import { typography } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
 
 type Navigation = NativeStackNavigationProp<AppStackParamList>;
 const CACHE_STALE_MS = 24 * 60 * 60 * 1000;
@@ -20,17 +20,6 @@ const SEVERITY_ORDER: Record<string, number> = {
   critical: 0,
   warning: 1,
   info: 2,
-};
-
-const severityStyles = (severity: string) => {
-  switch (severity) {
-    case 'critical':
-      return { backgroundColor: colors.errorSoft, textColor: colors.error };
-    case 'warning':
-      return { backgroundColor: colors.warningSoft, textColor: colors.warning };
-    default:
-      return { backgroundColor: colors.brandSoft, textColor: gradients.brandPrimary.start };
-  }
 };
 
 const ALERTS_CACHE_KEY = 'alerts-cache:all';
@@ -43,6 +32,19 @@ export const AlertsScreen: React.FC = () => {
 
   const navigation = useNavigation<Navigation>();
   const { isOffline } = useNetworkBanner();
+  const { theme } = useAppTheme();
+  const { colors, gradients, spacing } = theme;
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const severityStyles = (severity: string) => {
+    switch (severity) {
+      case 'critical':
+        return { backgroundColor: colors.errorSoft, textColor: colors.error };
+      case 'warning':
+        return { backgroundColor: colors.warningSoft, textColor: colors.warning };
+      default:
+        return { backgroundColor: colors.brandSoft, textColor: gradients.brandPrimary.start };
+    }
+  };
   const [cachedAlerts, setCachedAlerts] = useState<Alert[] | null>(null);
   const [cachedAt, setCachedAt] = useState<string | null>(null);
 
@@ -218,23 +220,29 @@ export const AlertsScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  title: { color: colors.textPrimary },
-  muted: { color: colors.textSecondary },
-  offlineNote: { color: colors.textSecondary, marginBottom: spacing.sm },
-  headerCard: { marginTop: spacing.xl, marginBottom: spacing.lg },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md },
-  filterRow: { flexDirection: 'row', alignItems: 'center' },
-  alertCard: { padding: spacing.md },
-  alertRow: { flexDirection: 'row', alignItems: 'center' },
-  severityPill: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: 14,
-    marginRight: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-  },
-  staleNote: { color: colors.warning, marginBottom: spacing.sm },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    title: { color: theme.colors.textPrimary },
+    muted: { color: theme.colors.textSecondary },
+    offlineNote: { color: theme.colors.textSecondary, marginBottom: theme.spacing.sm },
+    headerCard: { marginTop: theme.spacing.xl, marginBottom: theme.spacing.lg },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: theme.spacing.md,
+    },
+    filterRow: { flexDirection: 'row', alignItems: 'center' },
+    alertCard: { padding: theme.spacing.md },
+    alertRow: { flexDirection: 'row', alignItems: 'center' },
+    severityPill: {
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.xs,
+      borderRadius: 14,
+      marginRight: theme.spacing.sm,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSubtle,
+    },
+    staleNote: { color: theme.colors.warning, marginBottom: theme.spacing.sm },
+  });

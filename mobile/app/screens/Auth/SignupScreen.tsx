@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Screen, Card, PrimaryButton } from '../../components';
-import { colors } from '../../theme/colors';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppTheme } from '../../theme/types';
 import { typography } from '../../theme/typography';
-import { spacing } from '../../theme/spacing';
 import GreenbroLogo from '../../../assets/greenbro/greenbro-logo-horizontal.png';
 
 type AuthStackParamList = {
@@ -17,6 +17,9 @@ type AuthNavigation = NativeStackNavigationProp<AuthStackParamList>;
 
 export const SignupScreen: React.FC = () => {
   const navigation = useNavigation<AuthNavigation>();
+  const { theme } = useAppTheme();
+  const { colors, spacing } = theme;
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   return (
     <Screen>
@@ -44,30 +47,31 @@ export const SignupScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  logoRow: {
-    alignItems: 'center',
-    marginTop: spacing.xl,
-    marginBottom: spacing.lg,
-  },
-  logo: { width: 240, height: 64 },
-  hero: {
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  title: { color: colors.textPrimary },
-  muted: { color: colors.textSecondary },
-  formCard: {
-    padding: spacing.lg,
-    marginBottom: spacing.xl,
-  },
-  notice: {
-    padding: spacing.md,
-    borderRadius: 12,
-    backgroundColor: colors.backgroundAlt,
-    borderColor: colors.borderSubtle,
-    borderWidth: 1,
-    marginBottom: spacing.md,
-  },
-  noticeText: { color: colors.textPrimary },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    logoRow: {
+      alignItems: 'center',
+      marginTop: theme.spacing.xl,
+      marginBottom: theme.spacing.lg,
+    },
+    logo: { width: 240, height: 64 },
+    hero: {
+      alignItems: 'center',
+      marginBottom: theme.spacing.lg,
+    },
+    title: { color: theme.colors.textPrimary },
+    muted: { color: theme.colors.textSecondary },
+    formCard: {
+      padding: theme.spacing.lg,
+      marginBottom: theme.spacing.xl,
+    },
+    notice: {
+      padding: theme.spacing.md,
+      borderRadius: 12,
+      backgroundColor: theme.colors.backgroundAlt,
+      borderColor: theme.colors.borderSubtle,
+      borderWidth: 1,
+      marginBottom: theme.spacing.md,
+    },
+    noticeText: { color: theme.colors.textPrimary },
+  });
