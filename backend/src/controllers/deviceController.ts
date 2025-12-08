@@ -16,7 +16,7 @@ import {
   ScheduleValidationError,
 } from '../services/deviceScheduleService';
 import { ExportError, exportDeviceTelemetryCsv } from '../services/exportService';
-import { canControlDevice, canEditSchedules } from '../services/rbacService';
+import { canControlDevice, canEditSchedules, canExportData } from '../services/rbacService';
 
 const deviceIdSchema = z.object({ id: z.string().uuid() });
 const telemetryQuerySchema = z.object({
@@ -331,6 +331,10 @@ export async function exportDeviceTelemetryCsvHandler(
   const parsedQuery = telemetryExportSchema.safeParse(req.query);
   if (!parsedParams.success || !parsedQuery.success) {
     return res.status(400).json({ message: 'Invalid request' });
+  }
+
+  if (!canExportData(req.user)) {
+    return res.status(403).json({ message: 'Forbidden export', code: 'ERR_FORBIDDEN_EXPORT' });
   }
 
   const metrics =

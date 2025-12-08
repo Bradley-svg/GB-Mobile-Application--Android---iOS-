@@ -62,7 +62,7 @@ _2025-12-07 sweep: backend and mobile typecheck/lint/tests/build all green local
 - Mobile: Profile shows role + Sharing entry (disabled for contractors); SharingScreen lists sites/devices and navigates to ShareLinksScreen for per-scope management (create 24h/7d/30d links, copy public URL, revoke). Offline disables actions.
 
 ## Exports (CSV)
-- `exportService` powers `GET /sites/:id/export/devices.csv` (device_id/name/firmware/connectivity/last_seen/site_name) and `GET /devices/:id/export/telemetry.csv?from=ISO&to=ISO&metrics=...` (timestamp, metric_name, value) with org scoping. Telemetry export validates window and metric allowlist; both return `text/csv`.
+- `exportService` powers `GET /sites/:id/export/devices.csv` (device_id/name/firmware/connectivity/last_seen/site_name) and `GET /devices/:id/export/telemetry.csv?from=ISO&to=ISO&metrics=...` (timestamp, metric_name, value) with org scoping. Telemetry export validates window and metric allowlist; both return `text/csv`. Exports are RBAC-gated: owner/admin/facilities can export, contractors receive 403 `ERR_FORBIDDEN_EXPORT`.
 - Seeds include telemetry points for the demo device so CSV tests have data. Mobile surfaces online-only export buttons on Site/Device screens (fetch CSV via axios and open as data URLs); offline hides the buttons.
 
 ## Cleanup actions

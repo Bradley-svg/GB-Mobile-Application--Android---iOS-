@@ -4,6 +4,7 @@ import { getDevicesForSite, getSiteById, getSitesForOrganisation } from '../serv
 import { resolveOrganisationId } from './organisation';
 import type { HealthStatus } from '../services/healthScoreService';
 import { ExportError, exportSiteDevicesCsv } from '../services/exportService';
+import { canExportData } from '../services/rbacService';
 
 const siteIdSchema = z.object({ id: z.string().uuid() });
 const siteQuerySchema = z.object({
@@ -87,6 +88,10 @@ export async function exportSiteDevicesCsvHandler(req: Request, res: Response, n
   const parsedParams = siteIdSchema.safeParse(req.params);
   if (!parsedParams.success) {
     return res.status(400).json({ message: 'Invalid site id' });
+  }
+
+  if (!canExportData(req.user)) {
+    return res.status(403).json({ message: 'Forbidden export', code: 'ERR_FORBIDDEN_EXPORT' });
   }
 
   try {
