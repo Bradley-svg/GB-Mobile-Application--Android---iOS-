@@ -34,7 +34,7 @@ Tests run migrations automatically against `TEST_DATABASE_URL`, but you can run 
 - Backend API: `cd backend && npm run dev`
 - Alerts worker: `cd backend && npm run dev:alerts`
 - MQTT ingest worker (if `MQTT_URL` is set): `cd backend && npm run dev:mqtt`
-- Expo app: `cd mobile && npx expo start --localhost -c` then press `a` for Android emulator or scan the QR code on device.
+- Expo app (Android dev client): `cd mobile && npm run start:devclient` (runs `expo start --dev-client --localhost -c --port 8082`, cache cleared) then press `a` for the emulator. If the emulator cannot reach Metro/backend, run `adb reverse tcp:8082 tcp:8082` and `adb reverse tcp:4000 tcp:4000` or use the root `dev.sh` / `dev.ps1` helper scripts which set these up for you.
 
 Helper scripts in the repo root:
 - `./dev.sh` (bash) or `.\dev.ps1` (PowerShell) starts backend, alerts worker, and Expo together. Stop with `Ctrl+C` and the script will tear down the child processes.

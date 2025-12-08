@@ -6,6 +6,9 @@ Param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+$MetroPort = 8082
+$ApiPort = 4000
+
 function Start-Proc {
   param (
     [string]$Path,
@@ -27,8 +30,25 @@ if (-not $SkipAlerts) {
 
 $expo = $null
 if (-not $SkipExpo) {
-  Write-Host "Starting Expo (localhost)..."
-  $expo = Start-Proc -Path "npx" -Args @("expo", "start", "--localhost", "--clear") -WorkingDir "$PSScriptRoot/mobile"
+  $adb = Get-Command "adb" -ErrorAction SilentlyContinue
+  if ($adb) {
+    $adbPath = if ($adb.Source) { $adb.Source } else { $adb.Path }
+    Write-Host "Setting up adb reverse for Metro ($MetroPort) and API ($ApiPort)..."
+    try {
+      & $adbPath "reverse" "tcp:$MetroPort" "tcp:$MetroPort" | Out-Null
+      & $adbPath "reverse" "tcp:$ApiPort" "tcp:$ApiPort" | Out-Null
+    } catch {
+      Write-Warning "adb reverse failed (is the emulator running?): $_"
+    }
+  } else {
+    Write-Warning "adb not found; skipping port reverse for Metro/API"
+  }
+
+  Write-Host "Starting Expo dev client on localhost:$MetroPort ..."
+  $expo =
+    Start-Proc -Path "npx" `
+      -Args @("expo", "start", "--dev-client", "--localhost", "--clear", "--port", "$MetroPort") `
+      -WorkingDir "$PSScriptRoot/mobile"
 }
 
 $procIds = @($backend.Id, $alerts?.Id, $expo?.Id) | Where-Object { $_ }

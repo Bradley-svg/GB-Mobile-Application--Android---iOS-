@@ -18,7 +18,7 @@ Cross-platform mobile app + backend for Greenbro heat pump telemetry, alerts, an
 # Mobile
 cd mobile
 npm install
-npm run start
+npm run start:devclient   # dev client on localhost:8082 (use npm run start for Expo Go)
 
 # Backend
 cd backend

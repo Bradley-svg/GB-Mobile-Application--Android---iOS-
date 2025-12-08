@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "expo start",
+    "start:devclient": "expo start --dev-client --localhost --clear --port 8082",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",

@@ -15,8 +15,8 @@
 - Commands:
   1) `cd mobile`
   2) `npm install`
-  3) `npx expo start --dev-client --localhost -c --port 8082`
-- In another terminal (emulator running): `adb reverse tcp:8082 tcp:8082` and `adb reverse tcp:4000 tcp:4000`.
+  3) `npm run start:devclient` (starts Metro on `localhost:8082` with cache clear). Equivalent manual command: `npx expo start --dev-client --localhost -c --port 8082`.
+- Port forwarding (emulator running): `adb reverse tcp:8082 tcp:8082` and `adb reverse tcp:4000 tcp:4000`. Helper scripts `./dev.sh` / `.\dev.ps1` now try to run these automatically when Expo starts; rerun the reverse commands after restarting the emulator.
 - Launch dev client: `adb shell am start -n com.greenbro.mobile/.MainActivity`
 - If the dev client is missing/out-of-date: `npx expo run:android --variant debug` then re-run the start command above.
 
