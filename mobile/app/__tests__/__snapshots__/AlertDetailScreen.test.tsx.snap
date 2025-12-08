@@ -13,6 +13,11 @@ exports[`AlertDetailScreen shows rule summary and default snooze copy 1`] = `
   }
   testID="AlertDetailScreen"
 >
+  <StatusBar
+    animated={true}
+    backgroundColor="#FFFFFF"
+    barStyle="dark-content"
+  />
   <View
     style={
       [

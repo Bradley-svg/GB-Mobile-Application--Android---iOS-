@@ -17,13 +17,41 @@ describe('Theme persistence', () => {
 
     await element(by.id('pill-dark')).tap();
 
+    const firstSiteCard = element(by.id('site-card')).atIndex(0);
+    await waitFor(firstSiteCard).toBeVisible().withTimeout(15000);
+    await firstSiteCard.tap();
+
+    const firstDeviceCard = element(by.id('device-card')).atIndex(0);
+    await waitFor(firstDeviceCard).toBeVisible().withTimeout(15000);
+    await firstDeviceCard.tap();
+
+    await waitFor(element(by.id('DeviceDetailScreen'))).toBeVisible().withTimeout(20000);
+    await expect(element(by.id('semi-circular-gauge-compressor'))).toBeVisible();
+
     await device.reloadReactNative();
+
+    const loginScreen = element(by.id('LoginScreen'));
+    try {
+      await waitFor(loginScreen).toBeVisible().withTimeout(5000);
+      await element(by.id('login-email')).replaceText('demo@greenbro.com');
+      await element(by.id('login-password')).replaceText('password');
+      await element(by.id('login-button')).tap();
+    } catch (_error) {
+      // If already logged in, proceed to dashboard assertion.
+    }
 
     await waitFor(element(by.id('DashboardScreen'))).toBeVisible().withTimeout(40000);
     await waitFor(element(by.id('current-theme-label-dark'))).toBeVisible().withTimeout(10000);
 
-    await element(by.id('tab-profile')).tap();
-    await waitFor(element(by.id('ProfileScreen'))).toBeVisible().withTimeout(15000);
-    await element(by.id('logout-button')).tap();
+    const siteCardAfterReload = element(by.id('site-card')).atIndex(0);
+    await waitFor(siteCardAfterReload).toBeVisible().withTimeout(20000);
+    await siteCardAfterReload.tap();
+
+    const deviceCardAfterReload = element(by.id('device-card')).atIndex(0);
+    await waitFor(deviceCardAfterReload).toBeVisible().withTimeout(20000);
+    await deviceCardAfterReload.tap();
+
+    await waitFor(element(by.id('DeviceDetailScreen'))).toBeVisible().withTimeout(20000);
+    await expect(element(by.id('semi-circular-gauge-compressor'))).toBeVisible();
   });
 });

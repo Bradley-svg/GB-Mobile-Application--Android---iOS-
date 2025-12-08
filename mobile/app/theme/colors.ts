@@ -28,6 +28,16 @@ export type ThemeColors = {
   infoSoft: string;
   overlay: string;
   shadow: string;
+  gaugeBackground: string;
+  gaugeArcSafe: string;
+  gaugeArcWarning: string;
+  gaugeArcAlert: string;
+  gaugeNeedle: string;
+  gaugeCenterOk: string;
+  gaugeCenterWarning: string;
+  gaugeCenterAlert: string;
+  gaugeLabelText: string;
+  gaugeSublabelText: string;
   chartPrimary: string;
   chartSecondary: string;
   chartAreaPrimary: string;
@@ -71,6 +81,16 @@ export const lightColors: ThemeColors = {
   chartPrimary: '#39B54A',
   chartSecondary: '#D97706',
   chartAreaPrimary: 'rgba(22, 163, 74, 0.12)',
+  gaugeBackground: '#FFFFFF',
+  gaugeArcSafe: '#39B54A',
+  gaugeArcWarning: '#D97706',
+  gaugeArcAlert: '#DC2626',
+  gaugeNeedle: '#414042',
+  gaugeCenterOk: '#39B54A',
+  gaugeCenterWarning: '#D97706',
+  gaugeCenterAlert: '#DC2626',
+  gaugeLabelText: '#111111',
+  gaugeSublabelText: '#555555',
 };
 
 export const darkColors: ThemeColors = {
@@ -106,6 +126,16 @@ export const darkColors: ThemeColors = {
   chartPrimary: '#39B54A',
   chartSecondary: '#F59E0B',
   chartAreaPrimary: 'rgba(34, 197, 94, 0.18)',
+  gaugeBackground: '#0F151C',
+  gaugeArcSafe: '#39B54A',
+  gaugeArcWarning: '#F59E0B',
+  gaugeArcAlert: '#EF4444',
+  gaugeNeedle: '#E6EDF3',
+  gaugeCenterOk: '#39B54A',
+  gaugeCenterWarning: '#F59E0B',
+  gaugeCenterAlert: '#EF4444',
+  gaugeLabelText: '#E6EDF3',
+  gaugeSublabelText: '#C6D0DC',
 };
 
 export const lightGradients: ThemeGradients = {

@@ -50,6 +50,7 @@ import {
   connectivityDisplay,
   healthDisplay,
 } from '../../components';
+import { DeviceGaugesSection } from './DeviceGaugesSection';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { loadJsonWithMetadata, saveJson, isCacheOlderThan } from '../../utils/storage';
 import { useAppTheme } from '../../theme/useAppTheme';
@@ -289,6 +290,7 @@ export const DeviceDetailScreen: React.FC = () => {
     () => computeLastUpdatedAt(telemetryFromQuery),
     [telemetryFromQuery]
   );
+  const deltaGaugeUpdatedAt = lastUpdatedAt;
   const hasAnyTelemetryPoints = useMemo(() => {
     const metrics = telemetryData?.metrics;
     if (!metrics) return false;
@@ -360,6 +362,18 @@ export const DeviceDetailScreen: React.FC = () => {
         y: p.value as number,
       }));
   }, [heatPumpHistoryQuery.data]);
+
+  const latestCompressorPoint = useMemo(() => {
+    if (!heatPumpSeries.length) return null;
+    const last = heatPumpSeries[heatPumpSeries.length - 1];
+    return {
+      value: last.y,
+      timestamp: last.x instanceof Date ? last.x.toISOString() : null,
+    };
+  }, [heatPumpSeries]);
+
+  const compressorGaugeValue = latestCompressorPoint?.value ?? null;
+  const compressorGaugeUpdatedAt = latestCompressorPoint?.timestamp ?? null;
 
   const historyErrorObj = heatPumpHistoryQuery.error;
   const historyStatus = useMemo<HistoryStatus>(() => {
@@ -940,6 +954,14 @@ export const DeviceDetailScreen: React.FC = () => {
           {readOnlyCopy}
         </Text>
       ) : null}
+
+      <DeviceGaugesSection
+        compressorCurrent={compressorGaugeValue}
+        compressorUpdatedAt={compressorGaugeUpdatedAt}
+        deltaT={deltaT}
+        deltaUpdatedAt={deltaGaugeUpdatedAt}
+        isOffline={isOffline}
+      />
 
       {telemetryLoading && (
         <View style={styles.loadingRow}>

@@ -87,6 +87,23 @@ jest.mock('@react-navigation/bottom-tabs', () => {
   };
 });
 
+jest.mock('react-native-svg', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const Mock = (props: any) => React.createElement(View, props);
+  return {
+    __esModule: true,
+    default: Mock,
+    Circle: Mock,
+    Path: Mock,
+    Line: Mock,
+    G: Mock,
+    Defs: Mock,
+    Stop: Mock,
+    LinearGradient: Mock,
+  };
+});
+
 jest.mock('@expo/vector-icons', () => {
   const React = require('react');
   const { Text } = require('react-native');
@@ -95,6 +112,11 @@ jest.mock('@expo/vector-icons', () => {
     Ionicons: Icon,
   };
 });
+
+jest.mock('expo-navigation-bar', () => ({
+  setBackgroundColorAsync: jest.fn(),
+  setButtonStyleAsync: jest.fn(),
+}));
 
 jest.mock('react-native', () => {
   const actual = jest.requireActual('react-native');

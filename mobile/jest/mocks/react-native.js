@@ -41,6 +41,11 @@ const Button = ({ title, onPress, ...rest }) =>
 const ActivityIndicator = createComponent('ActivityIndicator');
 const TouchableOpacity = createComponent('TouchableOpacity');
 const Switch = createComponent('Switch');
+const StatusBar = createComponent('StatusBar');
+const Platform = {
+  OS: 'ios',
+  select: (spec) => ('ios' in spec ? spec.ios : spec.default),
+};
 
 const Alert = {
   alert: jest.fn(),
@@ -70,6 +75,8 @@ module.exports = {
   ActivityIndicator,
   TouchableOpacity,
   Switch,
+  StatusBar,
+  Platform,
   StyleSheet,
   Alert,
   Linking,
