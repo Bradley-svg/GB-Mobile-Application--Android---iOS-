@@ -1,20 +1,41 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { HeatPumpHistoryRequest } from '../src/integrations/heatPumpHistoryClient';
+import {
+  type HeatPumpHistoryRequest,
+  HeatPumpHistoryConfigurationError,
+} from '../src/integrations/heatPumpHistoryClient';
+
+const {
+  loggerInfoSpy,
+  loggerWarnSpy,
+  loggerErrorSpy,
+  loggerChildSpy,
+  markHeatPumpHistorySuccessMock,
+  markHeatPumpHistoryErrorMock,
+} = vi.hoisted(() => {
+  const info = vi.fn();
+  const warn = vi.fn();
+  const error = vi.fn();
+  const child = vi.fn(() => ({
+    info,
+    warn,
+    error,
+    child,
+  }));
+  const markSuccess = vi.fn();
+  const markError = vi.fn();
+  return {
+    loggerInfoSpy: info,
+    loggerWarnSpy: warn,
+    loggerErrorSpy: error,
+    loggerChildSpy: child,
+    markHeatPumpHistorySuccessMock: markSuccess,
+    markHeatPumpHistoryErrorMock: markError,
+  };
+});
 
 const fetchMock = vi.fn();
 const originalFetch = global.fetch;
 const originalEnv = { ...process.env };
-const markHeatPumpHistorySuccessMock = vi.fn();
-const markHeatPumpHistoryErrorMock = vi.fn();
-const loggerInfoSpy = vi.fn();
-const loggerWarnSpy = vi.fn();
-const loggerErrorSpy = vi.fn();
-const loggerChildSpy = vi.fn(() => ({
-  info: loggerInfoSpy,
-  warn: loggerWarnSpy,
-  error: loggerErrorSpy,
-  child: loggerChildSpy,
-}));
 
 vi.mock('../src/services/statusService', () => ({
   markHeatPumpHistorySuccess: (...args: unknown[]) =>
@@ -339,7 +360,16 @@ describe('heatPumpHistoryClient', () => {
     delete process.env.HEATPUMP_HISTORY_API_KEY;
 
     await expect(fetchHeatPumpHistory(baseRequest)).rejects.toThrow(
-      'HEATPUMP_HISTORY_API_KEY is required when NODE_ENV is not development'
+      /Missing required heat pump history env vars: HEATPUMP_HISTORY_API_KEY/
+    );
+  });
+
+  it('throws a configuration error when URL is missing in production', async () => {
+    process.env.NODE_ENV = 'production';
+    delete process.env.HEATPUMP_HISTORY_URL;
+
+    await expect(fetchHeatPumpHistory(baseRequest)).rejects.toThrow(
+      /Missing required heat pump history env vars: HEATPUMP_HISTORY_URL/
     );
   });
 });

@@ -11,12 +11,13 @@ Node/Express API that powers the Greenbro mobile app. Includes authentication, s
 - `MQTT_*` are required if MQTT ingest is enabled.
 - `ALERT_OFFLINE_MINUTES` / `ALERT_OFFLINE_CRITICAL_MINUTES` set the warning vs critical thresholds for offline alerts (only critical sends push); `ALERT_HIGH_TEMP_THRESHOLD` controls high-temp alerts.
 - `CONTROL_*` configure HTTP control when enabled; `CONTROL_COMMAND_THROTTLE_MS` bounds repeat commands to the same device.
-- `HEATPUMP_HISTORY_URL` / `HEATPUMP_HISTORY_API_KEY` configure the upstream Heat Pump History API client (URL defaults to the Azure endpoint; API key required in staging/prod). Legacy `HEAT_PUMP_*` envs are still accepted but deprecated.
+- `HEATPUMP_HISTORY_URL` / `HEATPUMP_HISTORY_API_KEY` configure the upstream Heat Pump History API client. Both are required when `NODE_ENV` is not `development`; missing values disable `/heat-pump-history` with a 503 instead of falling back to the dev URL. Legacy `HEAT_PUMP_*` envs are still accepted but deprecated.
 - `EXPO_ACCESS_TOKEN` is optional but recommended for sending push notifications.
 
 ## Heat pump history
 - Upstream Azure dev endpoint (`https://za-iot-dev-api.azurewebsites.net/api/HeatPumpHistory/historyHeatPump`) accepts the vendor payload shape: top-level `aggregation` (e.g., `"raw"`), `from`, `to`, `mode`, `fields`, and `mac`, sent as JSON (`content-type: application/json-patch+json`) with `x-api-key`.
 - Responses come back as `series` entries with `name` + `data` pairs like `[[timestampMs, value], ...]`; the client normalizes these into `HeatPumpHistoryResponse.series[].points` with ISO timestamps and numeric values for the mobile app.
+- `/heat-pump-history` now scopes by organisation and device: it resolves the device by ID within the requesting user’s org, uses the device’s stored MAC for the vendor call, returns 404 if the device is outside the org, and 400 if the device has no MAC configured. The vendor payload sent upstream stays `aggregation/from/to/mode/fields/mac` at the top level with `content-type: application/json-patch+json` and `accept: text/plain`.
 - Manual probing: `npm run script:debug:heat-pump-history` runs `src/scripts/debugHeatPumpHistory.ts` against Azure. As of 2025-12-04, the vendor/top-level shape succeeds (HTTP 200); nested `query` variants return HTTP 400. Keep API keys in `.env`, never log them.
 - The canonical env vars are `HEATPUMP_HISTORY_URL`, `HEATPUMP_HISTORY_API_KEY`, and `HEATPUMP_HISTORY_TIMEOUT_MS`; `HEAT_PUMP_*` names remain temporarily supported for compatibility only.
 

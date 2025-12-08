@@ -1,8 +1,10 @@
 import { z } from 'zod';
 import {
   fetchHeatPumpHistory,
+  getHeatPumpHistoryConfig,
   type HeatPumpHistoryResult,
 } from '../integrations/heatPumpHistoryClient';
+import { getDeviceById } from '../repositories/devicesRepository';
 
 const isoString = z
   .string()
@@ -11,7 +13,7 @@ const isoString = z
 
 const heatPumpHistoryRequestSchema = z
   .object({
-    mac: z.string().min(1),
+    deviceId: z.string().min(1),
     from: isoString,
     to: isoString,
     aggregation: z.enum(['raw', 'avg', 'min', 'max']).default('raw'),
@@ -40,12 +42,34 @@ export class HeatPumpHistoryValidationError extends Error {
   }
 }
 
+export class HeatPumpHistoryFeatureDisabledError extends Error {
+  constructor(message = 'Heat pump history is disabled in this environment') {
+    super(message);
+    this.name = 'HeatPumpHistoryFeatureDisabledError';
+  }
+}
+
+export class HeatPumpHistoryDeviceNotFoundError extends Error {
+  constructor(message = 'Device not found') {
+    super(message);
+    this.name = 'HeatPumpHistoryDeviceNotFoundError';
+  }
+}
+
+export class HeatPumpHistoryMissingMacError extends Error {
+  constructor(message = 'Device is missing a MAC address') {
+    super(message);
+    this.name = 'HeatPumpHistoryMissingMacError';
+  }
+}
+
 type UserContext = {
-  userId: string | null;
+  userId: string;
+  organisationId: string;
 };
 
 export async function getHistoryForRequest(
-  _userContext: UserContext,
+  userContext: UserContext,
   payload: unknown
 ): Promise<HeatPumpHistoryResult> {
   const parsed = heatPumpHistoryRequestSchema.safeParse(payload);
@@ -53,6 +77,23 @@ export async function getHistoryForRequest(
     throw new HeatPumpHistoryValidationError('Invalid body');
   }
 
-  // Future: enforce org/device scoping using userId/org context once available.
-  return fetchHeatPumpHistory(parsed.data);
+  const config = getHeatPumpHistoryConfig();
+  if (config.nodeEnv !== 'development' && config.missingKeys.length > 0) {
+    throw new HeatPumpHistoryFeatureDisabledError(
+      'Heat pump history is disabled until required env vars are set'
+    );
+  }
+
+  const device = await getDeviceById(parsed.data.deviceId, userContext.organisationId);
+  if (!device) {
+    throw new HeatPumpHistoryDeviceNotFoundError('Device not found for this organisation');
+  }
+
+  const mac = (device.mac ?? '').trim();
+  if (!mac) {
+    throw new HeatPumpHistoryMissingMacError('Device has no MAC configured');
+  }
+
+  const { deviceId: _deviceId, ...historyRequest } = parsed.data;
+  return fetchHeatPumpHistory({ ...historyRequest, mac });
 }

@@ -6,6 +6,7 @@ import { runPushHealthCheck, type PushHealthStatus } from './pushService';
 import { type SystemStatus, getSystemStatus, getSystemStatusByKey } from './statusService';
 import { logger } from '../config/logger';
 import { getStorageRoot } from '../config/storage';
+import { getHeatPumpHistoryConfig } from '../integrations/heatPumpHistoryClient';
 
 const MQTT_INGEST_STALE_MS = 5 * 60 * 1000;
 const MQTT_ERROR_WINDOW_MS = 5 * 60 * 1000;
@@ -103,9 +104,7 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
   const alertsWorkerEnabled =
     (process.env.ALERT_WORKER_ENABLED || 'true').toLowerCase() !== 'false';
   const alertsExpected = env === 'production' && alertsWorkerEnabled;
-  const heatPumpConfigured = Boolean(
-    process.env.HEATPUMP_HISTORY_API_KEY || process.env.HEAT_PUMP_HISTORY_API_KEY
-  );
+  const heatPumpConfigured = getHeatPumpHistoryConfig().configured;
 
   try {
     const dbRes = await query('select 1 as ok');

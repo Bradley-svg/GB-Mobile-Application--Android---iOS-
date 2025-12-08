@@ -18,10 +18,8 @@ const log = logger.child({ module: 'debugHeatPumpHistory' });
 
 function resolveConfig() {
   const nodeEnv = process.env.NODE_ENV || 'development';
-  const url =
-    process.env.HEATPUMP_HISTORY_URL?.trim() ||
-    process.env.HEAT_PUMP_HISTORY_URL?.trim() ||
-    DEFAULT_HEATPUMP_HISTORY_URL;
+  const rawUrl =
+    process.env.HEATPUMP_HISTORY_URL?.trim() || process.env.HEAT_PUMP_HISTORY_URL?.trim();
   const apiKey =
     process.env.HEATPUMP_HISTORY_API_KEY?.trim() ||
     process.env.HEAT_PUMP_HISTORY_API_KEY?.trim();
@@ -32,13 +30,19 @@ function resolveConfig() {
     Number.isFinite(parsedTimeout) && parsedTimeout > 0
       ? parsedTimeout
       : DEFAULT_REQUEST_TIMEOUT_MS;
+  const url = rawUrl || (nodeEnv === 'development' ? DEFAULT_HEATPUMP_HISTORY_URL : undefined);
 
-  if (!url && nodeEnv !== 'development') {
-    throw new Error('HEATPUMP_HISTORY_URL is required when NODE_ENV is not development');
+  if (nodeEnv !== 'development') {
+    if (!rawUrl) {
+      throw new Error('HEATPUMP_HISTORY_URL is required when NODE_ENV is not development');
+    }
+    if (!apiKey) {
+      throw new Error('HEATPUMP_HISTORY_API_KEY is required when NODE_ENV is not development');
+    }
   }
 
-  if (!apiKey && nodeEnv !== 'development') {
-    throw new Error('HEATPUMP_HISTORY_API_KEY is required when NODE_ENV is not development');
+  if (!url) {
+    throw new Error('HEATPUMP_HISTORY_URL is required');
   }
 
   return { url, apiKey, requestTimeoutMs };

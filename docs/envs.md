@@ -17,8 +17,8 @@ Centralised reference for backend and mobile environment variables across dev/st
 - `CORS_ALLOWED_ORIGINS`: Comma-separated allowlist for browser origins (prod/staging should be explicit; dev can allow-all).
 - `LOG_LEVEL`: Structured JSON logger level (`info` default).
 - `APP_VERSION`: Optional version string surfaced on `/health-plus`.
-- `HEATPUMP_HISTORY_URL`: Base URL for the Azure heat-pump history API.
-- `HEATPUMP_HISTORY_API_KEY`: API key for the history API.
+- `HEATPUMP_HISTORY_URL`: Base URL for the Azure heat-pump history API (required outside `NODE_ENV=development`; endpoint returns 503 when missing).
+- `HEATPUMP_HISTORY_API_KEY`: API key for the history API (required outside `NODE_ENV=development`; endpoint returns 503 when missing).
 - `HEATPUMP_HISTORY_TIMEOUT_MS`: Request timeout for the history API client (milliseconds).
 - `MQTT_URL`: MQTT broker URL (e.g., `mqtt://broker:1883`).
 - `MQTT_USERNAME` / `MQTT_PASSWORD`: Optional MQTT credentials when brokers require auth.

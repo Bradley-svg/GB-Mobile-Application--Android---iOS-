@@ -38,6 +38,16 @@ function recordSuccess() {
 let legacyEnvWarningLogged = false;
 let invalidTimeoutWarningLogged = false;
 
+export class HeatPumpHistoryConfigurationError extends Error {
+  missingKeys: string[];
+
+  constructor(message: string, missingKeys: string[]) {
+    super(message);
+    this.name = 'HeatPumpHistoryConfigurationError';
+    this.missingKeys = missingKeys;
+  }
+}
+
 export type HeatPumpHistoryField = {
   field: string;
   unit?: string;
@@ -74,6 +84,15 @@ export type HeatPumpHistoryResult =
   | { ok: false; kind: 'UPSTREAM_ERROR' | 'CIRCUIT_OPEN'; message: string };
 
 type AzureHeatPumpHistoryRequest = HeatPumpHistoryRequest;
+
+export type HeatPumpHistoryClientConfig = {
+  url?: string;
+  apiKey?: string;
+  requestTimeoutMs: number;
+  configured: boolean;
+  missingKeys: string[];
+  nodeEnv: string;
+};
 
 function buildAzureRequest(payload: HeatPumpHistoryRequest): AzureHeatPumpHistoryRequest {
   // Azure dev endpoint (see src/scripts/debugHeatPumpHistory.ts) accepts the vendor shape:
@@ -129,25 +148,30 @@ function resolveTimeoutMs() {
   return parsedTimeout;
 }
 
-function resolveConfig() {
+export function getHeatPumpHistoryConfig(): HeatPumpHistoryClientConfig {
   const nodeEnv = process.env.NODE_ENV || 'development';
   const resolvedUrl = resolveEnvValue('HEATPUMP_HISTORY_URL', 'HEAT_PUMP_HISTORY_URL');
-  const url = resolvedUrl.value || DEFAULT_HEATPUMP_HISTORY_URL;
-
+  const rawUrl = resolvedUrl.value;
   const resolvedApiKey = resolveEnvValue('HEATPUMP_HISTORY_API_KEY', 'HEAT_PUMP_HISTORY_API_KEY');
   const apiKey = resolvedApiKey.value;
-
+  const url = rawUrl || (nodeEnv === 'development' ? DEFAULT_HEATPUMP_HISTORY_URL : undefined);
   const requestTimeoutMs = resolveTimeoutMs();
+  const missingKeys =
+    nodeEnv === 'development'
+      ? []
+      : [
+          ...(rawUrl ? [] : ['HEATPUMP_HISTORY_URL']),
+          ...(apiKey ? [] : ['HEATPUMP_HISTORY_API_KEY']),
+        ];
 
-  if (!url && nodeEnv !== 'development') {
-    throw new Error('HEATPUMP_HISTORY_URL is required when NODE_ENV is not development');
-  }
-
-  if (!apiKey && nodeEnv !== 'development') {
-    throw new Error('HEATPUMP_HISTORY_API_KEY is required when NODE_ENV is not development');
-  }
-
-  return { url, apiKey, requestTimeoutMs };
+  return {
+    url,
+    apiKey,
+    requestTimeoutMs,
+    configured: Boolean(url && apiKey),
+    missingKeys,
+    nodeEnv,
+  };
 }
 
 function safeParseJson(text: string) {
@@ -242,7 +266,22 @@ export async function fetchHeatPumpHistory(req: HeatPumpHistoryRequest): Promise
   }
 
   const azurePayload = buildAzureRequest(req);
-  const { url, apiKey, requestTimeoutMs } = resolveConfig();
+  const config = getHeatPumpHistoryConfig();
+  if (config.missingKeys.length > 0) {
+    throw new HeatPumpHistoryConfigurationError(
+      `Missing required heat pump history env vars: ${config.missingKeys.join(', ')}`,
+      config.missingKeys
+    );
+  }
+
+  if (!config.url) {
+    throw new HeatPumpHistoryConfigurationError(
+      'Heat pump history URL is not configured',
+      ['HEATPUMP_HISTORY_URL']
+    );
+  }
+
+  const { url, apiKey, requestTimeoutMs } = config;
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);

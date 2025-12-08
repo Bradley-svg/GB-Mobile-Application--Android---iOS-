@@ -53,7 +53,7 @@
 - **P0:** None blocking production identified.
 - **P1:**
   1) Add RBAC guard for CSV exports (use `canExportData`) or explicitly document role access; align with permission expectations.
-  2) Scope heat-pump history to org/device and require env URL/API key in non-dev to avoid hitting default dev endpoint.
+  2) DONE: Heat-pump history now resolves devices within the requester’s org, uses the stored MAC, and requires explicit URL/API key outside development (missing envs return 503 instead of hitting the default dev endpoint).
   3) Add AV scanning and/or signed URL/CDN fronting for `/files` now that auth/org scoping is enforced.
 - **P2:**
   1) Resolve Jest `act()` warnings (DeviceDetail/Profile/WorkOrder/Site tests) to reduce noise.

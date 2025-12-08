@@ -98,6 +98,8 @@ beforeEach(() => {
   runPushHealthCheckMock.mockReset();
   getSystemStatusMock.mockReset();
   getSystemStatusByKeyMock.mockReset();
+  delete process.env.HEATPUMP_HISTORY_URL;
+  delete process.env.HEAT_PUMP_HISTORY_URL;
   delete process.env.HEATPUMP_HISTORY_API_KEY;
   delete process.env.HEAT_PUMP_HISTORY_API_KEY;
 
@@ -256,6 +258,7 @@ describe('GET /health-plus (baseline)', () => {
 
 describe('GET /health-plus heat pump history', () => {
   it('marks heat pump history healthy when configured with a recent success', async () => {
+    process.env.HEATPUMP_HISTORY_URL = 'https://example.com/history';
     process.env.HEATPUMP_HISTORY_API_KEY = 'test-key';
     const recentSuccess = new Date(Date.now() - 10 * 60 * 1000);
     queryMock.mockResolvedValueOnce({ rows: [{ ok: 1 }], rowCount: 1 });
@@ -273,6 +276,7 @@ describe('GET /health-plus heat pump history', () => {
   });
 
   it('marks heat pump history unhealthy when recent errors outnumber stale successes', async () => {
+    process.env.HEATPUMP_HISTORY_URL = 'https://example.com/history';
     process.env.HEATPUMP_HISTORY_API_KEY = 'test-key';
     const staleSuccess = new Date(Date.now() - 7 * 60 * 60 * 1000);
     const recentError = new Date(Date.now() - 30 * 60 * 1000);
