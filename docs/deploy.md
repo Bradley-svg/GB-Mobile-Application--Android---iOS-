@@ -69,6 +69,32 @@ npx eas build --platform android --profile staging
 
 Install the artifact on a device and follow the smoke path in `docs/mobile-ux-notes.md`.
 
+## Signed URL rollout plan
+- Phase 1 (current): JWT-protected `/files/:path` stays primary; signed URLs exist but mobile flag stays off.
+- Phase 2 (staging): set a unique `FILE_SIGNING_SECRET` in staging, keep `AV_SCANNER_ENABLED=true` with a valid scanner target, and flip `EXPO_PUBLIC_USE_SIGNED_FILE_URLS=true` in the staging EAS profile. Verify `POST /files/:id/signed-url` returns a token, `GET /files/signed/:token` downloads without an `Authorization` header, and infected/error uploads are still blocked by AV.
+- Phase 3 (production): decide whether a CDN fronts `/files/signed/*`. Ensure query-string tokens are forwarded if a CDN is in place (no auth header expected). Keep the JWT `/files/:path` flow available for clients that have not switched to signed URLs.
+
+## Staging bring-up (AV + signed URLs + health)
+1) Set staging backend env vars:
+   - `FILE_SIGNING_SECRET` to a long, unique value (not the JWT secret).
+   - `AV_SCANNER_ENABLED=true` plus either `AV_SCANNER_CMD` or `AV_SCANNER_HOST`/`AV_SCANNER_PORT` (or explicitly leave AV disabled for the first deploy and note it).
+   - `FILE_STORAGE_ROOT` pointing at a writable path; optionally `FILE_STORAGE_BASE_URL` if a proxy/CDN fronts `/files`.
+2) Deploy the backend (`npm ci && npm run migrate:dev && npm run build && npm start` via your supervisor).
+3) Health check:
+```
+curl https://staging-api.greenbro.co.za/health-plus
+```
+   Expect `ok:true`, `db:"ok"`, storage `writable:true`, antivirus block `configured:true` + `healthy:true` once a scan has run, mqtt/control configured flags reflecting your env, and heatPumpHistory aligned to configured URLs/keys.
+4) Signed URL smoke test (with a valid JWT):
+```
+curl -X POST https://staging-api.greenbro.co.za/files/<file-id>/signed-url \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"ttlSeconds": 3600}'
+```
+   Hit the returned `/files/signed/...` URL in a browser; the file should download without an `Authorization` header.
+5) Mobile staging toggle: in the staging EAS profile set `EXPO_PUBLIC_USE_SIGNED_FILE_URLS=true` so staging builds fetch signed URLs; keep dev/prod profiles at the default `false` until ready.
+
 ## Health expectations
 - Staging without control/MQTT: `/health-plus` should report `configured:false` but `healthy:true` for MQTT/control, alerts worker heartbeat present if enabled.
 - Production with integrations wired: `/health-plus` should show `configured:true` for MQTT/control/heatPumpHistory with `lastSuccessAt` timestamps within expected windows (MQTT ingest within ~5m of traffic, alerts worker heartbeat within ~2x `ALERT_WORKER_INTERVAL_SEC`), and no recent errors.

@@ -50,7 +50,7 @@ export function verifyFileToken(token: string): FileTokenVerification {
   try {
     payloadBuffer = Buffer.from(payloadB64, 'base64url');
     providedSig = Buffer.from(signatureB64, 'base64url');
-  } catch (err) {
+  } catch {
     return { valid: false, expired: false };
   }
 
@@ -73,7 +73,7 @@ export function verifyFileToken(token: string): FileTokenVerification {
 
     const expired = Date.now() > expiresAtMs;
     return { valid: !expired, expired, fileId };
-  } catch (err) {
+  } catch {
     return { valid: false, expired: false };
   }
 }

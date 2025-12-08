@@ -126,7 +126,7 @@ describe('DocumentsScreen', () => {
       refetch: jest.fn(),
       dataUpdatedAt: Date.now(),
     });
-    const openSpy = (Linking.openURL as jest.Mock).mockResolvedValueOnce();
+    const openSpy = (Linking.openURL as jest.Mock).mockResolvedValueOnce(undefined);
 
     render(<DocumentsScreen />);
     fireEvent.press(screen.getByTestId('document-row'));

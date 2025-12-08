@@ -1,7 +1,7 @@
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import type { Express } from 'express';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { HeatPumpHistoryResult } from '../src/integrations/heatPumpHistoryClient';
 import type { DeviceRow } from '../src/repositories/devicesRepository';
 
@@ -19,6 +19,15 @@ vi.mock('../src/integrations/heatPumpHistoryClient', () => ({
   getHeatPumpHistoryConfig: (...args: unknown[]) =>
     getHeatPumpHistoryConfigMock(...args),
 }));
+
+const originalEnv = {
+  NODE_ENV: process.env.NODE_ENV,
+  JWT_SECRET: process.env.JWT_SECRET,
+  HEATPUMP_HISTORY_URL: process.env.HEATPUMP_HISTORY_URL,
+  HEATPUMP_HISTORY_API_KEY: process.env.HEATPUMP_HISTORY_API_KEY,
+  HEAT_PUMP_HISTORY_URL: process.env.HEAT_PUMP_HISTORY_URL,
+  HEAT_PUMP_HISTORY_API_KEY: process.env.HEAT_PUMP_HISTORY_API_KEY,
+};
 
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test-secret';
@@ -38,6 +47,16 @@ const defaultDevice: DeviceRow = {
   controller: null,
   firmware_version: null,
   connectivity_status: null,
+};
+
+const resetEnvToDefaults = () => {
+  process.env.NODE_ENV = 'test';
+  process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
+  process.env.HEATPUMP_HISTORY_URL =
+    'https://za-iot-dev-api.azurewebsites.net/api/HeatPumpHistory/historyHeatPump';
+  process.env.HEATPUMP_HISTORY_API_KEY = 'test-key';
+  delete process.env.HEAT_PUMP_HISTORY_URL;
+  delete process.env.HEAT_PUMP_HISTORY_API_KEY;
 };
 
 const buildConfig = () => {
@@ -78,13 +97,27 @@ beforeEach(() => {
   fetchHeatPumpHistoryMock.mockReset();
   queryMock.mockReset();
   getHeatPumpHistoryConfigMock.mockReset();
-  process.env.NODE_ENV = 'test';
-  process.env.HEATPUMP_HISTORY_URL =
-    'https://za-iot-dev-api.azurewebsites.net/api/HeatPumpHistory/historyHeatPump';
-  process.env.HEATPUMP_HISTORY_API_KEY = 'test-key';
-  delete process.env.HEAT_PUMP_HISTORY_URL;
-  delete process.env.HEAT_PUMP_HISTORY_API_KEY;
+  resetEnvToDefaults();
   getHeatPumpHistoryConfigMock.mockImplementation(buildConfig);
+});
+
+afterEach(() => {
+  resetEnvToDefaults();
+});
+
+afterAll(() => {
+  const restore = (key: keyof typeof originalEnv) => {
+    const value = originalEnv[key];
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  };
+
+  (['NODE_ENV', 'JWT_SECRET', 'HEATPUMP_HISTORY_URL', 'HEATPUMP_HISTORY_API_KEY', 'HEAT_PUMP_HISTORY_URL', 'HEAT_PUMP_HISTORY_API_KEY'] as const).forEach(
+    (key) => restore(key)
+  );
 });
 
 function mockDb({

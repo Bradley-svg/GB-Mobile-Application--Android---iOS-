@@ -1,6 +1,6 @@
 import request from 'supertest';
 import type { Express } from 'express';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SystemStatus } from '../src/services/statusService';
 
 const queryMock = vi.fn();
@@ -33,6 +33,14 @@ vi.mock('../src/services/virusScanner', () => ({
 }));
 
 let app: Express;
+const originalEnv = {
+  NODE_ENV: process.env.NODE_ENV,
+  APP_VERSION: process.env.APP_VERSION,
+  PUSH_HEALTHCHECK_ENABLED: process.env.PUSH_HEALTHCHECK_ENABLED,
+  ALERT_WORKER_ENABLED: process.env.ALERT_WORKER_ENABLED,
+  ALERT_WORKER_INTERVAL_SEC: process.env.ALERT_WORKER_INTERVAL_SEC,
+};
+
 const baseSystemStatus = (): SystemStatus => ({
   key: 'global',
   payload: {},
@@ -68,10 +76,16 @@ const defaultMqtt = {
 };
 const defaultPushHealth = { configured: false, tokensPresent: false, lastSample: null };
 
-beforeAll(async () => {
+const resetEnv = () => {
   process.env.NODE_ENV = 'test';
   process.env.APP_VERSION = 'test-version';
   process.env.PUSH_HEALTHCHECK_ENABLED = 'false';
+  delete process.env.ALERT_WORKER_ENABLED;
+  delete process.env.ALERT_WORKER_INTERVAL_SEC;
+};
+
+beforeAll(async () => {
+  resetEnv();
   const mod = await import('../src/index');
   app = mod.default;
 });
@@ -103,13 +117,27 @@ beforeEach(() => {
     lastError: null,
   });
 
-  process.env.NODE_ENV = 'test';
-  delete process.env.ALERT_WORKER_ENABLED;
-  delete process.env.ALERT_WORKER_INTERVAL_SEC;
+  resetEnv();
+});
+
+afterEach(() => {
+  resetEnv();
 });
 
 afterAll(() => {
   consoleErrorSpy.mockRestore();
+  const restore = (key: keyof typeof originalEnv) => {
+    const value = originalEnv[key];
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  };
+
+  (['NODE_ENV', 'APP_VERSION', 'PUSH_HEALTHCHECK_ENABLED', 'ALERT_WORKER_ENABLED', 'ALERT_WORKER_INTERVAL_SEC'] as const).forEach(
+    (key) => restore(key)
+  );
 });
 
 describe('GET /health-plus mqtt/control status', () => {

@@ -126,11 +126,12 @@ async function scanWithSocket(
       socket.write('zINSTREAM\u0000');
       const readStream = fs.createReadStream(filePath, { highWaterMark: 64 * 1024 });
 
-      readStream.on('data', (chunk: Buffer) => {
+      readStream.on('data', (chunk) => {
+        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
         const length = Buffer.alloc(4);
-        length.writeUInt32BE(chunk.length, 0);
+        length.writeUInt32BE(buffer.length, 0);
         socket.write(length);
-        socket.write(chunk);
+        socket.write(buffer);
       });
 
       readStream.on('error', () => settle('error'));

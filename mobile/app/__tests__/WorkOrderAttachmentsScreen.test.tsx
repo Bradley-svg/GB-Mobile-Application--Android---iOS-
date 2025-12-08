@@ -146,7 +146,7 @@ describe('WorkOrderDetailScreen attachments', () => {
       isLoading: false,
       isFetching: false,
     });
-    const openSpy = (Linking.openURL as jest.Mock).mockResolvedValueOnce();
+    const openSpy = (Linking.openURL as jest.Mock).mockResolvedValueOnce(undefined);
 
     render(<WorkOrderDetailScreen />);
     fireEvent.press(screen.getByTestId('attachment-a1'));

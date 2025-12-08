@@ -17,13 +17,13 @@ Centralised reference for backend and mobile environment variables across dev/st
 - `CORS_ALLOWED_ORIGINS`: Comma-separated allowlist for browser origins (prod/staging should be explicit; dev can allow-all).
 - `LOG_LEVEL`: Structured JSON logger level (`info` default).
 - `APP_VERSION`: Optional version string surfaced on `/health-plus`.
-- `FILE_STORAGE_ROOT`: Root path for uploaded files (defaults to `./storage` in local dev).
-- `FILE_STORAGE_BASE_URL`: Base URL used when returning `/files/...` links.
-- `FILE_SIGNING_SECRET`: Optional HMAC secret for issuing `/files/:id/signed-url` tokens; when unset signed URLs are disabled and `/files/:id/signed-url` returns `ERR_FILE_SIGNING_DISABLED`.
+- `FILE_STORAGE_ROOT`: Root path for uploaded files (defaults to `./storage` in local dev; must be writable on staging/prod hosts or the storage block in `/health-plus` will fail).
+- `FILE_STORAGE_BASE_URL`: Base URL used when returning `/files/...` links (use API origin in dev; point at the reverse-proxy/CDN origin in staging/prod).
+- `FILE_SIGNING_SECRET`: HMAC secret for issuing `/files/:id/signed-url` tokens; optional in dev, required in staging/prod if signed URLs are enabled. Do not reuse the JWT secret.
 - Signed URLs: issue tokens with `POST /files/:id/signed-url` (requires auth + org/role checks) and consume with `GET /files/signed/:token`; uploads are still AV-scanned before they land in `FILE_STORAGE_ROOT` regardless of signing.
-- `AV_SCANNER_ENABLED`: Enable antivirus scanning for uploads when `true`; in tests or when unset the scanner is stubbed and always reports clean.
-- `AV_SCANNER_CMD`: Optional command/binary for scanning when enabled (defaults to `clamscan --no-summary` if unset).
-- `AV_SCANNER_HOST` / `AV_SCANNER_PORT`: Optional clamd target; when both are set uploads are streamed to the daemon instead of running a local command.
+- `AV_SCANNER_ENABLED`: Enable antivirus scanning for uploads when `true`; in tests or when unset the scanner is stubbed and always reports clean. Staging/prod should set this to `true` with a real scanner target.
+- `AV_SCANNER_CMD`: Optional command/binary for scanning when enabled (defaults to `clamscan --no-summary` if unset) — use when running a local scanner process.
+- `AV_SCANNER_HOST` / `AV_SCANNER_PORT`: Optional clamd target; when both are set uploads are streamed to the daemon instead of running a local command. Mutually exclusive with `AV_SCANNER_CMD`.
 - `HEATPUMP_HISTORY_URL`: Base URL for the Azure heat-pump history API (required outside `NODE_ENV=development`; endpoint returns 503 when missing).
 - `HEATPUMP_HISTORY_API_KEY`: API key for the history API (required outside `NODE_ENV=development`; endpoint returns 503 when missing).
 - `HEATPUMP_HISTORY_TIMEOUT_MS`: Request timeout for the history API client (milliseconds).
@@ -44,6 +44,7 @@ Centralised reference for backend and mobile environment variables across dev/st
 - `DATABASE_URL` / `TEST_DATABASE_URL`: Point to isolated databases per environment; tests should only touch test DBs with `ALLOW_TEST_DB_RESET=true` when destructive operations are allowed.
 - Logging/audit: Pino JSON logs by default; prefer centralized aggregation and immutable audit trails in staging/prod.
 - `HEATPUMP_*`, `MQTT_*`, and `CONTROL_*` values should reference staging/prod services with stronger credentials and restricted network access.
+- File access: `FILE_STORAGE_ROOT` must be writable and backed by durable storage; set `FILE_STORAGE_BASE_URL` to the public-facing origin (API or CDN) so returned links resolve. Configure a unique `FILE_SIGNING_SECRET` per environment before enabling signed URLs. AV should be enabled with either `AV_SCANNER_CMD` or `AV_SCANNER_HOST`/`PORT` set; otherwise uploads will short-circuit with `ERR_FILE_SCAN_FAILED` when the flag is on but no scanner is reachable.
 
 ## Staging URLs
 - `STAGING_API_URL=https://staging-api.greenbro.co.za` (staging backend host; DNS/host must exist and be included in `CORS_ALLOWED_ORIGINS`).
@@ -57,6 +58,6 @@ Centralised reference for backend and mobile environment variables across dev/st
   - Dev (LAN/real devices): `http://<your-lan-ip>:4000`
   - Staging: `https://staging-api.greenbro.co.za` (pending DNS/host bring-up)
   - Production: `https://api.greenbro.co.za`
-- `EXPO_PUBLIC_USE_SIGNED_FILE_URLS`: Optional boolean to fetch a signed file URL before opening attachments/documents (default false; keeps using JWT-protected `/files` when unset).
+- `EXPO_PUBLIC_USE_SIGNED_FILE_URLS`: Optional boolean to fetch a signed file URL before opening attachments/documents (default false; keeps using JWT-protected `/files` when unset). Enable in staging builds once `FILE_SIGNING_SECRET` is set; keep dev/prod at the default until rollout.
 - Expo push: configure the Expo project and push notification credentials per environment; ensure staging devices use staging backends to avoid cross-environment pushes.
 - Notification preferences: persisted via backend `/user/preferences` (alertsEnabled toggle) and cached locally via AsyncStorage; no extra mobile envs beyond the API URL.

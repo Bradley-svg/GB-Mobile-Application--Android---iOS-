@@ -8,6 +8,7 @@ import {
   useUpdateWorkOrderTasks,
   useWorkOrderAttachments,
   useUploadWorkOrderAttachment,
+  useSignedFileUrl,
 } from '../api/hooks';
 import { useNetworkBanner } from '../hooks/useNetworkBanner';
 import { useAuthStore } from '../store/authStore';
@@ -23,6 +24,7 @@ jest.mock('../api/hooks', () => ({
   useUpdateWorkOrderTasks: jest.fn(),
   useWorkOrderAttachments: jest.fn(),
   useUploadWorkOrderAttachment: jest.fn(),
+  useSignedFileUrl: jest.fn(),
 }));
 
 jest.mock('../hooks/useNetworkBanner', () => ({
@@ -59,6 +61,7 @@ describe('WorkOrderDetailScreen', () => {
   const statusMutate = jest.fn();
   const tasksMutate = jest.fn();
   const uploadMutate = jest.fn();
+  const signedUrlMutate = jest.fn();
   const renderWorkOrderScreen = async () => {
     render(<WorkOrderDetailScreen />);
     await act(async () => {});
@@ -105,6 +108,10 @@ describe('WorkOrderDetailScreen', () => {
     });
     (useUploadWorkOrderAttachment as jest.Mock).mockReturnValue({
       mutateAsync: uploadMutate,
+      isPending: false,
+    });
+    (useSignedFileUrl as jest.Mock).mockReturnValue({
+      mutateAsync: signedUrlMutate,
       isPending: false,
     });
   });

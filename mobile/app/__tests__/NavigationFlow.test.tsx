@@ -33,37 +33,37 @@ jest.mock('../hooks/useNetworkBanner', () => ({
 }));
 jest.mock('../screens/Dashboard/DashboardScreen', () => ({
   DashboardScreen: () => {
-    const React = require('react');
-    const { Text } = require('react-native');
-    return React.createElement(Text, null, 'Test Site');
+    const ReactActual = jest.requireActual('react') as typeof import('react');
+    const { Text } = jest.requireActual('react-native');
+    return ReactActual.createElement(Text, null, 'Test Site');
   },
 }));
 jest.mock('../screens/Alerts/AlertsScreen', () => ({
   AlertsScreen: () => {
-    const React = require('react');
-    const { Text } = require('react-native');
-    return React.createElement(Text, null, 'No active alerts.');
+    const ReactActual = jest.requireActual('react') as typeof import('react');
+    const { Text } = jest.requireActual('react-native');
+    return ReactActual.createElement(Text, null, 'No active alerts.');
   },
 }));
 jest.mock('../screens/Profile/ProfileScreen', () => ({
   ProfileScreen: () => {
-    const React = require('react');
-    const { Text } = require('react-native');
-    return React.createElement(Text, null, 'Log out');
+    const ReactActual = jest.requireActual('react') as typeof import('react');
+    const { Text } = jest.requireActual('react-native');
+    return ReactActual.createElement(Text, null, 'Log out');
   },
 }));
 jest.mock('../screens/Search/SearchScreen', () => ({
   SearchScreen: () => {
-    const React = require('react');
-    const { Text } = require('react-native');
-    return React.createElement(Text, null, 'Search Screen');
+    const ReactActual = jest.requireActual('react') as typeof import('react');
+    const { Text } = jest.requireActual('react-native');
+    return ReactActual.createElement(Text, null, 'Search Screen');
   },
 }));
 jest.mock('../screens/Maintenance/MaintenanceCalendarScreen', () => ({
   MaintenanceCalendarScreen: () => {
-    const React = require('react');
-    const { Text } = require('react-native');
-    return React.createElement(Text, null, 'Maintenance Calendar');
+    const ReactActual = jest.requireActual('react') as typeof import('react');
+    const { Text } = jest.requireActual('react-native');
+    return ReactActual.createElement(Text, null, 'Maintenance Calendar');
   },
 }));
 
