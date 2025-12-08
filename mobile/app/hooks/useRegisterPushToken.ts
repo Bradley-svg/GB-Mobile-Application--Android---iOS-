@@ -5,11 +5,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { api } from '../api/client';
 import { useAuthStore } from '../store/authStore';
+import { NOTIFICATION_PREFERENCES_QUERY_KEY } from '../api/preferences/hooks';
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
-  NOTIFICATION_PREFERENCES_QUERY_KEY,
   readNotificationPreferences,
-} from '../api/preferences/hooks';
+} from '../api/preferences/storage';
 import {
   LAST_REGISTERED_PUSH_TOKEN_KEY,
   LAST_REGISTERED_USER_ID_KEY,

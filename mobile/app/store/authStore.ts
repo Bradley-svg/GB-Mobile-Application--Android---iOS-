@@ -12,7 +12,7 @@ import {
   DEFAULT_NOTIFICATION_PREFERENCES,
   NOTIFICATION_PREFERENCES_KEY_PREFIX,
   readNotificationPreferences,
-} from '../api/preferences/hooks';
+} from '../api/preferences/storage';
 
 type AuthUser = {
   id: string;
