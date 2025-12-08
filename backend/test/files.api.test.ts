@@ -9,11 +9,14 @@ import { query } from '../src/config/db';
 const DEFAULT_USER_ID = '44444444-4444-4444-4444-444444444444';
 const OTHER_USER_ID = '55555555-aaaa-bbbb-cccc-dddddddddddd';
 const OTHER_ORG_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+const OTHER_ORG_SITE_ID = '99999999-9999-9999-9999-999999999999';
 
 const ATTACHMENT_PATH =
   'work-orders/11111111-1111-1111-1111-111111111111/55555555-5555-5555-5555-555555555555/pump-photo.jpg';
 const DOCUMENT_PATH =
   'documents/11111111-1111-1111-1111-111111111111/site/22222222-2222-2222-2222-222222222222/manual.pdf';
+const OTHER_ORG_DOCUMENT_PATH =
+  `documents/${OTHER_ORG_ID}/site/${OTHER_ORG_SITE_ID}/other-manual.pdf`;
 
 let app: Express;
 let token: string;
@@ -33,6 +36,14 @@ beforeAll(async () => {
   `,
     [OTHER_ORG_ID]
   );
+  await query(
+    `
+    insert into sites (id, organisation_id, name, city, status, last_seen_at, external_id)
+    values ($1, $2, 'Other Org Site', 'Cape Town', 'healthy', now(), 'other-site-1')
+    on conflict (id) do nothing
+  `,
+    [OTHER_ORG_SITE_ID, OTHER_ORG_ID]
+  );
 
   await query(
     `
@@ -42,13 +53,42 @@ beforeAll(async () => {
   `,
     [OTHER_USER_ID, OTHER_ORG_ID]
   );
+  await query(
+    `
+    insert into documents (
+      id, org_id, site_id, device_id, title, category, description,
+      filename, original_name, mime_type, size_bytes, relative_path, uploaded_by_user_id, created_at
+    )
+    values (
+      '99999999-aaaa-bbbb-cccc-dddddddddddd',
+      $1,
+      $4,
+      null,
+      'Other org manual',
+      'manual',
+      null,
+      'other-manual.pdf',
+      'other-manual.pdf',
+      'application/pdf',
+      10,
+      $2,
+      $3,
+      now()
+    )
+    on conflict (id) do nothing
+  `,
+    [OTHER_ORG_ID, OTHER_ORG_DOCUMENT_PATH, OTHER_USER_ID, OTHER_ORG_SITE_ID]
+  );
 
   const attachmentLocation = path.join(storageRoot, ATTACHMENT_PATH);
   const documentLocation = path.join(storageRoot, DOCUMENT_PATH);
+  const otherOrgDocumentLocation = path.join(storageRoot, OTHER_ORG_DOCUMENT_PATH);
   await fs.promises.mkdir(path.dirname(attachmentLocation), { recursive: true });
   await fs.promises.mkdir(path.dirname(documentLocation), { recursive: true });
+  await fs.promises.mkdir(path.dirname(otherOrgDocumentLocation), { recursive: true });
   await fs.promises.writeFile(attachmentLocation, 'seeded attachment body');
   await fs.promises.writeFile(documentLocation, 'seeded document body');
+  await fs.promises.writeFile(otherOrgDocumentLocation, 'other org document body');
 
   const mod = await import('../src/index');
   app = mod.default;
@@ -67,7 +107,8 @@ describe('secured files API', () => {
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(res.text).toBe('seeded attachment body');
+    const body = res.text ?? res.body?.toString();
+    expect(body).toBe('seeded attachment body');
     expect(res.headers['content-type']).toContain('image/jpeg');
   });
 
@@ -77,7 +118,8 @@ describe('secured files API', () => {
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(res.text).toBe('seeded document body');
+    const body = res.text ?? res.body?.toString();
+    expect(body).toBe('seeded document body');
     expect(res.headers['content-type']).toContain('application/pdf');
   });
 
@@ -85,6 +127,13 @@ describe('secured files API', () => {
     await request(app)
       .get(`/files/${ATTACHMENT_PATH}`)
       .set('Authorization', `Bearer ${otherOrgToken}`)
+      .expect(404);
+  });
+
+  it('hides other-organisation documents from the current user', async () => {
+    await request(app)
+      .get(`/files/${OTHER_ORG_DOCUMENT_PATH}`)
+      .set('Authorization', `Bearer ${token}`)
       .expect(404);
   });
 

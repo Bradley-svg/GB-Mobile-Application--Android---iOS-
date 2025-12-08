@@ -9,6 +9,9 @@ import { useAuthStore } from '../store/authStore';
 jest.mock('../screens/Dashboard/DashboardScreen', () => ({ DashboardScreen: () => null }));
 jest.mock('../screens/Alerts/AlertsScreen', () => ({ AlertsScreen: () => null }));
 jest.mock('../screens/Profile/ProfileScreen', () => ({ ProfileScreen: () => null }));
+jest.mock('../hooks/useNetworkBanner', () => ({
+  useNetworkBanner: () => ({ isOffline: false }),
+}));
 
 const originalAdapter = api.defaults.adapter;
 

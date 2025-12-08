@@ -55,6 +55,19 @@ describe('CSV exports', () => {
     expect(res.text).toContain(DEVICE_ID);
   });
 
+  it('allows facilities to export devices for a site', async () => {
+    const token = await login('demo@example.com');
+
+    const res = await request(app)
+      .get(`/sites/${SITE_ID}/export/devices.csv`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(res.headers['content-type']).toContain('text/csv');
+    expect(res.text).toContain('device_id,name,firmware_version,connectivity_status,last_seen,site_name');
+    expect(res.text).toContain(DEVICE_ID);
+  });
+
   it('blocks contractor from exporting devices for a site', async () => {
     const token = await login('contractor@example.com');
 
@@ -84,6 +97,22 @@ describe('CSV exports', () => {
 
   it('allows admin to export telemetry for a device', async () => {
     const token = await login('admin@example.com');
+    const from = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    const to = new Date().toISOString();
+
+    const res = await request(app)
+      .get(`/devices/${DEVICE_ID}/export/telemetry.csv`)
+      .query({ from, to })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(res.headers['content-type']).toContain('text/csv');
+    expect(res.text).toContain('timestamp,metric_name,value');
+    expect(res.text).toMatch(/supply_temp/);
+  });
+
+  it('allows facilities to export telemetry for a device', async () => {
+    const token = await login('demo@example.com');
     const from = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
     const to = new Date().toISOString();
 

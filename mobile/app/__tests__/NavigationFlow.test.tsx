@@ -28,6 +28,44 @@ jest.mock('../api/hooks', () => {
     }),
   };
 });
+jest.mock('../hooks/useNetworkBanner', () => ({
+  useNetworkBanner: () => ({ isOffline: false }),
+}));
+jest.mock('../screens/Dashboard/DashboardScreen', () => ({
+  DashboardScreen: () => {
+    const React = require('react');
+    const { Text } = require('react-native');
+    return React.createElement(Text, null, 'Test Site');
+  },
+}));
+jest.mock('../screens/Alerts/AlertsScreen', () => ({
+  AlertsScreen: () => {
+    const React = require('react');
+    const { Text } = require('react-native');
+    return React.createElement(Text, null, 'No active alerts.');
+  },
+}));
+jest.mock('../screens/Profile/ProfileScreen', () => ({
+  ProfileScreen: () => {
+    const React = require('react');
+    const { Text } = require('react-native');
+    return React.createElement(Text, null, 'Log out');
+  },
+}));
+jest.mock('../screens/Search/SearchScreen', () => ({
+  SearchScreen: () => {
+    const React = require('react');
+    const { Text } = require('react-native');
+    return React.createElement(Text, null, 'Search Screen');
+  },
+}));
+jest.mock('../screens/Maintenance/MaintenanceCalendarScreen', () => ({
+  MaintenanceCalendarScreen: () => {
+    const React = require('react');
+    const { Text } = require('react-native');
+    return React.createElement(Text, null, 'Maintenance Calendar');
+  },
+}));
 
 const renderWithClient = (ui: React.ReactNode) => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });

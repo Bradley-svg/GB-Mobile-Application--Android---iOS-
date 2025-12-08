@@ -149,7 +149,7 @@ describe('POST /heat-pump-history', () => {
   });
 
   it('returns normalized data from the integration client', async () => {
-    mockDb();
+    mockDb({ mac: ' 38:18:2b:60:a9:94 ' });
     const historyResponse: HeatPumpHistoryResult = {
       ok: true,
       series: [
@@ -168,7 +168,7 @@ describe('POST /heat-pump-history', () => {
       .expect(200);
 
     expect(fetchHeatPumpHistoryMock).toHaveBeenCalledWith({
-      mac: defaultDevice.mac,
+      mac: '38:18:2b:60:a9:94',
       from: requestBody.from,
       to: requestBody.to,
       aggregation: requestBody.aggregation,
@@ -255,6 +255,26 @@ describe('POST /heat-pump-history', () => {
 
   it('returns 503 when required env vars are missing outside development', async () => {
     process.env.NODE_ENV = 'production';
+    delete process.env.HEATPUMP_HISTORY_URL;
+    delete process.env.HEATPUMP_HISTORY_API_KEY;
+    getHeatPumpHistoryConfigMock.mockImplementation(buildConfig);
+    mockDb();
+
+    const res = await request(app)
+      .post('/heat-pump-history')
+      .set('Authorization', `Bearer ${token}`)
+      .send(requestBody)
+      .expect(503);
+
+    expect(res.body).toEqual({
+      error: 'heat_pump_history_disabled',
+      message: 'Heat pump history is disabled until required env vars are set',
+    });
+    expect(fetchHeatPumpHistoryMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 503 when required env vars are missing in staging', async () => {
+    process.env.NODE_ENV = 'staging';
     delete process.env.HEATPUMP_HISTORY_URL;
     delete process.env.HEATPUMP_HISTORY_API_KEY;
     getHeatPumpHistoryConfigMock.mockImplementation(buildConfig);

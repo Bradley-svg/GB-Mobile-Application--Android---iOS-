@@ -1,41 +1,39 @@
 # Build Progress Report - 2025-12-08
 
 ## Executive Summary
-- Backend migrations, Postgres-backed tests, and TypeScript build now pass locally on Node 20/Postgres 16 after fixing auth RBAC fixtures and refresh-token query mocks; history scoping and exports permissions need attention and `/files` is now auth/org-scoped instead of publicly served.
-- Mobile typecheck, lint (share-link `no-explicit-any` break fixed), and Jest suites pass with `act()` warnings still present from global wrappers. Offline caching covers dashboard/site/device/alerts/search/work orders. Branding uses the official assets/palette.
+- Backend migrations, Postgres-backed tests, and TypeScript build now pass locally on Node 20/Postgres 16; added regression coverage for CSV export RBAC (owner/admin/facilities vs contractor), heat-pump history scoping/env gating, and `/files` org isolation.
+- Mobile typecheck, lint (share-link `no-explicit-any` break fixed), and Jest suites pass with the noisy `act()` warnings from RootNavigator flows quieted via targeted mocks. Offline caching covers dashboard/site/device/alerts/search/work orders. Branding uses the official assets/palette.
 - Roadmap fit: 0.2 fleet visibility/search and core telemetry/control flows are present; 0.3 alerts/rules/control and 0.4 work orders/maintenance are partial but usable; 0.5 sharing/reporting is partially delivered; PV integrations, dark mode, commissioning, richer reporting remain open.
 
 ## Backend Status
 - Commands this run (Node 20 / Postgres 16): `npm run migrate:dev` (pass), `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm run migrate:test` (pass), `npm test` (pass), `npm run build` (pass). Typecheck/lint not rerun in this pass.
 - Auth/RBAC/share: JWT login/refresh with refresh rotation; optional signup gate; roles (`owner|admin|facilities|contractor`) attached to tokens; RBAC guards control/schedules/work orders/doc uploads/share links. This sweep fixed test fixtures by returning user context in auth refresh mocks and by signing schedule tokens with role claims. Tests: `authRoutes.api.test.ts`, `authRbac.test.ts`, `authConfig.test.ts`. Risks: no password reset/2FA; share links read-only only.
-- Telemetry/history: MQTT ingest is primary; HTTP ingest returns 501. Telemetry downsampled per metric. Heat-pump history posts vendor body (`aggregation/from/to/mode/fields/mac`) with `application/json-patch+json` + `x-api-key`, timeout + circuit breaker, normalises arbitrary series. Tests: `telemetryService.test.ts`, `heatPumpHistoryClient.test.ts`, `heatPumpHistory.api.test.ts`. Risks: history requests are not org/mac scoped; default dev URL is used if env unset even in prod; validation only checks timestamp order.
+- Telemetry/history: MQTT ingest is primary; HTTP ingest returns 501. Telemetry downsampled per metric. Heat-pump history posts vendor body (`aggregation/from/to/mode/fields/mac`) with `application/json-patch+json` + `x-api-key`, timeout + circuit breaker, normalises arbitrary series. Tests: `telemetryService.test.ts`, `heatPumpHistoryClient.test.ts`, `heatPumpHistory.api.test.ts`. Risks: vendor call disabled outside development if URL/API key unset; relies on upstream availability; validation only checks timestamp order.
 - Alerts/rules/worker: Worker lock (`worker_locks`), offline/high-temp plus rule engine (threshold/ROC/offline) with load-shedding downgrades, push notify on critical, heartbeat + metrics into `system_status` and `/health-plus`. Tests: `alertsWorker.*`, `alerts*.api.test.ts`, `alertsAckMute.api.test.ts`, `alertRules*`. Risk: single-worker assumption; relies on site schedules for load-shedding context.
 - Device control/schedules: HTTP or MQTT control with throttle window (`CONTROL_COMMAND_THROTTLE_MS`), validation errors recorded in command history, per-device schedules with validation. Tests: `deviceControlService.test.ts`, `deviceControl.api.test.ts`, `deviceSchedules.api.test.ts`, `deviceControlValidationService.test.ts`. Risks: commands blocked if CONTROL/MQTT envs unset; UI not role-gated (backend rejects).
 - Work orders/tasks/attachments/SLA: Status transitions enforced, SLA breach recomputed, checklist replace, maintenance summary buckets, attachments stored under `FILE_STORAGE_ROOT`. Tests: `workOrders*.test.ts`, `workOrdersMaintenance.api.test.ts`, `workOrderAttachments.api.test.ts`, `workOrdersService.sla.test.ts`. Risks: no AV scanning; CDN/signed-URL fronting still TODO even though `/files` now requires auth + org scope.
 - Documents/storage: Site/device upload + list, path sanitisation, public URL mapping. Tests: `documents.api.test.ts`. Risk: `/files` now auth/org-scoped but still lacks AV/signed URLs/AV scanning.
-- CSV exports/reporting: Site devices CSV and device telemetry CSV with range validation/metric allowlist, org scoped. Tests: `exportCsv.api.test.ts`. Risk: no RBAC guard (`canExportData` unused) so any authenticated role can export; potential heavy queries without paging.
+- CSV exports/reporting: Site devices CSV and device telemetry CSV with range validation/metric allowlist, org scoped, and RBAC (`owner|admin|facilities`). Tests: `exportCsv.api.test.ts`. Risk: potential heavy queries without paging and wide date ranges.
 - Share links: 90-day max expiry, read-only, site/device payloads with telemetry snapshot, revoke + public resolver. Tests: `shareLinks.api.test.ts`, `shareLinksPublic.api.test.ts`. Risk: None beyond token handling; still read-only only.
 - Health/diagnostics: `/health-plus` aggregates DB/MQTT/control/heatPumpHistory/push/alerts worker/storage/maintenance; relies on `system_status` rows. Tests: `healthPlus.test.ts`, `healthPlus.mqttControlStatus.test.ts`. Risk: requires migrations + seeded status row.
 - Issues/Risks
-  - P1: Heat-pump history not org/device scoped; default dev URL used when env unset (even in prod) risks data leakage or upstream noise.
-  - P1: CSV export endpoints lack explicit RBAC; any authenticated role can export org data.
-  - P2: `/files` now auth/org-scoped but still lacks AV scanning/signed URL flow; CDN/proxy frontends must forward auth.
+  - P1: `/files` is auth/org-scoped but still lacks AV scanning/signed URL flow; CDN/proxy frontends must forward auth.
+  - P2: Heat-pump history depends on upstream availability and URL/API key config (disabled outside dev when unset).
   - P3: No password reset/2FA/lockout flow (known gap).
 
 ## Mobile Status
-- Commands: `npm run typecheck` (pass); `npm run lint` (pass after typing share-link tests that briefly failed `no-explicit-any`); `npm test -- --runInBand` (pass) with fewer `act()` warnings after wrapping the noisiest suites (Profile, DeviceDetail, WorkOrderDetail, SiteOverview), though some warnings remain from global wrappers (useNetworkBanner/netinfo and RootNavigator flows).
+- Commands: `npm run typecheck` (pass); `npm run lint` (pass after typing share-link tests that briefly failed `no-explicit-any`); `npm test -- --runInBand` (pass) with RootNavigator/QueryClient suites now quiet after mocking heavy screens + useNetworkBanner.
 - Dashboard/Search: Hero metrics (sites/online devices/active alerts), health/connectivity chips, offline banner + cache age, search with health filters and offline cached results. Risk: stale cache beyond 24h only warned; backend errors show generic messaging.
 - Site overview: Site status/last-seen/health pills, device cards with firmware + quick actions, CSV export (online only), documents link; offline shows cached data + stale note.
-- Device detail: Telemetry charts (1h/24h/7d) for supply/return/power/flow/COP, delta-T tile, Azure history card (compressor current) with error mapping, control setpoint/mode with throttle/error messages, schedule edit modal, command history, active alerts, telemetry export (online). Risks: UI not role-gated (contractor can attempt control/exports, backend denies); history disabled offline; multiple `act()` warnings in tests.
+- Device detail: Telemetry charts (1h/24h/7d) for supply/return/power/flow/COP, delta-T tile, Azure history card (compressor current) with error mapping, control setpoint/mode with throttle/error messages, schedule edit modal, command history, active alerts, telemetry export (online). Risks: UI not role-gated (contractor can attempt control/exports, backend denies); history disabled offline.
 - Alerts + detail: Alerts list with severity filters/offline cache; detail shows rule metadata, snooze chips (15m/1h/4h/until resolved), ack/mute actions, work-order creation; offline disables actions. Risk: ack/mute not role-gated; generic error messages.
-- Work orders/Maintenance: List with SLA/due pills and filters, offline cached; detail (per tests) handles status transitions, checklist, attachments; maintenance calendar from `/maintenance/summary`. Risks: offline actions disabled but caches rely on previous session; `act()` warnings.
+- Work orders/Maintenance: List with SLA/due pills and filters, offline cached; detail (per tests) handles status transitions, checklist, attachments; maintenance calendar from `/maintenance/summary`. Risks: offline actions disabled but caches rely on previous session.
 - Documents/vault: Site/device documents list with category/status pills, opens via API base URL; offline read-only banner when cached; no mobile upload UI.
 - Sharing & access: Profile shows role pill; Sharing screen gated to owner/admin/facilities, site/device share-link management (create 24h/7d/30d, copy, revoke) with offline disable. Risk: copied link uses `API_BASE_URL` so bad env misconfig breaks links.
 - Profile/Diagnostics: Push preference toggle persists via `/user/preferences`; session-expired banner; Diagnostics shows `/health-plus` snapshot (control/MQTT/heatPumpHistory/alerts engine counts, push status). No dark mode.
 - Issues/Risks
-  - P1: No current lint/test blockers; share-link `no-explicit-any` lint break was fixed by typing helpers.
-  - P2: Widespread `act()` warnings in Jest suites hide real regressions.
-  - P2: Control/ack/mute/export UI not role-gated; relies on backend errors for contractors.
+  - P1: Control/ack/mute/export UI not role-gated; relies on backend errors for contractors.
+  - P2: Keep an eye on new `act()` warnings as async screens grow; current suites are quiet after mocks.
   - P3: Env-dependent URLs (API_BASE_URL in share copy/diagnostics) must be set per deployment.
 
 ## Operational Readiness
@@ -52,11 +50,9 @@
 ## Prioritised Next Steps
 - **P0:** None blocking production identified.
 - **P1:**
-  1) Add RBAC guard for CSV exports (use `canExportData`) or explicitly document role access; align with permission expectations.
-  2) DONE: Heat-pump history now resolves devices within the requester’s org, uses the stored MAC, and requires explicit URL/API key outside development (missing envs return 503 instead of hitting the default dev endpoint).
-  3) Add AV scanning and/or signed URL/CDN fronting for `/files` now that auth/org scoping is enforced.
+  1) Add AV scanning and/or signed URL/CDN fronting for `/files` now that auth/org scoping is enforced.
 - **P2:**
-  1) Resolve Jest `act()` warnings (DeviceDetail/Profile/WorkOrder/Site tests) to reduce noise.
+  1) Keep Jest noise low by wrapping new async UI flows in `act`/`waitFor` (RootNavigator suites are quiet after mocking heavy screens).
   2) Refresh documentation (repo overview/feature map) to reflect current lint/test status and partial features.
   3) Add front-end role gating for control/ack/mute/export actions to mirror RBAC.
 - **P3:**
