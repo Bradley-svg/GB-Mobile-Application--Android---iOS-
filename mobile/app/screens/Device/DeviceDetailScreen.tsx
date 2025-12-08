@@ -717,6 +717,25 @@ export const DeviceDetailScreen: React.FC = () => {
         </View>
       </Card>
 
+      <Card
+        style={styles.quickLinkCard}
+        onPress={() => navigation.navigate('Documents', { scope: 'device', deviceId })}
+        testID="device-documents-link"
+      >
+        <View style={styles.quickLinkRow}>
+          <View style={styles.quickLinkIcon}>
+            <Ionicons name="document-text-outline" size={18} color={colors.brandGreen} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[typography.subtitle, styles.title]}>Documents</Text>
+            <Text style={[typography.caption, styles.muted]} numberOfLines={2}>
+              Manuals, schematics, and documents for this device.
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+        </View>
+      </Card>
+
       {isOffline ? (
         <Text style={[typography.caption, styles.offlineNote, { marginBottom: spacing.md }]}>
           {isOfflineWithCache
@@ -1332,6 +1351,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.lg,
     marginBottom: spacing.xl,
+  },
+  quickLinkCard: {
+    marginBottom: spacing.md,
+    padding: spacing.lg,
+  },
+  quickLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  quickLinkIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.backgroundAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
   },
   dialWrapper: {
     alignItems: 'center',

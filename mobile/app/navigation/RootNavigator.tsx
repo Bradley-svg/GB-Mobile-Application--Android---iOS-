@@ -18,6 +18,7 @@ import { SearchScreen } from '../screens/Search/SearchScreen';
 import { WorkOrdersScreen } from '../screens/WorkOrders/WorkOrdersScreen';
 import { WorkOrderDetailScreen } from '../screens/WorkOrders/WorkOrderDetailScreen';
 import { MaintenanceCalendarScreen } from '../screens/Maintenance/MaintenanceCalendarScreen';
+import { DocumentsScreen } from '../screens/Documents/DocumentsScreen';
 import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
 import { spacing } from '../theme/spacing';
@@ -48,6 +49,7 @@ export type AppStackParamList = {
   WorkOrders: undefined;
   WorkOrderDetail: { workOrderId: string };
   MaintenanceCalendar: undefined;
+  Documents: { scope: 'site' | 'device'; siteId?: string; deviceId?: string; title?: string };
 };
 
 export type AppTabParamList = {
@@ -186,6 +188,7 @@ function AppNavigator() {
       <AppStack.Screen name="WorkOrders" component={WorkOrdersScreen} />
       <AppStack.Screen name="WorkOrderDetail" component={WorkOrderDetailScreen} />
       <AppStack.Screen name="MaintenanceCalendar" component={MaintenanceCalendarScreen} />
+      <AppStack.Screen name="Documents" component={DocumentsScreen} />
     </AppStack.Navigator>
   );
 }

@@ -1,14 +1,28 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Linking,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import {
   useUpdateWorkOrderStatus,
   useUpdateWorkOrderTasks,
   useWorkOrder,
+  useWorkOrderAttachments,
+  useUploadWorkOrderAttachment,
 } from '../../api/hooks';
-import type { WorkOrderStatus, WorkOrderTask } from '../../api/workOrders/types';
+import type { WorkOrderAttachment, WorkOrderStatus, WorkOrderTask } from '../../api/workOrders/types';
+import { api } from '../../api/client';
 import { Screen, Card, PrimaryButton, StatusPill, IconButton, PillTabGroup } from '../../components';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
@@ -68,6 +82,34 @@ const reminderPresetFromDates = (
   return 'none';
 };
 
+const formatBytes = (bytes?: number | null) => {
+  if (!bytes || Number.isNaN(bytes)) return 'Unknown size';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const iconForMime = (mime?: string | null) => {
+  if (!mime) return 'document-attach-outline';
+  if (mime.startsWith('image/')) return 'image-outline';
+  if (mime.includes('pdf')) return 'document-text-outline';
+  return 'document-attach-outline';
+};
+
+const buildAttachmentUrl = (url: string) => {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  const base = api.defaults.baseURL || '';
+  return `${base.replace(/\/$/, '')}${url.startsWith('/') ? url : `/${url}`}`;
+};
+
+type UploadAttachmentInput = {
+  uri: string;
+  name: string;
+  type?: string;
+  size?: number | null;
+};
+
 export const WorkOrderDetailScreen: React.FC = () => {
   const route = useRoute<WorkOrderDetailRouteParams>();
   const navigation = useNavigation<WorkOrderDetailNavigation>();
@@ -76,9 +118,12 @@ export const WorkOrderDetailScreen: React.FC = () => {
   const updateStatus = useUpdateWorkOrderStatus();
   const updateSla = useUpdateWorkOrderStatus();
   const updateTasks = useUpdateWorkOrderTasks();
+  const attachmentsQuery = useWorkOrderAttachments(workOrderId);
+  const uploadAttachment = useUploadWorkOrderAttachment(workOrderId);
   const { isOffline } = useNetworkBanner();
   const [notes, setNotes] = useState<string>('');
   const [actionError, setActionError] = useState<string | null>(null);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [isEditingSla, setIsEditingSla] = useState(false);
   const [editedSlaDueAt, setEditedSlaDueAt] = useState<Date | null>(null);
   const [reminderPreset, setReminderPreset] = useState<'none' | 'hour' | 'day'>('none');
@@ -154,6 +199,90 @@ export const WorkOrderDetailScreen: React.FC = () => {
       console.error('Failed to update tasks', err);
       setActionError('Could not update checklist. Please try again.');
     }
+  };
+
+  const attachments: WorkOrderAttachment[] = attachmentsQuery.data ?? workOrder?.attachments ?? [];
+
+  const onOpenAttachment = async (attachment: WorkOrderAttachment) => {
+    const target = buildAttachmentUrl(attachment.url);
+    if (!target) return;
+    try {
+      await Linking.openURL(target);
+    } catch (err) {
+      console.error('Failed to open attachment', err);
+      setAttachmentError('Could not open attachment. Check your connection and try again.');
+    }
+  };
+
+  const pickDocumentFile = async (): Promise<UploadAttachmentInput | null> => {
+    const result = await DocumentPicker.getDocumentAsync({
+      copyToCacheDirectory: true,
+      multiple: false,
+    });
+    if (result.canceled || !result.assets?.length) return null;
+    const asset = result.assets[0];
+    return {
+      uri: asset.uri,
+      name: asset.name || 'document',
+      type: asset.mimeType || 'application/octet-stream',
+      size: asset.size ?? null,
+    };
+  };
+
+  const pickImageFile = async (): Promise<UploadAttachmentInput | null> => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permission.status !== 'granted') {
+      setAttachmentError('Media library permission is required to add photos.');
+      return null;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.length) return null;
+    const asset = result.assets[0];
+    const guessedName =
+      asset.fileName || `photo-${Date.now()}.${asset.type === 'video' ? 'mp4' : 'jpg'}`;
+    const guessedType =
+      asset.type === 'video'
+        ? 'video/mp4'
+        : asset.type === 'image'
+        ? asset.mimeType ?? 'image/jpeg'
+        : 'application/octet-stream';
+    return {
+      uri: asset.uri,
+      name: guessedName,
+      type: guessedType,
+      size: (asset as { fileSize?: number }).fileSize ?? null,
+    };
+  };
+
+  const uploadSelectedFile = async (selector: () => Promise<UploadAttachmentInput | null>) => {
+    if (isOffline) {
+      setAttachmentError('Attachments can only be added when online.');
+      return;
+    }
+    setAttachmentError(null);
+    try {
+      const file = await selector();
+      if (!file) return;
+      await uploadAttachment.mutateAsync(file);
+    } catch (err) {
+      console.error('Attachment upload failed', err);
+      setAttachmentError('Could not upload attachment. Please try again.');
+    }
+  };
+
+  const startAttachmentFlow = () => {
+    if (isOffline) {
+      setAttachmentError('Attachments can only be added when online.');
+      return;
+    }
+    Alert.alert('Add attachment', 'Choose a source', [
+      { text: 'Photo', onPress: () => void uploadSelectedFile(pickImageFile) },
+      { text: 'Document', onPress: () => void uploadSelectedFile(pickDocumentFile) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
 
   const onOpenSlaEdit = () => {
@@ -503,6 +632,62 @@ export const WorkOrderDetailScreen: React.FC = () => {
       </Card>
 
       <Card style={styles.detailCard}>
+        <View style={styles.attachmentsHeader}>
+          <Text style={[typography.subtitle, styles.title]}>Attachments</Text>
+          {attachmentsQuery.isFetching ? <ActivityIndicator color={colors.brandGreen} size="small" /> : null}
+        </View>
+        {attachmentsQuery.isLoading ? (
+          <Text style={[typography.caption, styles.muted]}>Loading attachments...</Text>
+        ) : attachments.length === 0 ? (
+          <Text style={[typography.caption, styles.muted]}>No attachments yet.</Text>
+        ) : (
+          attachments.map((attachment) => (
+            <TouchableOpacity
+              key={attachment.id}
+              style={styles.attachmentRow}
+              onPress={() => onOpenAttachment(attachment)}
+              disabled={!attachment.url}
+              testID={`attachment-${attachment.id}`}
+            >
+              <View style={styles.attachmentIcon}>
+                <Ionicons
+                  name={iconForMime(attachment.mimeType)}
+                  size={18}
+                  color={colors.brandGreen}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[typography.body, styles.title]} numberOfLines={1}>
+                  {attachment.originalName ?? 'Attachment'}
+                </Text>
+                <Text style={[typography.caption, styles.muted]} numberOfLines={1}>
+                  {formatBytes(attachment.sizeBytes ?? null)}
+                  {attachment.createdAt ? ` • ${new Date(attachment.createdAt).toLocaleDateString()}` : ''}
+                </Text>
+              </View>
+              <Ionicons name="open-outline" size={16} color={colors.textSecondary} />
+            </TouchableOpacity>
+          ))
+        )}
+        {attachmentError ? (
+          <Text style={[typography.caption, styles.errorText]}>{attachmentError}</Text>
+        ) : null}
+        {isOffline ? (
+          <Text style={[typography.caption, styles.muted, { marginTop: spacing.sm }]}>
+            Attachments can only be added when online.
+          </Text>
+        ) : (
+          <PrimaryButton
+            label={uploadAttachment.isPending ? 'Uploading...' : 'Add photo / file'}
+            onPress={startAttachmentFlow}
+            disabled={uploadAttachment.isPending || attachmentsQuery.isLoading}
+            style={{ marginTop: spacing.sm }}
+            testID="add-attachment-button"
+          />
+        )}
+      </Card>
+
+      <Card style={styles.detailCard}>
         <Text style={[typography.subtitle, styles.title, { marginBottom: spacing.sm }]}>Details</Text>
         <View style={styles.detailRow}>
           <Text style={[typography.caption, styles.muted]}>Created</Text>
@@ -633,4 +818,24 @@ const styles = StyleSheet.create({
   },
   errorText: { color: colors.error, marginTop: spacing.sm },
   warningText: { color: colors.warning },
+  attachmentsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  attachmentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+  },
+  attachmentIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.backgroundAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
 });

@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
 import { resolveOrganisationId } from './organisation';
@@ -14,10 +16,43 @@ import {
   updateWorkOrderDetails,
   updateWorkOrderTasks,
 } from '../services/workOrdersService';
+import {
+  createWorkOrderAttachment,
+  deleteWorkOrderAttachment,
+} from '../repositories/workOrdersRepository';
+import {
+  buildPublicUrl,
+  ensureDirExists,
+  getWorkOrderAttachmentPath,
+  getStorageRoot,
+  sanitizeSegment,
+  toRelativePath,
+} from '../config/storage';
 
 const workOrderIdParamSchema = z.object({ id: z.string().uuid() });
 const deviceIdParamSchema = z.object({ id: z.string().uuid() });
 const siteIdParamSchema = z.object({ id: z.string().uuid() });
+const attachmentIdParamSchema = z.object({ id: z.string().uuid(), attachmentId: z.string().uuid() });
+
+const mapAttachmentResponse = (attachment: {
+  id: string;
+  original_name: string | null;
+  label: string | null;
+  filename: string | null;
+  mime_type: string | null;
+  size_bytes: number | null;
+  relative_path: string | null;
+  url: string | null;
+  created_at: string;
+}) => ({
+  id: attachment.id,
+  originalName: attachment.original_name ?? attachment.label ?? attachment.filename ?? 'file',
+  mimeType: attachment.mime_type ?? undefined,
+  sizeBytes: attachment.size_bytes ?? undefined,
+  url: attachment.relative_path ? buildPublicUrl(attachment.relative_path) : attachment.url ?? '',
+  createdAt: attachment.created_at,
+  label: attachment.label ?? attachment.original_name ?? null,
+});
 
 const listQuerySchema = z.object({
   status: z.enum(['open', 'in_progress', 'done', 'cancelled']).optional(),
@@ -281,6 +316,121 @@ export async function updateWorkOrderTasksHandler(
 
     if (!order) return res.status(404).json({ message: 'Not found' });
     res.json(order);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function listWorkOrderAttachmentsHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  const parsedParams = workOrderIdParamSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    return res.status(400).json({ message: 'Invalid work order id' });
+  }
+
+  try {
+    const organisationId = await resolveOrganisationId(req.user!.id, res);
+    if (!organisationId) return;
+
+    const workOrder = await getWorkOrder(organisationId, parsedParams.data.id);
+    if (!workOrder) return res.status(404).json({ message: 'Not found' });
+
+    const attachments = workOrder.attachments ?? [];
+    res.json(attachments.map((att) => mapAttachmentResponse(att)));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function uploadWorkOrderAttachmentHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  const parsedParams = workOrderIdParamSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    return res.status(400).json({ message: 'Invalid work order id' });
+  }
+
+  const file = (req as Request & { file?: Express.Multer.File }).file;
+  if (!file) {
+    return res.status(400).json({ message: 'File is required' });
+  }
+
+  try {
+    const organisationId = await resolveOrganisationId(req.user!.id, res);
+    if (!organisationId) return;
+
+    const workOrder = await getWorkOrder(organisationId, parsedParams.data.id);
+    if (!workOrder) return res.status(404).json({ message: 'Not found' });
+
+    const originalName = file.originalname || 'upload';
+    const storedName = `${Date.now()}-${sanitizeSegment(originalName)}`;
+    const destinationPath = getWorkOrderAttachmentPath(
+      organisationId,
+      parsedParams.data.id,
+      storedName
+    );
+    const destinationDir = path.dirname(destinationPath);
+
+    try {
+      await ensureDirExists(destinationDir);
+      await fs.promises.rename(file.path, destinationPath);
+    } catch (err) {
+      await fs.promises.unlink(file.path).catch(() => {});
+      throw err;
+    }
+
+    const relativePath = toRelativePath(destinationPath);
+    const created = await createWorkOrderAttachment({
+      orgId: organisationId,
+      workOrderId: parsedParams.data.id,
+      filename: storedName,
+      originalName,
+      mimeType: file.mimetype,
+      sizeBytes: file.size,
+      relativePath,
+      uploadedByUserId: req.user?.id ?? null,
+      label: originalName,
+      url: buildPublicUrl(relativePath),
+    });
+
+    res.status(201).json(mapAttachmentResponse(created));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteWorkOrderAttachmentHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  const parsedParams = attachmentIdParamSchema.safeParse(req.params);
+  if (!parsedParams.success) {
+    return res.status(400).json({ message: 'Invalid attachment id' });
+  }
+
+  try {
+    const organisationId = await resolveOrganisationId(req.user!.id, res);
+    if (!organisationId) return;
+
+    const deleted = await deleteWorkOrderAttachment(
+      organisationId,
+      parsedParams.data.attachmentId,
+      parsedParams.data.id
+    );
+    if (!deleted) return res.status(404).json({ message: 'Not found' });
+
+    if (deleted.relative_path) {
+      const absolutePath = path.resolve(getStorageRoot(), deleted.relative_path);
+      await fs.promises.unlink(absolutePath).catch(() => {});
+    }
+
+    res.status(204).send();
   } catch (err) {
     next(err);
   }

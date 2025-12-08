@@ -44,9 +44,16 @@ export type WorkOrderTaskRow = {
 
 export type WorkOrderAttachmentRow = {
   id: string;
+  organisation_id: string;
   work_order_id: string;
-  label: string;
-  url: string;
+  label: string | null;
+  filename: string | null;
+  original_name: string | null;
+  mime_type: string | null;
+  size_bytes: number | null;
+  url: string | null;
+  relative_path: string | null;
+  uploaded_by_user_id: string | null;
   created_at: string;
 };
 
@@ -67,6 +74,19 @@ export type CreateWorkOrderInput = {
   slaBreached?: boolean;
   reminderAt?: Date | string | null;
   category?: string | null;
+};
+
+export type CreateWorkOrderAttachmentInput = {
+  orgId: string;
+  workOrderId: string;
+  filename: string;
+  originalName: string;
+  mimeType?: string | null;
+  sizeBytes?: number | null;
+  relativePath: string;
+  uploadedByUserId?: string | null;
+  label?: string | null;
+  url?: string | null;
 };
 
 type WorkOrderFilters = {
@@ -412,20 +432,6 @@ export async function listTasks(workOrderId: string): Promise<WorkOrderTaskRow[]
   return res.rows;
 }
 
-export async function listAttachments(workOrderId: string): Promise<WorkOrderAttachmentRow[]> {
-  const res = await query<WorkOrderAttachmentRow>(
-    `
-    select *
-    from work_order_attachments
-    where work_order_id = $1
-    order by created_at desc
-  `,
-    [workOrderId]
-  );
-
-  return res.rows;
-}
-
 export async function setTasks(
   workOrderId: string,
   tasks: WorkOrderTaskInput[]
@@ -452,4 +458,85 @@ export async function setTasks(
   }
 
   return listTasks(workOrderId);
+}
+
+export async function createWorkOrderAttachment(
+  input: CreateWorkOrderAttachmentInput
+): Promise<WorkOrderAttachmentRow> {
+  const res = await query<WorkOrderAttachmentRow>(
+    `
+    insert into work_order_attachments (
+      organisation_id,
+      work_order_id,
+      label,
+      filename,
+      original_name,
+      mime_type,
+      size_bytes,
+      url,
+      relative_path,
+      uploaded_by_user_id,
+      created_at
+    )
+    values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())
+    returning *
+  `,
+    [
+      input.orgId,
+      input.workOrderId,
+      input.label ?? input.originalName,
+      input.filename,
+      input.originalName,
+      input.mimeType ?? null,
+      input.sizeBytes ?? null,
+      input.url ?? null,
+      input.relativePath,
+      input.uploadedByUserId ?? null,
+    ]
+  );
+
+  return res.rows[0];
+}
+
+export async function listWorkOrderAttachments(
+  organisationId: string,
+  workOrderId: string
+): Promise<WorkOrderAttachmentRow[]> {
+  const res = await query<WorkOrderAttachmentRow>(
+    `
+    select *
+    from work_order_attachments
+    where work_order_id = $1
+      and organisation_id = $2
+    order by created_at desc
+  `,
+    [workOrderId, organisationId]
+  );
+
+  return res.rows;
+}
+
+export async function deleteWorkOrderAttachment(
+  organisationId: string,
+  attachmentId: string,
+  workOrderId?: string
+): Promise<WorkOrderAttachmentRow | null> {
+  const params: Array<string> = [attachmentId, organisationId];
+  let workOrderFilter = '';
+  if (workOrderId) {
+    params.push(workOrderId);
+    workOrderFilter = ' and work_order_id = $3';
+  }
+
+  const res = await query<WorkOrderAttachmentRow>(
+    `
+    delete from work_order_attachments
+    where id = $1
+      and organisation_id = $2${workOrderFilter}
+    returning *
+  `,
+    params
+  );
+
+  return res.rows[0] ?? null;
 }

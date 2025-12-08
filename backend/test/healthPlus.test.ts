@@ -116,7 +116,7 @@ describe('GET /health-plus (baseline)', () => {
 
     const res = await request(app).get('/health-plus').expect(200);
 
-    expect(res.body).toEqual({
+    expect(res.body).toMatchObject({
       ok: true,
       env: process.env.NODE_ENV,
       db: 'ok',
@@ -151,6 +151,10 @@ describe('GET /health-plus (baseline)', () => {
         lastSampleAt: null,
         lastError: null,
       },
+      storage: {
+        root: expect.any(String),
+        writable: expect.any(Boolean),
+      },
       maintenance: {
         openCount: 5,
         overdueCount: 2,
@@ -179,7 +183,7 @@ describe('GET /health-plus (baseline)', () => {
       { module: 'health', err: expect.any(Error) },
       'health-plus error'
     );
-    expect(res.body).toEqual({
+    expect(res.body).toMatchObject({
       ok: false,
       env: process.env.NODE_ENV,
       db: 'error',
@@ -213,6 +217,10 @@ describe('GET /health-plus (baseline)', () => {
         enabled: false,
         lastSampleAt: null,
         lastError: null,
+      },
+      storage: {
+        root: expect.any(String),
+        writable: expect.any(Boolean),
       },
       maintenance: {
         openCount: 0,

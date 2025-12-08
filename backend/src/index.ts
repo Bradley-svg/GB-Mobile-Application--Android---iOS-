@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import path from 'path';
 import healthRoutes from './routes/healthRoutes';
 import authRoutes from './routes/authRoutes';
 import siteRoutes from './routes/siteRoutes';
@@ -10,9 +11,11 @@ import telemetryRoutes from './routes/telemetryRoutes';
 import heatPumpHistoryRoutes from './routes/heatPumpHistoryRoutes';
 import userPreferencesRoutes from './routes/userPreferencesRoutes';
 import fleetRoutes from './routes/fleetRoutes';
+import documentRoutes from './routes/documentRoutes';
 import { errorHandler } from './middleware/errorHandler';
 import { createCorsMiddleware } from './middleware/corsConfig';
 import { logger } from './config/logger';
+import { getStorageRoot } from './config/storage';
 
 const app = express();
 
@@ -29,6 +32,8 @@ app.use(telemetryRoutes);
 app.use(heatPumpHistoryRoutes);
 app.use(userPreferencesRoutes);
 app.use(fleetRoutes);
+app.use('/files', express.static(path.resolve(getStorageRoot())));
+app.use(documentRoutes);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 4000;

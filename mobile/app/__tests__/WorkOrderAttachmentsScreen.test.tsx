@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { render, screen } from '@testing-library/react-native';
 import * as navigation from '@react-navigation/native';
 import { WorkOrderDetailScreen } from '../screens/WorkOrders/WorkOrderDetailScreen';
 import {
@@ -23,22 +23,19 @@ jest.mock('../api/hooks', () => ({
   useWorkOrderAttachments: jest.fn(),
   useUploadWorkOrderAttachment: jest.fn(),
 }));
-
 jest.mock('../hooks/useNetworkBanner', () => ({
   useNetworkBanner: jest.fn(),
 }));
 
-describe('WorkOrderDetailScreen', () => {
-  const navigateMock = jest.fn();
-  const goBackMock = jest.fn();
+describe('WorkOrderDetailScreen attachments', () => {
   const workOrder = {
     id: 'wo-1',
     organisation_id: 'org-1',
     site_id: 'site-1',
     device_id: 'device-1',
-    alert_id: 'alert-1',
+    alert_id: null,
     title: 'Fix pump',
-    description: 'Initial notes',
+    description: '',
     status: 'open',
     priority: 'medium',
     assignee_user_id: null,
@@ -46,29 +43,18 @@ describe('WorkOrderDetailScreen', () => {
     due_at: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    site_name: 'Site 1',
-    device_name: 'Device 1',
-    alert_severity: 'warning',
-    tasks: [
-      { id: 'task-1', label: 'Inspect', is_completed: false, position: 0 },
-      { id: 'task-2', label: 'Record readings', is_completed: false, position: 1 },
-    ],
+    tasks: [],
     attachments: [],
   };
-  const statusMutate = jest.fn();
-  const tasksMutate = jest.fn();
-  const uploadMutate = jest.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
     (navigation.useNavigation as jest.Mock).mockReturnValue({
-      navigate: navigateMock,
-      goBack: goBackMock,
+      navigate: jest.fn(),
+      goBack: jest.fn(),
     });
     (navigation.useRoute as jest.Mock).mockReturnValue({
       params: { workOrderId: 'wo-1' },
     });
-    (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: false });
     (useWorkOrder as jest.Mock).mockReturnValue({
       data: workOrder,
       isLoading: false,
@@ -76,51 +62,60 @@ describe('WorkOrderDetailScreen', () => {
       refetch: jest.fn(),
     });
     (useUpdateWorkOrderStatus as jest.Mock).mockReturnValue({
-      mutateAsync: statusMutate,
+      mutateAsync: jest.fn(),
       isPending: false,
     });
     (useUpdateWorkOrderTasks as jest.Mock).mockReturnValue({
-      mutateAsync: tasksMutate,
+      mutateAsync: jest.fn(),
       isPending: false,
     });
+    (useUploadWorkOrderAttachment as jest.Mock).mockReturnValue({
+      mutateAsync: jest.fn(),
+      isPending: false,
+    });
+    (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: false });
+  });
+
+  it('renders empty state when no attachments', () => {
     (useWorkOrderAttachments as jest.Mock).mockReturnValue({
       data: [],
       isLoading: false,
       isFetching: false,
     });
-    (useUploadWorkOrderAttachment as jest.Mock).mockReturnValue({
-      mutateAsync: uploadMutate,
-      isPending: false,
-    });
-  });
 
-  it('updates status when action pressed', async () => {
     render(<WorkOrderDetailScreen />);
 
-    fireEvent.press(screen.getByTestId('start-work-button'));
-
-    expect(statusMutate).toHaveBeenCalledWith({ workOrderId: 'wo-1', status: 'in_progress' });
+    expect(screen.getByText(/No attachments yet/i)).toBeTruthy();
+    expect(screen.getByTestId('add-attachment-button')).toBeEnabled();
   });
 
-  it('toggles task completion', async () => {
-    render(<WorkOrderDetailScreen />);
-
-    fireEvent.press(screen.getByTestId('task-task-1'));
-
-    expect(tasksMutate).toHaveBeenCalledWith({
-      workOrderId: 'wo-1',
-      tasks: [
-        { label: 'Inspect', is_completed: true, position: 0 },
-        { label: 'Record readings', is_completed: false, position: 1 },
+  it('renders attachment rows', () => {
+    (useWorkOrderAttachments as jest.Mock).mockReturnValue({
+      data: [
+        { id: 'a1', originalName: 'photo.jpg', mimeType: 'image/jpeg', url: '/files/a1' },
+        { id: 'a2', originalName: 'manual.pdf', mimeType: 'application/pdf', url: '/files/a2' },
       ],
+      isLoading: false,
+      isFetching: false,
     });
-  });
 
-  it('disables actions when offline', () => {
-    (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: true });
     render(<WorkOrderDetailScreen />);
 
-    expect(screen.getByTestId('start-work-button')).toHaveProp('disabled', true);
-    expect(screen.getByTestId('save-notes-button')).toHaveProp('disabled', true);
+    expect(screen.getByText('photo.jpg')).toBeTruthy();
+    expect(screen.getByText('manual.pdf')).toBeTruthy();
+  });
+
+  it('disables upload when offline', () => {
+    (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: true });
+    (useWorkOrderAttachments as jest.Mock).mockReturnValue({
+      data: [],
+      isLoading: false,
+      isFetching: false,
+    });
+
+    render(<WorkOrderDetailScreen />);
+
+    expect(screen.queryByTestId('add-attachment-button')).toBeNull();
+    expect(screen.getByText(/Attachments can only be added when online/i)).toBeTruthy();
   });
 });

@@ -9,7 +9,7 @@ import {
   findWorkOrdersForOrg,
   findWorkOrdersBySlaWindow,
   getMaintenanceCounts,
-  listAttachments,
+  listWorkOrderAttachments,
   listTasks,
   setTasks,
   updateWorkOrder,
@@ -21,6 +21,7 @@ import {
   type WorkOrderTaskRow,
   type WorkOrderWithRefs,
 } from '../repositories/workOrdersRepository';
+import { buildPublicUrl } from '../config/storage';
 
 export type WorkOrderWithDetails = WorkOrderWithRefs & {
   tasks: WorkOrderTaskRow[];
@@ -186,9 +187,16 @@ async function hydrateWorkOrder(
   const base = await findWorkOrderById(organisationId, workOrderId);
   if (!base) return null;
 
-  const [tasks, attachments] = await Promise.all([listTasks(workOrderId), listAttachments(workOrderId)]);
+  const [tasks, attachments] = await Promise.all([
+    listTasks(workOrderId),
+    listWorkOrderAttachments(organisationId, workOrderId),
+  ]);
+  const normalizedAttachments = attachments.map((att) => ({
+    ...att,
+    url: att.url ?? (att.relative_path ? buildPublicUrl(att.relative_path) : null),
+  }));
   const withSla = withComputedSla(base);
-  return { ...withSla, tasks, attachments };
+  return { ...withSla, tasks, attachments: normalizedAttachments };
 }
 
 const DEFAULT_ALERT_TASKS: WorkOrderTaskInput[] = [

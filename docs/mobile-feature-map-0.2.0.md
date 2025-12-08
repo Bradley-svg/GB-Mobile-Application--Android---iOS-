@@ -16,7 +16,7 @@
 | Push/in-app/email notifications with routing & snooze | Partial | `backend/src/services/pushService.ts`, `mobile/app/hooks/useRegisterPushToken.ts`, `mobile/app/screens/Alerts/AlertDetailScreen.tsx` | Expo push for critical alerts; snooze chips (15m/1h/4h/until resolved with cap) respect rule defaults; profile toggle/prefs. No email/in-app inbox or routing/snooze options. |
 | One-tap work-order creation from alerts | Partial | `backend/src/routes/workOrdersRoutes.ts`, `mobile/app/screens/Alerts/AlertDetailScreen.tsx`, `mobile/app/screens/WorkOrders/*` | Org-scoped work-orders domain with alert entrypoint and list/detail screens; no SLAs/calendar yet. |
 | Work-order checklists and templates | Partial | `backend/src/services/workOrdersService.ts`, `mobile/app/screens/WorkOrders/WorkOrderDetailScreen.tsx` | Basic checklist replace/toggle; no templates or reusable playbooks yet. |
-| Photo capture, annotations, and attachments | Missing | `backend/src/repositories/workOrdersRepository.ts` | Attachments are metadata-only placeholders; no upload/capture UI. |
+| Photo capture, annotations, and attachments | Partial | `backend/src/routes/workOrdersRoutes.ts`, `backend/src/controllers/workOrdersController.ts`, `mobile/app/screens/WorkOrders/WorkOrderDetailScreen.tsx` | Work-order attachments upload/list via `/work-orders/:id/attachments` with local storage and mobile upload button (online-only); no annotations yet. |
 | Parts/spares tracking and costs | Missing | - | Not present. |
 | SLA timers and status badges | Partial | `mobile/app/screens/WorkOrders/*`, `backend/src/services/workOrdersService.ts` | SLA metadata stored with breach logic and list/detail pills; inline SLA/reminder edit (online-only) and maintenance calendar entry point. |
 | Client signature and handover PDF | Missing | - | Not present. |
@@ -30,7 +30,7 @@
 | Device commissioning wizard | Missing | - | Not present. |
 | Firmware/version and connectivity status | Partial | `mobile/app/screens/Dashboard/DashboardScreen.tsx`, `mobile/app/screens/Site/SiteOverviewScreen.tsx`, `mobile/app/screens/Device/DeviceDetailScreen.tsx`, `backend/src/repositories/devicesRepository.ts` | Devices carry `firmware_version` + `connectivity_status`; dashboard/site/device screens now show branded connectivity pills and firmware text; no firmware OTA flow. |
 | Maintenance calendar and reminders | Partial | `mobile/app/screens/Maintenance/MaintenanceCalendarScreen.tsx`, `/maintenance/summary` | Calendar view with open/overdue/due-soon buckets and cached offline view; reminders stored on work orders but no push/notification yet. |
-| Document vault (manuals, schematics) | Missing | - | Not present. |
+| Document vault (manuals, schematics) | Partial | `backend/src/routes/documentRoutes.ts`, `mobile/app/screens/Documents/DocumentsScreen.tsx` | Site/device document uploads via `/sites/:id/documents` + `/devices/:id/documents` with Documents screen entry from Site/Device; cached read-only when offline. |
 | User authentication with SSO/2FA | Missing | `backend/src/controllers/authController.ts`, `mobile/app/screens/Auth/LoginScreen.tsx` | Only local email/password; no SSO or 2FA. |
 | Device onboarding/registration | Missing | - | No device creation/provisioning flow. |
 | Basic accessibility (WCAG-aligned states & contrasts) | Missing | `mobile/app/components/*` | Limited accessibility props; contrast/dark-mode not validated. |

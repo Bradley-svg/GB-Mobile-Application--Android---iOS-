@@ -39,9 +39,17 @@ export type WorkOrderTask = {
 
 export type WorkOrderAttachment = {
   id: string;
-  label: string;
+  originalName?: string;
+  original_name?: string;
+  label?: string | null;
   url: string;
-  created_at: string;
+  mimeType?: string | null;
+  mime_type?: string | null;
+  sizeBytes?: number | null;
+  size_bytes?: number | null;
+  created_at?: string;
+  createdAt?: string;
+  relative_path?: string | null;
 };
 
 export type WorkOrderDetail = WorkOrder & {

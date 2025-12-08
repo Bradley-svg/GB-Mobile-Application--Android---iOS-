@@ -1,9 +1,11 @@
+import fs from 'fs';
 import { query } from '../config/db';
 import { getControlChannelStatus } from './deviceControlService';
 import { getMqttHealth } from '../integrations/mqttClient';
 import { runPushHealthCheck, type PushHealthStatus } from './pushService';
 import { type SystemStatus, getSystemStatus, getSystemStatusByKey } from './statusService';
 import { logger } from '../config/logger';
+import { getStorageRoot } from '../config/storage';
 
 const MQTT_INGEST_STALE_MS = 5 * 60 * 1000;
 const MQTT_ERROR_WINDOW_MS = 5 * 60 * 1000;
@@ -67,6 +69,10 @@ export type HealthPlusPayload = {
     overdueCount: number;
     lastCalcAt: string | null;
   };
+  storage?: {
+    root: string;
+    writable: boolean;
+  };
   alertsEngine: {
     lastRunAt: string | null;
     lastDurationMs: number | null;
@@ -104,6 +110,16 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
   try {
     const dbRes = await query('select 1 as ok');
     const dbOk = dbRes.rows[0]?.ok === 1;
+    const storageRoot = getStorageRoot();
+    let storageWritable = false;
+
+    try {
+      await fs.promises.mkdir(storageRoot, { recursive: true });
+      await fs.promises.access(storageRoot, fs.constants.W_OK);
+      storageWritable = true;
+    } catch (storageErr) {
+      log.warn({ err: storageErr }, 'storage root not writable');
+    }
 
     let pushHealth: PushHealthStatus | null = null;
     try {
@@ -269,6 +285,10 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
       },
       push,
       maintenance: undefined,
+      storage: {
+        root: storageRoot,
+        writable: storageWritable,
+      },
       alertsEngine,
     };
 
@@ -338,6 +358,10 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
         enabled: pushEnabled,
         lastSampleAt: null,
         lastError: null,
+      },
+      storage: {
+        root: getStorageRoot(),
+        writable: false,
       },
       maintenance: {
         openCount: 0,

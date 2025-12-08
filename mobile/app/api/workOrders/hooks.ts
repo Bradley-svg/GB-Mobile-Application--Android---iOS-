@@ -6,6 +6,7 @@ import type {
   WorkOrder,
   WorkOrderDetail,
   WorkOrderFilters,
+  WorkOrderAttachment,
   WorkOrderStatus,
   WorkOrderTask,
 } from './types';
@@ -39,10 +40,31 @@ const normalizeWorkOrder = (order: WorkOrder): WorkOrder => {
   };
 };
 
+const normalizeAttachment = (attachment: WorkOrderAttachment): WorkOrderAttachment => {
+  const mimeType = attachment.mimeType ?? attachment.mime_type ?? null;
+  const sizeBytes = attachment.sizeBytes ?? attachment.size_bytes ?? null;
+  const createdAt = attachment.createdAt ?? attachment.created_at ?? undefined;
+  const originalName =
+    attachment.originalName ?? attachment.original_name ?? attachment.label ?? 'file';
+
+  return {
+    ...attachment,
+    originalName,
+    original_name: originalName,
+    mimeType,
+    mime_type: mimeType,
+    sizeBytes,
+    size_bytes: sizeBytes,
+    createdAt,
+    created_at: createdAt,
+    url: attachment.url,
+  };
+};
+
 const normalizeDetail = (detail: WorkOrderDetail): WorkOrderDetail => ({
   ...normalizeWorkOrder(detail),
   tasks: detail.tasks,
-  attachments: detail.attachments,
+  attachments: (detail.attachments || []).map((att) => normalizeAttachment(att)),
 });
 
 export function useWorkOrdersList(filters?: WorkOrderFilters) {
@@ -172,5 +194,54 @@ export function useMaintenanceSummary(filters?: { siteId?: string; deviceId?: st
     },
     retry: shouldRetry,
     retryDelay,
+  });
+}
+
+type UploadAttachmentInput = {
+  uri: string;
+  name: string;
+  type?: string;
+  size?: number | null;
+};
+
+export function useWorkOrderAttachments(workOrderId: string) {
+  return useQuery<WorkOrderAttachment[]>({
+    queryKey: ['work-orders', workOrderId, 'attachments'],
+    enabled: !!workOrderId,
+    queryFn: async () => {
+      const res = await api.get(`/work-orders/${workOrderId}/attachments`);
+      return (res.data as WorkOrderAttachment[]).map((att) => normalizeAttachment(att));
+    },
+    retry: shouldRetry,
+    retryDelay,
+  });
+}
+
+export function useUploadWorkOrderAttachment(workOrderId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: UploadAttachmentInput) => {
+      const formData = new FormData();
+      const filePayload = {
+        uri: payload.uri,
+        name: payload.name,
+        type: payload.type || 'application/octet-stream',
+      };
+      formData.append('file', filePayload as unknown as Blob);
+      const res = await api.post(`/work-orders/${workOrderId}/attachments`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return normalizeAttachment(res.data as WorkOrderAttachment);
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['work-orders', workOrderId, 'attachments'] });
+      queryClient.invalidateQueries({ queryKey: ['work-orders', workOrderId] });
+      queryClient.setQueryData(['work-orders', workOrderId, 'attachments'], (existing) => {
+        if (Array.isArray(existing)) {
+          return [data, ...existing];
+        }
+        return [data];
+      });
+    },
   });
 }

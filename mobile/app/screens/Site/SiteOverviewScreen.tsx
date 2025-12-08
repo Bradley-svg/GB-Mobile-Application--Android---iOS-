@@ -169,6 +169,25 @@ export const SiteOverviewScreen: React.FC = () => {
         </View>
       </Card>
 
+      <Card
+        style={styles.quickLinkCard}
+        onPress={() => navigation.navigate('Documents', { scope: 'site', siteId })}
+        testID="site-documents-link"
+      >
+        <View style={styles.quickLinkRow}>
+          <View style={styles.quickLinkIcon}>
+            <Ionicons name="document-text-outline" size={18} color={colors.brandGreen} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[typography.subtitle, styles.title]}>Documents</Text>
+            <Text style={[typography.caption, styles.muted]} numberOfLines={2}>
+              Manuals and schematics for this site.
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+        </View>
+      </Card>
+
       {isOffline ? (
         <Text style={[typography.caption, styles.muted, styles.offlineNote]}>
           Offline - showing last known data.
@@ -293,6 +312,23 @@ const styles = StyleSheet.create({
   staleNote: {
     color: colors.warning,
     marginBottom: spacing.md,
+  },
+  quickLinkCard: {
+    marginBottom: spacing.md,
+    padding: spacing.lg,
+  },
+  quickLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  quickLinkIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.backgroundAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
   },
   sectionTitle: {
     marginBottom: spacing.md,

@@ -28,4 +28,12 @@ export {
   useUpdateWorkOrderStatus,
   useUpdateWorkOrderTasks,
   useMaintenanceSummary,
+  useWorkOrderAttachments,
+  useUploadWorkOrderAttachment,
 } from './workOrders/hooks';
+export {
+  useSiteDocuments,
+  useDeviceDocuments,
+  useUploadSiteDocument,
+  useUploadDeviceDocument,
+} from './documents/hooks';

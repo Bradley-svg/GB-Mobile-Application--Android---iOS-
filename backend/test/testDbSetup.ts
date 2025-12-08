@@ -1,3 +1,4 @@
+import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
@@ -420,6 +421,56 @@ async function seedBaseData(client: Client) {
   `,
     [defaultWorkOrderId]
   );
+
+  await client.query(
+    `
+    insert into work_order_attachments (
+      id,
+      organisation_id,
+      work_order_id,
+      label,
+      filename,
+      original_name,
+      mime_type,
+      size_bytes,
+      url,
+      relative_path,
+      uploaded_by_user_id,
+      created_at
+    )
+    values
+      ('99999999-aaaa-bbbb-cccc-000000000001', $1, $2, 'Pump photo', 'pump-photo.jpg', 'pump-photo.jpg', 'image/jpeg', 2048, '/files/work-orders/seed/pump-photo.jpg', 'work-orders/11111111-1111-1111-1111-111111111111/55555555-5555-5555-5555-555555555555/pump-photo.jpg', $3, now()),
+      ('99999999-aaaa-bbbb-cccc-000000000002', $1, $4, 'Report', 'report.pdf', 'report.pdf', 'application/pdf', 4096, '/files/work-orders/seed/report.pdf', 'work-orders/11111111-1111-1111-1111-111111111111/66666666-6666-6666-6666-666666666666/report.pdf', $3, now())
+    on conflict do nothing
+  `,
+    [DEFAULT_IDS.organisation, defaultWorkOrderId, DEFAULT_IDS.user, overdueWorkOrderId]
+  );
+
+  await client.query(
+    `
+    insert into documents (
+      id,
+      org_id,
+      site_id,
+      device_id,
+      title,
+      category,
+      description,
+      filename,
+      original_name,
+      mime_type,
+      size_bytes,
+      relative_path,
+      uploaded_by_user_id,
+      created_at
+    )
+    values
+      ('dddddddd-1111-2222-3333-444444444444', $1, $2, null, 'Heat pump manual', 'manual', 'Seeded manual', 'manual.pdf', 'manual.pdf', 'application/pdf', 12345, 'documents/11111111-1111-1111-1111-111111111111/site/22222222-2222-2222-2222-222222222222/manual.pdf', $3, now()),
+      ('dddddddd-aaaa-bbbb-cccc-444444444444', $1, null, $4, 'Wiring schematic', 'schematic', null, 'schematic.png', 'schematic.png', 'image/png', 2345, 'documents/11111111-1111-1111-1111-111111111111/device/33333333-3333-3333-3333-333333333333/schematic.png', $3, now())
+    on conflict do nothing
+  `,
+    [DEFAULT_IDS.organisation, DEFAULT_IDS.site, DEFAULT_IDS.user, DEFAULT_IDS.device]
+  );
 }
 
 async function resetTables(client: Client) {
@@ -440,6 +491,7 @@ async function resetTables(client: Client) {
       truncate table
         work_order_tasks,
         work_order_attachments,
+        documents,
         work_orders,
         telemetry_points,
         device_snapshots,
@@ -490,5 +542,10 @@ export async function teardownTestDb() {
     // Ignore teardown errors to avoid masking test failures
   } finally {
     migrationsApplied = false;
+  }
+
+  const storageRoot = process.env.FILE_STORAGE_ROOT;
+  if (storageRoot) {
+    await fs.promises.rm(storageRoot, { recursive: true, force: true }).catch(() => {});
   }
 }

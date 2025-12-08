@@ -156,3 +156,13 @@ jest.mock('@react-native-community/netinfo', () => {
     fetch: jest.fn(() => Promise.resolve(defaultState)),
   };
 });
+
+jest.mock('expo-document-picker', () => ({
+  getDocumentAsync: jest.fn(async () => ({ canceled: true, assets: [] })),
+}));
+
+jest.mock('expo-image-picker', () => ({
+  requestMediaLibraryPermissionsAsync: jest.fn(async () => ({ status: 'granted' })),
+  launchImageLibraryAsync: jest.fn(async () => ({ canceled: true, assets: [] })),
+  MediaTypeOptions: { All: 'All', Images: 'Images' },
+}));
