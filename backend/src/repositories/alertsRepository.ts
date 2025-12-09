@@ -167,7 +167,7 @@ export async function fetchAlerts(filters: {
   organisationId: string;
 }) {
   const where: string[] = ['s.organisation_id = $1'];
-  const params: any[] = [filters.organisationId];
+  const params: Array<string | number> = [filters.organisationId];
   let idx = 2;
 
   if (filters.siteId) {
@@ -302,7 +302,7 @@ export async function getActiveAlertsForOrganisation(
 export async function getActiveAlertCounts(
   organisationId?: string
 ): Promise<{ warning: number; critical: number }> {
-  const params: any[] = [];
+  const params: string[] = [];
   let filter = "where a.status = 'active'";
   if (organisationId) {
     params.push(organisationId);

@@ -120,36 +120,43 @@ function getOrgId(user: UserContext) {
   }
 }
 
-function extractMetricSummary(data: any) {
-  if (!data) return null;
-  const metrics = data.metrics || data.raw?.sensor || {};
+function extractMetricSummary(data: unknown) {
+  if (!data || typeof data !== 'object') return null;
+  const metricsSource =
+    (data as { metrics?: unknown; raw?: { sensor?: unknown } }).metrics ||
+    (data as { raw?: { sensor?: unknown } }).raw?.sensor ||
+    {};
+  const metricValues =
+    typeof metricsSource === 'object' && metricsSource !== null
+      ? (metricsSource as Record<string, unknown>)
+      : {};
   const powerKw =
-    metrics.power_kw ??
-    (typeof metrics.power_w === 'number' ? metrics.power_w / 1000 : undefined) ??
+    metricValues.power_kw ??
+    (typeof metricValues.power_w === 'number' ? metricValues.power_w / 1000 : undefined) ??
     null;
   const flowRate =
-    metrics.flow_rate ??
-    metrics.flow_lps ??
-    metrics.flow_lpm ??
-    (typeof metrics.flow === 'number' ? metrics.flow : undefined) ??
+    metricValues.flow_rate ??
+    metricValues.flow_lps ??
+    metricValues.flow_lpm ??
+    (typeof metricValues.flow === 'number' ? metricValues.flow : undefined) ??
     null;
 
   const summary = {
     supply_temp:
-      typeof metrics.supply_temp === 'number'
-        ? metrics.supply_temp
-        : typeof metrics.supply_temperature_c === 'number'
-        ? metrics.supply_temperature_c
+      typeof metricValues.supply_temp === 'number'
+        ? metricValues.supply_temp
+        : typeof metricValues.supply_temperature_c === 'number'
+        ? metricValues.supply_temperature_c
         : null,
     return_temp:
-      typeof metrics.return_temp === 'number'
-        ? metrics.return_temp
-        : typeof metrics.return_temperature_c === 'number'
-        ? metrics.return_temperature_c
+      typeof metricValues.return_temp === 'number'
+        ? metricValues.return_temp
+        : typeof metricValues.return_temperature_c === 'number'
+        ? metricValues.return_temperature_c
         : null,
     power_kw: typeof powerKw === 'number' ? powerKw : null,
     flow_rate: typeof flowRate === 'number' ? flowRate : null,
-    cop: typeof metrics.cop === 'number' ? metrics.cop : null,
+    cop: typeof metricValues.cop === 'number' ? metricValues.cop : null,
   };
 
   return summary;

@@ -190,10 +190,10 @@ export async function runPushHealthCheck(): Promise<PushHealthStatus> {
       at: now.toISOString(),
     };
     await recordPushSample(now, null);
-  } catch (e: any) {
+  } catch (e) {
     lastPushSample = {
       status: 'error',
-      detail: e?.message || 'Push health send failed',
+      detail: (e as Error | undefined)?.message || 'Push health send failed',
       at: now.toISOString(),
     };
     await recordPushSample(now, e);

@@ -210,7 +210,7 @@ export async function putDeviceSchedule(req: Request, res: Response, next: NextF
 
     const schedule = await upsertDeviceSchedule(parsedParams.data.id, organisationId, parsedBody.data);
     return res.json(schedule);
-  } catch (err: any) {
+  } catch (err) {
     if (err instanceof ScheduleValidationError) {
       const status = err.reason === 'NOT_FOUND' ? 404 : 400;
       return res.status(status).json({ message: err.message, reason: err.reason });
@@ -246,14 +246,15 @@ export async function sendSetpointCommand(req: Request, res: Response, next: Nex
 
     const command = await setDeviceSetpoint(paramsResult.data.id, userId, parsed.data, organisationId);
     res.json(command);
-  } catch (e: any) {
+  } catch (e) {
     if (e instanceof ControlValidationError) {
       return res.status(400).json({ message: e.message });
     }
-    if (e instanceof ControlThrottleError || e?.type === 'THROTTLED') {
-      return res.status(429).json({ message: e.message });
+    const message = e instanceof Error ? e.message : 'Unknown error';
+    if (e instanceof ControlThrottleError || (e as { type?: string } | null)?.type === 'THROTTLED') {
+      return res.status(429).json({ message });
     }
-    switch (e.message) {
+    switch (message) {
       case 'DEVICE_NOT_FOUND':
         return res.status(404).json({ message: 'Device not found' });
       case 'DEVICE_NOT_CONTROLLABLE':
@@ -298,14 +299,15 @@ export async function sendModeCommand(req: Request, res: Response, next: NextFun
 
     const command = await setDeviceMode(paramsResult.data.id, userId, parsed.data, organisationId);
     res.json(command);
-  } catch (e: any) {
+  } catch (e) {
     if (e instanceof ControlValidationError) {
       return res.status(400).json({ message: e.message });
     }
-    if (e instanceof ControlThrottleError || e?.type === 'THROTTLED') {
-      return res.status(429).json({ message: e.message });
+    const message = e instanceof Error ? e.message : 'Unknown error';
+    if (e instanceof ControlThrottleError || (e as { type?: string } | null)?.type === 'THROTTLED') {
+      return res.status(429).json({ message });
     }
-    switch (e.message) {
+    switch (message) {
       case 'DEVICE_NOT_FOUND':
         return res.status(404).json({ message: 'Device not found' });
       case 'DEVICE_NOT_CONTROLLABLE':

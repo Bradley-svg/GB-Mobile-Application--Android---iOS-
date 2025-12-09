@@ -7,8 +7,8 @@ export type ControlCommandRow = {
   device_id: string;
   user_id: string;
   command_type: string;
-  payload: any;
-  requested_value: any | null;
+  payload: unknown;
+  requested_value: unknown | null;
   status: CommandStatus;
   requested_at: Date;
   completed_at: Date | null;

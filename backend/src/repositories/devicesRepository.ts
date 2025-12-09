@@ -31,7 +31,7 @@ export type DeviceLastSeenRow = {
   id: string;
   site_id: string;
   last_seen_at: Date;
-  data: any;
+  data: unknown;
 };
 
 export async function getDeviceById(id: string, organisationId?: string) {
@@ -145,7 +145,7 @@ export async function getDeviceSnapshotTemperatures() {
 }
 
 export async function getDeviceLastSeen(deviceIds?: string[]) {
-  const params: any[] = [];
+  const params: Array<string[] | string> = [];
   let filterClause = '';
   if (deviceIds && deviceIds.length > 0) {
     params.push(deviceIds);

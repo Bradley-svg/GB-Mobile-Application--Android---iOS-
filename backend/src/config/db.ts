@@ -17,7 +17,7 @@ const log = logger.child({ module: 'db' });
 
 export async function query<T extends QueryResultRow = QueryResultRow>(
   text: string,
-  params?: any[]
+  params?: unknown[]
 ): Promise<QueryResult<T>> {
   try {
     const result = await pool.query<T>(text, params);

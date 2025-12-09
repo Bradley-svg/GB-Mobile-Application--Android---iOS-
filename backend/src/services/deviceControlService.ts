@@ -382,9 +382,9 @@ export async function setDeviceSetpoint(
       failure_message: null,
       error_message: null,
     };
-  } catch (e: any) {
-    const failureMessage = e?.message || 'External command failed';
-    const failureReason = e?.message?.startsWith('CONTROL_HTTP_FAILED')
+  } catch (e) {
+    const failureMessage = (e as Error | undefined)?.message || 'External command failed';
+    const failureReason = (e as Error | undefined)?.message?.startsWith('CONTROL_HTTP_FAILED')
       ? 'EXTERNAL_ERROR'
       : 'SEND_FAILED';
     await markCommandFailure(commandRow.id, failureMessage, failureReason);
@@ -521,9 +521,9 @@ export async function setDeviceMode(
       failure_message: null,
       error_message: null,
     };
-  } catch (e: any) {
-    const failureMessage = e?.message || 'External command failed';
-    const failureReason = e?.message?.startsWith('CONTROL_HTTP_FAILED')
+  } catch (e) {
+    const failureMessage = (e as Error | undefined)?.message || 'External command failed';
+    const failureReason = (e as Error | undefined)?.message?.startsWith('CONTROL_HTTP_FAILED')
       ? 'EXTERNAL_ERROR'
       : 'SEND_FAILED';
     await markCommandFailure(commandRow.id, failureMessage, failureReason);

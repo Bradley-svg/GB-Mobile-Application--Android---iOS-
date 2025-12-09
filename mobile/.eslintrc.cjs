@@ -53,5 +53,12 @@ module.exports = {
         'no-restricted-imports': 'off',
       },
     },
+    {
+      files: ['app/theme/**/*.{ts,tsx}'],
+      rules: {
+        // Guard unused static styles in theme files; component-level dynamic createStyles are handled separately.
+        'react-native/no-unused-styles': 'warn',
+      },
+    },
   ],
 };

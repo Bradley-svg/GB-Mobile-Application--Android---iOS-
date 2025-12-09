@@ -40,8 +40,8 @@ export async function signup(req: Request, res: Response, next: NextFunction) {
     const user = await registerUser(parsed.data.email, parsed.data.password, parsed.data.name);
     const tokens = await issueTokens(user.id, { role: user.role });
     res.json({ ...tokens, user });
-  } catch (e: any) {
-    if (e.message === 'EMAIL_EXISTS') {
+  } catch (e) {
+    if (e instanceof Error && e.message === 'EMAIL_EXISTS') {
       return res.status(409).json({ message: 'Email already in use' });
     }
     next(e);
@@ -60,8 +60,8 @@ export async function login(req: Request, res: Response, next: NextFunction) {
     const user = await loginUser(parsed.data.email, parsed.data.password);
     const tokens = await issueTokens(user.id, { role: user.role });
     res.json({ ...tokens, user });
-  } catch (e: any) {
-    if (e.message === 'INVALID_CREDENTIALS') {
+  } catch (e) {
+    if (e instanceof Error && e.message === 'INVALID_CREDENTIALS') {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
     next(e);
@@ -95,7 +95,7 @@ export async function refresh(req: Request, res: Response, next: NextFunction) {
     const { userId, tokenId } = await verifyRefreshToken(parsed.data.refreshToken);
     const tokens = await issueTokens(userId, { rotateFromId: tokenId });
     res.json(tokens);
-  } catch (e: any) {
+  } catch (e) {
     const invalidReasons = [
       'INVALID_TOKEN_TYPE',
       'REFRESH_TOKEN_NOT_FOUND',
@@ -103,10 +103,10 @@ export async function refresh(req: Request, res: Response, next: NextFunction) {
       'REFRESH_TOKEN_REVOKED',
       'REFRESH_TOKEN_EXPIRED',
     ];
-    if (invalidReasons.includes(e?.message)) {
+    if (invalidReasons.includes((e as Error | undefined)?.message ?? '')) {
       return res.status(401).json({ message: 'Invalid refresh token' });
     }
-    if (e?.name === 'JsonWebTokenError' || e?.name === 'TokenExpiredError') {
+    if ((e as Error | undefined)?.name === 'JsonWebTokenError' || (e as Error | undefined)?.name === 'TokenExpiredError') {
       return res.status(401).json({ message: 'Invalid refresh token' });
     }
     next(e);
@@ -135,7 +135,7 @@ export async function logout(req: Request, res: Response, next: NextFunction) {
   try {
     await revokeRefreshTokenForSession(userId, parsed.data.refreshToken);
     res.status(204).send();
-  } catch (e: any) {
+  } catch (e) {
     const invalidReasons = [
       'INVALID_TOKEN_TYPE',
       'REFRESH_TOKEN_NOT_FOUND',
@@ -144,10 +144,10 @@ export async function logout(req: Request, res: Response, next: NextFunction) {
       'REFRESH_TOKEN_EXPIRED',
       'MISSING_TOKEN_ID',
     ];
-    if (invalidReasons.includes(e?.message)) {
+    if (invalidReasons.includes((e as Error | undefined)?.message ?? '')) {
       return res.status(401).json({ message: 'Invalid refresh token' });
     }
-    if (e?.name === 'JsonWebTokenError' || e?.name === 'TokenExpiredError') {
+    if ((e as Error | undefined)?.name === 'JsonWebTokenError' || (e as Error | undefined)?.name === 'TokenExpiredError') {
       return res.status(401).json({ message: 'Invalid refresh token' });
     }
     next(e);

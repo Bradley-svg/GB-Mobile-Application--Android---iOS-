@@ -36,7 +36,7 @@ export async function getTelemetryForDeviceRange(
   to: Date,
   metrics?: string[]
 ): Promise<TelemetryMetricRow[]> {
-  const params: any[] = [deviceId, from, to];
+  const params: Array<string | Date | string[]> = [deviceId, from, to];
   let metricClause = '';
   if (metrics && metrics.length > 0) {
     params.push(metrics);
@@ -73,7 +73,7 @@ export async function insertTelemetryBatch(
     )
     .join(', ');
 
-  const params: any[] = [deviceId];
+  const params: Array<string | number | Date> = [deviceId];
   for (const [metricName, value] of entries) {
     params.push(metricName, timestamp, value);
   }
@@ -106,7 +106,7 @@ export async function getLatestTelemetryForMetrics(
 ): Promise<LatestMetricRow[]> {
   if (metrics.length === 0) return [];
 
-  const params: any[] = [metrics];
+  const params: Array<string[] | string> = [metrics];
   let deviceClause = '';
   if (deviceIds && deviceIds.length > 0) {
     params.push(deviceIds);

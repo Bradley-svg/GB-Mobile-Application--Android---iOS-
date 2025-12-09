@@ -154,7 +154,7 @@ export async function insertAlertRule(input: InsertAlertRuleInput) {
 
 export async function updateAlertRule(ruleId: string, input: UpdateAlertRuleInput) {
   const fragments: string[] = [];
-  const values: any[] = [];
+  const values: Array<string | number | boolean | null> = [];
 
   const map: Array<[keyof UpdateAlertRuleInput, string]> = [
     ['siteId', 'site_id'],
