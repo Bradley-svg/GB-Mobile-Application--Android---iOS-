@@ -1,7 +1,9 @@
 import React, { useMemo } from 'react';
-import { StyleProp, StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-native';
+/* eslint react-native/no-unused-styles: "warn" */
+import { StyleProp, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { useAppTheme } from '../theme/useAppTheme';
 import type { AppTheme } from '../theme/types';
+import { createThemedStyles } from '../theme/createThemedStyles';
 import { createSoftShadow } from './styles';
 
 type CardProps = {
@@ -37,7 +39,7 @@ export const Card: React.FC<CardProps> = ({ children, style, onPress, testID, ac
 };
 
 const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
+  createThemedStyles(theme, {
     card: {
       backgroundColor: theme.colors.card,
       borderRadius: theme.radius.lg,

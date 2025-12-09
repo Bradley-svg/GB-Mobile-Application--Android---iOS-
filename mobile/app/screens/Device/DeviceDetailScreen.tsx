@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+/* eslint react-native/no-unused-styles: "warn" */
 import {
   View,
   Text,
   ActivityIndicator,
   TextInput,
-  StyleSheet,
   TouchableOpacity,
   Modal,
   ScrollView,
@@ -56,6 +56,7 @@ import { loadJsonWithMetadata, saveJson, isCacheOlderThan } from '../../utils/st
 import { useAppTheme } from '../../theme/useAppTheme';
 import { getChartTheme } from '../../theme/chartTheme';
 import type { AppTheme } from '../../theme/types';
+import { createThemedStyles } from '../../theme/createThemedStyles';
 import { isContractor, useAuthStore } from '../../store/authStore';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 
@@ -1457,7 +1458,7 @@ function mapHistoryError(status: HistoryStatus) {
 
 const createStyles = (theme: AppTheme) => {
   const { colors, spacing } = theme;
-  return StyleSheet.create({
+  return createThemedStyles(theme, {
     center: {
       flex: 1,
       alignItems: 'center',

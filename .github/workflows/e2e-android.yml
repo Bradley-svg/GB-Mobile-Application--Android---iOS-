@@ -10,8 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
+      NODE_ENV: development
       EXPO_PUBLIC_API_URL: http://10.0.2.2:4000
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/greenbro_e2e
+      HEATPUMP_HISTORY_DISABLED: "true"
     services:
       postgres:
         image: postgres:16

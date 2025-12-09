@@ -29,6 +29,7 @@ Centralised reference for backend and mobile environment variables across dev/st
 - `HEATPUMP_HISTORY_URL`: Base URL for the Azure heat-pump history API (required outside `NODE_ENV=development`; endpoint returns 503 when missing).
 - `HEATPUMP_HISTORY_API_KEY`: API key for the history API (required outside `NODE_ENV=development`; endpoint returns 503 when missing).
 - `HEATPUMP_HISTORY_TIMEOUT_MS`: Request timeout for the history API client (milliseconds).
+- `HEATPUMP_HISTORY_DISABLED`: Optional flag to disable vendor calls (used by CI/E2E to avoid external dependencies).
 - `MQTT_URL`: MQTT broker URL (for example `mqtt://broker:1883`).
 - `MQTT_USERNAME` / `MQTT_PASSWORD`: Optional MQTT credentials when brokers require auth.
 - `CONTROL_API_URL`: Optional HTTP control endpoint; when unset, control may fall back to MQTT.

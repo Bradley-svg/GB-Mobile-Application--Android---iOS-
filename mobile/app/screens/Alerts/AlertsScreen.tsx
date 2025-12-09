@@ -1,5 +1,6 @@
+/* eslint react-native/no-unused-styles: "warn" */
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +12,7 @@ import { loadJsonWithMetadata, saveJson, isCacheOlderThan } from '../../utils/st
 import type { Alert } from '../../api/types';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppTheme } from '../../theme/types';
+import { createThemedStyles } from '../../theme/createThemedStyles';
 import { typography } from '../../theme/typography';
 
 type Navigation = NativeStackNavigationProp<AppStackParamList>;
@@ -221,7 +223,7 @@ export const AlertsScreen: React.FC = () => {
 };
 
 const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
+  createThemedStyles(theme, {
     center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     title: { color: theme.colors.textPrimary },
     muted: { color: theme.colors.textSecondary },

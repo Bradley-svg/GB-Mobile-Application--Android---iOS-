@@ -25,3 +25,4 @@
 - Run the tests from another terminal: `cd mobile && npm run e2e:test:android` (uses a 180s Jest timeout and warns-only Detox logs).
 - Detox auto-reverses `8081` for the emulator via `reversePorts` in `detox.config.js`; no manual `adb reverse` needed.
 - Clean up after runs: stop Metro and kill the emulator when you’re done, e.g. `adb -s emulator-5554 emu kill`.
+- CI E2E workflow boots Postgres, runs backend migrations + `seed:e2e`, starts the API (waits on `/health-plus`), disables vendor heat-pump history via `HEATPUMP_HISTORY_DISABLED=true`, then runs Metro/Detox. Local runs should mirror this: ensure backend is up/seeded before `npm run e2e:test:android`.

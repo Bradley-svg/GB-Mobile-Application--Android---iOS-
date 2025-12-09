@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native';
 import type { AppTheme } from './types';
 
-// Wrapper to make StyleSheet usage consistent across themed components.
+// Preferred helper for theme-aware styles; keeps linting consistent with react-native/no-unused-styles.
 export const createThemedStyles = <T extends StyleSheet.NamedStyles<T>>(
   theme: AppTheme,
   styles: T

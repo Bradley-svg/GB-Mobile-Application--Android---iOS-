@@ -372,4 +372,15 @@ describe('heatPumpHistoryClient', () => {
       /Missing required heat pump history env vars: HEATPUMP_HISTORY_URL/
     );
   });
+
+  it('skips vendor calls entirely when HEATPUMP_HISTORY_DISABLED is true', async () => {
+    process.env.NODE_ENV = 'development';
+    process.env.HEATPUMP_HISTORY_DISABLED = 'true';
+    const result = await fetchHeatPumpHistory(baseRequest);
+    expect(result.ok).toBe(false);
+    expect(result.kind).toBe('CIRCUIT_OPEN');
+    expect(fetchMock).not.toHaveBeenCalled();
+    process.env.HEATPUMP_HISTORY_DISABLED = '';
+    process.env.NODE_ENV = 'test';
+  });
 });

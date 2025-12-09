@@ -40,6 +40,10 @@
 - Mobile: `cd mobile && npm run typecheck && npm run lint && npm test -- --runInBand`
 - CI mirrors this (`npm test` plain for backend; `npm test -- --runInBand` for mobile). Detox configs remain intact; do not run Detox here.
 
+### E2E (Detox + backend bring-up)
+- CI workflow `.github/workflows/e2e-android.yml` now boots Postgres, runs `backend` migrate + `seed:e2e`, starts the API (waits on `/health-plus`), then runs Metro on 8081 and Detox (`npm run e2e:test:android`). Heat-pump history calls are disabled via `HEATPUMP_HISTORY_DISABLED=true` to avoid vendor dependency.
+- Local run (manual): start backend with `npm run migrate:dev && npm run seed:e2e && npm run dev`, then in a new terminal `cd mobile && npx expo start --dev-client --localhost --port 8081 --clear`, and from repo root run `npm run e2e:android` (emulator `Pixel_7_API_34`).
+
 ### 2025-12-08: end-to-end local stack spin-up (Windows, Pixel_7_API_34 emulator)
 - Backend commands (PowerShell): `cd backend`; `npm install`; `npm run migrate:dev`; `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm run migrate:test`; `node scripts/init-local-db.js`; `npm run typecheck`; `npm run lint`; `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm test`; `npm run build`; `npm run dev` (running in its own terminal).
 - Health: `curl http://localhost:4000/health-plus` ⇒ `ok:true`, `db:"ok"`, storage writable, integrations configured:false where expected.

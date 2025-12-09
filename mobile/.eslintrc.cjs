@@ -66,5 +66,15 @@ module.exports = {
         'react-native/no-unused-styles': 'warn',
       },
     },
+    {
+      files: [
+        'app/components/Card.tsx',
+        'app/screens/Alerts/AlertsScreen.tsx',
+        'app/screens/Device/DeviceDetailScreen.tsx',
+      ],
+      rules: {
+        'react-native/no-unused-styles': 'warn',
+      },
+    },
   ],
 };

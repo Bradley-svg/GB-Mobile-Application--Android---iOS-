@@ -92,6 +92,7 @@ export type HeatPumpHistoryClientConfig = {
   configured: boolean;
   missingKeys: string[];
   nodeEnv: string;
+  disabled?: boolean;
 };
 
 function buildAzureRequest(payload: HeatPumpHistoryRequest): AzureHeatPumpHistoryRequest {
@@ -150,6 +151,17 @@ function resolveTimeoutMs() {
 
 export function getHeatPumpHistoryConfig(): HeatPumpHistoryClientConfig {
   const nodeEnv = process.env.NODE_ENV || 'development';
+  if (process.env.HEATPUMP_HISTORY_DISABLED === 'true') {
+    return {
+      url: undefined,
+      apiKey: undefined,
+      requestTimeoutMs: DEFAULT_REQUEST_TIMEOUT_MS,
+      configured: false,
+      missingKeys: [],
+      nodeEnv,
+      disabled: true,
+    };
+  }
   const resolvedUrl = resolveEnvValue('HEATPUMP_HISTORY_URL', 'HEAT_PUMP_HISTORY_URL');
   const rawUrl = resolvedUrl.value;
   const resolvedApiKey = resolveEnvValue('HEATPUMP_HISTORY_API_KEY', 'HEAT_PUMP_HISTORY_API_KEY');
@@ -267,6 +279,13 @@ export async function fetchHeatPumpHistory(req: HeatPumpHistoryRequest): Promise
 
   const azurePayload = buildAzureRequest(req);
   const config = getHeatPumpHistoryConfig();
+  if (config.disabled) {
+    return {
+      ok: false,
+      kind: 'CIRCUIT_OPEN',
+      message: 'Heat pump history is disabled for this environment',
+    };
+  }
   if (config.missingKeys.length > 0) {
     throw new HeatPumpHistoryConfigurationError(
       `Missing required heat pump history env vars: ${config.missingKeys.join(', ')}`,

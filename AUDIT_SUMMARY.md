@@ -10,13 +10,13 @@
 - Removed/typed all lingering `any` usages in backend controllers/repositories/services and elevated `@typescript-eslint/no-explicit-any` to `error`.
 - Wired backend CI to enforce coverage via `npm run test:coverage` (Vitest thresholds already configured) and kept typecheck/lint/build steps intact.
 - Made Detox E2E workflow self-contained: starts Postgres, installs backend deps, runs migrate + seed (`seed:e2e`), boots backend server, waits on `/health-plus`, then runs Metro + Detox (`.github/workflows/e2e-android.yml`).
-- Added `seed:e2e` script (`backend/package.json`) and used `wait-on` for backend readiness.
-- Introduced `createThemedStyles` helper and extended unused-style lint (warn) to representative component/screen (`StatusPill`, `DeviceGaugesSection`) via `mobile/.eslintrc.cjs`.
+- Added `seed:e2e` script (`backend/package.json`) and used `wait-on` for backend readiness; vendor heat-pump history is disabled in CI via `HEATPUMP_HISTORY_DISABLED=true`.
+- Introduced `createThemedStyles` helper and extended unused-style lint (warn) to key UI (`StatusPill`, `Card`, `DeviceGaugesSection`, `DeviceDetailScreen`, `AlertsScreen`) via `mobile/.eslintrc.cjs`.
 - Retained earlier env/doc improvements (`STAGING_DATABASE_URL`, `DEMO_USER_PASSWORD`, `ALERT_RULE_REFRESH_MINUTES`, `HEALTH_BASE_URL`) in templates and checklists.
 
 ## Not fixed / notes
-- Detox workflow still depends on default dev env vars (e.g., heat-pump history credentials are not mocked); configure secrets or stub integrations if needed for air-gapped runs.
-- Unused-style lint is only enabled (warn) for `StatusPill` and `DeviceGaugesSection`; helper exists but broader rollout is pending.
+- Detox workflow still depends on default dev env vars for other integrations; heat-pump history is disabled via flag, but fully offline runs may need further stubs/secrets.
+- Unused-style lint is only enabled (warn) for the migrated component/screen set; broader rollout is pending.
 
 ### TODOs
 - [P1][Backend] Enable `noImplicitReturns` once early-return handlers are cleaned up.
@@ -27,7 +27,7 @@
   - Files: `mobile/.eslintrc.cjs`, `mobile/app/components/*`, `mobile/app/screens/*`
   - Notes: migrate createStyles usage gradually; silence false positives with targeted TODOs only when necessary.
 
-- [P2][Full-stack] Harden Detox workflow secrets/mocks for offline runs (heat-pump history, signed URLs).
+- [P2][Full-stack] Harden Detox workflow secrets/mocks for offline runs (heat-pump history is flagged off; other vendors/signing remain to be stubbed).
   - Files: `.github/workflows/e2e-android.yml`, `backend/.env.example`
   - Notes: set safe defaults or stub integrations so `/health-plus` stays green without external vendors.
 
