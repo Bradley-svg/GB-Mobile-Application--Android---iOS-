@@ -19,6 +19,9 @@
 - Added pre-release run notes/checklists covering lint/type/test gates, CI-only vendor-disable flags, and the UI regression safety net (theming snapshots + ErrorCard tests).
 - Retained earlier env/doc improvements (`STAGING_DATABASE_URL`, `DEMO_USER_PASSWORD`, `ALERT_RULE_REFRESH_MINUTES`, `HEALTH_BASE_URL`) in templates and checklists.
 
+## Dev tooling / hygiene
+- Added dev:all and stop:all orchestration scripts for backend + mobile + emulator; dev:all now logs clear steps and handles missing seed/adb/DB more gracefully.
+
 ## Not fixed / notes
 - Detox workflow still depends on default dev env vars for other integrations; flags exist to disable control/MQTT/push/history in CI, but fully offline prod-like runs should supply real secrets.
 - React Native act warnings still surface from ThemeProvider during theme snapshot runs; known noise accepted in the current baseline.

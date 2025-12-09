@@ -6,6 +6,14 @@
 - Navigation/data error guards added and covered by new tests.
 - Error-surface theming unified and exercised by ErrorCard theme snapshots.
 
+## One-command dev environment
+- `npm run dev:all` – kills old Node/Expo/Metro on ports 4000/8081/8082, ensures Postgres is up (GREENBRO_PG_SERVICE or default), starts backend (migrate + optional seed + dev), starts Expo dev client on 8081, wires adb reverse, starts Pixel_7_API_34, and launches the app (`com.greenbro.mobile/.MainActivity`).
+- `npm run stop:all` – stops Node/Expo/Metro and attempts to shut down any running Android emulator (safe if nothing is running).
+
+Requirements:
+- Postgres service or Docker compose configured as per `scripts/dev-all.ps1`.
+- adb and Android SDK (Pixel_7_API_34) installed and on PATH.
+
 ## Pre-release checklist
 - Backend: `cd backend && npm run lint && npm run typecheck && npm test`
 - Mobile: `cd mobile && npm run lint && npm run typecheck && npm test -- --runInBand`
