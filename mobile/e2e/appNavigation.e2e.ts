@@ -1,6 +1,10 @@
 import { device, element, by, expect, waitFor } from 'detox';
 
 describe('Greenbro core navigation', () => {
+  beforeAll(async () => {
+    await device.launchApp({ newInstance: true });
+  });
+
   it('logs in and navigates Dashboard → Site → Device → Alerts → Profile → Logout', async () => {
     await waitFor(element(by.id('LoginScreen'))).toBeVisible().withTimeout(30000);
 
@@ -21,8 +25,9 @@ describe('Greenbro core navigation', () => {
     await firstDeviceCard.tap();
 
     await waitFor(element(by.id('DeviceDetailScreen'))).toBeVisible().withTimeout(20000);
-    await waitFor(element(by.id('telemetry-section'))).toBeVisible().withTimeout(20000);
-    await expect(element(by.id('compressor-current-card'))).toBeVisible();
+    await waitFor(element(by.id('device-gauges-card'))).toExist().withTimeout(20000);
+    await expect(element(by.id('semi-circular-gauge-compressor'))).toExist();
+    await expect(element(by.id('compressor-current-card'))).toExist();
 
     await element(by.id('device-back-button')).tap();
     await waitFor(element(by.id('SiteOverviewScreen'))).toBeVisible().withTimeout(10000);

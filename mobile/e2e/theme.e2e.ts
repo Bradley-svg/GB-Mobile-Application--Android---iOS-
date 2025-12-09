@@ -2,7 +2,7 @@ import { device, element, by, expect, waitFor } from 'detox';
 
 describe('Theme persistence', () => {
   beforeAll(async () => {
-    await device.launchApp({ delete: true, newInstance: true });
+    await device.launchApp({ newInstance: true });
   });
 
   it('persists dark mode selection across reload', async () => {

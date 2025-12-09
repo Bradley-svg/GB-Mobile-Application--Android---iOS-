@@ -6,12 +6,16 @@ module.exports = {
   testRunner: 'jest-circus/runner',
   testMatch: ['**/?(*.)+(e2e).[jt]s?(x)'],
   setupFilesAfterEnv: ['<rootDir>/init.e2e.ts'],
-  reporters: [require.resolve('detox/runners/jest/reporter')],
+  reporters: ['default'],
   verbose: true,
   testTimeout: 120000,
   transform: {
     '^.+\\.(ts|tsx)$': 'ts-jest',
   },
+  testPathIgnorePatterns: [
+    '<rootDir>/init.e2e.ts',
+    '<rootDir>/jest.config.e2e.js',
+  ],
   globals: {
     'ts-jest': {
       tsconfig: '<rootDir>/../tsconfig.json',
