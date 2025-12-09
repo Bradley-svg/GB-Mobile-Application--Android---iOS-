@@ -17,6 +17,14 @@ export default defineConfig({
     },
     coverage: {
       provider: 'v8',
+      reports: ['text', 'lcov'],
+      // TODO: tighten once baseline is recorded in CI; target 80%+ if feasible.
+      thresholds: {
+        statements: 75,
+        branches: 65,
+        functions: 70,
+        lines: 75,
+      },
     },
   },
 });
