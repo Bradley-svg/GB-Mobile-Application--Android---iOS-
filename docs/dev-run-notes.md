@@ -2,9 +2,16 @@
 
 ## Recent updates
 - Theming rollout completed across all screens.
-- Unused styles cleaned; rule ready to promote to error after next release stabilization.
-- Navigation/data error guards added.
-- Error-surface theming unified.
+- Unused styles are now enforced as errors across app/components/screens/theme; lint fails on warnings.
+- Navigation/data error guards added and covered by new tests.
+- Error-surface theming unified and exercised by ErrorCard theme snapshots.
+
+## Pre-release checklist
+- Backend: `cd backend && npm run lint && npm run typecheck && npm test`
+- Mobile: `cd mobile && npm run lint && npm run typecheck && npm test -- --runInBand`
+- Optional: Detox E2E: `npm run e2e:android` (emulator + backend required)
+- Vendor disable flags are for CI/local only and must remain **false** in staging/prod (`HEATPUMP_HISTORY_DISABLED`, `CONTROL_API_DISABLED`, `MQTT_DISABLED`, `PUSH_NOTIFICATIONS_DISABLED`).
+- Theming snapshots and ErrorCard guard tests are part of the UI regression safety net; do not skip them when cutting builds.
 
 ## Backend API (`http://localhost:4000`)
 - `.env` (local-only) should match: `PORT=4000`, `NODE_ENV=development`, `DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_dev`, `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test`, `JWT_SECRET=local-dev-secret-e72c3f97f833499ab93f7f62d9f3d10c`, `ALLOW_TEST_DB_RESET=true`, `FILE_STORAGE_ROOT=./storage`, `FILE_STORAGE_BASE_URL=http://localhost:4000/files`, leave `HEATPUMP_*`, `MQTT_URL`, `CONTROL_API_*` empty for UI testing. `/files/*` responses now require an Authorization header and are org-scoped.

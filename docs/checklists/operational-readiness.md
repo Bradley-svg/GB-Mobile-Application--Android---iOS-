@@ -23,6 +23,7 @@ Use this checklist before staging/production releases to confirm core services a
 - [ ] `/health-plus` returns `ok: true` with populated sections for db/storage and any enabled integrations.
 - [ ] Heat-pump history upstream reachable and organisation scoping verified for the target tenant.
 - [ ] RBAC policies verified for owner/admin/facilities/contractor across auth, alerts, work orders, documents, and file download routes.
+- [ ] Lint errors (including unused-style enforcement on mobile) are treated as release blockers in CI/deploy pipelines.
 
 ## Mobile
 - [ ] `EXPO_PUBLIC_API_URL` points at the correct environment API (dev/staging/prod) and is reflected in `eas.json` profiles.
@@ -32,5 +33,5 @@ Use this checklist before staging/production releases to confirm core services a
 - [ ] Push notifications tested end-to-end against the target Expo project (token registration + backend push dispatch).
 - [ ] Branded assets validated (icon/splash/header) and theme mode (light/dark/system) manually smoke tested.
 - [ ] Theming rollout completed across all screens; error surfaces share the unified palette.
-- [ ] Unused styles cleaned; rule ready to promote to error after next release stabilization.
+- [ ] Lint rules treat unused styles as errors on mobile; CI/deploys should block on lint failures.
 - [ ] Navigation/data error guards added on mobile screens.

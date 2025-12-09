@@ -10,7 +10,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint app App.tsx --ext .ts,.tsx",
+    "lint": "eslint app App.tsx --ext .ts,.tsx --max-warnings=0",
     "test": "jest",
     "test:watch": "jest --watch",
     "e2e:build:android": "detox build -c android.debug",

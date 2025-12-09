@@ -56,8 +56,7 @@ module.exports = {
     {
       files: ['app/components/**/*.{ts,tsx}', 'app/screens/**/*.{ts,tsx}', 'app/theme/**/*.{ts,tsx}'],
       rules: {
-        'react-native/no-unused-styles': 'warn',
-        // TODO: promote to error after the next release once unused-style cleanup remains stable.
+        'react-native/no-unused-styles': 'error',
       },
     },
   ],
