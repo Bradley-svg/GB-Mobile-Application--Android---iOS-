@@ -11,4 +11,18 @@ config.resolver.blockList = exclusionList([/node_modules_old\/.*/, /node_modules
 config.transformer = config.transformer || {};
 config.transformer.hermesParser = true;
 
+// Force bundle responses to be plain JS (no multipart streaming) to avoid
+// the client choking on progressive responses.
+config.server = config.server || {};
+const originalEnhanceMiddleware = config.server.enhanceMiddleware;
+config.server.enhanceMiddleware = (middleware, server) => {
+  const enhanced = originalEnhanceMiddleware ? originalEnhanceMiddleware(middleware, server) : middleware;
+  return (req, res, next) => {
+    if (req.headers && typeof req.headers.accept === 'string' && req.headers.accept.includes('multipart/mixed')) {
+      req.headers.accept = 'application/javascript';
+    }
+    return enhanced(req, res, next);
+  };
+};
+
 module.exports = config;
