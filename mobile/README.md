@@ -19,3 +19,9 @@
 - Development client: `npm run start:devclient` for the Android dev client on `localhost:8082` (Expo Go can still use `npm run start`), or `eas build --profile development --platform android|ios` for a dev client that points at your local backend URL. `EXPO_PUBLIC_API_URL` is read in `app.config.ts` and exposed as `extra.apiUrl`.
 - Staging build: `eas build --profile staging --platform android|ios` bakes `EXPO_PUBLIC_API_URL=https://staging.api.greenbro.co.za` so the app talks to the staging backend.
 - Production build: `eas build --profile production --platform android|ios` bakes `EXPO_PUBLIC_API_URL=https://api.greenbro.co.za` for the production backend.
+
+## Android E2E (Detox)
+- Start Metro in its own terminal on the Detox port: `cd mobile && npx expo start --dev-client --localhost --port 8081 --clear --non-interactive`.
+- Run the tests from another terminal: `cd mobile && npm run e2e:test:android` (uses a 180s Jest timeout and warns-only Detox logs).
+- Detox auto-reverses `8081` for the emulator via `reversePorts` in `detox.config.js`; no manual `adb reverse` needed.
+- Clean up after runs: stop Metro and kill the emulator when you’re done, e.g. `adb -s emulator-5554 emu kill`.

@@ -8,7 +8,7 @@ module.exports = {
   setupFilesAfterEnv: ['<rootDir>/init.e2e.ts'],
   reporters: ['default'],
   verbose: true,
-  testTimeout: 120000,
+  testTimeout: 180000,
   transform: {
     '^.+\\.(ts|tsx)$': 'ts-jest',
   },

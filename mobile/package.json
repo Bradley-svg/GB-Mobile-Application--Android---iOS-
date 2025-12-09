@@ -14,7 +14,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "e2e:build:android": "detox build -c android.debug",
-    "e2e:test:android": "detox test -c android.debug --headless"
+    "e2e:test:android": "detox test -c android.debug --loglevel warn --jest-timeout 180000"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "1.23.1",

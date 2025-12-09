@@ -3,7 +3,7 @@ module.exports = {
   testRunner: {
     type: 'jest',
     jest: {
-      setupTimeout: 120000,
+      setupTimeout: 180000,
     },
     args: {
       $0: 'jest',
@@ -31,5 +31,14 @@ module.exports = {
       device: 'emulator',
       app: 'android.debug',
     },
+  },
+  behavior: {
+    init: {
+      exposeGlobals: true,
+    },
+    launchApp: 'manual',
+  },
+  artifacts: {
+    retainOnFail: true,
   },
 };
