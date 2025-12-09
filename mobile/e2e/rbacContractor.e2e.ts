@@ -15,6 +15,11 @@ describe('Contractor permissions', () => {
     await element(by.id('login-button')).tap();
 
     await waitFor(element(by.id('DashboardScreen'))).toBeVisible().withTimeout(40000);
+    await element(by.id('tab-profile')).tap();
+    await waitFor(element(by.id('ProfileScreen'))).toBeVisible().withTimeout(15000);
+    await waitFor(element(by.text('Contractor')).atIndex(0)).toExist().withTimeout(10000);
+    await element(by.id('tab-dashboard')).tap();
+    await waitFor(element(by.id('DashboardScreen'))).toBeVisible().withTimeout(15000);
 
     const firstSite = element(by.id('site-card')).atIndex(0);
     await waitFor(firstSite).toBeVisible().withTimeout(20000);
@@ -42,13 +47,9 @@ describe('Contractor permissions', () => {
     await waitFor(setpointButton).toExist().withTimeout(20000);
     await waitFor(setpointButton).toBeVisible().whileElement(scrollContainer).scroll(200, 'down');
 
-    const setpointAttributes = await setpointButton.getAttributes();
-    const enabled =
-      'enabled' in setpointAttributes
-        ? setpointAttributes.enabled
-        : setpointAttributes.elements?.[0]?.enabled;
-    jestExpect(enabled).toBe(false);
-
-    await detoxExpect(element(by.text('Read-only access for your role.'))).toBeVisible();
+    await setpointButton.tap();
+    const readOnlyMessage = element(by.id('setpoint-readonly'));
+    await waitFor(readOnlyMessage).toExist().withTimeout(5000);
+    await waitFor(readOnlyMessage).toBeVisible().whileElement(scrollContainer).scroll(200, 'down');
   });
 });

@@ -1136,7 +1136,7 @@ export const DeviceDetailScreen: React.FC = () => {
           <Text style={[typography.caption, styles.muted, styles.pendingText]}>Sending setpoint...</Text>
         ) : null}
         {commandsDisabledReason ? (
-          <Text style={[typography.caption, styles.muted, styles.pendingText]}>
+          <Text testID="setpoint-readonly" style={[typography.caption, styles.muted, styles.pendingText]}>
             {mapControlDisabledMessage(commandsDisabledReason)}
           </Text>
         ) : null}
@@ -1182,7 +1182,7 @@ export const DeviceDetailScreen: React.FC = () => {
           <Text style={[typography.caption, styles.muted, styles.pendingText]}>Sending mode change...</Text>
         ) : null}
         {commandsDisabledReason ? (
-          <Text style={[typography.caption, styles.muted, styles.pendingText]}>
+          <Text testID="mode-readonly" style={[typography.caption, styles.muted, styles.pendingText]}>
             {mapControlDisabledMessage(commandsDisabledReason)}
           </Text>
         ) : null}
