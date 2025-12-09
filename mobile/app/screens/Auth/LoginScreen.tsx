@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, TextInput, Alert, StyleSheet, Image } from 'react-native';
+import { View, Text, TextInput, Alert, Image } from 'react-native';
 import axios from 'axios';
 import { useLogin } from '../../api/hooks';
 import { Screen, Card, PrimaryButton } from '../../components';
@@ -7,6 +7,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppTheme } from '../../theme/types';
 import { typography } from '../../theme/typography';
+import { createThemedStyles } from '../../theme/createThemedStyles';
 import GreenbroLogo from '../../../assets/greenbro/greenbro-logo-horizontal.png';
 
 export const LoginScreen: React.FC = () => {
@@ -116,7 +117,7 @@ export const LoginScreen: React.FC = () => {
 };
 
 const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
+  createThemedStyles(theme, {
     logoRow: {
       alignItems: 'center',
       marginTop: theme.spacing.xl,

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, Text, TouchableOpacity, View } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +12,7 @@ import { loadJsonWithMetadata, saveJson, isCacheOlderThan } from '../../utils/st
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppTheme } from '../../theme/types';
 import { typography } from '../../theme/typography';
+import { createThemedStyles } from '../../theme/createThemedStyles';
 
 type Navigation = NativeStackNavigationProp<AppStackParamList, 'WorkOrders'>;
 
@@ -324,7 +325,7 @@ export const WorkOrdersScreen: React.FC = () => {
 };
 
 const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
+  createThemedStyles(theme, {
     center: {
       flex: 1,
       alignItems: 'center',

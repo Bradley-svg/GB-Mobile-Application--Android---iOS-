@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -24,11 +23,12 @@ import {
 } from '../../api/hooks';
 import type { WorkOrderAttachment, WorkOrderStatus, WorkOrderTask } from '../../api/workOrders/types';
 import { api, shouldUseSignedFileUrls } from '../../api/client';
-import { Screen, Card, PrimaryButton, StatusPill, IconButton, PillTabGroup } from '../../components';
+import { Screen, Card, PrimaryButton, StatusPill, IconButton, PillTabGroup, ErrorCard } from '../../components';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppTheme } from '../../theme/types';
+import { createThemedStyles } from '../../theme/createThemedStyles';
 import { typography } from '../../theme/typography';
 import { isContractor, useAuthStore } from '../../store/authStore';
 
@@ -115,7 +115,7 @@ type UploadAttachmentInput = {
 export const WorkOrderDetailScreen: React.FC = () => {
   const route = useRoute<WorkOrderDetailRouteParams>();
   const navigation = useNavigation<WorkOrderDetailNavigation>();
-  const workOrderId = route.params.workOrderId;
+  const workOrderId = route.params?.workOrderId ?? '';
   const { data: workOrder, isLoading, isError, refetch } = useWorkOrder(workOrderId);
   const updateStatus = useUpdateWorkOrderStatus();
   const updateSla = useUpdateWorkOrderStatus();
@@ -131,6 +131,7 @@ export const WorkOrderDetailScreen: React.FC = () => {
   const contractorReadOnly = isContractor(userRole);
   const isReadOnly = isOffline || contractorReadOnly;
   const readOnlyCopy = 'Read-only access for your role.';
+  const missingWorkOrderId = !workOrderId;
   const [notes, setNotes] = useState<string>('');
   const [actionError, setActionError] = useState<string | null>(null);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
@@ -423,6 +424,18 @@ export const WorkOrderDetailScreen: React.FC = () => {
       </View>
     );
   };
+
+  if (missingWorkOrderId) {
+    return (
+      <Screen scroll={false} contentContainerStyle={styles.center} testID="WorkOrderDetailScreen">
+        <ErrorCard
+          title="Missing work order"
+          message="Select a work order to view its details."
+          testID="workorder-missing"
+        />
+      </Screen>
+    );
+  }
 
   if (isLoading || !workOrder) {
     if (isError) {
@@ -787,7 +800,7 @@ export const WorkOrderDetailScreen: React.FC = () => {
 };
 
 const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
+  createThemedStyles(theme, {
     center: {
       flex: 1,
       alignItems: 'center',

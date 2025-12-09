@@ -21,6 +21,12 @@ export type ThemeColors = {
   warning: string;
   error: string;
   info: string;
+  errorBackground: string;
+  errorBorder: string;
+  warningBackground: string;
+  warningBorder: string;
+  infoBackground: string;
+  infoBorder: string;
   brandSoft: string;
   successSoft: string;
   warningSoft: string;
@@ -71,6 +77,12 @@ export const lightColors: ThemeColors = {
   warning: '#D97706',
   error: '#DC2626',
   info: '#2563EB',
+  errorBackground: 'rgba(220, 38, 38, 0.08)',
+  errorBorder: '#FCA5A5',
+  warningBackground: 'rgba(217, 119, 6, 0.08)',
+  warningBorder: '#F59E0B',
+  infoBackground: 'rgba(37, 99, 235, 0.08)',
+  infoBorder: '#60A5FA',
   brandSoft: '#E9F7EC',
   successSoft: 'rgba(22, 163, 74, 0.12)',
   warningSoft: 'rgba(217, 119, 6, 0.12)',
@@ -116,6 +128,12 @@ export const darkColors: ThemeColors = {
   warning: '#F59E0B',
   error: '#EF4444',
   info: '#38BDF8',
+  errorBackground: 'rgba(239, 68, 68, 0.16)',
+  errorBorder: '#F87171',
+  warningBackground: 'rgba(245, 158, 11, 0.16)',
+  warningBorder: '#FBBF24',
+  infoBackground: 'rgba(56, 189, 248, 0.16)',
+  infoBorder: '#7CD4F6',
   brandSoft: 'rgba(57, 181, 74, 0.16)',
   successSoft: 'rgba(34, 197, 94, 0.16)',
   warningSoft: 'rgba(245, 158, 11, 0.18)',

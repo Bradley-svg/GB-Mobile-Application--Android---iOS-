@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Text, TouchableOpacity, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,19 +12,20 @@ import {
   useWorkOrdersList,
 } from '../../api/hooks';
 import { AppStackParamList } from '../../navigation/RootNavigator';
-import { Screen, Card, PrimaryButton, IconButton } from '../../components';
+import { Screen, Card, PrimaryButton, IconButton, ErrorCard } from '../../components';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppTheme } from '../../theme/types';
 import { typography } from '../../theme/typography';
 import { isContractor, useAuthStore } from '../../store/authStore';
+import { createThemedStyles } from '../../theme/createThemedStyles';
 
 type AlertDetailRouteParams = RouteProp<AppStackParamList, 'AlertDetail'>;
 type AlertDetailNavigation = NativeStackNavigationProp<AppStackParamList, 'AlertDetail'>;
 
 export const AlertDetailScreen: React.FC = () => {
   const route = useRoute<AlertDetailRouteParams>();
-  const alertId = route.params.alertId;
+  const alertId = route.params?.alertId ?? '';
   const navigation = useNavigation<AlertDetailNavigation>();
 
   const { data: alerts, isLoading, isError, refetch: refetchAlerts } = useAlerts();
@@ -69,12 +70,28 @@ export const AlertDetailScreen: React.FC = () => {
     [matchingRule]
   );
   const isResolved = alertItem?.status === 'cleared';
+  const missingAlert = !alertId;
+  const alertSeverity = alertItem?.severity ?? 'info';
+  const alertTypeLabel = alertItem?.type ? alertItem.type.toUpperCase() : 'ALERT';
+  const alertStatusLabel = alertItem?.status ? alertItem.status.toUpperCase() : 'UNKNOWN';
 
   useEffect(() => {
     if (defaultSnoozeMinutes) {
       setSnoozeMinutes(defaultSnoozeMinutes);
     }
   }, [defaultSnoozeMinutes, isResolved]);
+
+  if (missingAlert) {
+    return (
+      <Screen scroll={false} contentContainerStyle={styles.center} testID="AlertDetailScreen">
+        <ErrorCard
+          title="Missing alert context"
+          message="Select an alert to view its details."
+          testID="alert-missing"
+        />
+      </Screen>
+    );
+  }
 
   if (isLoading || !alerts) {
     return (
@@ -173,11 +190,11 @@ export const AlertDetailScreen: React.FC = () => {
 
       <Card style={styles.headerCard}>
         {(() => {
-          const severity = severityStyles(alertItem.severity);
+          const severity = severityStyles(alertSeverity);
           return (
             <View style={[styles.severityPill, { backgroundColor: severity.backgroundColor }]}>
               <Text style={[typography.label, { color: severity.textColor }]}>
-                {alertItem.severity.toUpperCase()}
+                {alertSeverity.toUpperCase()}
               </Text>
             </View>
           );
@@ -188,7 +205,7 @@ export const AlertDetailScreen: React.FC = () => {
           {alertItem.device_id ? `Device ${alertItem.device_id}` : 'No device'}
         </Text>
         <Text style={[typography.caption, styles.muted]}>
-          {alertItem.type.toUpperCase()} - {alertItem.status.toUpperCase()}
+          {alertTypeLabel} - {alertStatusLabel}
         </Text>
       </Card>
 
@@ -361,7 +378,7 @@ const formatSnoozeLabel = (minutes: number) => {
 };
 
 const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
+  createThemedStyles(theme, {
     center: {
       flex: 1,
       alignItems: 'center',

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useMaintenanceSummary } from '../../api/hooks';
 import type { MaintenanceSummary, MaintenanceSummaryItem } from '../../api/workOrders/types';
@@ -8,6 +8,7 @@ import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { loadJsonWithMetadata, saveJson, isCacheOlderThan } from '../../utils/storage';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppTheme } from '../../theme/types';
+import { createThemedStyles } from '../../theme/createThemedStyles';
 
 const CACHE_KEY = 'maintenance-summary-cache';
 const CACHE_STALE_MS = 12 * 60 * 60 * 1000;
@@ -110,6 +111,15 @@ export const MaintenanceCalendarScreen: React.FC = () => {
   }, [isOffline]);
 
   const summary = useMemo(() => data ?? cachedSummary, [cachedSummary, data]);
+  const summaryCounts = useMemo(
+    () => ({
+      open: summary?.openCount ?? 0,
+      overdue: summary?.overdueCount ?? 0,
+      dueSoon: summary?.dueSoonCount ?? 0,
+    }),
+    [summary?.dueSoonCount, summary?.openCount, summary?.overdueCount]
+  );
+  const days = useMemo(() => (summary?.byDate ?? []).filter(Boolean), [summary?.byDate]);
   const hasCached = Boolean(cachedSummary);
   const cacheStale = isCacheOlderThan(cachedAt, CACHE_STALE_MS);
   const cachedAtDate = cachedAt ? new Date(cachedAt) : null;
@@ -165,20 +175,20 @@ export const MaintenanceCalendarScreen: React.FC = () => {
               Calendar & reminders
             </Text>
             <View style={styles.chipRow}>
-              {renderSummaryChip('Open', summary.openCount, 'open', 'maintenance-open-count')}
-              {renderSummaryChip('Overdue', summary.overdueCount, 'overdue', 'maintenance-overdue-count')}
-              {renderSummaryChip('Due soon', summary.dueSoonCount, 'soon', 'maintenance-due-soon-count')}
+              {renderSummaryChip('Open', summaryCounts.open, 'open', 'maintenance-open-count')}
+              {renderSummaryChip('Overdue', summaryCounts.overdue, 'overdue', 'maintenance-overdue-count')}
+              {renderSummaryChip('Due soon', summaryCounts.dueSoon, 'soon', 'maintenance-due-soon-count')}
             </View>
           </Card>
 
-          {summary.byDate.length === 0 ? (
+          {days.length === 0 ? (
             <EmptyState
               message={isOffline && !hasCached ? 'Offline and no cached maintenance data.' : 'No upcoming maintenance found.'}
               testID="maintenance-empty"
             />
           ) : (
             <ScrollView contentContainerStyle={{ paddingBottom: spacing.xl }}>
-              {summary.byDate.map((day) => (
+              {days.map((day) => (
                 <Card key={day.date} style={styles.dayCard}>
                   <Text style={[typography.subtitle, styles.title, { marginBottom: spacing.xs }]}>
                     {formatDayLabel(day.date)}
@@ -203,7 +213,7 @@ export const MaintenanceCalendarScreen: React.FC = () => {
 
 const createStyles = (theme: AppTheme) => {
   const { colors, spacing } = theme;
-  return StyleSheet.create({
+  return createThemedStyles(theme, {
     center: {
       flex: 1,
       alignItems: 'center',

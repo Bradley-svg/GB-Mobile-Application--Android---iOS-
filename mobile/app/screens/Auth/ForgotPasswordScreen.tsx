@@ -1,11 +1,12 @@
 import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Screen, Card, PrimaryButton } from '../../components';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppTheme } from '../../theme/types';
 import { typography } from '../../theme/typography';
+import { createThemedStyles } from '../../theme/createThemedStyles';
 import GreenbroLogo from '../../../assets/greenbro/greenbro-logo-horizontal.png';
 
 type AuthStackParamList = {
@@ -52,7 +53,7 @@ export const ForgotPasswordScreen: React.FC = () => {
 };
 
 const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
+  createThemedStyles(theme, {
     logoRow: {
       alignItems: 'center',
       marginTop: theme.spacing.xl,

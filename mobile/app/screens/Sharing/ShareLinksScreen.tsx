@@ -1,17 +1,17 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Share, ActivityIndicator } from 'react-native';
-import { RouteProp, useRoute } from '@react-navigation/native';
+import { View, Text, TouchableOpacity, Share, ActivityIndicator } from 'react-native';
+import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { API_BASE_URL } from '../../api/client';
 import { useCreateShareLink, useRevokeShareLink, useShareLinks } from '../../api/shareLinks/hooks';
-import { Screen, Card, EmptyState } from '../../components';
+import { Screen, Card, EmptyState, ErrorCard } from '../../components';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppTheme } from '../../theme/types';
 import { typography } from '../../theme/typography';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { AppStackParamList } from '../../navigation/RootNavigator';
+import { createThemedStyles } from '../../theme/createThemedStyles';
 
 type Navigation = NativeStackNavigationProp<AppStackParamList>;
 type Route = RouteProp<AppStackParamList, 'ShareLinks'>;
@@ -25,19 +25,24 @@ const PRESETS = [
 export const ShareLinksScreen: React.FC = () => {
   const navigation = useNavigation<Navigation>();
   const route = useRoute<Route>();
-  const { scope, id, name } = route.params;
+  const params = route.params ?? {};
+  const scope = params?.scope;
+  const id = params?.id ?? '';
+  const resolvedScope: 'site' | 'device' = scope === 'device' ? 'device' : 'site';
+  const hasValidParams = scope === 'site' ? !!id : scope === 'device' ? !!id : false;
+  const name = params?.name ?? 'Shared item';
   const { isOffline } = useNetworkBanner();
   const { theme } = useAppTheme();
   const { colors, spacing } = theme;
   const styles = React.useMemo(() => createStyles(theme), [theme]);
-  const linksQuery = useShareLinks(scope, id);
+  const linksQuery = useShareLinks(resolvedScope, id);
   const createLink = useCreateShareLink();
   const revokeLink = useRevokeShareLink();
 
   const handleCreate = (days: number) => {
     if (isOffline || createLink.isPending) return;
     const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
-    createLink.mutate({ scope, id, expiresAt });
+    createLink.mutate({ scope: resolvedScope, id, expiresAt });
   };
 
   const handleCopy = async (token: string) => {
@@ -47,11 +52,23 @@ export const ShareLinksScreen: React.FC = () => {
 
   const handleRevoke = (linkId: string) => {
     if (isOffline || revokeLink.isPending) return;
-    revokeLink.mutate({ linkId, scope, scopeId: id });
+    revokeLink.mutate({ linkId, scope: resolvedScope, scopeId: id });
   };
 
   const isLoading = linksQuery.isLoading;
   const links = linksQuery.data || [];
+
+  if (!hasValidParams) {
+    return (
+      <Screen scroll testID="ShareLinksScreen" contentContainerStyle={{ paddingBottom: spacing.xxl }}>
+        <ErrorCard
+          title="Missing sharing context"
+          message="Select a site or device to manage share links."
+          testID="share-links-missing"
+        />
+      </Screen>
+    );
+  }
 
   return (
     <Screen scroll testID="ShareLinksScreen" contentContainerStyle={{ paddingBottom: spacing.xxl }}>
@@ -64,7 +81,7 @@ export const ShareLinksScreen: React.FC = () => {
           <Ionicons name="chevron-back" size={20} color={colors.brandGrey} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={[typography.caption, styles.muted]}>{scope === 'site' ? 'Site' : 'Device'}</Text>
+          <Text style={[typography.caption, styles.muted]}>{resolvedScope === 'site' ? 'Site' : 'Device'}</Text>
           <Text style={[typography.title2, styles.title]} numberOfLines={2}>
             {name}
           </Text>
@@ -78,7 +95,7 @@ export const ShareLinksScreen: React.FC = () => {
         </Text>
         {isOffline ? (
           <Text style={[typography.caption, styles.warning]}>
-            Offline – creating or revoking links is disabled.
+            Offline - creating or revoking links is disabled.
           </Text>
         ) : null}
       </Card>
@@ -154,7 +171,7 @@ export const ShareLinksScreen: React.FC = () => {
 };
 
 const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
+  createThemedStyles(theme, {
     header: {
       flexDirection: 'row',
       alignItems: 'center',

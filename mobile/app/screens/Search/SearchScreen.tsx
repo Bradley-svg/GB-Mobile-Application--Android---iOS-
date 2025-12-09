@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, TextInput, FlatList, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, FlatList, ActivityIndicator } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,7 @@ import { Screen, Card, IconButton, EmptyState, PillTab } from '../../components'
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppTheme } from '../../theme/types';
 import { typography } from '../../theme/typography';
+import { createThemedStyles } from '../../theme/createThemedStyles';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { isCacheOlderThan, loadJsonWithMetadata, saveJson } from '../../utils/storage';
 
@@ -272,7 +273,7 @@ export const SearchScreen: React.FC = () => {
 };
 
 const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
+  createThemedStyles(theme, {
     title: { color: theme.colors.textPrimary },
     muted: { color: theme.colors.textSecondary },
     searchRow: {

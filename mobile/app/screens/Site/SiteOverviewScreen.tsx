@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, FlatList, ActivityIndicator, StyleSheet, TouchableOpacity, Alert, Linking } from 'react-native';
+import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, Alert, Linking } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +21,7 @@ import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { loadJsonWithMetadata, saveJson, isCacheOlderThan } from '../../utils/storage';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppTheme } from '../../theme/types';
+import { createThemedStyles } from '../../theme/createThemedStyles';
 
 type Navigation = NativeStackNavigationProp<AppStackParamList>;
 type Route = RouteProp<AppStackParamList, 'SiteOverview'>;
@@ -29,7 +30,7 @@ const CACHE_STALE_MS = 24 * 60 * 60 * 1000;
 export const SiteOverviewScreen: React.FC = () => {
   const navigation = useNavigation<Navigation>();
   const route = useRoute<Route>();
-  const { siteId } = route.params;
+  const siteId = route.params?.siteId ?? '';
 
   const {
     data: site,
@@ -51,6 +52,7 @@ export const SiteOverviewScreen: React.FC = () => {
   const { theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { colors, spacing, typography } = theme;
+  const missingSiteId = !siteId;
 
   useEffect(() => {
     if (site) {
@@ -94,6 +96,18 @@ export const SiteOverviewScreen: React.FC = () => {
   const cacheUpdatedLabel = cachedAt ? new Date(cachedAt).toLocaleString() : null;
   const showLoading = (siteLoading || devicesLoading) && !hasCachedData;
   const shouldShowError = (siteError || devicesError) && !isOffline && !hasCachedData;
+
+  if (missingSiteId) {
+    return (
+      <Screen scroll={false} contentContainerStyle={styles.center} testID="SiteOverviewScreen">
+        <ErrorCard
+          title="Missing site context"
+          message="Select a site to view its details."
+          testID="site-missing"
+        />
+      </Screen>
+    );
+  }
 
   const onExportDevices = async () => {
     if (isOffline || exportingDevices) return;
@@ -229,7 +243,8 @@ export const SiteOverviewScreen: React.FC = () => {
       ) : null}
       {cacheStale ? (
         <Text style={[typography.caption, styles.staleNote]}>
-          Data older than 24 hours – may be out of date{cacheUpdatedLabel ? ` (cached ${cacheUpdatedLabel})` : ''}.
+          Data older than 24 hours may be out of date
+          {cacheUpdatedLabel ? ` (cached ${cacheUpdatedLabel})` : ''}.
         </Text>
       ) : null}
 
@@ -288,14 +303,14 @@ export const SiteOverviewScreen: React.FC = () => {
                       onPress={() => navigation.navigate('DeviceDetail', { deviceId: item.id })}
                       testID="device-action-detail"
                     />
-                  <IconButton
-                    icon={<Ionicons name="alert-circle-outline" size={18} color={colors.textSecondary} />}
-                    onPress={() => navigation.navigate('Tabs', { screen: 'Alerts' } as never)}
-                    testID="device-action-alerts"
-                  />
+                    <IconButton
+                      icon={<Ionicons name="alert-circle-outline" size={18} color={colors.textSecondary} />}
+                      onPress={() => navigation.navigate('Tabs', { screen: 'Alerts' } as never)}
+                      testID="device-action-alerts"
+                    />
+                  </View>
                 </View>
               </View>
-            </View>
             </Card>
           );
         }}
@@ -312,14 +327,11 @@ export const SiteOverviewScreen: React.FC = () => {
 
 const createStyles = (theme: AppTheme) => {
   const { colors, spacing } = theme;
-  return StyleSheet.create({
+  return createThemedStyles(theme, {
     center: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-    },
-    errorCard: {
-      padding: spacing.lg,
     },
     title: {
       color: colors.textPrimary,

@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   View,
   Text,
-  StyleSheet,
   Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +19,7 @@ import { DEFAULT_NOTIFICATION_PREFERENCES } from '../../api/preferences/storage'
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppTheme } from '../../theme/types';
+import { createThemedStyles } from '../../theme/createThemedStyles';
 
 type Navigation = NativeStackNavigationProp<AppStackParamList>;
 
@@ -269,7 +269,7 @@ export const ProfileScreen: React.FC = () => {
 
 const createStyles = (theme: AppTheme) => {
   const { colors, spacing } = theme;
-  return StyleSheet.create({
+  return createThemedStyles(theme, {
     heroCard: {
       flexDirection: 'row',
       alignItems: 'center',

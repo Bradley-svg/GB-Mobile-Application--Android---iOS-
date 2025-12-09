@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import { Screen, Card, ErrorCard } from '../../components';
@@ -9,6 +9,7 @@ import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppTheme } from '../../theme/types';
 import { typography } from '../../theme/typography';
 import type { HealthPlusPayload } from '../../api/types';
+import { createThemedStyles } from '../../theme/createThemedStyles';
 
 const formatSubsystemStatus = (
   signal?: Pick<HealthPlusPayload['control'], 'configured' | 'healthy' | 'lastError'> | null
@@ -168,7 +169,7 @@ export const DiagnosticsScreen: React.FC = () => {
 };
 
 const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
+  createThemedStyles(theme, {
     center: {
       flex: 1,
       alignItems: 'center',

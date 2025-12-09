@@ -1,5 +1,11 @@
 # Local dev run & smoke (Windows + VS Code)
 
+## Recent updates
+- Theming rollout completed across all screens.
+- Unused styles cleaned; rule ready to promote to error after next release stabilization.
+- Navigation/data error guards added.
+- Error-surface theming unified.
+
 ## Backend API (`http://localhost:4000`)
 - `.env` (local-only) should match: `PORT=4000`, `NODE_ENV=development`, `DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_dev`, `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test`, `JWT_SECRET=local-dev-secret-e72c3f97f833499ab93f7f62d9f3d10c`, `ALLOW_TEST_DB_RESET=true`, `FILE_STORAGE_ROOT=./storage`, `FILE_STORAGE_BASE_URL=http://localhost:4000/files`, leave `HEATPUMP_*`, `MQTT_URL`, `CONTROL_API_*` empty for UI testing. `/files/*` responses now require an Authorization header and are org-scoped.
 - Commands (PowerShell):

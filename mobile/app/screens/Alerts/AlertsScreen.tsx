@@ -132,15 +132,19 @@ export const AlertsScreen: React.FC = () => {
   return (
     <Screen scroll={false} contentContainerStyle={{ paddingBottom: spacing.xxl }} testID="AlertsScreen">
       {isOffline ? (
-        <Text style={[typography.caption, styles.offlineNote]}>
-          {hasCachedAlerts ? 'Offline - showing cached alerts (read-only).' : 'Offline and no cached alerts.'}
-        </Text>
+        <View style={styles.noticeBanner} testID="alerts-offline-banner">
+          <Text style={[typography.caption, styles.noticeText]}>
+            {hasCachedAlerts ? 'Offline - showing cached alerts (read-only).' : 'Offline and no cached alerts.'}
+          </Text>
+        </View>
       ) : null}
       {cacheStale ? (
-        <Text style={[typography.caption, styles.staleNote]}>
-          Data older than 24 hours may be out of date
-          {cacheUpdatedLabel ? ` (cached ${cacheUpdatedLabel})` : ''}.
-        </Text>
+        <View style={styles.warningBanner}>
+          <Text style={[typography.caption, styles.noticeText]}>
+            Data older than 24 hours may be out of date
+            {cacheUpdatedLabel ? ` (cached ${cacheUpdatedLabel})` : ''}.
+          </Text>
+        </View>
       ) : null}
       <Card style={styles.headerCard}>
         <View style={styles.headerRow}>
@@ -174,7 +178,11 @@ export const AlertsScreen: React.FC = () => {
         ListHeaderComponent={null}
         ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
         renderItem={({ item }) => {
-          const { backgroundColor, textColor } = severityStyles(item.severity);
+          const severity = item.severity || 'info';
+          const message = item.message || 'Alert';
+          const typeLabel = item.type ? item.type.toUpperCase() : 'ALERT';
+          const lastSeen = item.last_seen_at ? new Date(item.last_seen_at).toLocaleString() : 'Unknown';
+          const { backgroundColor, textColor } = severityStyles(severity);
           return (
             <Card
               style={styles.alertCard}
@@ -183,14 +191,14 @@ export const AlertsScreen: React.FC = () => {
             >
               <View style={[styles.alertRow]}>
                 <View style={[styles.severityPill, { backgroundColor }]}>
-                  <Text style={[typography.label, { color: textColor }]}>{item.severity.toUpperCase()}</Text>
+                  <Text style={[typography.label, { color: textColor }]}>{severity.toUpperCase()}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[typography.body, styles.title]} numberOfLines={2}>
-                    {item.message}
+                    {message}
                   </Text>
                   <Text style={[typography.caption, styles.muted]} numberOfLines={1}>
-                    {item.type.toUpperCase()} - {new Date(item.last_seen_at).toLocaleString()}
+                    {typeLabel} - {lastSeen}
                   </Text>
                 </View>
                 <Ionicons
@@ -227,7 +235,23 @@ const createStyles = (theme: AppTheme) =>
     center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     title: { color: theme.colors.textPrimary },
     muted: { color: theme.colors.textSecondary },
-    offlineNote: { color: theme.colors.textSecondary, marginBottom: theme.spacing.sm },
+    noticeBanner: {
+      padding: theme.spacing.sm,
+      borderRadius: theme.radius.md,
+      backgroundColor: theme.colors.infoBackground,
+      borderWidth: 1,
+      borderColor: theme.colors.infoBorder,
+      marginBottom: theme.spacing.sm,
+    },
+    warningBanner: {
+      padding: theme.spacing.sm,
+      borderRadius: theme.radius.md,
+      backgroundColor: theme.colors.warningBackground,
+      borderWidth: 1,
+      borderColor: theme.colors.warningBorder,
+      marginBottom: theme.spacing.sm,
+    },
+    noticeText: { color: theme.colors.textPrimary },
     headerCard: { marginTop: theme.spacing.xl, marginBottom: theme.spacing.lg },
     headerRow: {
       flexDirection: 'row',
@@ -246,5 +270,4 @@ const createStyles = (theme: AppTheme) =>
       borderWidth: 1,
       borderColor: theme.colors.borderSubtle,
     },
-    staleNote: { color: theme.colors.warning, marginBottom: theme.spacing.sm },
   });

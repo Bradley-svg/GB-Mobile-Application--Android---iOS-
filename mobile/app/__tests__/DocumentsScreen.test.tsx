@@ -135,4 +135,14 @@ describe('DocumentsScreen', () => {
     expect(openSpy).toHaveBeenCalledWith('http://example.com/files/signed/abc');
     openSpy.mockRestore();
   });
+
+  it('renders a safe fallback when params are missing', () => {
+    (navigation.useRoute as jest.Mock).mockReturnValue({
+      params: {},
+    });
+
+    render(<DocumentsScreen />);
+
+    expect(screen.getByTestId('documents-missing-context')).toBeTruthy();
+  });
 });

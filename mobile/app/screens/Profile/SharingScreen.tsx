@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
@@ -7,6 +7,7 @@ import { useSites, useDevices } from '../../api/hooks';
 import { Screen, Card, StatusPill, EmptyState, connectivityDisplay, healthDisplay } from '../../components';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppTheme } from '../../theme/types';
+import { createThemedStyles } from '../../theme/createThemedStyles';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { isAdminOrOwner, isFacilities, useAuthStore } from '../../store/authStore';
@@ -185,7 +186,7 @@ export const SharingScreen: React.FC = () => {
 
 const createStyles = (theme: AppTheme) => {
   const { colors, spacing } = theme;
-  return StyleSheet.create({
+  return createThemedStyles(theme, {
     center: {
       flex: 1,
       justifyContent: 'center',

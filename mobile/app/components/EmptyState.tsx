@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native';
 import { typography } from '../theme/typography';
 import type { AppTheme } from '../theme/types';
 import { useAppTheme } from '../theme/useAppTheme';
+import { createThemedStyles } from '../theme/createThemedStyles';
 
 type Props = {
   message: string;
@@ -21,18 +22,18 @@ export const EmptyState: React.FC<Props> = ({ message, testID }) => {
 };
 
 const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
+  createThemedStyles(theme, {
     container: {
       padding: theme.spacing.lg,
       borderRadius: theme.radius.md,
-      backgroundColor: theme.colors.backgroundAlt,
+      backgroundColor: theme.colors.infoBackground,
       borderWidth: 1,
-      borderColor: theme.colors.borderSubtle,
+      borderColor: theme.colors.infoBorder,
       alignItems: 'center',
       justifyContent: 'center',
     },
     text: {
-      color: theme.colors.textSecondary,
+      color: theme.colors.textPrimary,
       textAlign: 'center',
     },
   });

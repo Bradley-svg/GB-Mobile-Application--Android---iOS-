@@ -94,7 +94,7 @@ type CommandDisabledReason = 'offline' | 'deviceOffline' | 'unconfigured' | 'rea
 
 export const DeviceDetailScreen: React.FC = () => {
   const route = useRoute<Route>();
-  const { deviceId } = route.params;
+  const deviceId = route.params?.deviceId ?? '';
   const navigation = useNavigation<Navigation>();
   const [range, setRange] = useState<TimeRange>('24h');
   const [cachedDeviceDetail, setCachedDeviceDetail] = useState<CachedDeviceDetail | null>(null);
@@ -243,6 +243,7 @@ export const DeviceDetailScreen: React.FC = () => {
   );
   const refetchHistory = heatPumpHistoryQuery.refetch;
 
+  const missingDeviceId = !deviceId;
   const device = deviceQuery.data ?? cachedDeviceDetail?.device ?? null;
   const telemetryFromQuery = telemetryQuery.data;
   const telemetryData = telemetryFromQuery ?? cachedDeviceDetail?.telemetry ?? null;
@@ -440,6 +441,18 @@ export const DeviceDetailScreen: React.FC = () => {
   if (__DEV__) {
     if (telemetryErrorObj) console.log('Telemetry load error', telemetryErrorObj);
     if (historyErrorObj) console.log('Heat pump history load error', historyErrorObj);
+  }
+
+  if (missingDeviceId) {
+    return (
+      <Screen scroll={false} contentContainerStyle={styles.center} testID="DeviceDetailScreen">
+        <ErrorCard
+          title="Missing device context"
+          message="Select a device to view its details."
+          testID="device-missing"
+        />
+      </Screen>
+    );
   }
 
   if (showLoading) {

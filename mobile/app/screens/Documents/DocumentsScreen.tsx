@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { ActivityIndicator, FlatList, Linking, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Linking, Text, View } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +12,7 @@ import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppTheme } from '../../theme/types';
 import { typography } from '../../theme/typography';
 import { api, shouldUseSignedFileUrls } from '../../api/client';
+import { createThemedStyles } from '../../theme/createThemedStyles';
 
 type Route = RouteProp<AppStackParamList, 'Documents'>;
 type Navigation = NativeStackNavigationProp<AppStackParamList>;
@@ -34,20 +35,23 @@ const categoryTone = (category?: string) => {
 export const DocumentsScreen: React.FC = () => {
   const route = useRoute<Route>();
   const navigation = useNavigation<Navigation>();
-  const scope = route.params.scope;
-  const siteId = route.params.siteId;
-  const deviceId = route.params.deviceId;
+  const params = route.params ?? {};
+  const scope = params?.scope;
+  const siteId = params?.siteId ?? '';
+  const deviceId = params?.deviceId ?? '';
+  const isSiteScope = scope === 'site';
+  const isDeviceScope = scope === 'device';
   const { isOffline } = useNetworkBanner();
 
   const siteDocuments = useSiteDocuments(siteId || '');
   const deviceDocuments = useDeviceDocuments(deviceId || '');
   const signedFileUrl = useSignedFileUrl();
-  const query = scope === 'site' ? siteDocuments : deviceDocuments;
+  const query = isSiteScope ? siteDocuments : deviceDocuments;
   const { theme } = useAppTheme();
   const { colors, spacing } = theme;
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  const documents = query.data ?? [];
+  const documents = Array.isArray(query.data) ? query.data : [];
   const cachedLabel = useMemo(() => {
     if (!query.dataUpdatedAt) return null;
     return new Date(query.dataUpdatedAt).toLocaleTimeString();
@@ -73,11 +77,24 @@ export const DocumentsScreen: React.FC = () => {
   };
 
   const title =
-    route.params.title ||
-    (scope === 'site' ? 'Site documents' : scope === 'device' ? 'Device documents' : 'Documents');
+    params?.title ||
+    (isSiteScope ? 'Site documents' : isDeviceScope ? 'Device documents' : 'Documents');
 
   const showLoading = query.isLoading && documents.length === 0;
   const showError = query.isError && documents.length === 0;
+  const hasInvalidParams = !isSiteScope && !isDeviceScope;
+
+  if (hasInvalidParams) {
+    return (
+      <Screen scroll contentContainerStyle={{ paddingBottom: spacing.xxl }} testID="DocumentsScreen">
+        <ErrorCard
+          title="Missing document context"
+          message="Specify a site or device to view documents."
+          testID="documents-missing-context"
+        />
+      </Screen>
+    );
+  }
 
   return (
     <Screen scroll contentContainerStyle={{ paddingBottom: spacing.xxl }} testID="DocumentsScreen">
@@ -160,7 +177,7 @@ export const DocumentsScreen: React.FC = () => {
 };
 
 const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
+  createThemedStyles(theme, {
     topBar: {
       flexDirection: 'row',
       alignItems: 'center',

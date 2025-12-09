@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { Text, TouchableOpacity } from 'react-native';
 import { typography } from '../theme/typography';
 import type { AppTheme } from '../theme/types';
 import { useAppTheme } from '../theme/useAppTheme';
+import { createThemedStyles } from '../theme/createThemedStyles';
 
 type PillTabProps = {
   label: string;
@@ -36,11 +37,11 @@ export const PillTab: React.FC<PillTabProps> = ({ label, selected, onPress, test
 };
 
 const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
+  createThemedStyles(theme, {
     pillTab: {
       paddingHorizontal: theme.spacing.lg,
       paddingVertical: theme.spacing.sm,
-      borderRadius: 20,
+      borderRadius: theme.radius.pill,
       borderWidth: 1,
     },
     pillSelected: {

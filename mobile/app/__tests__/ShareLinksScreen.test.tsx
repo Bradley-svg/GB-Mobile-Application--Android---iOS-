@@ -79,4 +79,16 @@ describe('ShareLinksScreen', () => {
       expect(btn.props.disabled).toBe(true);
     });
   });
+
+  it('renders a guard when route params are missing', () => {
+    (navigation.useRoute as jest.Mock).mockReturnValue({
+      key: 'ShareLinks',
+      name: 'ShareLinks',
+      params: {} as never,
+    });
+
+    render(<ShareLinksScreen />);
+
+    expect(screen.getByTestId('share-links-missing')).toBeTruthy();
+  });
 });

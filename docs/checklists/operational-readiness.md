@@ -31,3 +31,6 @@ Use this checklist before staging/production releases to confirm core services a
 - [ ] Detox config targets `Pixel_7_API_34` and Metro port matches `reversePorts` (default 8081 unless overridden).
 - [ ] Push notifications tested end-to-end against the target Expo project (token registration + backend push dispatch).
 - [ ] Branded assets validated (icon/splash/header) and theme mode (light/dark/system) manually smoke tested.
+- [ ] Theming rollout completed across all screens; error surfaces share the unified palette.
+- [ ] Unused styles cleaned; rule ready to promote to error after next release stabilization.
+- [ ] Navigation/data error guards added on mobile screens.

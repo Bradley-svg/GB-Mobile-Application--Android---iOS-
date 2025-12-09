@@ -33,12 +33,12 @@ const createStyles = (theme: AppTheme) =>
   createThemedStyles(theme, {
     card: {
       padding: theme.spacing.lg,
-      backgroundColor: theme.colors.card,
+      backgroundColor: theme.colors.errorBackground,
       borderRadius: theme.radius.md,
-      borderColor: theme.colors.borderSubtle,
+      borderColor: theme.colors.errorBorder,
       borderWidth: 1,
       width: '100%',
     },
-    title: { color: theme.colors.textPrimary },
-    muted: { color: theme.colors.textSecondary },
+    title: { color: theme.colors.error },
+    muted: { color: theme.colors.textPrimary },
   });

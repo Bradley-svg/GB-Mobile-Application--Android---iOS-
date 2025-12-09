@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, ActivityIndicator, FlatList, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,6 +23,7 @@ import { loadJsonWithMetadata, saveJson, isCacheOlderThan } from '../../utils/st
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppTheme, ThemeMode } from '../../theme/types';
 import { typography } from '../../theme/typography';
+import { createThemedStyles } from '../../theme/createThemedStyles';
 
 type Navigation = NativeStackNavigationProp<AppStackParamList>;
 const CACHE_STALE_MS = 24 * 60 * 60 * 1000;
@@ -344,14 +345,11 @@ export const DashboardScreen: React.FC = () => {
 };
 
 const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
+  createThemedStyles(theme, {
     center: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-    },
-    errorCard: {
-      padding: theme.spacing.lg,
     },
     title: {
       color: theme.colors.textPrimary,
