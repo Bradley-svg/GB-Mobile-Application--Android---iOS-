@@ -15,6 +15,7 @@ Use this checklist before staging/production releases to confirm core services a
   - Alerts worker: `ALERT_OFFLINE_MINUTES`, `ALERT_OFFLINE_CRITICAL_MINUTES`, `ALERT_HIGH_TEMP_THRESHOLD`, `ALERT_RULE_REFRESH_MINUTES`, `ALERT_WORKER_INTERVAL_SEC`, `WORKER_LOCK_TTL_SEC`, `ALERT_WORKER_ENABLED`
   - Control API: `CONTROL_API_URL`, `CONTROL_API_KEY`, `CONTROL_COMMAND_THROTTLE_MS`
   - Heat-pump history: `HEATPUMP_HISTORY_URL`, `HEATPUMP_HISTORY_API_KEY`, `HEATPUMP_HISTORY_TIMEOUT_MS`
+  - Ensure CI-only disable flags are **false** in staging/prod: `HEATPUMP_HISTORY_DISABLED`, `CONTROL_API_DISABLED`, `MQTT_DISABLED`, `PUSH_NOTIFICATIONS_DISABLED`
   - Health probes/scripts: `HEALTH_BASE_URL`
   - Local demo data: `DEMO_USER_PASSWORD` (optional override for seeded users)
 - [ ] Database migrations applied via `npm run migrate:dev` (or environment-specific) and DB seeded where appropriate.

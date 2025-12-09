@@ -1,0 +1,23 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Themed components renders StatusPill and PrimaryButton in dark mode 1`] = `
+<View
+  style={
+    {
+      "backgroundColor": "#0F151C",
+      "flex": 1,
+    }
+  }
+/>
+`;
+
+exports[`Themed components renders StatusPill and PrimaryButton in light mode 1`] = `
+<View
+  style={
+    {
+      "backgroundColor": "#FFFFFF",
+      "flex": 1,
+    }
+  }
+/>
+`;

@@ -16,6 +16,7 @@ import shareLinksRoutes from './routes/shareLinksRoutes';
 import { errorHandler } from './middleware/errorHandler';
 import { createCorsMiddleware } from './middleware/corsConfig';
 import { logger } from './config/logger';
+import { checkVendorDisableFlags } from './config/vendorGuards';
 
 const app = express();
 
@@ -39,6 +40,7 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 4000;
 if (process.env.NODE_ENV !== 'test') {
+  checkVendorDisableFlags();
   app.listen(PORT, () => {
     logger.info(
       { module: 'server', port: PORT, env: process.env.NODE_ENV || 'development' },

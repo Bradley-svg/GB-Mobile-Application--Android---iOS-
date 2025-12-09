@@ -11,23 +11,25 @@
 - Wired backend CI to enforce coverage via `npm run test:coverage` (Vitest thresholds already configured) and kept typecheck/lint/build steps intact.
 - Made Detox E2E workflow self-contained: starts Postgres, installs backend deps, runs migrate + seed (`seed:e2e`), boots backend server, waits on `/health-plus`, then runs Metro + Detox (`.github/workflows/e2e-android.yml`).
 - Added `seed:e2e` script (`backend/package.json`) and used `wait-on` for backend readiness; vendor heat-pump history is disabled in CI via `HEATPUMP_HISTORY_DISABLED=true`.
-- Introduced `createThemedStyles` helper and extended unused-style lint (warn) to key UI (`StatusPill`, `Card`, `DeviceGaugesSection`, `DeviceDetailScreen`, `AlertsScreen`) via `mobile/.eslintrc.cjs`.
+- Added vendor-disable flags/guards for control/MQTT/push (CI only) plus prod-like warnings via `checkVendorDisableFlags`; documented flags in env templates/checklists/dev notes.
+- Introduced `createThemedStyles` helper and extended unused-style lint (warn) across components/screens/theme (`mobile/.eslintrc.cjs`); migrated shared components (Card, Screen, IconButton, PrimaryButton, ErrorCard) and key screens (DeviceDetailScreen, AlertsScreen).
+- Added light/dark theming snapshot test coverage for core components (`app/__tests__/ThemedComponentsAppearance.test.tsx`).
 - Retained earlier env/doc improvements (`STAGING_DATABASE_URL`, `DEMO_USER_PASSWORD`, `ALERT_RULE_REFRESH_MINUTES`, `HEALTH_BASE_URL`) in templates and checklists.
 
 ## Not fixed / notes
-- Detox workflow still depends on default dev env vars for other integrations; heat-pump history is disabled via flag, but fully offline runs may need further stubs/secrets.
-- Unused-style lint is only enabled (warn) for the migrated component/screen set; broader rollout is pending.
+- Detox workflow still depends on default dev env vars for other integrations; flags exist to disable control/MQTT/push/history in CI, but fully offline prod-like runs should supply real secrets.
+- Unused-style lint is warn-only; many screens still need migration to `createThemedStyles` to avoid rule suppressions and to enable bumping to error later.
 
 ### TODOs
 - [P1][Backend] Enable `noImplicitReturns` once early-return handlers are cleaned up.
   - Files: `backend/tsconfig.json`
   - Notes: start with controllers/services that return conditionally.
 
-- [P2][Mobile] Roll out `createThemedStyles` + unused-style lint (warn/error) to additional components/screens.
-  - Files: `mobile/.eslintrc.cjs`, `mobile/app/components/*`, `mobile/app/screens/*`
-  - Notes: migrate createStyles usage gradually; silence false positives with targeted TODOs only when necessary.
+- [P2][Mobile] Finish migrating remaining screens/components to `createThemedStyles` and clean unused-style warnings; then bump `react-native/no-unused-styles` to error.
+  - Files: `mobile/app/components/*`, `mobile/app/screens/*`, `mobile/.eslintrc.cjs`
+  - Notes: remove dead styles instead of disabling; keep warn until clean.
 
-- [P2][Full-stack] Harden Detox workflow secrets/mocks for offline runs (heat-pump history is flagged off; other vendors/signing remain to be stubbed).
+- [P2][Full-stack] Harden Detox workflow secrets/mocks for offline runs (heat-pump history/control/MQTT/push flags exist; signed URLs/other vendors still to be stubbed if required).
   - Files: `.github/workflows/e2e-android.yml`, `backend/.env.example`
   - Notes: set safe defaults or stub integrations so `/health-plus` stays green without external vendors.
 

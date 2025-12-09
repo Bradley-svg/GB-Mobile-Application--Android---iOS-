@@ -1,8 +1,10 @@
+/* eslint react-native/no-unused-styles: "warn" */
 import React, { useMemo } from 'react';
-import { SafeAreaView, ScrollView, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { SafeAreaView, ScrollView, StyleProp, View, ViewStyle } from 'react-native';
 import type { AppTheme } from '../theme/types';
 import { useAppTheme } from '../theme/useAppTheme';
 import { ThemedStatusBar } from '../theme/ThemedStatusBar';
+import { createThemedStyles } from '../theme/createThemedStyles';
 
 type ScreenProps = {
   children: React.ReactNode;
@@ -47,7 +49,7 @@ export const Screen: React.FC<ScreenProps> = ({
 };
 
 const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
+  createThemedStyles(theme, {
     screen: {
       flex: 1,
       backgroundColor: theme.colors.background,

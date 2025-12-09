@@ -1,7 +1,9 @@
+/* eslint react-native/no-unused-styles: "warn" */
 import React, { useMemo } from 'react';
-import { StyleProp, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
+import { StyleProp, TouchableOpacity, ViewStyle } from 'react-native';
 import { useAppTheme } from '../theme/useAppTheme';
 import type { AppTheme } from '../theme/types';
+import { createThemedStyles } from '../theme/createThemedStyles';
 import { createSoftShadow } from './styles';
 
 type IconButtonProps = {
@@ -37,7 +39,7 @@ export const IconButton: React.FC<IconButtonProps> = ({ icon, onPress, size = 40
 };
 
 const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
+  createThemedStyles(theme, {
     iconButton: {
       backgroundColor: theme.colors.card,
       alignItems: 'center',

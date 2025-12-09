@@ -26,3 +26,9 @@
 - Detox auto-reverses `8081` for the emulator via `reversePorts` in `detox.config.js`; no manual `adb reverse` needed.
 - Clean up after runs: stop Metro and kill the emulator when you’re done, e.g. `adb -s emulator-5554 emu kill`.
 - CI E2E workflow boots Postgres, runs backend migrations + `seed:e2e`, starts the API (waits on `/health-plus`), disables vendor heat-pump history via `HEATPUMP_HISTORY_DISABLED=true`, then runs Metro/Detox. Local runs should mirror this: ensure backend is up/seeded before `npm run e2e:test:android`.
+
+## Theming checklist (new components)
+- Wrap screens/components with `useAppTheme()` and define styles via `createThemedStyles(theme, { ... })`.
+- Avoid raw hex colors; use `theme.colors.*` instead.
+- `react-native/no-unused-styles` is enabled (warn) across components/screens—fix warnings rather than disabling.
+- If you change theme-sensitive UI, update/add tests under `app/__tests__` to cover light/dark modes.

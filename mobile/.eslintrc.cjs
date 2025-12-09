@@ -54,26 +54,10 @@ module.exports = {
       },
     },
     {
-      files: ['app/theme/**/*.{ts,tsx}'],
-      rules: {
-        // Guard unused static styles in theme files; component-level dynamic createStyles are handled separately.
-        'react-native/no-unused-styles': 'warn',
-      },
-    },
-    {
-      files: ['app/components/StatusPill.tsx', 'app/screens/Device/DeviceGaugesSection.tsx'],
+      files: ['app/components/**/*.{ts,tsx}', 'app/screens/**/*.{ts,tsx}', 'app/theme/**/*.{ts,tsx}'],
       rules: {
         'react-native/no-unused-styles': 'warn',
-      },
-    },
-    {
-      files: [
-        'app/components/Card.tsx',
-        'app/screens/Alerts/AlertsScreen.tsx',
-        'app/screens/Device/DeviceDetailScreen.tsx',
-      ],
-      rules: {
-        'react-native/no-unused-styles': 'warn',
+        // TODO: bump to error once repo stays clean for a release.
       },
     },
   ],

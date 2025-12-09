@@ -1,9 +1,11 @@
+/* eslint react-native/no-unused-styles: "warn" */
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native';
 import { PrimaryButton } from './PrimaryButton';
 import { typography } from '../theme/typography';
 import type { AppTheme } from '../theme/types';
 import { useAppTheme } from '../theme/useAppTheme';
+import { createThemedStyles } from '../theme/createThemedStyles';
 
 type Props = {
   title: string;
@@ -28,7 +30,7 @@ export const ErrorCard: React.FC<Props> = ({ title, message, onRetry, testID }) 
 };
 
 const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
+  createThemedStyles(theme, {
     card: {
       padding: theme.spacing.lg,
       backgroundColor: theme.colors.card,

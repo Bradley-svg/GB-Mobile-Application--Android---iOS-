@@ -43,6 +43,7 @@
 ### E2E (Detox + backend bring-up)
 - CI workflow `.github/workflows/e2e-android.yml` now boots Postgres, runs `backend` migrate + `seed:e2e`, starts the API (waits on `/health-plus`), then runs Metro on 8081 and Detox (`npm run e2e:test:android`). Heat-pump history calls are disabled via `HEATPUMP_HISTORY_DISABLED=true` to avoid vendor dependency.
 - Local run (manual): start backend with `npm run migrate:dev && npm run seed:e2e && npm run dev`, then in a new terminal `cd mobile && npx expo start --dev-client --localhost --port 8081 --clear`, and from repo root run `npm run e2e:android` (emulator `Pixel_7_API_34`).
+- Vendor-disable flags (`HEATPUMP_HISTORY_DISABLED`, `CONTROL_API_DISABLED`, `MQTT_DISABLED`, `PUSH_NOTIFICATIONS_DISABLED`) are for CI/E2E/local only. They must be **false** in staging/production; prod-like boots log warnings if set.
 
 ### 2025-12-08: end-to-end local stack spin-up (Windows, Pixel_7_API_34 emulator)
 - Backend commands (PowerShell): `cd backend`; `npm install`; `npm run migrate:dev`; `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm run migrate:test`; `node scripts/init-local-db.js`; `npm run typecheck`; `npm run lint`; `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm test`; `npm run build`; `npm run dev` (running in its own terminal).
