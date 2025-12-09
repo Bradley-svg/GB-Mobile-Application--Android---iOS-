@@ -808,7 +808,12 @@ export const DeviceDetailScreen: React.FC = () => {
           </View>
         </View>
       </ModalComponent>
-      <Screen scroll contentContainerStyle={{ paddingBottom: spacing.xxl }} testID="DeviceDetailScreen">
+      <Screen
+        scroll
+        contentContainerStyle={{ paddingBottom: spacing.xxl }}
+        testID="DeviceDetailScreen"
+        scrollTestID="DeviceDetailScroll"
+      >
         <View style={styles.topBar}>
           <IconButton
             icon={<Ionicons name="chevron-back" size={20} color={colors.brandGrey} />}

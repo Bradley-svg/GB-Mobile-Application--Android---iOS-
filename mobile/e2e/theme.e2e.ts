@@ -2,10 +2,12 @@ import { device, element, by, expect, waitFor } from 'detox';
 
 describe('Theme persistence', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ delete: true, newInstance: true });
   });
 
   it('persists dark mode selection across reload', async () => {
+    const scrollContainer = by.id('DeviceDetailScroll');
+
     await waitFor(element(by.id('LoginScreen'))).toBeVisible().withTimeout(30000);
 
     await element(by.id('login-email')).replaceText('demo@greenbro.com');
@@ -26,7 +28,11 @@ describe('Theme persistence', () => {
     await firstDeviceCard.tap();
 
     await waitFor(element(by.id('DeviceDetailScreen'))).toBeVisible().withTimeout(20000);
-    await expect(element(by.id('semi-circular-gauge-compressor'))).toBeVisible();
+    await waitFor(element(by.id('semi-circular-gauge-compressor'))).toExist().withTimeout(20000);
+    await waitFor(element(by.id('semi-circular-gauge-compressor')))
+      .toBeVisible()
+      .whileElement(scrollContainer)
+      .scroll(200, 'down');
 
     await device.reloadReactNative();
 
@@ -52,6 +58,10 @@ describe('Theme persistence', () => {
     await deviceCardAfterReload.tap();
 
     await waitFor(element(by.id('DeviceDetailScreen'))).toBeVisible().withTimeout(20000);
-    await expect(element(by.id('semi-circular-gauge-compressor'))).toBeVisible();
+    await waitFor(element(by.id('semi-circular-gauge-compressor'))).toExist().withTimeout(20000);
+    await waitFor(element(by.id('semi-circular-gauge-compressor')))
+      .toBeVisible()
+      .whileElement(scrollContainer)
+      .scroll(200, 'down');
   });
 });

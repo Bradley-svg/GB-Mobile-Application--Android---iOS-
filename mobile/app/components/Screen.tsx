@@ -10,6 +10,7 @@ type ScreenProps = {
   style?: StyleProp<ViewStyle>;
   contentContainerStyle?: StyleProp<ViewStyle>;
   testID?: string;
+  scrollTestID?: string;
 };
 
 export const Screen: React.FC<ScreenProps> = ({
@@ -18,6 +19,7 @@ export const Screen: React.FC<ScreenProps> = ({
   style,
   contentContainerStyle,
   testID,
+  scrollTestID,
 }) => {
   const { theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -26,11 +28,14 @@ export const Screen: React.FC<ScreenProps> = ({
     <ScrollView
       contentContainerStyle={[styles.screenContent, contentContainerStyle]}
       showsVerticalScrollIndicator={false}
+      testID={scrollTestID}
     >
       {children}
     </ScrollView>
   ) : (
-    <View style={[styles.screenContent, contentContainerStyle]}>{children}</View>
+    <View style={[styles.screenContent, contentContainerStyle]} testID={scrollTestID}>
+      {children}
+    </View>
   );
 
   return (

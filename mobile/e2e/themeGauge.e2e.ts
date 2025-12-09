@@ -30,10 +30,12 @@ const openFirstDevice = async () => {
 
 describe('Theme + gauges', () => {
   beforeAll(async () => {
-    await device.launchApp({ delete: true });
+    await device.launchApp({ delete: true, newInstance: true });
   });
 
   it('keeps dark mode and shows gauges after reload', async () => {
+    const scrollContainer = by.id('DeviceDetailScroll');
+
     await waitFor(element(by.id('LoginScreen'))).toBeVisible().withTimeout(30000);
     await element(by.id('login-email')).replaceText('demo@greenbro.com');
     await element(by.id('login-password')).replaceText('password');
@@ -46,8 +48,16 @@ describe('Theme + gauges', () => {
 
     await openFirstDevice();
 
-    await waitFor(element(by.id('device-gauges-card'))).toBeVisible().withTimeout(20000);
-    await waitFor(element(by.id('compressor-current-card'))).toBeVisible().withTimeout(20000);
+    await waitFor(element(by.id('device-gauges-card'))).toExist().withTimeout(20000);
+    await waitFor(element(by.id('device-gauges-card')))
+      .toBeVisible()
+      .whileElement(scrollContainer)
+      .scroll(200, 'down');
+    await waitFor(element(by.id('compressor-current-card'))).toExist().withTimeout(20000);
+    await waitFor(element(by.id('compressor-current-card')))
+      .toBeVisible()
+      .whileElement(scrollContainer)
+      .scroll(200, 'down');
 
     await device.reloadReactNative();
 
@@ -55,14 +65,26 @@ describe('Theme + gauges', () => {
 
     try {
       await waitFor(element(by.id('DeviceDetailScreen'))).toBeVisible().withTimeout(5000);
+      await element(by.id('device-back-button')).tap();
+      await waitFor(element(by.id('SiteOverviewScreen'))).toBeVisible().withTimeout(10000);
+      await element(by.id('site-back-button')).tap();
     } catch {
-      await waitFor(element(by.id('DashboardScreen'))).toBeVisible().withTimeout(30000);
-      await expect(element(by.id('current-theme-label-dark'))).toBeVisible();
-      await openFirstDevice();
+      // Already on dashboard after reload.
     }
 
-    await expect(element(by.id('device-gauges-card'))).toBeVisible();
-    await expect(element(by.id('compressor-current-card'))).toBeVisible();
+    await waitFor(element(by.id('DashboardScreen'))).toBeVisible().withTimeout(30000);
     await expect(element(by.id('current-theme-label-dark'))).toBeVisible();
+    await openFirstDevice();
+
+    await waitFor(element(by.id('device-gauges-card'))).toExist().withTimeout(20000);
+    await waitFor(element(by.id('device-gauges-card')))
+      .toBeVisible()
+      .whileElement(scrollContainer)
+      .scroll(200, 'down');
+    await waitFor(element(by.id('compressor-current-card'))).toExist().withTimeout(20000);
+    await waitFor(element(by.id('compressor-current-card')))
+      .toBeVisible()
+      .whileElement(scrollContainer)
+      .scroll(200, 'down');
   });
 });
