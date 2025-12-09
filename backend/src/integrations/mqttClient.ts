@@ -15,6 +15,7 @@ const MAX_RECONNECT_MS = 30_000;
 let reconnectDelayMs = BASE_RECONNECT_MS;
 const COMPONENT = 'mqttIngest';
 const log = logger.child({ module: COMPONENT });
+const MQTT_DISABLED = process.env.MQTT_DISABLED === 'true';
 
 async function safeMarkMqttSuccess(now: Date) {
   try {
@@ -56,8 +57,8 @@ export function getMqttHealth(): MqttHealth {
   const mqttUrl = process.env.MQTT_URL || null;
 
   return {
-    configured: Boolean(mqttUrl),
-    connected: Boolean(client?.connected),
+    configured: MQTT_DISABLED ? false : Boolean(mqttUrl),
+    connected: MQTT_DISABLED ? false : Boolean(client?.connected),
     broker: formatBroker(mqttUrl),
     lastMessageAt: lastMessageAt ? lastMessageAt.toISOString() : null,
     lastConnectAt: lastConnectAt ? lastConnectAt.toISOString() : null,
@@ -90,6 +91,11 @@ function resetBackoff() {
 }
 
 function initConnection(isRetry: boolean) {
+  if (MQTT_DISABLED) {
+    log.warn({ reason: 'disabled' }, 'MQTT ingest disabled via MQTT_DISABLED');
+    return null;
+  }
+
   const url = process.env.MQTT_URL;
   const username = process.env.MQTT_USERNAME;
   const password = process.env.MQTT_PASSWORD;

@@ -22,6 +22,7 @@ const PUSH_HEALTHCHECK_INTERVAL_MINUTES = Number(
   process.env.PUSH_HEALTHCHECK_INTERVAL_MINUTES || 30
 );
 const PUSH_HEALTHCHECK_TOKEN = process.env.PUSH_HEALTHCHECK_TOKEN;
+const PUSH_NOTIFICATIONS_DISABLED = process.env.PUSH_NOTIFICATIONS_DISABLED === 'true';
 
 type PushHealthSample = {
   status: 'ok' | 'error' | 'skipped';
@@ -76,6 +77,8 @@ async function resolveOrganisationIdForAlert(alert: AlertRow): Promise<string | 
 }
 
 export async function sendAlertNotification(alert: AlertRow) {
+  if (PUSH_NOTIFICATIONS_DISABLED) return;
+
   if (alert.severity !== 'critical') return;
 
   const mutedUntil = alert.muted_until ? new Date(alert.muted_until) : null;
@@ -129,7 +132,7 @@ export async function sendAlertNotification(alert: AlertRow) {
 }
 
 export async function runPushHealthCheck(): Promise<PushHealthStatus> {
-  const configured = Boolean(process.env.EXPO_ACCESS_TOKEN);
+  const configured = PUSH_NOTIFICATIONS_DISABLED ? false : Boolean(process.env.EXPO_ACCESS_TOKEN);
   const token = PUSH_HEALTHCHECK_TOKEN || (await getLatestPushToken());
   const tokensPresent = Boolean(token);
   const now = new Date();

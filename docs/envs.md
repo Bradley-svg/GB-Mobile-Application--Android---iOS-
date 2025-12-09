@@ -31,14 +31,17 @@ Centralised reference for backend and mobile environment variables across dev/st
 - `HEATPUMP_HISTORY_TIMEOUT_MS`: Request timeout for the history API client (milliseconds).
 - `HEATPUMP_HISTORY_DISABLED`: Optional flag to disable vendor calls (used by CI/E2E to avoid external dependencies).
 - `MQTT_URL`: MQTT broker URL (for example `mqtt://broker:1883`).
+- `MQTT_DISABLED`: Optional flag to disable MQTT ingest (used by CI/E2E).
 - `MQTT_USERNAME` / `MQTT_PASSWORD`: Optional MQTT credentials when brokers require auth.
 - `CONTROL_API_URL`: Optional HTTP control endpoint; when unset, control may fall back to MQTT.
 - `CONTROL_API_KEY`: API key for the HTTP control endpoint (when enabled).
+- `CONTROL_API_DISABLED`: Optional flag to disable external control calls (used by CI/E2E).
 - `CONTROL_COMMAND_THROTTLE_MS`: Minimum interval (ms) between repeated control commands per device.
 - `ALERT_WORKER_ENABLED`: Toggle alerts worker on/off (defaults true).
 - `ALERT_WORKER_INTERVAL_SEC` / `ALERT_OFFLINE_MINUTES` / `ALERT_OFFLINE_CRITICAL_MINUTES` / `ALERT_HIGH_TEMP_THRESHOLD` / `ALERT_RULE_REFRESH_MINUTES`: Cadence and threshold tuning for alert evaluation plus cache refresh.
 - `PUSH_HEALTHCHECK_ENABLED`: Toggle for sample push health check endpoint.
 - `PUSH_HEALTHCHECK_TOKEN`: Token used to authorize sample push checks.
+- `PUSH_NOTIFICATIONS_DISABLED`: Optional flag to disable push sends in CI/E2E.
 - `PUSH_HEALTHCHECK_INTERVAL_MINUTES`: Minutes between health-check push attempts.
 - `HEALTH_BASE_URL`: Optional base URL used by `scripts/check-health.ts` when probing deployed environments.
 - `EXPO_ACCESS_TOKEN`: Expo push token for production push delivery (optional in dev).

@@ -1,9 +1,11 @@
 import React, { useMemo } from 'react';
-import { StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+/* eslint react-native/no-unused-styles: "warn" */
+import { StyleProp, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { typography } from '../theme/typography';
 import type { AppTheme } from '../theme/types';
 import { useAppTheme } from '../theme/useAppTheme';
+import { createThemedStyles } from '../theme/createThemedStyles';
 
 type PrimaryButtonProps = {
   label: string;
@@ -75,7 +77,7 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
 };
 
 const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
+  createThemedStyles(theme, {
     touchable: {
       alignSelf: 'stretch',
       borderRadius: theme.radius.md,

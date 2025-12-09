@@ -24,6 +24,7 @@ const controlHttpKey = () => process.env.CONTROL_API_KEY;
 export const CONTROL_CHANNEL_UNCONFIGURED = 'CONTROL_CHANNEL_UNCONFIGURED';
 let lastControlError: string | null = null;
 let lastControlAttemptAt: Date | null = null;
+const CONTROL_API_DISABLED = process.env.CONTROL_API_DISABLED === 'true';
 const COMMAND_SOURCE = 'api';
 const COMMAND_THROTTLE_WINDOW_MS = Number(process.env.CONTROL_COMMAND_THROTTLE_MS || 5000);
 const log = logger.child({ module: 'command' });
@@ -115,6 +116,11 @@ async function enforceCommandThrottle(
 function resolveControlConfig(): ControlConfig {
   const httpUrl = controlHttpUrl();
   const httpKey = controlHttpKey();
+
+  if (CONTROL_API_DISABLED) {
+    recordControlError(CONTROL_CHANNEL_UNCONFIGURED);
+    throw new Error(CONTROL_CHANNEL_UNCONFIGURED);
+  }
 
   if (httpUrl) {
     if (!httpKey) {
