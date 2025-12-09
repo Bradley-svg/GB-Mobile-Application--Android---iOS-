@@ -1,9 +1,11 @@
+/* eslint react-native/no-unused-styles: "warn" */
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native';
 import { Card, SemiCircularGauge, deriveGaugeState } from '../../components';
 import type { GaugeState } from '../../components/gauges/SemiCircularGauge';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppTheme } from '../../theme/types';
+import { createThemedStyles } from '../../theme/createThemedStyles';
 
 type GaugeDefinition = {
   key: string;
@@ -122,7 +124,7 @@ export const DeviceGaugesSection: React.FC<DeviceGaugesSectionProps> = ({
 };
 
 const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
+  createThemedStyles(theme, {
     card: {
       marginBottom: theme.spacing.md,
     },

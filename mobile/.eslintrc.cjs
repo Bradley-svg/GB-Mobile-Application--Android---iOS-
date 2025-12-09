@@ -60,5 +60,11 @@ module.exports = {
         'react-native/no-unused-styles': 'warn',
       },
     },
+    {
+      files: ['app/components/StatusPill.tsx', 'app/screens/Device/DeviceGaugesSection.tsx'],
+      rules: {
+        'react-native/no-unused-styles': 'warn',
+      },
+    },
   ],
 };

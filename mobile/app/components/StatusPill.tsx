@@ -1,8 +1,10 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+/* eslint react-native/no-unused-styles: "warn" */
+import { View, Text, StyleProp, ViewStyle } from 'react-native';
 import { typography } from '../theme/typography';
 import type { AppTheme } from '../theme/types';
 import { useAppTheme } from '../theme/useAppTheme';
+import { createThemedStyles } from '../theme/createThemedStyles';
 
 type Tone = 'success' | 'warning' | 'error' | 'muted';
 
@@ -65,7 +67,7 @@ export const healthDisplay = (health?: string | null): { label: string; tone: To
 };
 
 const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
+  createThemedStyles(theme, {
     pill: {
       paddingHorizontal: 12,
       paddingVertical: 6,
