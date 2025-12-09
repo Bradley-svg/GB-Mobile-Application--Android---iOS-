@@ -639,9 +639,34 @@ async function main() {
     throw new Error('DATABASE_URL not set');
   }
 
-  const demoUserEmail = 'demo@greenbro.com';
   const demoUserPassword = process.env.DEMO_USER_PASSWORD || 'password';
   const passwordHash = await bcrypt.hash(demoUserPassword, 10);
+  const demoUsers = [
+    {
+      id: DEFAULT_IDS.user,
+      email: 'demo@greenbro.com',
+      name: 'Demo User',
+      role: 'owner',
+    },
+    {
+      id: '44444444-4444-4444-4444-444444444445',
+      email: 'admin@greenbro.com',
+      name: 'Admin User',
+      role: 'admin',
+    },
+    {
+      id: '44444444-4444-4444-4444-444444444446',
+      email: 'facilities@greenbro.com',
+      name: 'Facilities User',
+      role: 'facilities',
+    },
+    {
+      id: '44444444-4444-4444-4444-444444444447',
+      email: 'contractor@greenbro.com',
+      name: 'Contractor User',
+      role: 'contractor',
+    },
+  ];
   const client = new Client({ connectionString });
 
   await client.connect();
@@ -656,18 +681,20 @@ async function main() {
     [DEFAULT_IDS.organisation, 'Greenbro Demo Org']
   );
 
-  await client.query(
-    `
-      insert into users (id, organisation_id, email, password_hash, name, role, can_impersonate)
-      values ($1, $2, $3, $4, $5, $6, false)
-      on conflict (email)
-      do update set organisation_id = excluded.organisation_id,
-                    name = excluded.name,
-                    password_hash = excluded.password_hash,
-                    role = excluded.role
-    `,
-    [DEFAULT_IDS.user, DEFAULT_IDS.organisation, demoUserEmail, passwordHash, 'Demo User', 'owner']
-  );
+  for (const user of demoUsers) {
+    await client.query(
+      `
+        insert into users (id, organisation_id, email, password_hash, name, role, can_impersonate)
+        values ($1, $2, $3, $4, $5, $6, false)
+        on conflict (email)
+        do update set organisation_id = excluded.organisation_id,
+                      name = excluded.name,
+                      password_hash = excluded.password_hash,
+                      role = excluded.role
+      `,
+      [user.id, DEFAULT_IDS.organisation, user.email, passwordHash, user.name, user.role]
+    );
+  }
 
   await client.query(
     `
