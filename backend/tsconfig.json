@@ -5,6 +5,10 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    // TODO: Enable noImplicitReturns once remaining early-exit handlers are refactored.
     "skipLibCheck": true,
     "outDir": "dist",
     "rootDir": "src"

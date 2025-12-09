@@ -15,6 +15,11 @@ Cross-platform mobile app + backend for Greenbro heat pump telemetry, alerts, an
 ## Dev commands
 
 ```bash
+# Repo-level helpers (runs backend + mobile tasks sequentially)
+npm run lint
+npm run typecheck
+npm test
+
 # Mobile
 cd mobile
 npm install
@@ -26,4 +31,4 @@ npm install
 npm run dev
 ```
 
-Environment variables for backend and mobile (dev/staging/prod) are summarised in `docs/envs.md`. Deployment notes for staging/production live in `docs/deploy.md`.
+Environment variables for backend and mobile (dev/staging/prod) are summarised in `docs/envs.md`. Deployment notes for staging/production live in `docs/deploy.md`. Operational readiness checks live in `docs/checklists/operational-readiness.md`.

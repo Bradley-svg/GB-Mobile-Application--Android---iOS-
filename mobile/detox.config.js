@@ -18,7 +18,8 @@ module.exports = {
       type: 'android.apk',
       binaryPath: 'android/app/build/outputs/apk/debug/app-debug.apk',
       build: `cd android && ${gradlewCommand} assembleDebug assembleAndroidTest -DtestBuildType=debug -PbundleInDebug=true`,
-      reversePorts: [8081],
+      // Support both Expo defaults and the dev-client port used in scripts/dev-run-notes
+      reversePorts: [8081, 8082],
     },
   },
   devices: {
