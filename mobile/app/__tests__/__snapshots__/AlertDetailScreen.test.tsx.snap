@@ -49,8 +49,8 @@ exports[`AlertDetailScreen shows rule summary and default snooze copy 1`] = `
           [
             {
               "alignItems": "center",
-              "backgroundColor": "#FFFFFF",
-              "borderColor": "#E1E5EA",
+              "backgroundColor": "#F9FBFD",
+              "borderColor": "#D3DAE3",
               "borderWidth": 1,
               "elevation": 4,
               "justifyContent": "center",
@@ -81,8 +81,8 @@ exports[`AlertDetailScreen shows rule summary and default snooze copy 1`] = `
       style={
         [
           {
-            "backgroundColor": "#FFFFFF",
-            "borderColor": "#E1E5EA",
+            "backgroundColor": "#F9FBFD",
+            "borderColor": "#D3DAE3",
             "borderRadius": 22,
             "borderWidth": 1,
             "elevation": 4,
@@ -107,7 +107,7 @@ exports[`AlertDetailScreen shows rule summary and default snooze copy 1`] = `
           [
             {
               "alignSelf": "flex-start",
-              "borderColor": "#E1E5EA",
+              "borderColor": "#D3DAE3",
               "borderRadius": 16,
               "borderWidth": 1,
               "marginBottom": 8,
@@ -115,7 +115,7 @@ exports[`AlertDetailScreen shows rule summary and default snooze copy 1`] = `
               "paddingVertical": 4,
             },
             {
-              "backgroundColor": "rgba(220, 38, 38, 0.1)",
+              "backgroundColor": "rgba(220, 38, 38, 0.16)",
             },
           ]
         }
@@ -199,8 +199,8 @@ exports[`AlertDetailScreen shows rule summary and default snooze copy 1`] = `
       style={
         [
           {
-            "backgroundColor": "#FFFFFF",
-            "borderColor": "#E1E5EA",
+            "backgroundColor": "#F9FBFD",
+            "borderColor": "#D3DAE3",
             "borderRadius": 22,
             "borderWidth": 1,
             "elevation": 4,
@@ -389,8 +389,8 @@ exports[`AlertDetailScreen shows rule summary and default snooze copy 1`] = `
       style={
         [
           {
-            "backgroundColor": "#FFFFFF",
-            "borderColor": "#E1E5EA",
+            "backgroundColor": "#F9FBFD",
+            "borderColor": "#D3DAE3",
             "borderRadius": 22,
             "borderWidth": 1,
             "elevation": 4,
@@ -568,7 +568,7 @@ exports[`AlertDetailScreen shows rule summary and default snooze copy 1`] = `
           style={
             [
               {
-                "borderColor": "#E1E5EA",
+                "borderColor": "#D3DAE3",
                 "borderRadius": 14,
                 "borderWidth": 1,
                 "marginBottom": 8,
@@ -605,7 +605,7 @@ exports[`AlertDetailScreen shows rule summary and default snooze copy 1`] = `
           style={
             [
               {
-                "borderColor": "#E1E5EA",
+                "borderColor": "#D3DAE3",
                 "borderRadius": 14,
                 "borderWidth": 1,
                 "marginBottom": 8,
@@ -641,7 +641,7 @@ exports[`AlertDetailScreen shows rule summary and default snooze copy 1`] = `
           style={
             [
               {
-                "borderColor": "#E1E5EA",
+                "borderColor": "#D3DAE3",
                 "borderRadius": 14,
                 "borderWidth": 1,
                 "marginBottom": 8,
@@ -677,7 +677,7 @@ exports[`AlertDetailScreen shows rule summary and default snooze copy 1`] = `
           style={
             [
               {
-                "borderColor": "#E1E5EA",
+                "borderColor": "#D3DAE3",
                 "borderRadius": 14,
                 "borderWidth": 1,
                 "marginBottom": 8,
@@ -770,8 +770,8 @@ exports[`AlertDetailScreen shows rule summary and default snooze copy 1`] = `
       style={
         [
           {
-            "backgroundColor": "#FFFFFF",
-            "borderColor": "#E1E5EA",
+            "backgroundColor": "#F9FBFD",
+            "borderColor": "#D3DAE3",
             "borderRadius": 22,
             "borderWidth": 1,
             "elevation": 4,
