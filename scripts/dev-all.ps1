@@ -31,11 +31,11 @@ function Get-PortProcesses {
         try {
           $processes += Get-Process -Id $pid -ErrorAction Stop
         } catch {
-          Write-Host "Could not resolve process $pid for port $Port: $_" -ForegroundColor Yellow
+          Write-Host "Could not resolve process $pid for port ${Port}: $($_)" -ForegroundColor Yellow
         }
       }
     } catch {
-      Write-Host "Could not query port $Port via Get-NetTCPConnection: $_" -ForegroundColor Yellow
+      Write-Host "Could not query port ${Port} via Get-NetTCPConnection: $($_)" -ForegroundColor Yellow
     }
   }
 
@@ -50,11 +50,11 @@ function Get-PortProcesses {
         try {
           $processes += Get-Process -Id $pid -ErrorAction Stop
         } catch {
-          Write-Host "Could not resolve process $pid for port $Port from netstat: $_" -ForegroundColor Yellow
+          Write-Host "Could not resolve process $pid for port ${Port} from netstat: $($_)" -ForegroundColor Yellow
         }
       }
     } catch {
-      Write-Host "Fallback netstat lookup for port $Port failed: $_" -ForegroundColor Yellow
+      Write-Host "Fallback netstat lookup for port ${Port} failed: $($_)" -ForegroundColor Yellow
     }
   }
 
@@ -158,7 +158,7 @@ if ($pgService) {
       Write-Host "Postgres service $pgServiceName started."
       $pgStarted = $true
     } catch {
-      Write-Warning "Failed to start Postgres service $pgServiceName: $_"
+      Write-Warning "Failed to start Postgres service ${pgServiceName}: $($_)"
     }
   } else {
     Write-Host "Postgres service $pgServiceName already running."
@@ -181,7 +181,7 @@ if (-not $pgStarted -and (Test-Path $composeFile)) {
       Write-Host "docker compose up -d postgres invoked."
       $pgStarted = $true
     } catch {
-      Write-Warning "docker compose start for Postgres failed: $_"
+      Write-Warning "docker compose start for Postgres failed: $($_)"
     }
   } else {
     Write-Warning "docker not available; skipping docker compose Postgres start."
@@ -201,19 +201,19 @@ npm install
 npm run migrate:dev
 if (Test-Path "package.json") {
   try {
-    $pkg = Get-Content package.json -Raw | ConvertFrom-Json
-    if ($pkg.scripts.'seed:e2e') {
+    `$pkg = Get-Content package.json -Raw | ConvertFrom-Json
+    if (`$pkg.scripts.'seed:e2e') {
       Write-Host "Running seed:e2e..."
       try {
         npm run seed:e2e
       } catch {
-        Write-Host "seed:e2e failed: $_" -ForegroundColor Yellow
+        Write-Host "seed:e2e failed: `$($_)" -ForegroundColor Yellow
       }
     } else {
       Write-Host "No seed:e2e script found; skipping seeding." -ForegroundColor Yellow
     }
   } catch {
-    Write-Host "Could not read package.json to check for seed:e2e; skipping seeding. $_" -ForegroundColor Yellow
+    Write-Host "Could not read package.json to check for seed:e2e; skipping seeding. `$($_)" -ForegroundColor Yellow
   }
 } else {
   Write-Host "No package.json found; skipping seeding." -ForegroundColor Yellow
@@ -308,19 +308,19 @@ try {
   & $adbPath @adbArgs "reverse" "tcp:$apiPort" "tcp:$apiPort" | Out-Null
   Write-Host "adb reverse set for API on $apiPort."
 } catch {
-  Write-Warning "adb reverse for API failed: $_"
+  Write-Warning "adb reverse for API failed: $($_)"
 }
 
 try {
   & $adbPath @adbArgs "reverse" "tcp:$metroPort" "tcp:$metroPort" | Out-Null
   Write-Host "adb reverse set for Metro on $metroPort."
 } catch {
-  Write-Warning "adb reverse for Metro failed: $_"
+  Write-Warning "adb reverse for Metro failed: $($_)"
 }
 
 try {
   & $adbPath @adbArgs "shell" "am" "start" "-n" $androidPackage | Out-Null
   Write-Host "Launched dev client ($androidPackage)."
 } catch {
-  Write-Warning "Could not launch dev client: $_"
+  Write-Warning "Could not launch dev client: $($_)"
 }
