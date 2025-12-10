@@ -232,7 +232,7 @@ describe('navigation role guards', () => {
     });
     await renderDeviceScreen();
     expect(screen.getByTestId('setpoint-button')).toHaveProp('disabled', true);
-    expect(screen.getByText(/Read-only access/i)).toBeTruthy();
+    expect(screen.getAllByText(/Read-only access/i).length).toBeGreaterThan(0);
   });
 
   it('enforces read-only work order status changes for contractors', async () => {

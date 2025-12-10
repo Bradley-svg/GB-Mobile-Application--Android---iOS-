@@ -145,6 +145,7 @@ jest.mock('victory-native', () => {
     VictoryChart: Mock,
     VictoryLine: Mock,
     VictoryAxis: Mock,
+    VictoryArea: Mock,
     VictoryLegend: Mock,
   };
 });

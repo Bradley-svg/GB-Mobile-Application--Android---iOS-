@@ -1,139 +1,242 @@
 /* eslint react-native/no-unused-styles: "warn" */
 import React, { useMemo } from 'react';
 import { View, Text } from 'react-native';
-import { Card, SemiCircularGauge, deriveGaugeState } from '../../components';
-import type { GaugeState } from '../../components/gauges/SemiCircularGauge';
+import type { DeviceTelemetry } from '../../api/types';
+import { EmptyState, GaugeCard, OfflineBanner } from '../../components';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppTheme } from '../../theme/types';
 import { createThemedStyles } from '../../theme/createThemedStyles';
 
-type GaugeDefinition = {
+type DeviceGaugesSectionProps = {
+  telemetry?: DeviceTelemetry | null;
+  isOffline: boolean;
+  lastUpdatedAt?: string | null;
+  compressorCurrent?: number | null;
+  compressorUpdatedAt?: string | null;
+};
+
+type GaugeMetric = {
   key: string;
-  value: number;
-  hasData: boolean;
   label: string;
-  sublabel?: string;
-  state?: GaugeState;
+  value: number | null;
+  unit?: string;
+  min: number;
+  max: number;
+  thresholds?: { warn: number; critical: number };
+  direction?: 'ascending' | 'descending';
   testID?: string;
 };
 
-type DeviceGaugesSectionProps = {
-  compressorCurrent: number | null;
-  compressorUpdatedAt?: string | null;
-  deltaT: number | null;
-  deltaUpdatedAt?: string | null;
-  isOffline: boolean;
+const latestMetricValue = (telemetry?: DeviceTelemetry | null, key?: string) => {
+  if (!telemetry || !key) return null;
+  const points = telemetry.metrics[key] ?? [];
+  if (!points.length) return null;
+  return points[points.length - 1]?.value ?? null;
 };
 
-const NORMALIZE = (value: number, min: number, max: number) => {
-  if (Number.isNaN(value)) return 0;
-  const clamped = Math.min(Math.max(value, min), max);
-  return (clamped - min) / Math.max(max - min, 1);
-};
-
-const formatTimestamp = (timestamp?: string | null) => {
-  if (!timestamp) return undefined;
+const formatUpdatedAt = (timestamp?: string | null) => {
+  if (!timestamp) return null;
   const date = new Date(timestamp);
-  if (Number.isNaN(date.getTime())) return undefined;
-  return `Last updated: ${date.toLocaleString()}`;
-};
-
-const stateLabel = (metric: 'compressor' | 'delta', state: GaugeState) => {
-  if (metric === 'compressor') {
-    if (state === 'alert') return 'High compressor load';
-    if (state === 'warning') return 'Check compressor load';
-    return 'Compressor current OK';
-  }
-
-  if (state === 'alert') return 'Delta outside range';
-  if (state === 'warning') return 'Monitor flow delta';
-  return 'Flow delta healthy';
+  if (Number.isNaN(date.getTime())) return null;
+  return `Updated ${date.toLocaleString()}`;
 };
 
 export const DeviceGaugesSection: React.FC<DeviceGaugesSectionProps> = ({
+  telemetry,
+  isOffline,
+  lastUpdatedAt,
   compressorCurrent,
   compressorUpdatedAt,
-  deltaT,
-  deltaUpdatedAt,
-  isOffline,
 }) => {
   const { theme } = useAppTheme();
-  const { spacing, typography } = theme;
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const { typography } = theme;
 
-  const compressorNormalized = useMemo(() => {
-    if (compressorCurrent == null) return 0;
-    return NORMALIZE(compressorCurrent, 0, 50);
-  }, [compressorCurrent]);
+  const supplyTemp = latestMetricValue(telemetry, 'supply_temp');
+  const returnTemp = latestMetricValue(telemetry, 'return_temp');
+  const flowRate = latestMetricValue(telemetry, 'flow_rate');
+  const power = latestMetricValue(telemetry, 'power_kw');
+  const cop = latestMetricValue(telemetry, 'cop');
 
-  const deltaNormalized = useMemo(() => {
-    if (deltaT == null) return 0;
-    return NORMALIZE(deltaT, 0, 20);
-  }, [deltaT]);
+  const deltaT =
+    supplyTemp != null && returnTemp != null ? Number((supplyTemp - returnTemp).toFixed(1)) : null;
 
-  const compressorState = compressorCurrent == null ? 'warning' : deriveGaugeState(compressorNormalized);
-  const deltaState = deltaT == null ? 'warning' : deriveGaugeState(deltaNormalized);
-
-  const gauges: GaugeDefinition[] = [
+  const gauges: GaugeMetric[] = [
     {
       key: 'compressor',
-      value: compressorNormalized,
-      hasData: compressorCurrent != null,
-      label: compressorCurrent == null ? 'Awaiting compressor data' : stateLabel('compressor', compressorState),
-      sublabel: compressorCurrent == null ? (isOffline ? 'Offline - cannot load current data' : 'No compressor readings yet') : formatTimestamp(compressorUpdatedAt),
-      state: compressorState,
+      label: 'Compressor current',
+      value: compressorCurrent ?? null,
+      unit: 'A',
+      min: 0,
+      max: 60,
+      thresholds: { warn: 30, critical: 45 },
       testID: 'semi-circular-gauge-compressor',
     },
     {
-      key: 'delta',
-      value: deltaNormalized,
-      hasData: deltaT != null,
-      label: deltaT == null ? 'Awaiting temperature delta' : stateLabel('delta', deltaState),
-      sublabel:
-        deltaT == null
-          ? isOffline
-            ? 'Offline - telemetry paused'
-            : 'No ΔT telemetry yet'
-          : formatTimestamp(deltaUpdatedAt),
-      state: deltaState,
-      testID: 'semi-circular-gauge-delta',
+      key: 'supply_temp',
+      label: 'Leaving water temp',
+      value: supplyTemp,
+      unit: '\u00B0C',
+      min: 5,
+      max: 70,
+      thresholds: { warn: 55, critical: 60 },
+      testID: 'gauge-supply-temp',
+    },
+    {
+      key: 'return_temp',
+      label: 'Return water temp',
+      value: returnTemp,
+      unit: '\u00B0C',
+      min: 5,
+      max: 65,
+      thresholds: { warn: 48, critical: 58 },
+      testID: 'gauge-return-temp',
+    },
+    {
+      key: 'flow_rate',
+      label: 'Flow rate',
+      value: flowRate,
+      unit: 'L/s',
+      min: 0,
+      max: 30,
+      thresholds: { warn: 18, critical: 24 },
+      testID: 'gauge-flow-rate',
+    },
+    {
+      key: 'power_kw',
+      label: 'Power draw',
+      value: power,
+      unit: 'kW',
+      min: 0,
+      max: 30,
+      thresholds: { warn: 18, critical: 24 },
+      testID: 'gauge-power',
+    },
+    {
+      key: 'delta_t',
+      label: 'Temperature delta',
+      value: deltaT,
+      unit: '\u00B0C',
+      min: 0,
+      max: 25,
+      thresholds: { warn: 15, critical: 20 },
+      testID: 'gauge-delta',
+    },
+    {
+      key: 'cop',
+      label: 'COP',
+      value: cop,
+      unit: '',
+      min: 0,
+      max: 8,
+      thresholds: { warn: 2.5, critical: 1.8 },
+      direction: 'descending',
+      testID: 'gauge-cop',
     },
   ];
 
+  const hasTelemetry = !!telemetry;
+  const updatedLabel = formatUpdatedAt(lastUpdatedAt || compressorUpdatedAt);
+
   return (
-    <Card style={styles.card} testID="device-gauges-card">
-      <Text style={[typography.subtitle, styles.title]}>Parameters</Text>
-      <View style={{ marginTop: spacing.md }}>
-        {gauges.map((gauge, idx) => (
-          <View key={gauge.key} style={idx === 0 ? undefined : { marginTop: spacing.lg }}>
-            <SemiCircularGauge
-              value={gauge.value}
-              state={gauge.state}
-              label={gauge.label}
-              sublabel={gauge.sublabel}
-              testID={gauge.testID}
-            />
-          </View>
-        ))}
+    <View style={styles.section} testID="device-gauges-card">
+      <View style={styles.headerRow}>
+        <View>
+          <Text style={[typography.subtitle, styles.title]}>Status gauges</Text>
+          <Text style={[typography.caption, styles.subtitle]}>
+            Live device telemetry at a glance
+          </Text>
+        </View>
+        {updatedLabel ? (
+          <Text style={[typography.caption, styles.updatedAt]} numberOfLines={2}>
+            {updatedLabel}
+          </Text>
+        ) : null}
       </View>
-      <Text style={[typography.caption, styles.footnote]}>
-        Values reflect recent telemetry. Gauges show relative position within expected ranges.
-      </Text>
-    </Card>
+
+      {isOffline ? (
+        <OfflineBanner
+          message="Offline - showing cached telemetry where available."
+          lastUpdatedLabel={updatedLabel}
+          testID="device-gauges-offline"
+        />
+      ) : null}
+
+      {!hasTelemetry ? (
+        <View style={styles.emptyStateWrapper}>
+          <EmptyState
+            message={
+              isOffline
+                ? 'Telemetry unavailable while offline. Reconnect to refresh this device.'
+                : 'No telemetry available yet for this device.'
+            }
+            testID="device-gauges-empty"
+          />
+        </View>
+      ) : (
+        <>
+          <View style={styles.grid}>
+            {gauges.map((gauge) => (
+              <View key={gauge.key} style={styles.gridItem}>
+                <GaugeCard
+                  label={gauge.label}
+                  value={gauge.value}
+                  unit={gauge.unit}
+                  min={gauge.min}
+                  max={gauge.max}
+                  thresholds={gauge.thresholds}
+                  direction={gauge.direction}
+                  testID={gauge.testID}
+                />
+              </View>
+            ))}
+          </View>
+          <Text style={[typography.caption, styles.footer]}>
+            Gauges map the latest readings into expected operating ranges.
+          </Text>
+        </>
+      )}
+    </View>
   );
 };
 
 const createStyles = (theme: AppTheme) =>
   createThemedStyles(theme, {
-    card: {
-      marginBottom: theme.spacing.md,
+    section: {
+      marginBottom: theme.spacing.lg,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: theme.spacing.sm,
     },
     title: {
       color: theme.colors.textPrimary,
     },
-    footnote: {
+    subtitle: {
       color: theme.colors.textSecondary,
-      marginTop: theme.spacing.md,
-      textAlign: 'center',
+      marginTop: theme.spacing.xs,
+    },
+    updatedAt: {
+      color: theme.colors.textSecondary,
+      textAlign: 'right',
+      marginLeft: theme.spacing.md,
+    },
+    grid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+      marginTop: theme.spacing.sm,
+    },
+    gridItem: {
+      width: '48%',
+    },
+    emptyStateWrapper: {
+      marginTop: theme.spacing.sm,
+    },
+    footer: {
+      color: theme.colors.textSecondary,
+      marginTop: theme.spacing.sm,
     },
   });

@@ -14,3 +14,4 @@ export { SkeletonPlaceholder } from './SkeletonPlaceholder';
 export { ListSkeleton } from './ListSkeleton';
 export { StatusPill, connectivityDisplay, healthDisplay } from './StatusPill';
 export { SemiCircularGauge, deriveGaugeState } from './gauges/SemiCircularGauge';
+export { GaugeCard } from './GaugeCard';

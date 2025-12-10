@@ -53,6 +53,8 @@ import {
   healthDisplay,
 } from '../../components';
 import { DeviceGaugesSection } from './DeviceGaugesSection';
+import { CompressorHistoryCard } from './CompressorHistoryCard';
+import type { HistoryStatus } from './types';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { loadJsonWithMetadata, saveJson, isCacheOlderThan } from '../../utils/storage';
 import { useAppTheme } from '../../theme/useAppTheme';
@@ -84,21 +86,14 @@ type CachedDeviceDetail = {
   cachedAt: string;
 };
 
-type HistoryStatus =
-  | 'ok'
-  | 'noData'
-  | 'circuitOpen'
-  | 'upstreamError'
-  | 'otherError'
-  | 'offline'
-  | 'disabled';
 type CommandDisabledReason = 'offline' | 'deviceOffline' | 'unconfigured' | 'readOnly' | null;
 
 export const DeviceDetailScreen: React.FC = () => {
   const route = useRoute<Route>();
   const deviceId = route.params?.deviceId ?? '';
   const navigation = useNavigation<Navigation>();
-  const [range, setRange] = useState<TimeRange>('24h');
+  const [telemetryRange, setTelemetryRange] = useState<TimeRange>('24h');
+  const [historyRange, setHistoryRange] = useState<TimeRange>('24h');
   const [cachedDeviceDetail, setCachedDeviceDetail] = useState<CachedDeviceDetail | null>(null);
   const [cachedSavedAt, setCachedSavedAt] = useState<string | null>(null);
   const [cacheLoading, setCacheLoading] = useState(false);
@@ -135,7 +130,7 @@ export const DeviceDetailScreen: React.FC = () => {
   const siteId = deviceQuery.data?.site_id ?? cachedDeviceDetail?.device.site_id;
   const siteQuery = useSite(siteId || '');
   const alertsQuery = useDeviceAlerts(deviceId);
-  const telemetryQuery = useDeviceTelemetry(deviceId, range);
+  const telemetryQuery = useDeviceTelemetry(deviceId, telemetryRange);
   const setpointMutation = useSetpointCommand(deviceId);
   const modeMutation = useModeCommand(deviceId);
   const scheduleQuery = useDeviceSchedule(deviceId);
@@ -203,12 +198,12 @@ export const DeviceDetailScreen: React.FC = () => {
 
   const historyWindow = useMemo(() => {
     const now = new Date();
-    const fromDate = new Date(now.getTime() - RANGE_TO_WINDOW_MS[range]);
+    const fromDate = new Date(now.getTime() - RANGE_TO_WINDOW_MS[historyRange]);
     return {
       from: fromDate.toISOString(),
       to: now.toISOString(),
     };
-  }, [range]);
+  }, [historyRange]);
 
   const historyRequest: HeatPumpHistoryRequest | null = useMemo(() => {
     if (!deviceId || !mac) return null;
@@ -243,7 +238,7 @@ export const DeviceDetailScreen: React.FC = () => {
       enabled: !!historyRequest && !isOffline,
     }
   );
-  const refetchHistory = heatPumpHistoryQuery.refetch;
+  const refetchHistory = heatPumpHistoryQuery.refetch ?? (() => {});
 
   const missingDeviceId = !deviceId;
   const device = deviceQuery.data ?? cachedDeviceDetail?.device ?? null;
@@ -294,7 +289,6 @@ export const DeviceDetailScreen: React.FC = () => {
     () => computeLastUpdatedAt(telemetryFromQuery),
     [telemetryFromQuery]
   );
-  const deltaGaugeUpdatedAt = lastUpdatedAt;
   const hasAnyTelemetryPoints = useMemo(() => {
     const metrics = telemetryData?.metrics;
     if (!metrics) return false;
@@ -337,13 +331,13 @@ export const DeviceDetailScreen: React.FC = () => {
     saveJson(DEVICE_CACHE_KEY(deviceId), snapshot);
   }, [deviceId, deviceQuery.data, telemetryFromQuery, isOffline, liveLastUpdatedAt]);
 
-  const xTickCount = range === '7d' ? 5 : 6;
+  const xTickCount = telemetryRange === '7d' ? 5 : 6;
   const formatAxisTick = useMemo(
     () => (value: Date | number) => {
       const date = typeof value === 'number' ? new Date(value) : value;
       if (Number.isNaN(date.getTime())) return '';
 
-      if (range === '7d') {
+      if (telemetryRange === '7d') {
         return `${date.getMonth() + 1}/${date.getDate()}`;
       }
 
@@ -351,7 +345,7 @@ export const DeviceDetailScreen: React.FC = () => {
       const minutes = `${date.getMinutes()}`.padStart(2, '0');
       return `${hours}:${minutes}`;
     },
-    [range]
+    [telemetryRange]
   );
 
   const heatPumpSeries = useMemo(() => {
@@ -427,7 +421,7 @@ export const DeviceDetailScreen: React.FC = () => {
     setExportingTelemetry(true);
     try {
       const now = new Date();
-      const windowMs = RANGE_TO_WINDOW_MS[range] ?? RANGE_TO_WINDOW_MS['24h'];
+      const windowMs = RANGE_TO_WINDOW_MS[telemetryRange] ?? RANGE_TO_WINDOW_MS['24h'];
       const from = new Date(now.getTime() - windowMs);
       const csv = await fetchDeviceTelemetryCsv(deviceId, from.toISOString(), now.toISOString());
       const url = `data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`;
@@ -950,15 +944,15 @@ export const DeviceDetailScreen: React.FC = () => {
         />
       ) : null}
 
-      <View style={styles.rangeTabs}>
+      <View style={styles.rangeTabs} testID="telemetry-range-tabs">
         <PillTabGroup
-          value={range}
+          value={telemetryRange}
           options={[
             { value: '1h', label: '1h' },
             { value: '24h', label: '24h' },
             { value: '7d', label: '7d' },
           ]}
-          onChange={setRange}
+          onChange={setTelemetryRange}
         />
       </View>
       {!isOffline ? (
@@ -982,11 +976,11 @@ export const DeviceDetailScreen: React.FC = () => {
       ) : null}
 
       <DeviceGaugesSection
+        telemetry={telemetryData}
+        isOffline={isOffline}
+        lastUpdatedAt={lastUpdatedAt}
         compressorCurrent={compressorGaugeValue}
         compressorUpdatedAt={compressorGaugeUpdatedAt}
-        deltaT={deltaT}
-        deltaUpdatedAt={deltaGaugeUpdatedAt}
-        isOffline={isOffline}
       />
 
       {telemetryLoading && (
@@ -1084,45 +1078,16 @@ export const DeviceDetailScreen: React.FC = () => {
         </View>
       )}
 
-      <Card style={styles.historyCard} testID="compressor-current-card">
-        <Text style={[typography.subtitle, styles.title]}>Compressor current (A)</Text>
-
-        {heatPumpHistoryQuery.isLoading ? (
-          <View style={styles.historyLoadingRow}>
-            <ActivityIndicator color={colors.brandGreen} />
-            <Text style={[typography.caption, styles.cardPlaceholder, { marginLeft: spacing.sm }]}>
-              Loading history...
-            </Text>
-          </View>
-        ) : historyStatus === 'offline' ? (
-          <Text style={[typography.caption, styles.cardPlaceholder]}>
-            History unavailable while offline. Reconnect to refresh.
-          </Text>
-        ) : historyStatus === 'disabled' ? (
-          <Text style={[typography.caption, styles.cardPlaceholder]}>
-            History unavailable for this device.
-          </Text>
-        ) : historyStatus === 'noData' ? (
-          <Text style={[typography.caption, styles.cardPlaceholder]}>
-            No history for this period.
-          </Text>
-        ) : historyStatus === 'ok' && heatPumpSeries.length > 0 ? (
-          <View testID="heatPumpHistoryChart" style={styles.chartWrapper}>
-            <VictoryChart scale={{ x: 'time' }}>
-              <VictoryAxis dependentAxis style={chartDependentAxisStyle} />
-              <VictoryAxis tickFormat={(t) => formatAxisTick(t)} tickCount={xTickCount} style={chartAxisStyle} />
-              <VictoryLine data={heatPumpSeries} style={{ data: { stroke: chartTheme.linePrimary } }} />
-            </VictoryChart>
-          </View>
-        ) : historyStatus !== 'ok' ? (
-          <ErrorCard
-            title="Could not load heat pump history."
-            message={historyErrorMessage}
-            onRetry={() => refetchHistory()}
-            testID="history-error"
-          />
-        ) : null}
-      </Card>
+      <CompressorHistoryCard
+        status={historyStatus}
+        isLoading={heatPumpHistoryQuery.isLoading}
+        range={historyRange}
+        onRangeChange={setHistoryRange}
+        onRetry={() => refetchHistory()}
+        points={heatPumpSeries}
+        errorMessage={historyErrorMessage}
+        testID="compressor-current-card"
+      />
 
       <Card style={styles.controlCard}>
         <View style={styles.controlHeader}>
@@ -1632,22 +1597,6 @@ const createStyles = (theme: AppTheme) => {
     },
     historyCard: {
       marginBottom: spacing.md,
-    },
-    historyLoadingRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginTop: spacing.sm,
-    },
-    cardPlaceholder: {
-      color: colors.textSecondary,
-      marginTop: spacing.sm,
-    },
-    cardError: {
-      color: colors.error,
-      marginTop: spacing.sm,
-    },
-    chartWrapper: {
-      marginTop: spacing.sm,
     },
     controlCard: {
       marginTop: spacing.md,

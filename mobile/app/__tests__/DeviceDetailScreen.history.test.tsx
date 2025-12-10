@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, within } from '@testing-library/react-native';
 import { DeviceDetailScreen } from '../screens/Device/DeviceDetailScreen';
 import {
   useDevice,
@@ -203,6 +203,7 @@ describe('DeviceDetailScreen heat pump history', () => {
     await renderDeviceDetail();
 
     expect(screen.getByText('Could not load heat pump history.')).toBeTruthy();
+    expect(screen.getByTestId('compressor-history-error')).toBeTruthy();
     expect(screen.getByText(/failed to load history/i)).toBeTruthy();
     const retry = screen.getByText('Retry');
     fireEvent.press(retry);
@@ -260,17 +261,33 @@ describe('DeviceDetailScreen heat pump history', () => {
   });
 
   it('allows selecting 1h, 24h, and 7d ranges for telemetry and history', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2025-01-01T12:00:00.000Z'));
+
     await renderDeviceDetail();
 
     expect((useDeviceTelemetry as jest.Mock).mock.calls[0][1]).toBe('24h');
 
-    fireEvent.press(screen.getByText(/1h/i));
-    fireEvent.press(screen.getByText(/7d/i));
+    const telemetryTabs = screen.getByTestId('telemetry-range-tabs');
+    fireEvent.press(within(telemetryTabs).getByTestId('pill-1h'));
+    fireEvent.press(within(telemetryTabs).getByTestId('pill-7d'));
 
     const ranges = (useDeviceTelemetry as jest.Mock).mock.calls.map(([, r]: [string, string]) => r);
     expect(ranges).toContain('1h');
     expect(ranges).toContain('24h');
     expect(ranges).toContain('7d');
+
+    const historyTabs = screen.getByTestId('compressor-current-card');
+    fireEvent.press(within(historyTabs).getByTestId('pill-1h'));
+
+    const historyParams = (useHeatPumpHistory as jest.Mock).mock.calls.map(
+      ([params]: [HeatPumpHistoryRequest]) => params
+    );
+    const latestHistoryCall = historyParams[historyParams.length - 1];
+    expect(latestHistoryCall.from).toBe('2025-01-01T11:00:00.000Z');
+    expect(latestHistoryCall.to).toBe('2025-01-01T12:00:00.000Z');
+
+    jest.useRealTimers();
   });
 
   it('shows a stale warning when telemetry is older than fifteen minutes', async () => {
