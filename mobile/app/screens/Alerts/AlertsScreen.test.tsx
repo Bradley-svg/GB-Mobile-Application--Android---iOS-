@@ -35,7 +35,7 @@ describe('AlertsScreen states', () => {
 
     render(<AlertsScreen />);
 
-    fireEvent.press(screen.getByText('Retry'));
+    fireEvent.press(screen.getByTestId('alerts-error-retry'));
     expect(refetchMock).toHaveBeenCalled();
     expect(screen.getByTestId('alerts-error')).toBeTruthy();
   });

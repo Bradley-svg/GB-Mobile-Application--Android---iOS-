@@ -23,7 +23,16 @@ import {
 } from '../../api/hooks';
 import type { WorkOrderAttachment, WorkOrderStatus, WorkOrderTask } from '../../api/workOrders/types';
 import { api, shouldUseSignedFileUrls } from '../../api/client';
-import { Screen, Card, PrimaryButton, StatusPill, IconButton, PillTabGroup, ErrorCard } from '../../components';
+import {
+  Screen,
+  Card,
+  PrimaryButton,
+  StatusPill,
+  IconButton,
+  PillTabGroup,
+  ErrorCard,
+  RoleRestrictedHint,
+} from '../../components';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { useAppTheme } from '../../theme/useAppTheme';
@@ -480,6 +489,13 @@ export const WorkOrderDetailScreen: React.FC = () => {
           <StatusPill label="Read-only role" tone="muted" style={{ marginLeft: spacing.sm }} />
         ) : null}
       </View>
+
+      {contractorReadOnly ? (
+        <RoleRestrictedHint
+          action="update status, notes, or attachments for this work order"
+          testID="workorder-role-hint"
+        />
+      ) : null}
 
       <Card style={styles.headerCard}>
         <View style={styles.headerRow}>

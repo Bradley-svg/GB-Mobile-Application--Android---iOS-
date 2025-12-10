@@ -63,6 +63,38 @@ const StyleSheet = {
   flatten: (styles) => styles,
 };
 
+class AnimatedValue {
+  constructor(value) {
+    this.value = value;
+  }
+  setValue(next) {
+    this.value = next;
+  }
+}
+
+const Animated = {
+  Value: AnimatedValue,
+  timing: (value, { toValue }) => ({
+    start: (cb) => {
+      value.setValue(toValue);
+      if (cb) cb();
+    },
+    stop: jest.fn(),
+  }),
+  loop: (animation) => ({
+    start: () => (animation.start ? animation.start() : undefined),
+    stop: () => (animation.stop ? animation.stop() : undefined),
+  }),
+  sequence: (animations) => ({
+    start: (cb) => {
+      animations.forEach((anim) => anim.start && anim.start());
+      if (cb) cb();
+    },
+    stop: () => animations.forEach((anim) => anim.stop && anim.stop()),
+  }),
+  View,
+};
+
 module.exports = {
   View,
   Text,
@@ -78,6 +110,7 @@ module.exports = {
   StatusBar,
   Platform,
   StyleSheet,
+  Animated,
   Alert,
   Linking,
 };

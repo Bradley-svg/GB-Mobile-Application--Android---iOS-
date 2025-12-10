@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { useDeviceDocuments, useSiteDocuments, useSignedFileUrl } from '../../api/hooks';
 import type { Document } from '../../api/documents/types';
-import { Screen, Card, IconButton, StatusPill, EmptyState, ErrorCard } from '../../components';
+import { Screen, Card, IconButton, StatusPill, EmptyState, ErrorCard, OfflineBanner } from '../../components';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppTheme } from '../../theme/types';
@@ -109,10 +109,9 @@ export const DocumentsScreen: React.FC = () => {
       </View>
 
       {isOffline && documents.length > 0 ? (
-        <StatusPill
-          label={`Read-only cached documents${cachedLabel ? ` (${cachedLabel})` : ''}`}
-          tone="muted"
-          style={{ alignSelf: 'flex-start', marginBottom: spacing.sm }}
+        <OfflineBanner
+          message={`Read-only cached documents${cachedLabel ? ` (${cachedLabel})` : ''}`}
+          lastUpdatedLabel={cachedLabel}
           testID="documents-offline-banner"
         />
       ) : null}
@@ -140,36 +139,50 @@ export const DocumentsScreen: React.FC = () => {
           keyExtractor={(item) => item.id}
           scrollEnabled={false}
           contentContainerStyle={{ paddingBottom: spacing.xl }}
-          renderItem={({ item }) => (
-            <Card style={styles.documentCard} onPress={() => openDocument(item)} testID="document-row">
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <View style={styles.docIcon}>
-                  <Ionicons name="document-text-outline" size={18} color={colors.brandGreen} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[typography.subtitle, styles.title]} numberOfLines={1}>
-                    {item.title}
-                  </Text>
-                  {item.description ? (
-                    <Text style={[typography.caption, styles.muted]} numberOfLines={2}>
-                      {item.description}
+          renderItem={({ item }) => {
+            // TODO: replace with explicit owner/expiry fields when the documents API returns them.
+            const owner =
+              item.ownerName ||
+              item.ownerEmail ||
+              item.createdBy?.name ||
+              item.createdBy?.email ||
+              null;
+            const expiresAt = item.expiresAt ?? item.expires_at ?? null;
+            const expiryLabel = expiresAt ? `Expires ${new Date(expiresAt).toLocaleDateString()}` : null;
+
+            return (
+              <Card style={styles.documentCard} onPress={() => openDocument(item)} testID="document-row">
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <View style={styles.docIcon}>
+                    <Ionicons name="document-text-outline" size={18} color={colors.brandGreen} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[typography.subtitle, styles.title]} numberOfLines={1}>
+                      {item.title}
                     </Text>
-                  ) : null}
-                  <Text style={[typography.caption, styles.muted]}>
-                    {item.originalName || item.title}
-                    {item.sizeBytes ? ` - ${(item.sizeBytes / 1024).toFixed(1)} KB` : ''}
-                  </Text>
+                    {item.description ? (
+                      <Text style={[typography.caption, styles.muted]} numberOfLines={2}>
+                        {item.description}
+                      </Text>
+                    ) : null}
+                    <Text style={[typography.caption, styles.muted]}>
+                      {item.originalName || item.title}
+                      {item.sizeBytes ? ` - ${(item.sizeBytes / 1024).toFixed(1)} KB` : ''}
+                    </Text>
+                    {owner ? <Text style={[typography.caption, styles.muted]}>Owner: {owner}</Text> : null}
+                    {expiryLabel ? <Text style={[typography.caption, styles.muted]}>{expiryLabel}</Text> : null}
+                  </View>
+                  <StatusPill label={item.category || 'other'} tone={categoryTone(item.category)} />
+                  <Ionicons
+                    name="open-outline"
+                    size={16}
+                    color={colors.textSecondary}
+                    style={{ marginLeft: spacing.sm }}
+                  />
                 </View>
-                <StatusPill label={item.category || 'other'} tone={categoryTone(item.category)} />
-                <Ionicons
-                  name="open-outline"
-                  size={16}
-                  color={colors.textSecondary}
-                  style={{ marginLeft: spacing.sm }}
-                />
-              </View>
-            </Card>
-          )}
+              </Card>
+            );
+          }}
         />
       )}
     </Screen>

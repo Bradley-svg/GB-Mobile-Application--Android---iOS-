@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, ActivityIndicator, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,12 +11,15 @@ import {
   Screen,
   Card,
   IconButton,
-  ErrorCard,
   EmptyState,
   StatusPill,
   PillTabGroup,
   connectivityDisplay,
   healthDisplay,
+  OfflineBanner,
+  GlobalErrorBanner,
+  ListSkeleton,
+  SkeletonPlaceholder,
 } from '../../components';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { loadJsonWithMetadata, saveJson, isCacheOlderThan } from '../../utils/storage';
@@ -31,7 +34,7 @@ const HEALTH_STATES: HealthStatus[] = ['healthy', 'warning', 'critical', 'offlin
 
 export const DashboardScreen: React.FC = () => {
   const navigation = useNavigation<Navigation>();
-  const { data, isLoading, isError, refetch } = useSites();
+  const { data, isLoading, isFetching, isError, refetch } = useSites();
   const { data: alerts } = useAlerts({ status: 'active' });
   const { isOffline } = useNetworkBanner();
   const { theme, mode, setMode, resolvedScheme } = useAppTheme();
@@ -71,7 +74,7 @@ export const DashboardScreen: React.FC = () => {
   const cacheUpdatedLabel = cachedSitesSavedAt
     ? new Date(cachedSitesSavedAt).toLocaleString()
     : null;
-  const showLoading = isLoading && !hasCachedSites;
+  const showSkeleton = (isLoading || isFetching) && !hasCachedSites;
   const shouldShowError = isError && !isOffline && !hasCachedSites;
 
   const metrics = useMemo(() => {
@@ -120,28 +123,6 @@ export const DashboardScreen: React.FC = () => {
         return { backgroundColor: colors.backgroundAlt, borderColor: colors.borderSubtle };
     }
   };
-
-  if (showLoading) {
-    return (
-      <Screen scroll={false} contentContainerStyle={styles.center} testID="DashboardScreen">
-        <ActivityIndicator size="large" color={colors.brandGreen} />
-        <Text style={[typography.body, styles.muted, { marginTop: spacing.sm }]}>Loading sites...</Text>
-      </Screen>
-    );
-  }
-
-  if (shouldShowError) {
-    return (
-      <Screen scroll={false} contentContainerStyle={styles.center} testID="DashboardScreen">
-        <ErrorCard
-          title="Couldn't load sites"
-          message="Check your connection and try again."
-          onRetry={() => refetch()}
-          testID="dashboard-error"
-        />
-      </Screen>
-    );
-  }
 
   const listHeader = (
     <View>
@@ -198,35 +179,6 @@ export const DashboardScreen: React.FC = () => {
         />
       </Card>
 
-      {isOffline ? (
-        <Card style={styles.offlineCard} testID="dashboard-offline-banner">
-          <Text style={[typography.caption, styles.offlineNote]}>
-            Offline - showing cached portfolio data in read-only mode.
-          </Text>
-          {cacheUpdatedLabel ? (
-            <Text style={[typography.caption, styles.offlineNote]}>
-              Viewing cached data (last updated {cacheUpdatedLabel}).
-            </Text>
-          ) : null}
-          {cacheStale ? (
-            <Text style={[typography.caption, styles.staleNote]}>
-              Data older than 24 hours may be out of date.
-            </Text>
-          ) : null}
-        </Card>
-      ) : cacheStale ? (
-        <Card style={styles.offlineCard}>
-          <Text style={[typography.caption, styles.staleNote]}>
-            Data older than 24 hours may be out of date.
-          </Text>
-          {cacheUpdatedLabel ? (
-            <Text style={[typography.caption, styles.offlineNote]}>
-              Last cached at {cacheUpdatedLabel}.
-            </Text>
-          ) : null}
-        </Card>
-      ) : null}
-
       <Card style={styles.metricsCard}>
         <View style={styles.metricsRow}>
           {metrics.map((metric) => (
@@ -266,91 +218,137 @@ export const DashboardScreen: React.FC = () => {
 
   return (
     <Screen scroll={false} testID="DashboardScreen">
-      {listHeader}
-      <FlatList
-        data={sites}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        columnWrapperStyle={styles.gridRow}
-        initialNumToRender={8}
-        maxToRenderPerBatch={10}
-        windowSize={5}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
-        ListHeaderComponent={null}
-        ListEmptyComponent={
-          <EmptyState
-            message={isOffline ? 'Offline - no cached sites available yet.' : 'No sites available yet.'}
-            testID="dashboard-empty"
+      {isOffline ? (
+        <OfflineBanner
+          message="Offline - showing cached portfolio data in read-only mode."
+          lastUpdatedLabel={cacheUpdatedLabel}
+          testID="dashboard-offline-banner"
+        />
+      ) : cacheStale ? (
+        <OfflineBanner
+          message={`Data older than 24 hours may be out of date${
+            cacheUpdatedLabel ? ` (cached ${cacheUpdatedLabel})` : ''
+          }.`}
+          tone="warning"
+        />
+      ) : null}
+      {shouldShowError ? (
+        <GlobalErrorBanner
+          title="Couldn't load sites"
+          message="Check your connection and try again."
+          onRetry={() => refetch()}
+          retryLabel="Retry now"
+          testID="dashboard-error"
+        />
+      ) : null}
+      {showSkeleton ? (
+        <>
+          <Card style={styles.heroCard}>
+            <SkeletonPlaceholder width="60%" height={16} />
+            <SkeletonPlaceholder width="45%" height={26} style={{ marginTop: spacing.xs }} />
+            <SkeletonPlaceholder width="50%" height={12} style={{ marginTop: spacing.xs }} />
+          </Card>
+          <Card style={styles.themeCard}>
+            <SkeletonPlaceholder width="40%" height={14} />
+            <SkeletonPlaceholder width="70%" height={12} style={{ marginTop: spacing.sm }} />
+          </Card>
+          <Card style={styles.metricsCard}>
+            <View style={styles.metricsRow}>
+              {[0, 1, 2].map((idx) => (
+                <View key={`metric-${idx}`} style={styles.metric}>
+                  <SkeletonPlaceholder width="65%" height={12} />
+                  <SkeletonPlaceholder width="40%" height={18} style={{ marginTop: spacing.xs }} />
+                </View>
+              ))}
+            </View>
+          </Card>
+          <Text style={[typography.subtitle, styles.sectionTitle]}>Sites</Text>
+          <ListSkeleton rows={4} testID="dashboard-skeleton" />
+        </>
+      ) : (
+        <>
+          {listHeader}
+          <FlatList
+            data={sites}
+            keyExtractor={(item) => item.id}
+            numColumns={2}
+            columnWrapperStyle={styles.gridRow}
+            initialNumToRender={8}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+            ListHeaderComponent={null}
+            ListEmptyComponent={
+              <EmptyState
+                message={isOffline ? 'Offline - no cached sites available yet.' : 'No sites available yet.'}
+                testID="dashboard-empty"
+              />
+            }
+            contentContainerStyle={{ paddingBottom: spacing.xl }}
+            testID="dashboard-site-list"
+            renderItem={({ item }) => {
+              const healthPill = healthDisplay((item.health as HealthStatus) || item.status);
+              const connectivityPill = connectivityDisplay(item.status);
+              return (
+                <Card
+                  style={styles.siteCard}
+                  testID="site-card"
+                  onPress={
+                    allowSiteNavigation ? () => navigation.navigate('SiteOverview', { siteId: item.id }) : undefined
+                  }
+                >
+                  <View style={styles.siteHeader}>
+                    <View style={styles.iconBadge}>
+                      <Ionicons name="home-outline" size={18} color={colors.brandGreen} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[typography.subtitle, styles.title]} numberOfLines={1}>
+                        {item.name}
+                      </Text>
+                      <Text style={[typography.caption, styles.muted]} numberOfLines={1}>
+                        {item.city || 'Unknown city'}
+                      </Text>
+                    </View>
+                    <View style={styles.pillRow}>
+                      <StatusPill label={healthPill.label} tone={healthPill.tone} />
+                      <StatusPill
+                        label={connectivityPill.label}
+                        tone={connectivityPill.tone}
+                        style={{ marginLeft: spacing.xs }}
+                        testID="site-connectivity-pill"
+                      />
+                    </View>
+                  </View>
+                  <View style={styles.siteMeta}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[typography.caption, styles.muted]}>Last seen</Text>
+                      <Text style={[typography.body, styles.title]}>
+                        {item.last_seen?.at
+                          ? new Date(item.last_seen.at).toLocaleString()
+                          : item.last_seen_at
+                          ? new Date(item.last_seen_at).toLocaleString()
+                          : 'Unknown'}
+                      </Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={[typography.caption, styles.muted]}>Status</Text>
+                      <Text style={[typography.body, { color: colors.textSecondary }]}>
+                        {(item.health || item.status || 'Unknown').toString()}
+                      </Text>
+                    </View>
+                  </View>
+                </Card>
+              );
+            }}
           />
-        }
-        contentContainerStyle={{ paddingBottom: spacing.xl }}
-        testID="dashboard-site-list"
-        renderItem={({ item }) => {
-          const healthPill = healthDisplay((item.health as HealthStatus) || item.status);
-          const connectivityPill = connectivityDisplay(item.status);
-          return (
-            <Card
-              style={styles.siteCard}
-              testID="site-card"
-              onPress={
-                allowSiteNavigation ? () => navigation.navigate('SiteOverview', { siteId: item.id }) : undefined
-              }
-            >
-              <View style={styles.siteHeader}>
-                <View style={styles.iconBadge}>
-                  <Ionicons name="home-outline" size={18} color={colors.brandGreen} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[typography.subtitle, styles.title]} numberOfLines={1}>
-                    {item.name}
-                  </Text>
-                  <Text style={[typography.caption, styles.muted]} numberOfLines={1}>
-                    {item.city || 'Unknown city'}
-                  </Text>
-                </View>
-                <View style={styles.pillRow}>
-                  <StatusPill label={healthPill.label} tone={healthPill.tone} />
-                  <StatusPill
-                    label={connectivityPill.label}
-                    tone={connectivityPill.tone}
-                    style={{ marginLeft: spacing.xs }}
-                    testID="site-connectivity-pill"
-                  />
-                </View>
-              </View>
-              <View style={styles.siteMeta}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[typography.caption, styles.muted]}>Last seen</Text>
-                  <Text style={[typography.body, styles.title]}>
-                    {item.last_seen?.at
-                      ? new Date(item.last_seen.at).toLocaleString()
-                      : item.last_seen_at
-                      ? new Date(item.last_seen_at).toLocaleString()
-                      : 'Unknown'}
-                  </Text>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={[typography.caption, styles.muted]}>Status</Text>
-                  <Text style={[typography.body, { color: colors.textSecondary }]}>
-                    {(item.health || item.status || 'Unknown').toString()}
-                  </Text>
-                </View>
-              </View>
-            </Card>
-          );
-        }}
-      />
+        </>
+      )}
     </Screen>
   );
 };
 
 const createStyles = (theme: AppTheme) =>
   createThemedStyles(theme, {
-    center: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
     title: {
       color: theme.colors.textPrimary,
     },
@@ -382,18 +380,6 @@ const createStyles = (theme: AppTheme) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       marginBottom: theme.spacing.sm,
-    },
-    offlineCard: {
-      marginBottom: theme.spacing.md,
-      backgroundColor: theme.colors.backgroundAlt,
-    },
-    offlineNote: {
-      color: theme.colors.textSecondary,
-      marginBottom: theme.spacing.sm,
-    },
-    staleNote: {
-      color: theme.colors.warning,
-      marginBottom: theme.spacing.xs,
     },
     metricsCard: {
       marginBottom: theme.spacing.xl,

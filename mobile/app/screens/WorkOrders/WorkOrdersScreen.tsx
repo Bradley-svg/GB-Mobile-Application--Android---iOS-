@@ -1,11 +1,20 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Text, TouchableOpacity, View } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useWorkOrdersList } from '../../api/hooks';
 import type { WorkOrder, WorkOrderStatus } from '../../api/workOrders/types';
-import { Screen, Card, PillTabGroup, ErrorCard, EmptyState, StatusPill } from '../../components';
+import {
+  Screen,
+  Card,
+  PillTabGroup,
+  EmptyState,
+  StatusPill,
+  OfflineBanner,
+  GlobalErrorBanner,
+  ListSkeleton,
+} from '../../components';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { loadJsonWithMetadata, saveJson, isCacheOlderThan } from '../../utils/storage';
@@ -89,7 +98,7 @@ const formatSlaDueLabel = (dueAt: Date | null) => {
 export const WorkOrdersScreen: React.FC = () => {
   const navigation = useNavigation<Navigation>();
   const [statusFilter, setStatusFilter] = useState<'all' | WorkOrderStatus>('all');
-  const { data, isLoading, isError, refetch } = useWorkOrdersList({
+  const { data, isLoading, isFetching, isError, refetch } = useWorkOrdersList({
     status: statusFilter === 'all' ? undefined : statusFilter,
   });
   const { isOffline } = useNetworkBanner();
@@ -173,51 +182,44 @@ export const WorkOrdersScreen: React.FC = () => {
   const cacheStale = isCacheOlderThan(cachedAt, CACHE_STALE_MS);
   const cachedAtDate = cachedAt ? new Date(cachedAt) : null;
   const cacheUpdatedLabel = cachedAtDate ? cachedAtDate.toLocaleString() : null;
-  const showLoading = isLoading && filteredOrders.length === 0;
   const shouldShowError = isError && !isOffline && filteredOrders.length === 0;
 
-  if (showLoading) {
-    return (
-      <Screen scroll={false} contentContainerStyle={styles.center} testID="WorkOrdersScreen">
-        <ActivityIndicator color={colors.brandGreen} />
-        <Text style={[typography.body, styles.muted, { marginTop: spacing.sm }]}>
-          Loading work orders...
-        </Text>
-      </Screen>
-    );
-  }
-
-  if (shouldShowError) {
-    return (
-      <Screen scroll={false} contentContainerStyle={styles.center} testID="WorkOrdersScreen">
-        <ErrorCard
-          title="Couldn't load work orders"
-          message="Please try again in a moment."
-          onRetry={() => refetch()}
-          testID="workorders-error"
-        />
-      </Screen>
-    );
-  }
+  const showSkeleton = (isLoading || isFetching) && filteredOrders.length === 0;
 
   return (
     <Screen scroll={false} contentContainerStyle={{ paddingBottom: spacing.xxl }} testID="WorkOrdersScreen">
       {isOffline ? (
-        <Text style={[typography.caption, styles.offlineNote]}>
-          {hasCached ? 'Offline - showing cached work orders (read-only).' : 'Offline and no cached work orders.'}
-        </Text>
+        <OfflineBanner
+          message={
+            hasCached ? 'Offline - showing cached work orders (read-only).' : 'Offline and no cached work orders.'
+          }
+          lastUpdatedLabel={cacheUpdatedLabel}
+          testID="workorders-offline-banner"
+        />
       ) : null}
       {cacheStale ? (
-        <Text style={[typography.caption, styles.staleNote]}>
-          Data older than 24 hours may be out of date
-          {cacheUpdatedLabel ? ` (cached ${cacheUpdatedLabel})` : ''}.
-        </Text>
+        <OfflineBanner
+          message={`Data older than 24 hours may be out of date${
+            cacheUpdatedLabel ? ` (cached ${cacheUpdatedLabel})` : ''
+          }.`}
+          tone="warning"
+        />
       ) : null}
       {cachedAtDate && (isOffline || cacheStale) ? (
-        <Text style={[typography.caption, styles.staleNote]}>
-          SLA timers are based on last sync at{' '}
-          {cachedAtDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.
-        </Text>
+        <OfflineBanner
+          message="SLA timers are based on the last sync time."
+          lastUpdatedLabel={cachedAtDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          tone="info"
+        />
+      ) : null}
+      {shouldShowError ? (
+        <GlobalErrorBanner
+          title="Couldn't load work orders"
+          message="Please try again in a moment."
+          onRetry={() => refetch()}
+          retryLabel="Retry now"
+          testID="workorders-error"
+        />
       ) : null}
       <Card style={styles.headerCard}>
         <View style={styles.headerRow}>
@@ -250,87 +252,86 @@ export const WorkOrdersScreen: React.FC = () => {
         </View>
       </Card>
 
-      <FlatList
-        data={sortedOrders}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: spacing.xl }}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
-        testID="workorders-list"
-        renderItem={({ item }) => {
-          const status = statusPillFor(item.status);
-          const sla = slaPillFor(item);
-          const slaDueAt = slaInfo(item).slaDueAt;
-          return (
-            <Card
-              style={styles.orderCard}
-              onPress={() => navigation.navigate('WorkOrderDetail', { workOrderId: item.id })}
-              testID="work-order-card"
-            >
-              <View style={styles.orderHeader}>
-                <View style={styles.badgeRow}>
-                  <StatusPill label={status.label} tone={status.tone} />
-                  <StatusPill
-                    label={sla.label}
-                    tone={sla.tone}
-                    style={{ marginLeft: spacing.xs }}
-                    testID={`sla-pill-${item.id}`}
-                  />
-                </View>
-                {item.priority ? (
-                  <Text style={[typography.caption, styles.priority]}>
-                    {item.priority.toUpperCase()}
-                  </Text>
-                ) : null}
-              </View>
-              <Text style={[typography.title2, styles.title]} numberOfLines={2}>
-                {item.title}
-              </Text>
-              <Text style={[typography.caption, styles.muted]} numberOfLines={2}>
-                {item.site_name || 'Unknown site'}
-                {item.device_name ? ` > ${item.device_name}` : ''}
-              </Text>
-              <Text style={[typography.caption, styles.muted, { marginTop: spacing.xs }]}>
-                {formatSlaDueLabel(slaDueAt)}
-              </Text>
-              <View style={styles.metaRow}>
-                <Text style={[typography.caption, styles.muted]}>
-                  Created {new Date(item.created_at).toLocaleDateString()}
-                </Text>
-                {item.alert_id ? (
-                  <View style={styles.alertBadge}>
-                    <Ionicons name="alert-circle" size={14} color={severityColor(item.alert_severity)} />
+      {showSkeleton ? (
+        <ListSkeleton rows={4} testID="workorders-skeleton" />
+      ) : (
+        <FlatList
+          data={sortedOrders}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{ paddingBottom: spacing.xl }}
+          ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+          testID="workorders-list"
+          renderItem={({ item }) => {
+            const status = statusPillFor(item.status);
+            const sla = slaPillFor(item);
+            const slaDueAt = slaInfo(item).slaDueAt;
+            return (
+              <Card
+                style={styles.orderCard}
+                onPress={() => navigation.navigate('WorkOrderDetail', { workOrderId: item.id })}
+                testID="work-order-card"
+              >
+                <View style={styles.orderHeader}>
+                  <View style={styles.badgeRow}>
+                    <StatusPill label={status.label} tone={status.tone} />
+                    <StatusPill
+                      label={sla.label}
+                      tone={sla.tone}
+                      style={{ marginLeft: spacing.xs }}
+                      testID={`sla-pill-${item.id}`}
+                    />
                   </View>
-                ) : null}
-              </View>
-            </Card>
-          );
-        }}
-        ListEmptyComponent={
-          <EmptyState
-            message={
-              isOffline
-                ? hasCached
-                  ? 'Offline - showing cached work orders (read-only).'
-                  : 'Offline and no cached work orders.'
-                : statusFilter === 'all'
-                ? 'No work orders yet.'
-                : 'No work orders match this filter.'
-            }
-            testID="workorders-empty"
-          />
-        }
-      />
+                  {item.priority ? (
+                    <Text style={[typography.caption, styles.priority]}>
+                      {item.priority.toUpperCase()}
+                    </Text>
+                  ) : null}
+                </View>
+                <Text style={[typography.title2, styles.title]} numberOfLines={2}>
+                  {item.title}
+                </Text>
+                <Text style={[typography.caption, styles.muted]} numberOfLines={2}>
+                  {item.site_name || 'Unknown site'}
+                  {item.device_name ? ` > ${item.device_name}` : ''}
+                </Text>
+                <Text style={[typography.caption, styles.muted, { marginTop: spacing.xs }]}>
+                  {formatSlaDueLabel(slaDueAt)}
+                </Text>
+                <View style={styles.metaRow}>
+                  <Text style={[typography.caption, styles.muted]}>
+                    Created {new Date(item.created_at).toLocaleDateString()}
+                  </Text>
+                  {item.alert_id ? (
+                    <View style={styles.alertBadge}>
+                      <Ionicons name="alert-circle" size={14} color={severityColor(item.alert_severity)} />
+                    </View>
+                  ) : null}
+                </View>
+              </Card>
+            );
+          }}
+          ListEmptyComponent={
+            <EmptyState
+              message={
+                isOffline
+                  ? hasCached
+                    ? 'Offline - showing cached work orders (read-only).'
+                    : 'Offline and no cached work orders.'
+                  : statusFilter === 'all'
+                  ? 'No work orders yet.'
+                  : 'No work orders match this filter.'
+              }
+              testID="workorders-empty"
+            />
+          }
+        />
+      )}
     </Screen>
   );
 };
 
 const createStyles = (theme: AppTheme) =>
   createThemedStyles(theme, {
-    center: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
     title: { color: theme.colors.textPrimary },
     muted: { color: theme.colors.textSecondary },
     headerCard: {
@@ -380,6 +381,4 @@ const createStyles = (theme: AppTheme) =>
       borderRadius: 8,
       backgroundColor: theme.colors.backgroundAlt,
     },
-    offlineNote: { color: theme.colors.textSecondary, marginBottom: theme.spacing.xs },
-    staleNote: { color: theme.colors.textSecondary, marginBottom: theme.spacing.xs },
   });

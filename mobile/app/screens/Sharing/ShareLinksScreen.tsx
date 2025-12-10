@@ -5,13 +5,14 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { API_BASE_URL } from '../../api/client';
 import { useCreateShareLink, useRevokeShareLink, useShareLinks } from '../../api/shareLinks/hooks';
-import { Screen, Card, EmptyState, ErrorCard } from '../../components';
+import { Screen, Card, EmptyState, ErrorCard, OfflineBanner, RoleRestrictedHint } from '../../components';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppTheme } from '../../theme/types';
 import { typography } from '../../theme/typography';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { createThemedStyles } from '../../theme/createThemedStyles';
+import { isContractor, useAuthStore } from '../../store/authStore';
 
 type Navigation = NativeStackNavigationProp<AppStackParamList>;
 type Route = RouteProp<AppStackParamList, 'ShareLinks'>;
@@ -38,9 +39,11 @@ export const ShareLinksScreen: React.FC = () => {
   const linksQuery = useShareLinks(resolvedScope, id);
   const createLink = useCreateShareLink();
   const revokeLink = useRevokeShareLink();
+  const userRole = useAuthStore((s) => s.user?.role);
+  const contractorReadOnly = isContractor(userRole);
 
   const handleCreate = (days: number) => {
-    if (isOffline || createLink.isPending) return;
+    if (isOffline || createLink.isPending || contractorReadOnly) return;
     const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
     createLink.mutate({ scope: resolvedScope, id, expiresAt });
   };
@@ -51,12 +54,14 @@ export const ShareLinksScreen: React.FC = () => {
   };
 
   const handleRevoke = (linkId: string) => {
-    if (isOffline || revokeLink.isPending) return;
+    if (isOffline || revokeLink.isPending || contractorReadOnly) return;
     revokeLink.mutate({ linkId, scope: resolvedScope, scopeId: id });
   };
 
   const isLoading = linksQuery.isLoading;
   const links = linksQuery.data || [];
+  const createDisabled = isOffline || createLink.isPending || contractorReadOnly;
+  const revokeDisabled = isOffline || revokeLink.isPending || contractorReadOnly;
 
   if (!hasValidParams) {
     return (
@@ -88,14 +93,27 @@ export const ShareLinksScreen: React.FC = () => {
         </View>
       </View>
 
+      {isOffline ? (
+        <OfflineBanner
+          message="Offline - creating or revoking links is disabled."
+          lastUpdatedLabel={null}
+          testID="share-links-offline"
+        />
+      ) : null}
+      <RoleRestrictedHint
+        action="create or revoke share links"
+        visible={contractorReadOnly}
+        testID="share-links-role-hint"
+      />
+
       <Card style={styles.infoCard}>
         <Text style={[typography.subtitle, styles.title]}>Share links</Text>
         <Text style={[typography.body, styles.muted, { marginTop: spacing.xs }]}>
           Links are read-only and expire automatically. Revoke any link to disable access instantly.
         </Text>
-        {isOffline ? (
+        {contractorReadOnly ? (
           <Text style={[typography.caption, styles.warning]}>
-            Offline - creating or revoking links is disabled.
+            Contractors can view shared content but cannot manage links.
           </Text>
         ) : null}
       </Card>
@@ -106,10 +124,10 @@ export const ShareLinksScreen: React.FC = () => {
           <TouchableOpacity
             key={preset.label}
             onPress={() => handleCreate(preset.days)}
-            disabled={isOffline || createLink.isPending}
+            disabled={createDisabled}
             style={[
               styles.presetButton,
-              isOffline || createLink.isPending ? styles.buttonDisabled : styles.buttonEnabled,
+              createDisabled ? styles.buttonDisabled : styles.buttonEnabled,
             ]}
             testID="create-share-link"
           >
@@ -137,7 +155,7 @@ export const ShareLinksScreen: React.FC = () => {
             </Text>
             {link.createdBy?.name || link.createdBy?.email ? (
               <Text style={[typography.caption, styles.muted]}>
-                Created by {link.createdBy?.name || link.createdBy?.email}
+                Owner: {link.createdBy?.name || link.createdBy?.email}
               </Text>
             ) : null}
             <Text style={[typography.caption, styles.muted]} numberOfLines={1}>
@@ -154,10 +172,10 @@ export const ShareLinksScreen: React.FC = () => {
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => handleRevoke(link.id)}
-              disabled={isOffline || revokeLink.isPending}
+              disabled={revokeDisabled}
               style={[
                 styles.iconButton,
-                isOffline || revokeLink.isPending ? styles.buttonDisabled : styles.revokeButton,
+                revokeDisabled ? styles.buttonDisabled : styles.revokeButton,
               ]}
               testID="revoke-share-link"
             >

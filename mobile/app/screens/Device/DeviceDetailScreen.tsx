@@ -47,6 +47,8 @@ import {
   ErrorCard,
   PillTabGroup,
   StatusPill,
+  OfflineBanner,
+  RoleRestrictedHint,
   connectivityDisplay,
   healthDisplay,
 } from '../../components';
@@ -801,9 +803,7 @@ export const DeviceDetailScreen: React.FC = () => {
                 </Text>
               ) : null}
               {contractorReadOnly ? (
-                <Text style={[typography.caption, styles.offlineNote, { marginTop: spacing.xs }]}>
-                  {readOnlyCopy}
-                </Text>
+                <RoleRestrictedHint action="edit schedules" testID="schedule-role-hint" />
               ) : null}
             </ScrollView>
             <View style={styles.modalActions}>
@@ -914,31 +914,40 @@ export const DeviceDetailScreen: React.FC = () => {
       </Card>
 
       {isOffline ? (
-        <Text style={[typography.caption, styles.offlineNote, { marginBottom: spacing.md }]}>
-          {isOfflineWithCache
-            ? 'Offline - showing cached data (read-only).'
-            : 'Offline and no cached data for this device.'}
-        </Text>
+        <OfflineBanner
+          message={
+            isOfflineWithCache
+              ? 'Offline - showing cached data (read-only).'
+              : 'Offline and no cached data for this device.'
+          }
+          lastUpdatedLabel={cachedSavedAt ? new Date(cachedSavedAt).toLocaleString() : null}
+          testID="device-offline-banner"
+        />
       ) : null}
       {contractorReadOnly ? (
-        <Text style={[typography.caption, styles.offlineNote, { marginBottom: spacing.md }]}>
-          {readOnlyCopy} Controls, schedules, and exports are disabled for contractors.
-        </Text>
+        <RoleRestrictedHint
+          action="change setpoints, schedules, or export telemetry"
+          testID="device-role-hint"
+        />
       ) : null}
       {cacheStale ? (
-        <Text style={[typography.caption, styles.offlineNote, { marginBottom: spacing.md, color: colors.warning }]}>
-          Data older than 24 hours – may be out of date.
-        </Text>
+        <OfflineBanner
+          message="Data older than 24 hours may be out of date."
+          lastUpdatedLabel={cachedSavedAt ? new Date(cachedSavedAt).toLocaleString() : null}
+          tone="warning"
+        />
       ) : null}
       {!isOffline && isDeviceOffline ? (
-        <Text style={[typography.caption, styles.offlineNote, { marginBottom: spacing.md }]}>
-          Device is offline. Commands are disabled until it reconnects.
-        </Text>
+        <OfflineBanner
+          message="Device is offline. Commands are disabled until it reconnects."
+          tone="warning"
+        />
       ) : null}
       {!isOffline && !isDeviceOffline && !isControlConfigured ? (
-        <Text style={[typography.caption, styles.offlineNote, { marginBottom: spacing.md }]}>
-          Control channel not configured for this device in this environment.
-        </Text>
+        <OfflineBanner
+          message="Control channel not configured for this device in this environment."
+          tone="warning"
+        />
       ) : null}
 
       <View style={styles.rangeTabs}>
@@ -969,9 +978,7 @@ export const DeviceDetailScreen: React.FC = () => {
         </TouchableOpacity>
       ) : null}
       {contractorReadOnly ? (
-        <Text style={[typography.caption, styles.muted, { marginBottom: spacing.md }]}>
-          {readOnlyCopy}
-        </Text>
+        <RoleRestrictedHint action="export telemetry or adjust device controls" />
       ) : null}
 
       <DeviceGaugesSection

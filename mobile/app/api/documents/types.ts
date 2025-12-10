@@ -12,4 +12,9 @@ export type Document = {
   size_bytes?: number | null;
   createdAt?: string;
   created_at?: string;
+  ownerName?: string | null;
+  ownerEmail?: string | null;
+  createdBy?: { name?: string | null; email?: string | null } | null;
+  expiresAt?: string | null;
+  expires_at?: string | null;
 };

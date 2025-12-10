@@ -44,6 +44,7 @@ describe('Alerts large list rendering', () => {
     (useAlerts as jest.Mock).mockReturnValue({
       data: alerts,
       isLoading: false,
+      isFetching: false,
       isError: false,
       refetch: jest.fn(),
     });
@@ -66,6 +67,7 @@ describe('Alerts large list rendering', () => {
     (useAlerts as jest.Mock).mockReturnValue({
       data: null,
       isLoading: false,
+      isFetching: false,
       isError: false,
       refetch: jest.fn(),
     });
@@ -116,6 +118,7 @@ describe('Alerts large list rendering', () => {
     (useAlerts as jest.Mock).mockReturnValue({
       data: null,
       isLoading: false,
+      isFetching: false,
       isError: false,
       refetch: jest.fn(),
     });
@@ -137,6 +140,7 @@ describe('Alerts large list rendering', () => {
     (useAlerts as jest.Mock).mockReturnValue({
       data: null,
       isLoading: false,
+      isFetching: false,
       isError: false,
       refetch: jest.fn(),
     });
@@ -149,5 +153,33 @@ describe('Alerts large list rendering', () => {
     render(<AlertsScreen />);
 
     expect(await screen.findByText(/Data older than 24 hours/i)).toBeTruthy();
+  });
+
+  it('shows a skeleton while loading alerts', () => {
+    (useAlerts as jest.Mock).mockReturnValue({
+      data: [],
+      isLoading: true,
+      isFetching: true,
+      isError: false,
+      refetch: jest.fn(),
+    });
+
+    render(<AlertsScreen />);
+
+    expect(screen.getByTestId('alerts-skeleton')).toBeTruthy();
+  });
+
+  it('shows empty state when no alerts are available', () => {
+    (useAlerts as jest.Mock).mockReturnValue({
+      data: [],
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+      refetch: jest.fn(),
+    });
+
+    render(<AlertsScreen />);
+
+    expect(screen.getByTestId('alerts-empty')).toBeTruthy();
   });
 });

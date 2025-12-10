@@ -66,6 +66,7 @@ describe('WorkOrdersScreen', () => {
     (useWorkOrdersList as jest.Mock).mockReturnValue({
       data: orders,
       isLoading: false,
+      isFetching: false,
       isError: false,
       refetch: jest.fn(),
     });
@@ -88,6 +89,7 @@ describe('WorkOrdersScreen', () => {
     (useWorkOrdersList as jest.Mock).mockReturnValue({
       data: null,
       isLoading: false,
+      isFetching: false,
       isError: false,
       refetch: jest.fn(),
     });
@@ -102,5 +104,33 @@ describe('WorkOrdersScreen', () => {
       expect(screen.getByText(/Offline - showing cached work orders/)).toBeTruthy()
     );
     expect(screen.getAllByTestId('work-order-card').length).toBeGreaterThan(0);
+  });
+
+  it('shows a skeleton while loading initial work orders', () => {
+    (useWorkOrdersList as jest.Mock).mockReturnValue({
+      data: [],
+      isLoading: true,
+      isFetching: true,
+      isError: false,
+      refetch: jest.fn(),
+    });
+
+    render(<WorkOrdersScreen />);
+
+    expect(screen.getByTestId('workorders-skeleton')).toBeTruthy();
+  });
+
+  it('shows empty state when no work orders are returned', () => {
+    (useWorkOrdersList as jest.Mock).mockReturnValue({
+      data: [],
+      isLoading: false,
+      isFetching: false,
+      isError: false,
+      refetch: jest.fn(),
+    });
+
+    render(<WorkOrdersScreen />);
+
+    expect(screen.getByTestId('workorders-empty')).toBeTruthy();
   });
 });

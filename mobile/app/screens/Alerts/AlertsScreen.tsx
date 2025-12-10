@@ -1,12 +1,21 @@
 /* eslint react-native/no-unused-styles: "warn" */
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Text, View } from 'react-native';
+import { FlatList, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useAlerts } from '../../api/hooks';
 import { AppStackParamList } from '../../navigation/RootNavigator';
-import { Screen, Card, PillTabGroup, IconButton, ErrorCard, EmptyState } from '../../components';
+import {
+  Screen,
+  Card,
+  PillTabGroup,
+  IconButton,
+  EmptyState,
+  OfflineBanner,
+  GlobalErrorBanner,
+  ListSkeleton,
+} from '../../components';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { loadJsonWithMetadata, saveJson, isCacheOlderThan } from '../../utils/storage';
 import type { Alert } from '../../api/types';
@@ -28,7 +37,7 @@ const ALERTS_CACHE_KEY = 'alerts-cache:all';
 
 export const AlertsScreen: React.FC = () => {
   const [severityFilter, setSeverityFilter] = useState<'all' | 'warning' | 'critical'>('all');
-  const { data: alerts, isLoading, isError, refetch } = useAlerts({
+  const { data: alerts, isLoading, isFetching, isError, refetch } = useAlerts({
     status: 'active',
   });
 
@@ -88,7 +97,7 @@ export const AlertsScreen: React.FC = () => {
   const hasCachedAlerts = (cachedAlerts?.length ?? 0) > 0;
   const cacheStale = isCacheOlderThan(cachedAt, CACHE_STALE_MS);
   const cacheUpdatedLabel = cachedAt ? new Date(cachedAt).toLocaleString() : null;
-  const showLoading = isLoading && alertsList.length === 0;
+  const showSkeleton = (isLoading || isFetching) && alertsList.length === 0;
   const shouldShowError = isError && !isOffline && alertsList.length === 0;
 
   const filteredAlerts = useMemo(() => {
@@ -107,44 +116,35 @@ export const AlertsScreen: React.FC = () => {
     [filteredAlerts]
   );
 
-  if (showLoading) {
-    return (
-      <Screen scroll={false} contentContainerStyle={styles.center} testID="AlertsScreen">
-        <ActivityIndicator color={colors.brandGreen} />
-        <Text style={[typography.body, styles.muted, { marginTop: spacing.sm }]}>Loading alerts...</Text>
-      </Screen>
-    );
-  }
-
-  if (shouldShowError) {
-    return (
-      <Screen scroll={false} contentContainerStyle={styles.center} testID="AlertsScreen">
-        <ErrorCard
-          title="Couldn't load alerts"
-          message="Please try again in a moment."
-          onRetry={() => refetch()}
-          testID="alerts-error"
-        />
-      </Screen>
-    );
-  }
-
   return (
     <Screen scroll={false} contentContainerStyle={{ paddingBottom: spacing.xxl }} testID="AlertsScreen">
       {isOffline ? (
-        <View style={styles.noticeBanner} testID="alerts-offline-banner">
-          <Text style={[typography.caption, styles.noticeText]}>
-            {hasCachedAlerts ? 'Offline - showing cached alerts (read-only).' : 'Offline and no cached alerts.'}
-          </Text>
-        </View>
+        <OfflineBanner
+          message={
+            hasCachedAlerts
+              ? 'Offline - showing cached alerts (read-only).'
+              : 'Offline and no cached alerts.'
+          }
+          lastUpdatedLabel={cacheUpdatedLabel}
+          testID="alerts-offline-banner"
+        />
       ) : null}
       {cacheStale ? (
-        <View style={styles.warningBanner}>
-          <Text style={[typography.caption, styles.noticeText]}>
-            Data older than 24 hours may be out of date
-            {cacheUpdatedLabel ? ` (cached ${cacheUpdatedLabel})` : ''}.
-          </Text>
-        </View>
+        <OfflineBanner
+          message={`Data older than 24 hours may be out of date${
+            cacheUpdatedLabel ? ` (cached ${cacheUpdatedLabel})` : ''
+          }.`}
+          tone="warning"
+        />
+      ) : null}
+      {shouldShowError ? (
+        <GlobalErrorBanner
+          title="Couldn't load alerts"
+          message="Please try again in a moment."
+          onRetry={() => refetch()}
+          retryLabel="Retry now"
+          testID="alerts-error"
+        />
       ) : null}
       <Card style={styles.headerCard}>
         <View style={styles.headerRow}>
@@ -166,92 +166,78 @@ export const AlertsScreen: React.FC = () => {
           />
         </View>
       </Card>
-      <FlatList
-        data={sortedAlerts}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: spacing.xl }}
-        initialNumToRender={12}
-        maxToRenderPerBatch={16}
-        windowSize={6}
-        removeClippedSubviews
-        testID="alerts-list"
-        ListHeaderComponent={null}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
-        renderItem={({ item }) => {
-          const severity = item.severity || 'info';
-          const message = item.message || 'Alert';
-          const typeLabel = item.type ? item.type.toUpperCase() : 'ALERT';
-          const lastSeen = item.last_seen_at ? new Date(item.last_seen_at).toLocaleString() : 'Unknown';
-          const { backgroundColor, textColor } = severityStyles(severity);
-          return (
-            <Card
-              style={styles.alertCard}
-              onPress={() => navigation.navigate('AlertDetail', { alertId: item.id })}
-              testID="alert-card"
-            >
-              <View style={[styles.alertRow]}>
-                <View style={[styles.severityPill, { backgroundColor }]}>
-                  <Text style={[typography.label, { color: textColor }]}>{severity.toUpperCase()}</Text>
+      {showSkeleton ? (
+        <ListSkeleton rows={4} testID="alerts-skeleton" />
+      ) : (
+        <FlatList
+          data={sortedAlerts}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{ paddingBottom: spacing.xl }}
+          initialNumToRender={12}
+          maxToRenderPerBatch={16}
+          windowSize={6}
+          removeClippedSubviews
+          testID="alerts-list"
+          ListHeaderComponent={null}
+          ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+          renderItem={({ item }) => {
+            const severity = item.severity || 'info';
+            const message = item.message || 'Alert';
+            const typeLabel = item.type ? item.type.toUpperCase() : 'ALERT';
+            const lastSeen = item.last_seen_at ? new Date(item.last_seen_at).toLocaleString() : 'Unknown';
+            const { backgroundColor, textColor } = severityStyles(severity);
+            return (
+              <Card
+                style={styles.alertCard}
+                onPress={() => navigation.navigate('AlertDetail', { alertId: item.id })}
+                testID="alert-card"
+              >
+                <View style={[styles.alertRow]}>
+                  <View style={[styles.severityPill, { backgroundColor }]}>
+                    <Text style={[typography.label, { color: textColor }]}>{severity.toUpperCase()}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[typography.body, styles.title]} numberOfLines={2}>
+                      {message}
+                    </Text>
+                    <Text style={[typography.caption, styles.muted]} numberOfLines={1}>
+                      {typeLabel} - {lastSeen}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={16}
+                    color={colors.textSecondary}
+                    style={{ marginLeft: spacing.sm }}
+                  />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[typography.body, styles.title]} numberOfLines={2}>
-                    {message}
-                  </Text>
-                  <Text style={[typography.caption, styles.muted]} numberOfLines={1}>
-                    {typeLabel} - {lastSeen}
-                  </Text>
-                </View>
-                <Ionicons
-                  name="chevron-forward"
-                  size={16}
-                  color={colors.textSecondary}
-                  style={{ marginLeft: spacing.sm }}
-                />
-              </View>
-            </Card>
-          );
-        }}
-        ListEmptyComponent={
-          <EmptyState
-            message={
-              isOffline
-                ? hasCachedAlerts
-                  ? 'Offline - showing cached alerts (read-only).'
-                  : 'Offline and no cached alerts.'
-                : severityFilter === 'all'
-                ? 'No active alerts.'
-                : 'No alerts match this filter.'
-            }
-            testID="alerts-empty"
-          />
-        }
-      />
+              </Card>
+            );
+          }}
+          ListEmptyComponent={
+            <EmptyState
+              message={
+                isOffline
+                  ? hasCachedAlerts
+                    ? 'Offline - showing cached alerts (read-only).'
+                    : 'Offline and no cached alerts.'
+                  : severityFilter === 'all'
+                  ? 'No active alerts.'
+                  : 'No alerts match this filter.'
+              }
+              testID="alerts-empty"
+            />
+          }
+        />
+      )}
     </Screen>
   );
 };
 
 const createStyles = (theme: AppTheme) =>
   createThemedStyles(theme, {
-    center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     title: { color: theme.colors.textPrimary },
     muted: { color: theme.colors.textSecondary },
-    noticeBanner: {
-      padding: theme.spacing.sm,
-      borderRadius: theme.radius.md,
-      backgroundColor: theme.colors.infoBackground,
-      borderWidth: 1,
-      borderColor: theme.colors.infoBorder,
-      marginBottom: theme.spacing.sm,
-    },
-    warningBanner: {
-      padding: theme.spacing.sm,
-      borderRadius: theme.radius.md,
-      backgroundColor: theme.colors.warningBackground,
-      borderWidth: 1,
-      borderColor: theme.colors.warningBorder,
-      marginBottom: theme.spacing.sm,
-    },
-    noticeText: { color: theme.colors.textPrimary },
     headerCard: { marginTop: theme.spacing.xl, marginBottom: theme.spacing.lg },
     headerRow: {
       flexDirection: 'row',
