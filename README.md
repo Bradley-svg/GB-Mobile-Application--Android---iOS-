@@ -31,4 +31,4 @@ npm install
 npm run dev
 ```
 
-Environment variables for backend and mobile (dev/staging/prod) are summarised in `docs/envs.md`. Deployment notes for staging/production live in `docs/deploy.md`. Operational readiness checks live in `docs/checklists/operational-readiness.md`.
+Environment variables for backend and mobile (dev/staging/prod) are summarised in `docs/envs.md`. Deployment notes for staging/production live in `docs/deploy.md`. Operational readiness checks live in `docs/checklists/operational-readiness.md`. Observability conventions and health-plus monitoring notes are in `docs/observability.md` (see `backend/scripts/check-health-plus.ts` for a CLI probe).

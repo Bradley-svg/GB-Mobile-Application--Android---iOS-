@@ -25,6 +25,7 @@
     "@tanstack/react-query": "^5.54.1",
     "axios": "^1.7.7",
     "expo": "~51.0.23",
+    "expo-clipboard": "~6.0.3",
     "expo-device": "~6.0.2",
     "expo-document-picker": "~12.0.1",
     "expo-image-picker": "~15.0.6",

@@ -1,24 +1,64 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, TextInput, Alert, Image } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Text, TextInput, Alert, Image, TouchableOpacity } from 'react-native';
 import axios from 'axios';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useLogin } from '../../api/hooks';
-import { Screen, Card, PrimaryButton } from '../../components';
+import { Screen, Card, PrimaryButton, GlobalErrorBanner } from '../../components';
 import { useAuthStore } from '../../store/authStore';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppTheme } from '../../theme/types';
 import { typography } from '../../theme/typography';
 import { createThemedStyles } from '../../theme/createThemedStyles';
 import GreenbroLogo from '../../../assets/greenbro/greenbro-logo-horizontal.png';
+import type { AuthStackParamList } from '../../navigation/RootNavigator';
+
+type LoginRoute = RouteProp<AuthStackParamList, 'Login'>;
+type AuthNavigation = NativeStackNavigationProp<AuthStackParamList>;
 
 export const LoginScreen: React.FC = () => {
+  const navigation = useNavigation<AuthNavigation>();
+  const route = useRoute<LoginRoute>();
   const [email, setEmail] = useState('demo@greenbro.com');
   const [password, setPassword] = useState('password');
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(
+    route.params?.resetSuccessMessage ?? null
+  );
   const loginMutation = useLogin();
   const setSessionExpired = useAuthStore((s) => s.setSessionExpired);
   const { theme } = useAppTheme();
   const { colors, spacing } = theme;
   const styles = useMemo(() => createStyles(theme), [theme]);
+
+  const parseLockoutMessage = (err: unknown) => {
+    if (!axios.isAxiosError(err)) return null;
+    const status = err.response?.status;
+    if (status !== 429) return null;
+
+    const lockedUntilRaw = (err.response?.data as { lockedUntil?: string } | undefined)?.lockedUntil;
+    const retryAfter = err.response?.headers?.['retry-after'];
+    const lockedUntil = lockedUntilRaw ? new Date(lockedUntilRaw) : null;
+    const retrySeconds = retryAfter ? Number(retryAfter) : null;
+    let minutes: number | null = null;
+
+    if (lockedUntil && !Number.isNaN(lockedUntil.getTime())) {
+      minutes = Math.max(1, Math.ceil((lockedUntil.getTime() - Date.now()) / (60 * 1000)));
+    } else if (Number.isFinite(retrySeconds)) {
+      minutes = Math.max(1, Math.ceil((retrySeconds as number) / 60));
+    }
+
+    const waitCopy = minutes
+      ? ` Please wait ${minutes} minute${minutes === 1 ? '' : 's'} before trying again.`
+      : ' Please wait before trying again.';
+    return `Too many failed attempts.${waitCopy}`;
+  };
+
+  useEffect(() => {
+    if (route.params?.resetSuccessMessage) {
+      setSuccessMessage(route.params.resetSuccessMessage);
+    }
+  }, [route.params?.resetSuccessMessage]);
 
   const onLogin = async () => {
     const trimmedEmail = email.trim();
@@ -31,6 +71,7 @@ export const LoginScreen: React.FC = () => {
 
     try {
       setError(null);
+      setSuccessMessage(null);
       setSessionExpired(false);
       console.log('LoginScreen: submitting login', { email: trimmedEmail });
       await loginMutation.mutateAsync({
@@ -41,8 +82,11 @@ export const LoginScreen: React.FC = () => {
       if (axios.isAxiosError(err)) {
         console.error(err.response?.data ?? err.message);
         const status = err.response?.status;
-        if (status === 401) {
-          setError('Incorrect email or password.');
+        const lockout = parseLockoutMessage(err);
+        if (lockout) {
+          setError(lockout);
+        } else if (status === 401) {
+          setError('Invalid email or password.');
         } else if (status && status >= 500) {
           setError('Server unavailable, please try again.');
         } else {
@@ -68,6 +112,19 @@ export const LoginScreen: React.FC = () => {
       <Card style={styles.formCard}>
         <Text style={[typography.title2, styles.title, { marginBottom: spacing.sm }]}>Greenbro Login</Text>
 
+        {successMessage ? (
+          <View style={styles.successBanner} testID="login-success-banner">
+            <Text style={[typography.body, { color: colors.success }]}>{successMessage}</Text>
+          </View>
+        ) : null}
+        {error ? (
+          <GlobalErrorBanner
+            message={error}
+            title="Unable to login"
+            testID="login-error-banner"
+          />
+        ) : null}
+
         <Text style={[typography.caption, styles.muted]}>Email</Text>
         <TextInput
           value={email}
@@ -91,11 +148,13 @@ export const LoginScreen: React.FC = () => {
           placeholderTextColor={colors.textSecondary}
         />
 
-        {error ? (
-          <Text style={[typography.caption, { color: colors.error, marginBottom: spacing.sm }]} testID="login-error">
-            {error}
-          </Text>
-        ) : null}
+        <TouchableOpacity
+          onPress={() => navigation.navigate('ForgotPassword')}
+          style={styles.linkRow}
+          testID="login-forgot-password"
+        >
+          <Text style={[typography.caption, { color: colors.brandGreen }]}>Forgot password?</Text>
+        </TouchableOpacity>
 
         <PrimaryButton
           label={loginMutation.isPending ? 'Logging in...' : 'Login'}
@@ -108,7 +167,7 @@ export const LoginScreen: React.FC = () => {
             New account creation is disabled. Contact support.
           </Text>
           <Text style={[typography.caption, styles.noticeSecondary]}>
-            Password reset is not available in this build.
+            TODO: prompt for 2FA here when enabled.
           </Text>
         </View>
       </Card>
@@ -147,6 +206,10 @@ const createStyles = (theme: AppTheme) =>
       marginBottom: theme.spacing.md,
       color: theme.colors.textPrimary,
     },
+    linkRow: {
+      alignItems: 'flex-end',
+      marginBottom: theme.spacing.md,
+    },
     notice: {
       marginTop: theme.spacing.lg,
       padding: theme.spacing.md,
@@ -157,4 +220,12 @@ const createStyles = (theme: AppTheme) =>
     },
     noticePrimary: { color: theme.colors.textPrimary, marginBottom: theme.spacing.xs },
     noticeSecondary: { color: theme.colors.textSecondary },
+    successBanner: {
+      padding: theme.spacing.md,
+      borderRadius: 12,
+      backgroundColor: theme.colors.successSoft,
+      borderWidth: 1,
+      borderColor: theme.colors.success,
+      marginBottom: theme.spacing.md,
+    },
   });

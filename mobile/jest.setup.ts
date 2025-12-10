@@ -20,6 +20,10 @@ jest.mock('expo-device', () => ({
   isDevice: false,
 }));
 
+jest.mock('expo-clipboard', () => ({
+  setStringAsync: jest.fn(),
+}));
+
 jest.mock('expo-constants', () => ({
   expoConfig: { extra: { apiUrl: 'http://localhost:4000', eas: { projectId: 'test-project' } } },
   easConfig: { projectId: 'test-project' },

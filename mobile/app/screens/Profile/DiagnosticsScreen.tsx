@@ -1,8 +1,10 @@
-import React, { useMemo } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { ActivityIndicator, Text, View, TouchableOpacity, Share } from 'react-native';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
-import { Screen, Card, ErrorCard } from '../../components';
+import * as Clipboard from 'expo-clipboard';
+import { Ionicons } from '@expo/vector-icons';
+import { Screen, Card, ErrorCard, StatusPill } from '../../components';
 import { useHealthPlus } from '../../api/health/hooks';
 import { useAuthStore } from '../../store/authStore';
 import { useAppTheme } from '../../theme/useAppTheme';
@@ -11,20 +13,31 @@ import { typography } from '../../theme/typography';
 import type { HealthPlusPayload } from '../../api/types';
 import { createThemedStyles } from '../../theme/createThemedStyles';
 
-const formatSubsystemStatus = (
-  signal?: Pick<HealthPlusPayload['control'], 'configured' | 'healthy' | 'lastError'> | null
-) => {
-  if (!signal) return 'Unknown';
-  if (signal.configured === false) return 'Unconfigured';
-  if (signal.healthy === false) return signal.lastError || 'Issues detected';
-  return 'Healthy';
+type SubsystemStatus = { label: string; tone: 'success' | 'warning' | 'error' | 'muted' };
+
+const subsystemStatus = ({
+  healthy,
+  disabled,
+  configured,
+  fallbackLabel,
+}: {
+  healthy?: boolean;
+  disabled?: boolean;
+  configured?: boolean;
+  fallbackLabel?: string;
+}): SubsystemStatus => {
+  if (disabled) return { label: 'Disabled', tone: 'warning' };
+  if (configured === false) return { label: 'Unconfigured', tone: 'warning' };
+  if (healthy === false) return { label: 'Issue', tone: 'error' };
+  if (healthy === true) return { label: 'Healthy', tone: 'success' };
+  return { label: fallbackLabel ?? 'Unknown', tone: 'warning' };
 };
 
 const formatAlertsEngine = (alertsEngine?: HealthPlusPayload['alertsEngine']) => {
   if (!alertsEngine) return 'Unknown';
   if (!alertsEngine.lastRunAt) return 'No runs yet';
-  const duration = alertsEngine.lastDurationMs ? ` • ${alertsEngine.lastDurationMs}ms` : '';
-  return `${new Date(alertsEngine.lastRunAt).toLocaleString()} (${alertsEngine.rulesLoaded ?? 0} rules)${duration}`;
+  const duration = alertsEngine.lastDurationMs ? ` - ${alertsEngine.lastDurationMs}ms` : '';
+  return `${new Date(alertsEngine.lastRunAt).toLocaleString()} (${alertsEngine.rulesLoaded ?? 0} rules${duration})`;
 };
 
 const formatAlertsCounts = (alertsEngine?: HealthPlusPayload['alertsEngine']) => {
@@ -37,12 +50,13 @@ const formatAlertsCounts = (alertsEngine?: HealthPlusPayload['alertsEngine']) =>
   return `${totalLabel} (warn ${warning} / crit ${critical} / info ${info})`;
 };
 
-const formatRuleEvaluations = (alertsEngine?: HealthPlusPayload['alertsEngine']) => {
-  if (!alertsEngine) return 'Unknown';
-  if (alertsEngine.evaluated == null) return 'Not available';
-  const triggered = alertsEngine.triggered ?? 0;
-  return `${triggered} triggered / ${alertsEngine.evaluated} evaluated`;
+const formatLatency = (ms?: number | null) => {
+  if (ms == null) return 'N/A';
+  const rounded = Math.round(ms);
+  return `${rounded} ms`;
 };
+
+const formatTime = (iso?: string | null) => (iso ? new Date(iso).toLocaleString() : 'Unknown');
 
 export const DiagnosticsScreen: React.FC = () => {
   const healthQuery = useHealthPlus();
@@ -50,14 +64,7 @@ export const DiagnosticsScreen: React.FC = () => {
   const { theme } = useAppTheme();
   const { colors, spacing } = theme;
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const Row: React.FC<{ label: string; value: string; testID?: string }> = ({ label, value, testID }) => (
-    <View style={styles.row} testID={testID}>
-      <Text style={[typography.caption, styles.muted]}>{label}</Text>
-      <Text style={[typography.body, styles.title, styles.rowValue]} numberOfLines={1}>
-        {value}
-      </Text>
-    </View>
-  );
+  const [copyNotice, setCopyNotice] = useState<string | null>(null);
 
   const version = Constants.expoConfig?.version ?? 'Unknown';
   const apiUrl =
@@ -73,6 +80,126 @@ export const DiagnosticsScreen: React.FC = () => {
     [healthQuery.data, healthQuery.dataUpdatedAt]
   );
   const healthStatusLabel = healthQuery.data?.ok ? 'Healthy' : 'Issues detected';
+
+  const handleCopy = async () => {
+    if (!healthQuery.data) return;
+    const payload = JSON.stringify(healthQuery.data, null, 2);
+    try {
+      await Clipboard.setStringAsync(payload);
+      setCopyNotice('Diagnostics copied to clipboard');
+    } catch (err) {
+      console.error('Clipboard failed, falling back to share', err);
+      await Share.share({ message: payload });
+      setCopyNotice('Diagnostics ready to share');
+    }
+  };
+
+  const subsystems = useMemo(
+    () => [
+      {
+        key: 'db',
+        label: 'Database',
+        status: subsystemStatus({ healthy: healthQuery.data?.db === 'ok' }),
+        rows: [
+          { label: 'Latency', value: formatLatency(healthQuery.data?.dbLatencyMs) },
+          { label: 'Status', value: healthQuery.data?.db === 'ok' ? 'OK' : 'Error' },
+        ],
+      },
+      {
+        key: 'storage',
+        label: 'Storage',
+        status: subsystemStatus({
+          healthy: healthQuery.data?.storage?.writable,
+          fallbackLabel: healthQuery.data?.storage?.writable ? 'Writable' : 'Unavailable',
+        }),
+        rows: [
+          { label: 'Root', value: healthQuery.data?.storage?.root ?? 'Unknown' },
+          { label: 'Latency', value: formatLatency(healthQuery.data?.storage?.latencyMs) },
+        ],
+      },
+      {
+        key: 'antivirus',
+        label: 'Antivirus',
+        status: subsystemStatus({
+          healthy:
+            healthQuery.data?.antivirus?.enabled &&
+            (healthQuery.data?.antivirus?.lastResult === 'clean' ||
+              !healthQuery.data?.antivirus?.lastResult),
+          configured: healthQuery.data?.antivirus?.configured,
+        }),
+        rows: [
+          { label: 'Mode', value: healthQuery.data?.antivirus?.target ?? 'Unknown' },
+          { label: 'Latency', value: formatLatency(healthQuery.data?.antivirus?.latencyMs) },
+          { label: 'Last run', value: formatTime(healthQuery.data?.antivirus?.lastRunAt) },
+        ],
+      },
+      {
+        key: 'control',
+        label: 'Control',
+        status: subsystemStatus({
+          healthy: healthQuery.data?.control?.healthy,
+          disabled: healthQuery.data?.control?.disabled,
+          configured: healthQuery.data?.control?.configured,
+        }),
+        rows: [
+          { label: 'Last command', value: formatTime(healthQuery.data?.control?.lastCommandAt) },
+          { label: 'Last error', value: healthQuery.data?.control?.lastError ?? 'None' },
+        ],
+      },
+      {
+        key: 'mqtt',
+        label: 'MQTT ingest',
+        status: subsystemStatus({
+          healthy: healthQuery.data?.mqtt?.healthy,
+          disabled: healthQuery.data?.mqtt?.disabled,
+          configured: healthQuery.data?.mqtt?.configured,
+        }),
+        rows: [
+          { label: 'Last ingest', value: formatTime(healthQuery.data?.mqtt?.lastIngestAt) },
+          { label: 'Last error', value: healthQuery.data?.mqtt?.lastError ?? 'None' },
+        ],
+      },
+      {
+        key: 'heat',
+        label: 'Heat pump history',
+        status: subsystemStatus({
+          healthy: healthQuery.data?.heatPumpHistory?.healthy,
+          disabled: healthQuery.data?.heatPumpHistory?.disabled,
+          configured: healthQuery.data?.heatPumpHistory?.configured,
+        }),
+        rows: [
+          { label: 'Last success', value: formatTime(healthQuery.data?.heatPumpHistory?.lastSuccessAt) },
+          { label: 'Last check', value: formatTime(healthQuery.data?.heatPumpHistory?.lastCheckAt) },
+          { label: 'Last error', value: healthQuery.data?.heatPumpHistory?.lastError ?? 'None' },
+        ],
+      },
+      {
+        key: 'push',
+        label: 'Push',
+        status: subsystemStatus({
+          healthy: !healthQuery.data?.push?.lastError,
+          disabled: healthQuery.data?.push?.disabled,
+          configured: healthQuery.data?.push?.enabled,
+        }),
+        rows: [
+          { label: 'Last sample', value: formatTime(healthQuery.data?.push?.lastSampleAt) },
+          { label: 'Last error', value: healthQuery.data?.push?.lastError ?? 'None' },
+        ],
+      },
+      {
+        key: 'alerts-worker',
+        label: 'Alerts worker',
+        status: subsystemStatus({ healthy: healthQuery.data?.alertsWorker?.healthy }),
+        rows: [
+          {
+            label: 'Last heartbeat',
+            value: formatTime(healthQuery.data?.alertsWorker?.lastHeartbeatAt),
+          },
+        ],
+      },
+    ],
+    [healthQuery.data]
+  );
 
   if (healthQuery.isLoading) {
     return (
@@ -99,70 +226,122 @@ export const DiagnosticsScreen: React.FC = () => {
 
   return (
     <Screen testID="DiagnosticsScreen">
-      <Text style={[typography.title1, styles.title, { marginTop: spacing.xl, marginBottom: spacing.md }]}>
-        About & Diagnostics
-      </Text>
+      <View style={styles.header}>
+        <Text style={[typography.title1, styles.title]}>About & Diagnostics</Text>
+        <TouchableOpacity
+          onPress={handleCopy}
+          style={styles.copyButton}
+          testID="diagnostics-copy-report"
+          accessibilityLabel="copy-diagnostics"
+        >
+          <Ionicons name="copy-outline" size={16} color={colors.textPrimary} />
+          <Text style={[typography.caption, styles.copyLabel]}>
+            {copyNotice ? 'Copied' : 'Copy report'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {copyNotice ? (
+        <View style={styles.copyNotice}>
+          <Text style={[typography.caption, { color: colors.success }]}>{copyNotice}</Text>
+        </View>
+      ) : null}
 
       <Card style={styles.block}>
         <Text style={[typography.subtitle, styles.title, styles.blockTitle]}>App</Text>
-        <Row label="App version" value={version} testID="diagnostics-version" />
-        <Row label="API base URL" value={apiUrl} testID="diagnostics-api-url" />
-        <Row label="Environment" value={healthQuery.data?.env ?? 'Unknown'} />
+        <View style={styles.row}>
+          <Text style={[typography.caption, styles.muted]}>App version</Text>
+          <Text style={[typography.body, styles.title]} testID="diagnostics-version">
+            {version}
+          </Text>
+        </View>
+        <View style={styles.row}>
+          <Text style={[typography.caption, styles.muted]}>API base URL</Text>
+          <Text style={[typography.body, styles.title]} numberOfLines={1} testID="diagnostics-api-url">
+            {apiUrl}
+          </Text>
+        </View>
+        <View style={styles.row}>
+          <Text style={[typography.caption, styles.muted]}>Environment</Text>
+          <Text style={[typography.body, styles.title]}>{healthQuery.data?.env ?? 'Unknown'}</Text>
+        </View>
+        <View style={styles.row}>
+          <Text style={[typography.caption, styles.muted]}>Vendor flags</Text>
+          <Text style={[typography.caption, styles.muted]} numberOfLines={2}>
+            {(healthQuery.data?.vendorFlags?.disabled || []).join(', ') || 'None'}
+          </Text>
+        </View>
       </Card>
 
       <Card style={styles.block}>
-        <Text style={[typography.subtitle, styles.title, styles.blockTitle]}>Health</Text>
-        <View style={styles.chipRow}>
-          <View
-            style={[
-              styles.chip,
-              healthQuery.data?.ok ? styles.chipOk : styles.chipIssue,
-            ]}
-          >
-            <Text
-              style={[
-                typography.label,
-                healthQuery.data?.ok ? styles.chipOkText : styles.chipIssueText,
-              ]}
-              testID="diagnostics-health-status"
-            >
-              {healthStatusLabel}
-            </Text>
-          </View>
+        <View style={styles.row}>
+          <Text style={[typography.subtitle, styles.title]}>Health</Text>
+          <StatusPill
+            label={healthStatusLabel}
+            tone={healthQuery.data?.ok ? 'success' : 'warning'}
+            testID="diagnostics-health-status"
+          />
         </View>
-        <Row label="Last /health-plus" value={lastSample} testID="diagnostics-health-sample" />
-        <Row label="Control" value={formatSubsystemStatus(healthQuery.data?.control)} />
-        <Row
-          label="Heat pump history"
-          value={formatSubsystemStatus(healthQuery.data?.heatPumpHistory)}
-        />
-        <Row
-          label="Push"
-          value={
-            healthQuery.data?.push?.enabled
-              ? healthQuery.data?.push.lastError
-                ? 'Enabled (errors)'
-                : 'Enabled'
-              : 'Disabled'
-          }
-        />
-        <Row
-          label="Alerts engine last run"
-          value={formatAlertsEngine(healthQuery.data?.alertsEngine)}
-          testID="diagnostics-alerts-engine"
-        />
-        <Row label="Active alerts" value={formatAlertsCounts(healthQuery.data?.alertsEngine)} />
-        <Row label="Rule evaluations" value={formatRuleEvaluations(healthQuery.data?.alertsEngine)} />
-        <Row
-          label="Rules loaded"
-          value={`${healthQuery.data?.alertsEngine?.rulesLoaded ?? 0} rules`}
-        />
+        <View style={styles.row}>
+          <Text style={[typography.caption, styles.muted]}>Last /health-plus</Text>
+          <Text style={[typography.body, styles.title]} testID="diagnostics-health-sample">
+            {lastSample}
+          </Text>
+        </View>
+        <View style={styles.row}>
+          <Text style={[typography.caption, styles.muted]}>Alerts engine last run</Text>
+          <Text
+            style={[typography.caption, styles.muted, styles.rowValue]}
+            testID="diagnostics-alerts-engine"
+          >
+            {formatAlertsEngine(healthQuery.data?.alertsEngine)}
+          </Text>
+        </View>
+        <View style={styles.row}>
+          <Text style={[typography.caption, styles.muted]}>Active alerts</Text>
+          <Text style={[typography.caption, styles.muted]}>{formatAlertsCounts(healthQuery.data?.alertsEngine)}</Text>
+        </View>
+        <View style={styles.row}>
+          <Text style={[typography.caption, styles.muted]}>Rule evaluations</Text>
+          <Text style={[typography.caption, styles.muted]}>
+            {healthQuery.data?.alertsEngine?.evaluated != null
+              ? `${healthQuery.data.alertsEngine.triggered ?? 0} triggered / ${healthQuery.data.alertsEngine.evaluated}`
+              : 'Not available'}
+          </Text>
+        </View>
+      </Card>
+
+      <Card style={styles.block}>
+        <Text style={[typography.subtitle, styles.title, styles.blockTitle]}>Subsystems</Text>
+        {subsystems.map((subsystem) => (
+          <View key={subsystem.key} style={styles.subsystemRow} testID={`diagnostics-${subsystem.key}`}>
+            <View style={{ flex: 1 }}>
+              <Text style={[typography.body, styles.title]}>{subsystem.label}</Text>
+              {subsystem.rows.map((row) => (
+                <Text key={`${subsystem.key}-${row.label}`} style={[typography.caption, styles.muted]}>
+                  {row.label}: {row.value}
+                </Text>
+              ))}
+            </View>
+            <StatusPill label={subsystem.status.label} tone={subsystem.status.tone} />
+          </View>
+        ))}
       </Card>
 
       <Card style={styles.block}>
         <Text style={[typography.subtitle, styles.title, styles.blockTitle]}>Support</Text>
-        <Row label="User ID" value={userId ?? 'Unknown'} testID="diagnostics-user" />
-        <Row label="Device ID" value={deviceId} testID="diagnostics-device" />
+        <View style={styles.row}>
+          <Text style={[typography.caption, styles.muted]}>User ID</Text>
+          <Text style={[typography.body, styles.title]} testID="diagnostics-user">
+            {userId ?? 'Unknown'}
+          </Text>
+        </View>
+        <View style={styles.row}>
+          <Text style={[typography.caption, styles.muted]}>Device ID</Text>
+          <Text style={[typography.body, styles.title]} testID="diagnostics-device">
+            {deviceId}
+          </Text>
+        </View>
       </Card>
     </Screen>
   );
@@ -174,6 +353,13 @@ const createStyles = (theme: AppTheme) =>
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    header: {
+      marginTop: theme.spacing.xl,
+      marginBottom: theme.spacing.md,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
     },
     title: { color: theme.colors.textPrimary },
     muted: { color: theme.colors.textSecondary },
@@ -193,27 +379,32 @@ const createStyles = (theme: AppTheme) =>
     rowValue: {
       marginLeft: theme.spacing.sm,
       textAlign: 'right',
+      flex: 1,
     },
-    chipRow: {
+    copyButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: theme.spacing.sm,
-    },
-    chip: {
-      paddingHorizontal: theme.spacing.md,
+      paddingHorizontal: theme.spacing.sm,
       paddingVertical: theme.spacing.xs,
-      borderRadius: 14,
+      borderRadius: theme.radius.md,
       borderWidth: 1,
       borderColor: theme.colors.borderSubtle,
     },
-    chipOk: {
-      backgroundColor: theme.colors.brandSoft,
-      borderColor: theme.colors.brandGreen,
+    copyLabel: { color: theme.colors.textPrimary, marginLeft: theme.spacing.xs },
+    copyNotice: {
+      padding: theme.spacing.sm,
+      borderRadius: theme.radius.md,
+      backgroundColor: theme.colors.successSoft,
+      borderWidth: 1,
+      borderColor: theme.colors.success,
+      marginBottom: theme.spacing.md,
     },
-    chipOkText: { color: theme.colors.brandGreen },
-    chipIssue: {
-      backgroundColor: theme.colors.warningSoft,
-      borderColor: theme.colors.warning,
+    subsystemRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      paddingVertical: theme.spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.borderSubtle,
     },
-    chipIssueText: { color: theme.colors.warning },
   });

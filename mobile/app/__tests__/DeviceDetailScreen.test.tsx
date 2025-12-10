@@ -12,6 +12,7 @@ import {
   useDeviceCommands,
   useSite,
   useHeatPumpHistory,
+  useWorkOrdersList,
 } from '../api/hooks';
 import * as navigation from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
@@ -31,6 +32,7 @@ jest.mock('../api/hooks', () => ({
   useDeviceCommands: jest.fn(),
   useSite: jest.fn(),
   useHeatPumpHistory: jest.fn(),
+  useWorkOrdersList: jest.fn(),
 }));
 
 jest.mock('../hooks/useNetworkBanner', () => ({
@@ -141,6 +143,12 @@ describe('DeviceDetailScreen', () => {
     });
 
     (useDeviceCommands as jest.Mock).mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    });
+
+    (useWorkOrdersList as jest.Mock).mockReturnValue({
       data: [],
       isLoading: false,
       isError: false,

@@ -67,7 +67,7 @@ const normalizeDetail = (detail: WorkOrderDetail): WorkOrderDetail => ({
   attachments: (detail.attachments || []).map((att) => normalizeAttachment(att)),
 });
 
-export function useWorkOrdersList(filters?: WorkOrderFilters) {
+export function useWorkOrdersList(filters?: WorkOrderFilters, options?: { enabled?: boolean }) {
   const params: Record<string, string> = {};
   if (filters?.status && filters.status !== 'all') params.status = filters.status;
   if (filters?.siteId) params.siteId = filters.siteId;
@@ -81,6 +81,7 @@ export function useWorkOrdersList(filters?: WorkOrderFilters) {
       const res = await api.get('/work-orders', { params });
       return (res.data as WorkOrder[]).map((order) => normalizeWorkOrder(order));
     },
+    enabled: options?.enabled ?? true,
     retry: shouldRetry,
     retryDelay,
   });

@@ -50,7 +50,7 @@ npm run staging:bootstrap
 
 Check health
 ```
-HEALTH_BASE_URL=https://staging-api.greenbro.co.za npm run health:check
+HEALTH_BASE_URL=https://staging-api.greenbro.co.za npm run health:check-plus
 ```
 
 Expect:
@@ -59,6 +59,7 @@ Expect:
 - `env:"production"`, `version:"0.1.0"`
 - `db:"ok"`
 - Known values for mqtt/control/heatPumpHistory based on your staging env.
+- See `docs/observability.md` for what to alert on and how to interpret `/health-plus`.
 
 Mobile staging build
 ```

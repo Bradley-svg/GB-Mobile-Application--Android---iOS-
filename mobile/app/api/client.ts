@@ -68,14 +68,19 @@ api.interceptors.response.use(
 
     try {
       const refreshRes = await api.post<AuthTokens>('/auth/refresh', { refreshToken });
-      await updateTokens(refreshRes.data);
+      const tokens = refreshRes.data;
+      if (!tokens?.accessToken || !tokens?.refreshToken) {
+        throw new Error('Invalid refresh response');
+      }
+      // TODO: surface a 2FA challenge flow here when backend signals it is required.
+      await updateTokens(tokens);
       return api(originalRequest);
     } catch (refreshError) {
       await clearAuth();
       const refreshStatus = axios.isAxiosError(refreshError)
         ? refreshError.response?.status
         : undefined;
-      if (refreshStatus === 401) {
+      if (refreshStatus === 401 || refreshStatus === 400) {
         setSessionExpired(true);
       }
       return Promise.reject(refreshError);

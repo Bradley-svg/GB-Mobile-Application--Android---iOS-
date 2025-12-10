@@ -157,9 +157,19 @@ export type HealthPlusPayload = {
   ok: boolean;
   env: string;
   version: string | null;
-  db?: string;
+  db?: 'ok' | 'error';
+  dbLatencyMs?: number | null;
+  vendorFlags?: {
+    prodLike: boolean;
+    disabled: string[];
+    mqttDisabled: boolean;
+    controlDisabled: boolean;
+    heatPumpHistoryDisabled: boolean;
+    pushNotificationsDisabled: boolean;
+  };
   mqtt: {
     configured: boolean;
+    disabled?: boolean;
     healthy: boolean;
     lastIngestAt: string | null;
     lastErrorAt: string | null;
@@ -167,6 +177,7 @@ export type HealthPlusPayload = {
   };
   control: {
     configured: boolean;
+    disabled?: boolean;
     healthy: boolean;
     lastCommandAt: string | null;
     lastErrorAt: string | null;
@@ -174,10 +185,12 @@ export type HealthPlusPayload = {
   };
   heatPumpHistory: {
     configured: boolean;
+    disabled: boolean;
     healthy: boolean;
     lastSuccessAt: string | null;
     lastErrorAt: string | null;
     lastError: string | null;
+    lastCheckAt: string | null;
   };
   alertsWorker: {
     healthy: boolean;
@@ -185,8 +198,28 @@ export type HealthPlusPayload = {
   };
   push: {
     enabled: boolean;
+    disabled?: boolean;
     lastSampleAt: string | null;
     lastError: string | null;
+  };
+  antivirus: {
+    configured: boolean;
+    enabled: boolean;
+    target: 'command' | 'socket' | null;
+    lastRunAt: string | null;
+    lastResult: 'clean' | 'infected' | 'error' | null;
+    lastError: string | null;
+    latencyMs: number | null;
+  };
+  maintenance?: {
+    openCount: number;
+    overdueCount: number;
+    lastCalcAt: string | null;
+  };
+  storage?: {
+    root: string;
+    writable: boolean;
+    latencyMs: number | null;
   };
   alertsEngine: {
     lastRunAt: string | null;

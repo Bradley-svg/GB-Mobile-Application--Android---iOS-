@@ -131,10 +131,11 @@ describe('file access guards', () => {
     const tempFile = path.join(os.tmpdir(), `infected-${Date.now()}.txt`);
     await fs.promises.writeFile(tempFile, 'evil');
     scanFileMock.mockResolvedValueOnce('infected');
-    getWorkOrderMock.mockResolvedValue({ id: 'wo-1', organisation_id: 'org-123' });
+    const workOrderId = '11111111-1111-1111-1111-111111111111';
+    getWorkOrderMock.mockResolvedValue({ id: workOrderId, organisation_id: 'org-123' });
 
     const req = {
-      params: { id: 'wo-1' },
+      params: { id: workOrderId },
       user: { id: 'user-1', role: 'admin' },
       file: {
         path: tempFile,
@@ -160,10 +161,11 @@ describe('file access guards', () => {
     const tempFile = path.join(os.tmpdir(), `scanfail-${Date.now()}.txt`);
     await fs.promises.writeFile(tempFile, 'corrupt');
     scanFileMock.mockResolvedValueOnce('scan_failed');
-    getWorkOrderMock.mockResolvedValue({ id: 'wo-1', organisation_id: 'org-123' });
+    const workOrderId = '11111111-1111-1111-1111-111111111111';
+    getWorkOrderMock.mockResolvedValue({ id: workOrderId, organisation_id: 'org-123' });
 
     const req = {
-      params: { id: 'wo-1' },
+      params: { id: workOrderId },
       user: { id: 'user-1', role: 'admin' },
       file: {
         path: tempFile,

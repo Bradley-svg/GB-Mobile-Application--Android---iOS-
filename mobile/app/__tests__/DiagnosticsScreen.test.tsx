@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen, within } from '@testing-library/react-native';
 import { DiagnosticsScreen } from '../screens/Profile/DiagnosticsScreen';
 import { useHealthPlus } from '../api/health/hooks';
 import { useAuthStore } from '../store/authStore';
@@ -27,19 +27,31 @@ describe('DiagnosticsScreen', () => {
     }));
   });
 
-  it('renders health details when available', () => {
+  it('renders health details and subsystem statuses', () => {
     (useHealthPlus as jest.Mock).mockReturnValue({
       data: {
         ok: true,
         env: 'development',
         version: '1.2.3',
         db: 'ok',
+        dbLatencyMs: 32,
+        storage: { root: '/tmp/storage', writable: true, latencyMs: 10 },
+        antivirus: {
+          configured: true,
+          enabled: true,
+          target: 'command',
+          lastRunAt: '2025-01-01T00:00:00.000Z',
+          lastResult: 'clean',
+          lastError: null,
+          latencyMs: 5,
+        },
         control: {
           configured: true,
-          healthy: true,
+          healthy: false,
           lastCommandAt: null,
           lastErrorAt: null,
-          lastError: null,
+          lastError: 'timeout',
+          disabled: false,
         },
         heatPumpHistory: {
           configured: true,
@@ -47,8 +59,10 @@ describe('DiagnosticsScreen', () => {
           lastSuccessAt: null,
           lastErrorAt: null,
           lastError: null,
+          lastCheckAt: null,
+          disabled: false,
         },
-        alertsWorker: { healthy: true, lastHeartbeatAt: null },
+        alertsWorker: { healthy: true, lastHeartbeatAt: '2025-01-01T01:00:00.000Z' },
         alertsEngine: {
           lastRunAt: '2025-01-01T00:00:00.000Z',
           lastDurationMs: 120,
@@ -60,13 +74,14 @@ describe('DiagnosticsScreen', () => {
           evaluated: 5,
           triggered: 2,
         },
-        push: { enabled: false, lastSampleAt: null, lastError: null },
+        push: { enabled: true, disabled: false, lastSampleAt: null, lastError: 'push error' },
         mqtt: {
           configured: true,
           healthy: true,
           lastIngestAt: null,
           lastErrorAt: null,
           lastError: null,
+          disabled: false,
         },
       },
       isLoading: false,
@@ -77,14 +92,18 @@ describe('DiagnosticsScreen', () => {
 
     render(<DiagnosticsScreen />);
 
-    expect(screen.getByText('App version')).toBeTruthy();
-    expect(screen.getByText('1.2.3')).toBeTruthy();
-    expect(screen.getByText('http://api.test')).toBeTruthy();
-    expect(screen.getByTestId('diagnostics-health-status').props.children).toBe('Healthy');
+    expect(screen.getByTestId('diagnostics-version').props.children).toBe('1.2.3');
+    expect(screen.getByTestId('diagnostics-api-url').props.children).toBe('http://api.test');
+    expect(screen.getByTestId('diagnostics-health-status')).toBeTruthy();
     expect(screen.getByText('user-1')).toBeTruthy();
     expect(screen.getByTestId('diagnostics-alerts-engine')).toBeTruthy();
     expect(screen.getByText(/3 total/)).toBeTruthy();
-    expect(screen.getByText(/2 triggered/)).toBeTruthy();
+
+    const dbRow = screen.getByTestId('diagnostics-db');
+    expect(within(dbRow).getByText(/Database/)).toBeTruthy();
+    expect(screen.getByTestId('diagnostics-push')).toBeTruthy();
+    expect(screen.getByTestId('diagnostics-storage')).toBeTruthy();
+    expect(screen.getByTestId('diagnostics-antivirus')).toBeTruthy();
   });
 
   it('shows an error card when diagnostics fail', () => {

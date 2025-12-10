@@ -8,12 +8,8 @@ import type { AppTheme } from '../../theme/types';
 import { typography } from '../../theme/typography';
 import { createThemedStyles } from '../../theme/createThemedStyles';
 import GreenbroLogo from '../../../assets/greenbro/greenbro-logo-horizontal.png';
+import type { AuthStackParamList } from '../../navigation/RootNavigator';
 
-type AuthStackParamList = {
-  Login: undefined;
-  Signup: undefined;
-  ForgotPassword: undefined;
-};
 type AuthNavigation = NativeStackNavigationProp<AuthStackParamList>;
 
 export const SignupScreen: React.FC = () => {

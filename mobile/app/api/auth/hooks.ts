@@ -7,6 +7,9 @@ import type { AuthResponse } from '../types';
 type LoginPayload = { email: string; password: string };
 type LoginErrorResponse = { message?: string; error?: string };
 
+type PasswordResetRequestPayload = { email: string };
+type ResetPasswordPayload = { token: string; password: string };
+
 export function useLogin() {
   const setAuth = useAuthStore((s) => s.setAuth);
 
@@ -31,6 +34,24 @@ export function useLogin() {
         status: axiosError.response?.status,
         data: axiosError.response?.data,
       });
+    },
+  });
+}
+
+export function useRequestPasswordReset() {
+  return useMutation({
+    mutationFn: async ({ email }: PasswordResetRequestPayload) => {
+      const res = await api.post<{ message?: string }>('/auth/request-password-reset', { email });
+      return res.data;
+    },
+  });
+}
+
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: async ({ token, password }: ResetPasswordPayload) => {
+      const res = await api.post<{ ok: boolean }>('/auth/reset-password', { token, password });
+      return res.data;
     },
   });
 }

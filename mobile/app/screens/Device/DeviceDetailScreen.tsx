@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 /* eslint react-native/no-unused-styles: "warn" */
 import {
@@ -29,6 +29,7 @@ import {
   useDeviceCommands,
   useDeviceSchedule,
   useUpsertDeviceSchedule,
+  useWorkOrdersList,
 } from '../../api/hooks';
 import type {
   ApiDevice,
@@ -94,6 +95,7 @@ export const DeviceDetailScreen: React.FC = () => {
   const navigation = useNavigation<Navigation>();
   const [telemetryRange, setTelemetryRange] = useState<TimeRange>('24h');
   const [historyRange, setHistoryRange] = useState<TimeRange>('24h');
+  const [historyView, setHistoryView] = useState<'telemetry' | 'compressor' | 'timeline'>('telemetry');
   const [cachedDeviceDetail, setCachedDeviceDetail] = useState<CachedDeviceDetail | null>(null);
   const [cachedSavedAt, setCachedSavedAt] = useState<string | null>(null);
   const [cacheLoading, setCacheLoading] = useState(false);
@@ -136,6 +138,7 @@ export const DeviceDetailScreen: React.FC = () => {
   const scheduleQuery = useDeviceSchedule(deviceId);
   const scheduleMutation = useUpsertDeviceSchedule(deviceId);
   const commandsQuery = useDeviceCommands(deviceId);
+  const workOrdersQuery = useWorkOrdersList({ deviceId }, { enabled: !!deviceId });
   const setpointPending = isSetpointPending || setpointMutation.isPending;
   const modePending = isModePending || modeMutation.isPending;
   const refetchTelemetry = telemetryQuery.refetch;
@@ -399,6 +402,64 @@ export const DeviceDetailScreen: React.FC = () => {
       ),
     [commandsQuery.data]
   );
+  const timelineEvents = useMemo(
+    () => {
+      const events: Array<{
+        id: string;
+        title: string;
+        timestamp: string;
+        type: 'alert' | 'workOrder';
+        statusLabel?: string;
+        tone: 'success' | 'warning' | 'error' | 'muted';
+        detail?: string | null;
+      }> = [];
+
+      (alertsQuery.data ?? []).forEach((alert) => {
+        const ts = alert.last_seen_at || alert.first_seen_at;
+        if (!ts) return;
+        const tone =
+          alert.severity === 'critical'
+            ? 'error'
+            : alert.severity === 'warning'
+            ? 'warning'
+            : 'muted';
+        events.push({
+          id: `alert-${alert.id}`,
+          title: alert.message,
+          timestamp: ts,
+          type: 'alert',
+          statusLabel: (alert.status || 'Alert').toString().toUpperCase(),
+          tone,
+          detail: alert.severity ? alert.severity.toUpperCase() : null,
+        });
+      });
+
+      (workOrdersQuery.data ?? []).forEach((wo) => {
+        const ts = wo.resolvedAt ?? wo.resolved_at ?? wo.updated_at ?? wo.created_at;
+        if (!ts) return;
+        let tone: 'success' | 'warning' | 'error' | 'muted' = 'warning';
+        if (wo.status === 'done') tone = 'success';
+        else if (wo.status === 'cancelled') tone = 'muted';
+        events.push({
+          id: `work-${wo.id}`,
+          title: wo.title || 'Work order',
+          timestamp: ts,
+          type: 'workOrder',
+          statusLabel: (wo.status || 'work order').replace('_', ' '),
+          tone,
+          detail: wo.alert_severity ? `From alert: ${wo.alert_severity}` : undefined,
+        });
+      });
+
+      return events
+        .filter((event) => event.timestamp)
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .slice(0, 15);
+    },
+    [alertsQuery.data, workOrdersQuery.data]
+  );
+  const timelineLoading = alertsQuery.isLoading || workOrdersQuery.isLoading;
+  const timelineError = alertsQuery.isError || workOrdersQuery.isError;
   const hasCachedCommands = commandRows.length > 0;
   const showHistorySpinner = commandsQuery.isLoading && (!isOffline || hasCachedCommands);
   const showOfflineHistoryEmpty = isOffline && !hasCachedCommands;
@@ -944,150 +1005,224 @@ export const DeviceDetailScreen: React.FC = () => {
         />
       ) : null}
 
-      <View style={styles.rangeTabs} testID="telemetry-range-tabs">
+      <View style={styles.historyToggle} testID="history-toggle">
         <PillTabGroup
-          value={telemetryRange}
+          value={historyView}
           options={[
-            { value: '1h', label: '1h' },
-            { value: '24h', label: '24h' },
-            { value: '7d', label: '7d' },
+            { value: 'telemetry', label: 'Telemetry' },
+            { value: 'compressor', label: 'Compressor' },
+            { value: 'timeline', label: 'Events' },
           ]}
-          onChange={setTelemetryRange}
+          onChange={(val) => setHistoryView(val as 'telemetry' | 'compressor' | 'timeline')}
         />
       </View>
-      {!isOffline ? (
-        <TouchableOpacity
-          onPress={onExportTelemetry}
-          disabled={exportDisabled}
-          style={[
-            styles.exportButton,
-            exportDisabled ? styles.exportButtonDisabled : styles.exportButtonEnabled,
-          ]}
-          testID='export-telemetry-button'
-        >
-          <Ionicons name="download-outline" size={16} color={colors.white} />
-          <Text style={[typography.caption, { color: colors.white, marginLeft: spacing.xs }]}>
-            {exportingTelemetry ? 'Preparing...' : 'Export telemetry'}
-          </Text>
-        </TouchableOpacity>
-      ) : null}
-      {contractorReadOnly ? (
-        <RoleRestrictedHint action="export telemetry or adjust device controls" />
-      ) : null}
 
-      <DeviceGaugesSection
-        telemetry={telemetryData}
-        isOffline={isOffline}
-        lastUpdatedAt={lastUpdatedAt}
-        compressorCurrent={compressorGaugeValue}
-        compressorUpdatedAt={compressorGaugeUpdatedAt}
-      />
+      {historyView === 'telemetry' ? (
+        <>
+          <View style={styles.rangeTabs} testID="telemetry-range-tabs">
+            <PillTabGroup
+              value={telemetryRange}
+              options={[
+                { value: '1h', label: '1h' },
+                { value: '24h', label: '24h' },
+                { value: '7d', label: '7d' },
+              ]}
+              onChange={setTelemetryRange}
+            />
+          </View>
+          {!isOffline ? (
+            <TouchableOpacity
+              onPress={onExportTelemetry}
+              disabled={exportDisabled}
+              style={[
+                styles.exportButton,
+                exportDisabled ? styles.exportButtonDisabled : styles.exportButtonEnabled,
+              ]}
+              testID="export-telemetry-button"
+            >
+              <Ionicons name="download-outline" size={16} color={colors.white} />
+              <Text style={[typography.caption, { color: colors.white, marginLeft: spacing.xs }]}>
+                {exportingTelemetry ? 'Preparing...' : 'Export telemetry'}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+          {contractorReadOnly ? (
+            <RoleRestrictedHint action="export telemetry or adjust device controls" />
+          ) : null}
 
-      {telemetryLoading && (
-        <View style={styles.loadingRow}>
-          <ActivityIndicator color={colors.brandGreen} />
-          <Text style={[typography.caption, styles.muted, { marginLeft: spacing.sm }]}>Loading telemetry...</Text>
-        </View>
-      )}
-      {telemetryOfflineEmpty ? (
-        <ErrorCard
-          title="Telemetry unavailable offline"
-          message="Connect to the network to refresh telemetry for this device."
+          <DeviceGaugesSection
+            telemetry={telemetryData}
+            isOffline={isOffline}
+            lastUpdatedAt={lastUpdatedAt}
+            compressorCurrent={compressorGaugeValue}
+            compressorUpdatedAt={compressorGaugeUpdatedAt}
+          />
+
+          {telemetryLoading && (
+            <View style={styles.loadingRow}>
+              <ActivityIndicator color={colors.brandGreen} />
+              <Text style={[typography.caption, styles.muted, { marginLeft: spacing.sm }]}>
+                Loading telemetry...
+              </Text>
+            </View>
+          )}
+          {telemetryOfflineEmpty ? (
+            <ErrorCard
+              title="Telemetry unavailable offline"
+              message="Connect to the network to refresh telemetry for this device."
+            />
+          ) : telemetryError && !telemetryLoading ? (
+            <ErrorCard
+              title="Couldn't load telemetry"
+              message={mapTelemetryError(telemetryErrorObj)}
+              onRetry={() => refetchTelemetry()}
+              testID="telemetry-error"
+            />
+          ) : null}
+
+          {!telemetryLoading && !telemetryError && !telemetryOfflineEmpty && (
+            <View testID="telemetry-section">
+              {renderMetricCard(
+                'Flow temperatures (C)',
+                chartTheme.linePrimary,
+                hasSupplyData || hasReturnData,
+                <VictoryChart scale={{ x: 'time' }}>
+                  <VictoryAxis tickFormat={formatAxisTick} tickCount={xTickCount} style={chartAxisStyle} />
+                  <VictoryAxis dependentAxis style={chartDependentAxisStyle} />
+                  <VictoryLegend
+                    x={40}
+                    y={0}
+                    orientation="horizontal"
+                    gutter={20}
+                    data={[
+                      { name: 'Supply', symbol: { fill: chartTheme.linePrimary } },
+                      { name: 'Return', symbol: { fill: chartTheme.lineSecondary } },
+                    ]}
+                    style={{ labels: { fill: chartTheme.axisColor } }}
+                  />
+                  <VictoryLine data={supplyData} style={{ data: { stroke: chartTheme.linePrimary } }} />
+                  <VictoryLine data={returnData} style={{ data: { stroke: chartTheme.lineSecondary } }} />
+                </VictoryChart>,
+                emptyMetricPlaceholder
+              )}
+
+              {renderMetricCard(
+                'Delta T (Supply - Return)',
+                chartTheme.lineSecondary,
+                deltaT !== null,
+                <View style={styles.deltaRow}>
+                  <Text style={[typography.title1, styles.title]}>{`${deltaT?.toFixed(1)}\u00B0C`}</Text>
+                  <Text style={[typography.caption, styles.muted]}>Latest difference</Text>
+                </View>,
+                'Delta T unavailable for this range.'
+              )}
+
+              {renderMetricCard(
+                'Power (kW)',
+                chartTheme.linePrimary,
+                hasPowerData,
+                <VictoryChart scale={{ x: 'time' }}>
+                  <VictoryAxis tickFormat={formatAxisTick} tickCount={xTickCount} style={chartAxisStyle} />
+                  <VictoryAxis dependentAxis style={chartDependentAxisStyle} />
+                  <VictoryLine data={powerData} style={{ data: { stroke: chartTheme.linePrimary } }} />
+                </VictoryChart>,
+                emptyMetricPlaceholder
+              )}
+
+              {renderMetricCard(
+                'Flow rate (L/s)',
+                chartTheme.linePrimary,
+                hasFlowData,
+                <VictoryChart scale={{ x: 'time' }}>
+                  <VictoryAxis tickFormat={formatAxisTick} tickCount={xTickCount} style={chartAxisStyle} />
+                  <VictoryAxis dependentAxis style={chartDependentAxisStyle} />
+                  <VictoryLine data={flowData} style={{ data: { stroke: chartTheme.linePrimary } }} />
+                </VictoryChart>,
+                emptyMetricPlaceholder
+              )}
+
+              {renderMetricCard(
+                'COP',
+                chartTheme.lineSecondary,
+                hasCopData,
+                <VictoryChart scale={{ x: 'time' }}>
+                  <VictoryAxis tickFormat={formatAxisTick} tickCount={xTickCount} style={chartAxisStyle} />
+                  <VictoryAxis dependentAxis style={chartDependentAxisStyle} />
+                  <VictoryLine data={copData} style={{ data: { stroke: chartTheme.lineSecondary } }} />
+                </VictoryChart>,
+                emptyMetricPlaceholder
+              )}
+            </View>
+          )}
+        </>
+      ) : null}
+      {historyView === 'compressor' ? (
+        <CompressorHistoryCard
+          status={historyStatus}
+          isLoading={heatPumpHistoryQuery.isLoading}
+          range={historyRange}
+          onRangeChange={setHistoryRange}
+          onRetry={() => refetchHistory()}
+          points={heatPumpSeries}
+          errorMessage={historyErrorMessage}
+          testID="compressor-current-card"
         />
-      ) : telemetryError && !telemetryLoading ? (
-        <ErrorCard
-          title="Couldn't load telemetry"
-          message={mapTelemetryError(telemetryErrorObj)}
-          onRetry={() => refetchTelemetry()}
-          testID="telemetry-error"
-        />
       ) : null}
 
-      {!telemetryLoading && !telemetryError && !telemetryOfflineEmpty && (
-        <View testID="telemetry-section">
-          {renderMetricCard(
-            'Flow temperatures (C)',
-            chartTheme.linePrimary,
-            hasSupplyData || hasReturnData,
-            <VictoryChart scale={{ x: 'time' }}>
-              <VictoryAxis tickFormat={formatAxisTick} tickCount={xTickCount} style={chartAxisStyle} />
-              <VictoryAxis dependentAxis style={chartDependentAxisStyle} />
-              <VictoryLegend
-                x={40}
-                y={0}
-                orientation="horizontal"
-                gutter={20}
-                data={[
-                  { name: 'Supply', symbol: { fill: chartTheme.linePrimary } },
-                  { name: 'Return', symbol: { fill: chartTheme.lineSecondary } },
-                ]}
-                style={{ labels: { fill: chartTheme.axisColor } }}
-              />
-              <VictoryLine data={supplyData} style={{ data: { stroke: chartTheme.linePrimary } }} />
-              <VictoryLine data={returnData} style={{ data: { stroke: chartTheme.lineSecondary } }} />
-            </VictoryChart>,
-            emptyMetricPlaceholder
-          )}
-
-          {renderMetricCard(
-            'ΔT (Supply - Return)',
-            chartTheme.lineSecondary,
-            deltaT !== null,
-            <View style={styles.deltaRow}>
-              <Text style={[typography.title1, styles.title]}>{deltaT?.toFixed(1)}°C</Text>
-              <Text style={[typography.caption, styles.muted]}>Latest difference</Text>
-            </View>,
-            'ΔT unavailable for this range.'
-          )}
-
-          {renderMetricCard(
-            'Power (kW)',
-            chartTheme.linePrimary,
-            hasPowerData,
-            <VictoryChart scale={{ x: 'time' }}>
-              <VictoryAxis tickFormat={formatAxisTick} tickCount={xTickCount} style={chartAxisStyle} />
-              <VictoryAxis dependentAxis style={chartDependentAxisStyle} />
-              <VictoryLine data={powerData} style={{ data: { stroke: chartTheme.linePrimary } }} />
-            </VictoryChart>,
-            emptyMetricPlaceholder
-          )}
-
-          {renderMetricCard(
-            'Flow rate (L/s)',
-            chartTheme.linePrimary,
-            hasFlowData,
-            <VictoryChart scale={{ x: 'time' }}>
-              <VictoryAxis tickFormat={formatAxisTick} tickCount={xTickCount} style={chartAxisStyle} />
-              <VictoryAxis dependentAxis style={chartDependentAxisStyle} />
-              <VictoryLine data={flowData} style={{ data: { stroke: chartTheme.linePrimary } }} />
-            </VictoryChart>,
-            emptyMetricPlaceholder
-          )}
-
-          {renderMetricCard(
-            'COP',
-            chartTheme.lineSecondary,
-            hasCopData,
-            <VictoryChart scale={{ x: 'time' }}>
-              <VictoryAxis tickFormat={formatAxisTick} tickCount={xTickCount} style={chartAxisStyle} />
-              <VictoryAxis dependentAxis style={chartDependentAxisStyle} />
-              <VictoryLine data={copData} style={{ data: { stroke: chartTheme.lineSecondary } }} />
-            </VictoryChart>,
-            emptyMetricPlaceholder
-          )}
-        </View>
-      )}
-
-      <CompressorHistoryCard
-        status={historyStatus}
-        isLoading={heatPumpHistoryQuery.isLoading}
-        range={historyRange}
-        onRangeChange={setHistoryRange}
-        onRetry={() => refetchHistory()}
-        points={heatPumpSeries}
-        errorMessage={historyErrorMessage}
-        testID="compressor-current-card"
-      />
+      {historyView === 'timeline' ? (
+        <Card style={styles.timelineCard} testID="device-timeline">
+          <View style={styles.scheduleHeader}>
+            <Text style={[typography.subtitle, styles.title]}>Recent events</Text>
+            <Text style={[typography.caption, styles.muted]}>
+              {timelineEvents.length ? `${timelineEvents.length} items` : ''}
+            </Text>
+          </View>
+          {timelineLoading ? (
+            <View style={styles.loadingRow}>
+              <ActivityIndicator color={colors.brandGreen} />
+              <Text style={[typography.caption, styles.muted, { marginLeft: spacing.sm }]}>
+                Loading timeline...
+              </Text>
+            </View>
+          ) : null}
+          {timelineError ? (
+            <Text style={[typography.caption, styles.errorText]}>
+              Could not load events. Pull to refresh.
+            </Text>
+          ) : null}
+          {isOffline && timelineEvents.length === 0 ? (
+            <Text style={[typography.caption, styles.muted]}>
+              Timeline unavailable while offline.
+            </Text>
+          ) : null}
+          {!timelineLoading && timelineEvents.length === 0 && !timelineError ? (
+            <Text style={[typography.caption, styles.muted]}>No recent events.</Text>
+          ) : null}
+          {timelineEvents.map((event) => (
+            <View key={event.id} style={styles.timelineRow}>
+              <View style={styles.timelineDot} />
+              <View style={{ flex: 1 }}>
+                <View style={styles.timelineRowHeader}>
+                  <StatusPill
+                    label={event.type === 'alert' ? 'Alert' : 'Work order'}
+                    tone={event.tone}
+                  />
+                  {event.statusLabel ? (
+                    <StatusPill label={event.statusLabel} tone={event.tone} />
+                  ) : null}
+                </View>
+                <Text style={[typography.body, styles.title]}>{event.title}</Text>
+                <Text style={[typography.caption, styles.muted]}>
+                  {event.timestamp ? new Date(event.timestamp).toLocaleString() : 'Unknown time'}
+                </Text>
+                {event.detail ? (
+                  <Text style={[typography.caption, styles.muted]}>{event.detail}</Text>
+                ) : null}
+              </View>
+            </View>
+          ))}
+        </Card>
+      ) : null}
 
       <Card style={styles.controlCard}>
         <View style={styles.controlHeader}>
@@ -1254,8 +1389,9 @@ export const DeviceDetailScreen: React.FC = () => {
                 <View style={{ flex: 1 }}>
                   <Text style={[typography.body, styles.title]}>{formatCommandSummary(cmd)}</Text>
                   <Text style={[typography.caption, styles.muted]}>
-                    {meta.label.toUpperCase()} • {new Date(cmd.requested_at).toLocaleString()}
-                    {meta.failureLabel ? ` • ${meta.failureLabel}` : ''}
+                    {`${meta.label.toUpperCase()} | ${new Date(cmd.requested_at).toLocaleString()}${
+                      meta.failureLabel ? ` | ${meta.failureLabel}` : ''
+                    }`}
                   </Text>
                   {cmd.failure_message ? (
                     <Text style={[typography.caption, styles.errorText]}>{cmd.failure_message}</Text>
@@ -1546,6 +1682,10 @@ const createStyles = (theme: AppTheme) => {
       alignItems: 'center',
       marginBottom: spacing.lg,
     },
+    historyToggle: {
+      marginTop: spacing.md,
+      marginBottom: spacing.sm,
+    },
     exportButton: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1695,6 +1835,36 @@ const createStyles = (theme: AppTheme) => {
       borderRadius: 5,
       marginRight: spacing.sm,
     },
+    timelineCard: {
+      marginBottom: spacing.md,
+    },
+    timelineRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderSubtle,
+    },
+    timelineDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: colors.brandGreen,
+      marginRight: spacing.sm,
+      marginTop: spacing.xs,
+    },
+    timelineRowHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: spacing.xs,
+    },
   });
 };
+
+
+
+
+
+
+
 

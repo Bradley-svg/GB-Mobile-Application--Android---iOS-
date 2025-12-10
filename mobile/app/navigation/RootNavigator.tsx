@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LoginScreen } from '../screens/Auth/LoginScreen';
 import { SignupScreen } from '../screens/Auth/SignupScreen';
 import { ForgotPasswordScreen } from '../screens/Auth/ForgotPasswordScreen';
+import { ResetPasswordScreen } from '../screens/Auth/ResetPasswordScreen';
 import { DashboardScreen } from '../screens/Dashboard/DashboardScreen';
 import { AlertsScreen } from '../screens/Alerts/AlertsScreen';
 import { ProfileScreen } from '../screens/Profile/ProfileScreen';
@@ -40,6 +41,13 @@ export type RootStackParamList = {
   App: undefined;
 };
 
+export type AuthStackParamList = {
+  Login: { resetSuccessMessage?: string } | undefined;
+  Signup: undefined;
+  ForgotPassword: undefined;
+  ResetPassword: { token?: string } | undefined;
+};
+
 export type AppStackParamList = {
   Tabs: undefined;
   SiteOverview: { siteId: string };
@@ -62,7 +70,7 @@ export type AppTabParamList = {
 };
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
-const AuthStack = createNativeStackNavigator();
+const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const AppStack = createNativeStackNavigator<AppStackParamList>();
 const Tab = createBottomTabNavigator<AppTabParamList>();
 
@@ -83,6 +91,7 @@ function AuthNavigator() {
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="Signup" component={SignupScreen} />
       <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <AuthStack.Screen name="ResetPassword" component={ResetPasswordScreen} />
     </AuthStack.Navigator>
   );
 }

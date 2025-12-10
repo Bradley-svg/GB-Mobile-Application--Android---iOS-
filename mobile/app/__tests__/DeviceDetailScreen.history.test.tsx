@@ -12,6 +12,7 @@ import {
   useDeviceCommands,
   useSite,
   useHeatPumpHistory,
+  useWorkOrdersList,
 } from '../api/hooks';
 import * as navigation from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
@@ -30,6 +31,7 @@ jest.mock('../api/hooks', () => ({
   useDeviceCommands: jest.fn(),
   useSite: jest.fn(),
   useHeatPumpHistory: jest.fn(),
+  useWorkOrdersList: jest.fn(),
 }));
 
 jest.mock('../hooks/useNetworkBanner', () => ({
@@ -130,6 +132,12 @@ describe('DeviceDetailScreen heat pump history', () => {
       isLoading: false,
       isError: false,
     });
+
+    (useWorkOrdersList as jest.Mock).mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    });
   });
 
   afterEach(() => {
@@ -171,6 +179,9 @@ describe('DeviceDetailScreen heat pump history', () => {
     });
 
     await renderDeviceDetail();
+    fireEvent.press(screen.getByTestId('pill-compressor'));
+    fireEvent.press(screen.getByTestId('pill-compressor'));
+    fireEvent.press(screen.getByTestId('pill-compressor'));
 
     expect(screen.getByText('Compressor current (A)')).toBeTruthy();
     expect(screen.queryByText('No history for this period.')).toBeNull();
@@ -185,6 +196,7 @@ describe('DeviceDetailScreen heat pump history', () => {
     });
 
     await renderDeviceDetail();
+    fireEvent.press(screen.getByTestId('pill-compressor'));
 
     expect(screen.getByText('Compressor current (A)')).toBeTruthy();
     expect(screen.getByText('No history for this period.')).toBeTruthy();
@@ -201,6 +213,7 @@ describe('DeviceDetailScreen heat pump history', () => {
     });
 
     await renderDeviceDetail();
+    fireEvent.press(screen.getByTestId('pill-compressor'));
 
     expect(screen.getByText('Could not load heat pump history.')).toBeTruthy();
     expect(screen.getByTestId('compressor-history-error')).toBeTruthy();
@@ -219,6 +232,7 @@ describe('DeviceDetailScreen heat pump history', () => {
     });
 
     await renderDeviceDetail();
+    fireEvent.press(screen.getByTestId('pill-compressor'));
 
     expect(screen.getByText(/History unavailable, please try again later/i)).toBeTruthy();
   });
@@ -232,6 +246,7 @@ describe('DeviceDetailScreen heat pump history', () => {
     });
 
     await renderDeviceDetail();
+    fireEvent.press(screen.getByTestId('pill-compressor'));
 
     expect(screen.getByText(/History temporarily unavailable/i)).toBeTruthy();
   });
@@ -250,6 +265,7 @@ describe('DeviceDetailScreen heat pump history', () => {
     });
 
     await renderDeviceDetail();
+    fireEvent.press(screen.getByTestId('pill-compressor'));
 
     expect(useHeatPumpHistory).toHaveBeenCalled();
     const [, options] = (useHeatPumpHistory as jest.Mock).mock.calls[0] as [
@@ -265,6 +281,7 @@ describe('DeviceDetailScreen heat pump history', () => {
     jest.setSystemTime(new Date('2025-01-01T12:00:00.000Z'));
 
     await renderDeviceDetail();
+    fireEvent.press(screen.getByTestId('pill-telemetry'));
 
     expect((useDeviceTelemetry as jest.Mock).mock.calls[0][1]).toBe('24h');
 
@@ -277,6 +294,7 @@ describe('DeviceDetailScreen heat pump history', () => {
     expect(ranges).toContain('24h');
     expect(ranges).toContain('7d');
 
+    fireEvent.press(screen.getByTestId('pill-compressor'));
     const historyTabs = screen.getByTestId('compressor-current-card');
     fireEvent.press(within(historyTabs).getByTestId('pill-1h'));
 
@@ -394,6 +412,77 @@ describe('DeviceDetailScreen heat pump history', () => {
     expect(screen.getByText(/throttled/)).toBeTruthy();
   });
 
+  it('shows an empty timeline state', async () => {
+    await renderDeviceDetail();
+    fireEvent.press(screen.getByTestId('pill-timeline'));
+
+    expect(screen.getByTestId('device-timeline')).toBeTruthy();
+    expect(screen.getByText(/No recent events/)).toBeTruthy();
+  });
+
+  it('renders alert and work order events on the timeline', async () => {
+    (useDeviceAlerts as jest.Mock).mockReturnValue({
+      data: [
+        {
+          id: 'alert-1',
+          site_id: 'site-1',
+          device_id: baseDevice.id,
+          severity: 'critical',
+          type: 'high_temp',
+          message: 'High temp',
+          status: 'active',
+          first_seen_at: '2025-01-02T00:00:00.000Z',
+          last_seen_at: '2025-01-02T01:00:00.000Z',
+          acknowledged_by: null,
+          acknowledged_at: null,
+          muted_until: null,
+          rule_id: null,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    });
+    (useWorkOrdersList as jest.Mock).mockReturnValue({
+      data: [
+        {
+          id: 'wo-1',
+          organisation_id: 'org-1',
+          site_id: 'site-1',
+          device_id: baseDevice.id,
+          alert_id: null,
+          title: 'Repair motor',
+          description: null,
+          status: 'done',
+          priority: 'low',
+          assignee_user_id: null,
+          created_by_user_id: 'user-1',
+          due_at: null,
+          slaDueAt: null,
+          sla_due_at: null,
+          resolvedAt: '2025-01-02T02:00:00.000Z',
+          resolved_at: '2025-01-02T02:00:00.000Z',
+          reminderAt: null,
+          reminder_at: null,
+          category: null,
+          created_at: '2025-01-02T00:00:00.000Z',
+          updated_at: '2025-01-02T01:00:00.000Z',
+          slaBreached: false,
+          sla_breached: false,
+          alert_severity: null,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    });
+
+    await renderDeviceDetail();
+    fireEvent.press(screen.getByTestId('pill-timeline'));
+
+    expect(screen.getByTestId('device-timeline')).toBeTruthy();
+    expect(screen.getAllByText(/High temp/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Repair motor/).length).toBeGreaterThan(0);
+  });
+
   it('shows offline placeholder when no cached history exists', async () => {
     (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: true });
     (useDeviceCommands as jest.Mock).mockReturnValue({
@@ -403,6 +492,7 @@ describe('DeviceDetailScreen heat pump history', () => {
     });
 
     await renderDeviceDetail();
+    fireEvent.press(screen.getByTestId('pill-compressor'));
 
     expect(screen.getAllByText(/History unavailable while offline/i).length).toBeGreaterThan(0);
   });

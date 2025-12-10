@@ -15,6 +15,7 @@ import {
   useSetpointCommand,
   useSite,
   useUpsertDeviceSchedule,
+  useWorkOrdersList,
   useWorkOrder,
   useUpdateWorkOrderStatus,
   useUpdateWorkOrderTasks,
@@ -37,6 +38,7 @@ jest.mock('../api/hooks', () => ({
   useDeviceCommands: jest.fn(),
   useSite: jest.fn(),
   useHeatPumpHistory: jest.fn(),
+  useWorkOrdersList: jest.fn(),
   useWorkOrder: jest.fn(),
   useUpdateWorkOrderStatus: jest.fn(),
   useUpdateWorkOrderTasks: jest.fn(),
@@ -157,6 +159,7 @@ describe('navigation role guards', () => {
     (useDeviceCommands as jest.Mock).mockReturnValue({ data: [], isLoading: false, isError: false });
     (useSetpointCommand as jest.Mock).mockReturnValue({ mutateAsync: jest.fn(), isPending: false });
     (useModeCommand as jest.Mock).mockReturnValue({ mutateAsync: jest.fn(), isPending: false });
+    (useWorkOrdersList as jest.Mock).mockReturnValue({ data: [], isLoading: false, isError: false });
     (useDeviceSchedule as jest.Mock).mockReturnValue({
       data: {
         id: 'sched-1',
