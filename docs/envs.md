@@ -49,9 +49,10 @@ Centralised reference for backend and mobile environment variables across dev/st
 - `PUSH_HEALTHCHECK_ENABLED`: Toggle for sample push health check endpoint.
 - `PUSH_HEALTHCHECK_TOKEN`: Token used to authorize sample push checks.
 - `PUSH_NOTIFICATIONS_DISABLED`: Optional flag to disable push sends in CI/E2E.
+- `PUSH_NOTIFICATIONS_ENABLED_ROLES`: Comma-separated roles that receive push alerts (`owner,admin,facilities` by default).
 - `PUSH_HEALTHCHECK_INTERVAL_MINUTES`: Minutes between health-check push attempts.
 - `HEALTH_BASE_URL`: Optional base URL used by `scripts/check-health.ts` when probing deployed environments.
-- `EXPO_ACCESS_TOKEN`: Expo push token for production push delivery (optional in dev).
+- `EXPO_ACCESS_TOKEN`: Expo push access token for production push delivery (required for push; optional in dev when push is disabled).
 - `WORKER_LOCK_TTL_SEC`: TTL for DB-backed worker locks (alerts worker plus MQTT ingest).
 
 ## Backend staging vs production

@@ -1,11 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, Text, View, TouchableOpacity, Share } from 'react-native';
+import axios from 'axios';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, Card, ErrorCard, StatusPill } from '../../components';
+import { Screen, Card, ErrorCard, GlobalErrorBanner, PrimaryButton, StatusPill } from '../../components';
 import { useHealthPlus } from '../../api/health/hooks';
+import { api } from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppTheme } from '../../theme/types';
@@ -65,6 +67,9 @@ export const DiagnosticsScreen: React.FC = () => {
   const { colors, spacing } = theme;
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [copyNotice, setCopyNotice] = useState<string | null>(null);
+  const [pushTestLoading, setPushTestLoading] = useState(false);
+  const [pushTestMessage, setPushTestMessage] = useState<string | null>(null);
+  const [pushTestError, setPushTestError] = useState<string | null>(null);
 
   const version = Constants.expoConfig?.version ?? 'Unknown';
   const apiUrl =
@@ -91,6 +96,33 @@ export const DiagnosticsScreen: React.FC = () => {
       console.error('Clipboard failed, falling back to share', err);
       await Share.share({ message: payload });
       setCopyNotice('Diagnostics ready to share');
+    }
+  };
+
+  const handleSendTestPush = async () => {
+    setPushTestError(null);
+    setPushTestMessage(null);
+    setPushTestLoading(true);
+    try {
+      await api.post('/me/push/test');
+      setPushTestMessage('Test notification sent. Check your device.');
+    } catch (err) {
+      const code = axios.isAxiosError(err)
+        ? ((err.response?.data as { code?: string } | undefined)?.code ?? null)
+        : null;
+      if (code === 'NO_PUSH_TOKENS_REGISTERED') {
+        setPushTestError(
+          'No device registered for push; open the app on your phone and ensure notifications are allowed.'
+        );
+      } else if (code === 'PUSH_DISABLED') {
+        setPushTestError('Push is disabled in this environment.');
+      } else if (code === 'PUSH_NOT_CONFIGURED') {
+        setPushTestError('Push is not configured for this environment.');
+      } else {
+        setPushTestError('Failed to send test push notification. Please try again.');
+      }
+    } finally {
+      setPushTestLoading(false);
     }
   };
 
@@ -329,6 +361,34 @@ export const DiagnosticsScreen: React.FC = () => {
       </Card>
 
       <Card style={styles.block}>
+        <Text style={[typography.subtitle, styles.title, styles.blockTitle]}>Push notifications</Text>
+        <Text style={[typography.caption, styles.muted, styles.blockDescription]}>
+          Verify that your device can receive critical alerts.
+        </Text>
+        {pushTestError ? (
+          <GlobalErrorBanner
+            message={pushTestError}
+            title="Push test failed"
+            testID="diagnostics-push-error"
+            retryLabel="Retry"
+            onRetry={handleSendTestPush}
+          />
+        ) : null}
+        {pushTestMessage ? (
+          <View style={styles.successNotice} testID="diagnostics-push-success">
+            <Text style={[typography.caption, styles.successText]}>{pushTestMessage}</Text>
+          </View>
+        ) : null}
+        <PrimaryButton
+          label={pushTestLoading ? 'Sending...' : 'Send test notification'}
+          onPress={handleSendTestPush}
+          disabled={pushTestLoading}
+          testID="diagnostics-push-button"
+          style={styles.pushButton}
+        />
+      </Card>
+
+      <Card style={styles.block}>
         <Text style={[typography.subtitle, styles.title, styles.blockTitle]}>Support</Text>
         <View style={styles.row}>
           <Text style={[typography.caption, styles.muted]}>User ID</Text>
@@ -399,6 +459,9 @@ const createStyles = (theme: AppTheme) =>
       borderColor: theme.colors.success,
       marginBottom: theme.spacing.md,
     },
+    blockDescription: {
+      marginBottom: theme.spacing.md,
+    },
     subsystemRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -406,5 +469,20 @@ const createStyles = (theme: AppTheme) =>
       paddingVertical: theme.spacing.sm,
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.borderSubtle,
+    },
+    successNotice: {
+      padding: theme.spacing.sm,
+      borderRadius: theme.radius.md,
+      backgroundColor: theme.colors.successSoft,
+      borderWidth: 1,
+      borderColor: theme.colors.success,
+      marginTop: theme.spacing.sm,
+      marginBottom: theme.spacing.md,
+    },
+    successText: {
+      color: theme.colors.success,
+    },
+    pushButton: {
+      marginTop: theme.spacing.sm,
     },
   });

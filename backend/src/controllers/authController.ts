@@ -12,7 +12,6 @@ import {
   verifyTwoFactorChallengeToken,
   verifyRefreshToken,
 } from '../services/authService';
-import { registerPushTokenForUser } from '../services/pushService';
 import { getUserContext } from '../services/userService';
 import { authAttemptLimiter } from '../middleware/rateLimit';
 import { createPasswordResetToken } from '../modules/auth/passwordResetService';
@@ -27,8 +26,6 @@ import {
   verifyTwoFactorForUser,
 } from '../modules/auth/twoFactorService';
 import { recordAuditEvent } from '../modules/audit/auditService';
-
-const PUSH_TOKEN_RECENT_MINUTES = 10;
 
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -307,34 +304,6 @@ export async function logoutAll(req: Request, res: Response, next: NextFunction)
   try {
     await revokeAllRefreshTokensForUser(userId);
     res.status(204).send();
-  } catch (e) {
-    next(e);
-  }
-}
-
-export async function registerPushToken(req: Request, res: Response, next: NextFunction) {
-  const userId = req.user!.id;
-
-  const schema = z.object({
-    token: z.string().min(1),
-  });
-
-  const parsed = schema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ message: 'Invalid body' });
-  }
-
-  try {
-    const result = await registerPushTokenForUser(
-      userId,
-      parsed.data.token,
-      PUSH_TOKEN_RECENT_MINUTES
-    );
-    if (result.skipped) {
-      res.json({ ok: true, skipped: true });
-    } else {
-      res.json({ ok: true });
-    }
   } catch (e) {
     next(e);
   }

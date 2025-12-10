@@ -11,7 +11,8 @@ export type AuditAction =
   | 'auth_2fa_enabled'
   | 'auth_2fa_disabled'
   | 'auth_2fa_challenge_passed'
-  | 'device_qr_lookup';
+  | 'device_qr_lookup'
+  | 'push_notification_sent';
 
 export async function recordAuditEvent(input: CreateAuditEventInput & { action: AuditAction }) {
   try {

@@ -583,6 +583,7 @@ async function resetTables(client: Client) {
         refresh_tokens,
         auth_sessions,
         password_reset_tokens,
+        auth_device_push_tokens,
         push_tokens,
         user_preferences,
         alerts,

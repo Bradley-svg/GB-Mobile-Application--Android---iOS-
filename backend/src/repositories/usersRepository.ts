@@ -126,3 +126,21 @@ export async function getTwoFactorState(userId: string) {
 
   return res.rows[0] ?? null;
 }
+
+export async function getUsersByRoles(
+  organisationId: string,
+  roles: UserRole[]
+): Promise<Array<Pick<UserRow, 'id' | 'role' | 'email' | 'name'>>> {
+  if (!roles.length) return [];
+  const res = await query<Pick<UserRow, 'id' | 'role' | 'email' | 'name'>>(
+    `
+    select id, role, email, name
+    from users
+    where organisation_id = $1
+      and role = ANY($2::text[])
+  `,
+    [organisationId, roles]
+  );
+
+  return res.rows;
+}

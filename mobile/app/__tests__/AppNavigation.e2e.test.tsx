@@ -94,8 +94,8 @@ jest.mock('../hooks/useNetworkBanner', () => ({
   useNetworkBanner: () => ({ isOffline: false }),
 }));
 
-jest.mock('../hooks/useRegisterPushToken', () => ({
-  useRegisterPushToken: () => undefined,
+jest.mock('../hooks/usePushRegistration', () => ({
+  usePushRegistration: () => undefined,
 }));
 
 jest.mock('../screens/Alerts/AlertsScreen', () => {

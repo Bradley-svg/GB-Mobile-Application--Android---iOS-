@@ -8,7 +8,7 @@ import {
   LAST_REGISTERED_PUSH_TOKEN_KEY,
   LAST_REGISTERED_USER_ID_KEY,
 } from '../constants/pushTokens';
-import { useRegisterPushToken } from '../hooks/useRegisterPushToken';
+import { usePushRegistration } from '../hooks/usePushRegistration';
 import { useAuthStore } from '../store/authStore';
 import { queryClient } from '../queryClient';
 import { NOTIFICATION_PREFERENCES_QUERY_KEY } from '../api/preferences/hooks';
@@ -16,11 +16,11 @@ import { NOTIFICATION_PREFERENCES_QUERY_KEY } from '../api/preferences/hooks';
 jest.mock('expo-device', () => ({ isDevice: true }));
 
 const TestComponent = () => {
-  useRegisterPushToken();
+  usePushRegistration();
   return null;
 };
 
-describe('useRegisterPushToken', () => {
+describe('usePushRegistration', () => {
   const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
   const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   const apiPostSpy = jest.spyOn(api, 'post');
@@ -125,7 +125,10 @@ describe('useRegisterPushToken', () => {
     render(<TestComponent />);
 
     await waitFor(() => {
-      expect(apiPostSpy).toHaveBeenCalledWith('/auth/me/push-tokens', { token: 'push-token' });
+      expect(apiPostSpy).toHaveBeenCalledWith(
+        '/me/push/register',
+        expect.objectContaining({ expoPushToken: 'push-token' })
+      );
     });
     expect(AsyncStorage.multiSet).toHaveBeenCalledWith([
       [LAST_REGISTERED_PUSH_TOKEN_KEY, 'push-token'],
@@ -189,7 +192,10 @@ describe('useRegisterPushToken', () => {
     render(<TestComponent />);
 
     await waitFor(() => {
-      expect(apiPostSpy).toHaveBeenCalledWith('/auth/me/push-tokens', { token: 'push-token' });
+      expect(apiPostSpy).toHaveBeenCalledWith(
+        '/me/push/register',
+        expect.objectContaining({ expoPushToken: 'push-token' })
+      );
     });
   });
 });

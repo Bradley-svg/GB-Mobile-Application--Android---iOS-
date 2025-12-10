@@ -6,7 +6,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { RootNavigator } from './app/navigation/RootNavigator';
 import { useAuthStore } from './app/store/authStore';
 import { api } from './app/api/client';
-import { useRegisterPushToken } from './app/hooks/useRegisterPushToken';
+import { usePushRegistration } from './app/hooks/usePushRegistration';
 import { useNetworkBanner } from './app/hooks/useNetworkBanner';
 import { queryClient } from './app/queryClient';
 import { AppThemeProvider } from './app/theme/ThemeProvider';
@@ -78,7 +78,7 @@ const AppContent: React.FC = () => {
     });
   }, [accessToken, authChecked, isAuthenticated, isHydrated, user]);
 
-  useRegisterPushToken();
+  usePushRegistration();
 
   if (!isHydrated || !authChecked) {
     console.log('App: waiting for hydration', {

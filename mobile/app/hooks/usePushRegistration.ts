@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -17,8 +18,8 @@ import {
 import { queryClient } from '../queryClient';
 import { NotificationPreferences } from '../api/types';
 
-async function registerTokenWithBackend(token: string) {
-  await api.post('/auth/me/push-tokens', { token });
+async function registerTokenWithBackend(token: string, platform: string) {
+  await api.post('/me/push/register', { expoPushToken: token, platform });
 }
 
 export async function getNotificationPermissionStatus() {
@@ -61,7 +62,7 @@ async function getPushToken(): Promise<string | null> {
   return token;
 }
 
-export function useRegisterPushToken() {
+export function usePushRegistration() {
   const isAuthHydrated = useAuthStore((s) => s.isHydrated);
   const userId = useAuthStore((s) => s.user?.id);
   const preferences = useAuthStore((s) => s.notificationPreferences);
@@ -135,7 +136,8 @@ export function useRegisterPushToken() {
       if (alreadyRegistered) return;
 
       try {
-        await registerTokenWithBackend(token);
+        const platform = Platform.OS === 'ios' || Platform.OS === 'android' ? Platform.OS : 'unknown';
+        await registerTokenWithBackend(token, platform);
         if (cancelled) return;
         await AsyncStorage.multiSet([
           [LAST_REGISTERED_PUSH_TOKEN_KEY, token],

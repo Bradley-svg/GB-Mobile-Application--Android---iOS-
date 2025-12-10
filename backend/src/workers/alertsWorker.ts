@@ -123,9 +123,9 @@ export async function evaluateOfflineAlerts(now: Date): Promise<OfflineMetrics> 
       now,
     });
 
-    if (isNew && severity === 'critical') {
-      await sendAlertNotification(alert);
-    }
+      if (isNew && severity === 'critical') {
+        await sendAlertNotification(alert);
+      }
   }
 
   log.info({ offlineCount: offline.length }, 'offline check complete');

@@ -6,7 +6,7 @@ import {
   useNotificationPreferencesQuery,
   useUpdateNotificationPreferencesMutation,
 } from '../api/preferences/hooks';
-import { getNotificationPermissionStatus } from '../hooks/useRegisterPushToken';
+import { getNotificationPermissionStatus } from '../hooks/usePushRegistration';
 import { useAuthStore } from '../store/authStore';
 
 jest.mock('../api/preferences/hooks', () => ({
@@ -15,7 +15,7 @@ jest.mock('../api/preferences/hooks', () => ({
   useUpdateNotificationPreferencesMutation: jest.fn(),
 }));
 
-jest.mock('../hooks/useRegisterPushToken', () => ({
+jest.mock('../hooks/usePushRegistration', () => ({
   getNotificationPermissionStatus: jest.fn(),
 }));
 

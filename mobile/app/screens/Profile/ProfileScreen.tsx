@@ -13,7 +13,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuthStore } from '../../store/authStore';
 import { isAdminOrOwner, isContractor, isFacilities } from '../../store/authStore';
 import { Screen, Card, PrimaryButton, IconButton, StatusPill } from '../../components';
-import { getNotificationPermissionStatus } from '../../hooks/useRegisterPushToken';
+import { getNotificationPermissionStatus } from '../../hooks/usePushRegistration';
 import { useNotificationPreferencesQuery, useUpdateNotificationPreferencesMutation } from '../../api/preferences/hooks';
 import { DEFAULT_NOTIFICATION_PREFERENCES } from '../../api/preferences/storage';
 import { AppStackParamList } from '../../navigation/RootNavigator';

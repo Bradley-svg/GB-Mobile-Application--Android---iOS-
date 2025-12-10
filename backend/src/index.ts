@@ -13,6 +13,7 @@ import fleetRoutes from './routes/fleetRoutes';
 import documentRoutes from './routes/documentRoutes';
 import fileRoutes from './routes/fileRoutes';
 import shareLinksRoutes from './routes/shareLinksRoutes';
+import pushRoutes from './routes/pushRoutes';
 import { errorHandler } from './middleware/errorHandler';
 import { createCorsMiddleware } from './middleware/corsConfig';
 import { requestLogger } from './middleware/logger';
@@ -38,6 +39,7 @@ app.use(fleetRoutes);
 app.use('/files', fileRoutes);
 app.use(documentRoutes);
 app.use(shareLinksRoutes);
+app.use(pushRoutes);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 4000;
