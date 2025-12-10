@@ -16,7 +16,7 @@ const historyResponse: HeatPumpHistoryResponse = {
 };
 
 const requestBody = {
-  mac: '38:18:2B:60:A9:94',
+  deviceId: 'device-123',
   from: '2025-12-03T08:12:46.503Z',
   to: '2025-12-03T14:12:46.503Z',
   fields: [{ field: 'metric_compCurrentA' }],

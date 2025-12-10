@@ -136,7 +136,7 @@ describe('DeviceDetailScreen heat pump history', () => {
     jest.restoreAllMocks();
   });
 
-  it('passes the device MAC and live/raw params to the history hook', async () => {
+  it('passes the device ID and live/raw params to the history hook', async () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2025-01-01T12:00:00.000Z'));
 
@@ -146,7 +146,7 @@ describe('DeviceDetailScreen heat pump history', () => {
       HeatPumpHistoryRequest,
       { enabled: boolean }
     ];
-    expect(params.mac).toBe(baseDevice.mac);
+    expect(params.deviceId).toBe(baseDevice.id);
     expect(params.mode).toBe('live');
     expect(params.aggregation).toBe('raw');
     expect(params.fields[0].field).toBe('metric_compCurrentA');

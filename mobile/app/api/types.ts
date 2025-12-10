@@ -43,7 +43,7 @@ export type HeatPumpHistoryField = {
 };
 
 export type HeatPumpHistoryRequest = {
-  mac: string;
+  deviceId: string;
   from: string;
   to: string;
   aggregation?: 'raw' | 'avg' | 'min' | 'max';

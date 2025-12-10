@@ -211,9 +211,9 @@ export const DeviceDetailScreen: React.FC = () => {
   }, [range]);
 
   const historyRequest: HeatPumpHistoryRequest | null = useMemo(() => {
-    if (!mac) return null;
+    if (!deviceId || !mac) return null;
     return {
-      mac,
+      deviceId,
       from: historyWindow.from,
       to: historyWindow.to,
       aggregation: 'raw',
@@ -228,11 +228,11 @@ export const DeviceDetailScreen: React.FC = () => {
         },
       ],
     };
-  }, [historyWindow.from, historyWindow.to, mac]);
+  }, [deviceId, historyWindow.from, historyWindow.to, mac]);
 
   const heatPumpHistoryQuery = useHeatPumpHistory(
     historyRequest ?? {
-      mac: '',
+      deviceId: '',
       from: historyWindow.from,
       to: historyWindow.to,
       aggregation: 'raw',
