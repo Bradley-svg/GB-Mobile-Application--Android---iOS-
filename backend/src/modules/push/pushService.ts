@@ -7,7 +7,6 @@ import {
 import {
   deactivatePushToken,
   getActiveTokensForOrg,
-  getActiveTokensForUser,
   getLatestActiveToken,
   upsertPushToken,
   type PushTokenRow,
@@ -164,18 +163,35 @@ export async function unregisterPushToken(input: { userId: string; token: string
   await deactivatePushToken(input);
 }
 
-function buildAlertMessage(alert: AlertRow): (token: PushTokenRow) => ExpoPushMessage {
+function buildAlertMessage(alert: AlertRow, orgId: string): (token: PushTokenRow) => ExpoPushMessage {
   return (token: PushTokenRow) => ({
     to: token.expo_push_token,
     sound: 'default',
     title: `[${alert.severity.toUpperCase()}] ${alert.type}`,
     body: alert.message,
     data: {
+      type: 'alert',
       alertId: alert.id,
       deviceId: alert.device_id,
       siteId: alert.site_id,
-      type: alert.type,
+      orgId,
       severity: alert.severity,
+      alertType: alert.type,
+      summary: alert.message,
+    },
+  });
+}
+
+function buildTestMessage(userId: string): (token: PushTokenRow) => ExpoPushMessage {
+  return (token: PushTokenRow) => ({
+    to: token.expo_push_token,
+    sound: 'default',
+    title: 'Greenbro test notification',
+    body: 'If you see this, push is working for your device.',
+    data: {
+      type: 'test',
+      source: 'diagnostics',
+      userId,
     },
   });
 }
@@ -245,7 +261,7 @@ export async function sendAlertNotification({ alert }: { alert: AlertRow }) {
   }
 
   const tokens = await getActiveTokensForOrg(organisationId, userIds);
-  const dispatch = await dispatchPushMessages(tokens, buildAlertMessage(alert));
+  const dispatch = await dispatchPushMessages(tokens, buildAlertMessage(alert, organisationId));
 
   await recordPushAudit({
     orgId: organisationId,
@@ -291,13 +307,7 @@ export async function sendTestNotification(options: {
     return { skipped: true, reason: 'disabled' } as const;
   }
 
-  const dispatch = await dispatchPushMessages(options.tokens, (token) => ({
-    to: token.expo_push_token,
-    sound: 'default',
-    title: 'Greenbro test notification',
-    body: 'If you see this, push is working for your device.',
-    data: { type: 'diagnostic', userId: options.userId },
-  }));
+  const dispatch = await dispatchPushMessages(options.tokens, buildTestMessage(options.userId));
 
   await recordPushAudit({
     orgId: options.orgId,

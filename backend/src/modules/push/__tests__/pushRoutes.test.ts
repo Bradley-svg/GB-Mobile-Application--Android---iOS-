@@ -27,7 +27,11 @@ vi.mock('../../../services/userService', () => ({
 }));
 
 vi.mock('../../../middleware/requireAuth', () => ({
-  requireAuth: (req: any, _res: any, next: any) => {
+  requireAuth: (
+    req: { headers: Record<string, string | string[] | undefined>; user?: { id: string; role: string } },
+    _res: unknown,
+    next: () => void
+  ) => {
     const roleHeader = req.headers['x-test-role'];
     const role = Array.isArray(roleHeader) ? roleHeader[0] : roleHeader;
     req.user = { id: 'user-1', role: (role as string) || 'owner' };

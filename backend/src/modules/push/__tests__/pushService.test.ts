@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { sendAlertNotification } from '../pushService';
+import { sendAlertNotification, sendTestNotification } from '../pushService';
 import type { AlertRow } from '../../../repositories/alertsRepository';
 
 const sendExpoPushMessagesMock = vi.fn();
@@ -97,6 +97,24 @@ describe('pushService.sendAlertNotification', () => {
     expect(result?.sent).toBe(1);
   });
 
+  it('includes navigation metadata in alert payloads', async () => {
+    await sendAlertNotification({ alert: baseAlert });
+
+    const sentMessages = sendExpoPushMessagesMock.mock.calls[0][0];
+    expect(sentMessages[0].data).toEqual(
+      expect.objectContaining({
+        type: 'alert',
+        alertId: baseAlert.id,
+        deviceId: baseAlert.device_id,
+        siteId: baseAlert.site_id,
+        orgId: 'org-1',
+        severity: baseAlert.severity,
+        alertType: baseAlert.type,
+        summary: baseAlert.message,
+      })
+    );
+  });
+
   it('skips non-eligible severities', async () => {
     await sendAlertNotification({ alert: { ...baseAlert, severity: 'warning' } });
 
@@ -114,6 +132,50 @@ describe('pushService.sendAlertNotification', () => {
       expect.objectContaining({
         action: 'push_notification_sent',
         metadata: expect.objectContaining({ success: false }),
+      })
+    );
+  });
+
+  afterAll(() => {
+    process.env = originalEnv;
+  });
+});
+
+describe('pushService.sendTestNotification', () => {
+  const originalEnv = { ...process.env };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env = { ...originalEnv, EXPO_ACCESS_TOKEN: 'expo-token', PUSH_NOTIFICATIONS_DISABLED: 'false' };
+    sendExpoPushMessagesMock.mockResolvedValue([{ status: 'ok', id: 'ticket-1' }]);
+  });
+
+  it('sends test notifications with test metadata', async () => {
+    await sendTestNotification({
+      orgId: 'org-1',
+      userId: 'user-1',
+      tokens: [
+        {
+          id: 'token-1',
+          user_id: 'user-1',
+          org_id: 'org-1',
+          expo_push_token: 'ExpoToken-abc',
+          platform: 'android',
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          last_used_at: new Date().toISOString(),
+        },
+      ],
+    });
+
+    expect(sendExpoPushMessagesMock).toHaveBeenCalled();
+    const sentMessages = sendExpoPushMessagesMock.mock.calls[0][0];
+    expect(sentMessages[0].data).toEqual(
+      expect.objectContaining({
+        type: 'test',
+        source: 'diagnostics',
+        userId: 'user-1',
       })
     );
   });

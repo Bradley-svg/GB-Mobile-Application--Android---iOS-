@@ -77,9 +77,10 @@ describe('DiagnosticsScreen push test', () => {
   });
 
   it('shows specific message when no push tokens are registered', async () => {
-    const error = new Error('no tokens') as any;
-    error.isAxiosError = true;
-    error.response = { data: { code: 'NO_PUSH_TOKENS_REGISTERED' } };
+    const error = Object.assign(new Error('no tokens'), {
+      isAxiosError: true,
+      response: { data: { code: 'NO_PUSH_TOKENS_REGISTERED' } },
+    });
     apiPostSpy.mockRejectedValueOnce(error);
 
     render(<DiagnosticsScreen />);
@@ -93,9 +94,10 @@ describe('DiagnosticsScreen push test', () => {
   });
 
   it('shows disabled message when push is disabled', async () => {
-    const error = new Error('disabled') as any;
-    error.isAxiosError = true;
-    error.response = { data: { code: 'PUSH_DISABLED' } };
+    const error = Object.assign(new Error('disabled'), {
+      isAxiosError: true,
+      response: { data: { code: 'PUSH_DISABLED' } },
+    });
     apiPostSpy.mockRejectedValueOnce(error);
 
     render(<DiagnosticsScreen />);

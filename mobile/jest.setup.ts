@@ -1,5 +1,15 @@
 import '@testing-library/jest-native/extend-expect';
 
+const listeners: { received: Array<(notification: any) => void>; response: Array<(response: any) => void> } = {
+  received: [],
+  response: [],
+};
+
+beforeEach(() => {
+  listeners.received.splice(0, listeners.received.length);
+  listeners.response.splice(0, listeners.response.length);
+});
+
 jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn(async () => null),
   setItemAsync: jest.fn(async () => {}),
@@ -11,9 +21,17 @@ jest.mock('expo-notifications', () => ({
   requestPermissionsAsync: jest.fn(async () => ({ status: 'granted' })),
   getExpoPushTokenAsync: jest.fn(async () => ({ data: 'push-token' })),
   setNotificationHandler: jest.fn(),
-  addNotificationReceivedListener: jest.fn(),
-  addNotificationResponseReceivedListener: jest.fn(),
+  getLastNotificationResponseAsync: jest.fn(async () => null),
+  addNotificationReceivedListener: jest.fn((callback: (notification: any) => void) => {
+    (listeners.received as any[]).push(callback);
+    return { remove: jest.fn() };
+  }),
+  addNotificationResponseReceivedListener: jest.fn((callback: (response: any) => void) => {
+    (listeners.response as any[]).push(callback);
+    return { remove: jest.fn() };
+  }),
   removeNotificationSubscription: jest.fn(),
+  __listeners: listeners,
 }));
 
 jest.mock('expo-device', () => ({
@@ -37,11 +55,52 @@ jest.mock('@react-navigation/native', () => {
   const React = require('react');
   const useNavigation = jest.fn(() => ({ navigate: jest.fn(), goBack: jest.fn() }));
   const useRoute = jest.fn(() => ({ params: {} }));
+  const createNavigationContainerRef = jest.fn(() => {
+    const ref: any = {
+      current: {
+        navigate: jest.fn(),
+        isReady: jest.fn(() => true),
+        getCurrentRoute: jest.fn(),
+        reset: jest.fn(),
+      },
+      navigate: (...args: unknown[]) => ref.current.navigate(...args),
+      isReady: () => true,
+      getCurrentRoute: () => ref.current.getCurrentRoute(),
+    };
+    return ref;
+  });
+  const NavigationContainer = React.forwardRef(
+    (
+      {
+        children,
+        onReady,
+      }: {
+        children: React.ReactNode;
+        onReady?: () => void;
+      },
+      navRef: React.MutableRefObject<any> | null
+    ) => {
+      React.useEffect(() => {
+        if (navRef) {
+          navRef.current =
+            navRef.current ??
+            {
+              navigate: jest.fn(),
+              isReady: jest.fn(() => true),
+              getCurrentRoute: jest.fn(),
+              reset: jest.fn(),
+            };
+        }
+        onReady?.();
+      }, [navRef, onReady]);
+      return React.createElement(React.Fragment, {}, children);
+    }
+  );
   return {
-    NavigationContainer: ({ children }: { children: React.ReactNode }) =>
-      React.createElement(React.Fragment, {}, children),
+    NavigationContainer,
     useNavigation,
     useRoute,
+    createNavigationContainerRef,
   };
 });
 

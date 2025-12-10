@@ -1,6 +1,10 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, Image } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  type NavigationContainerRefWithCurrent,
+  type NavigatorScreenParams,
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { BottomTabBarButtonProps, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -39,11 +43,6 @@ const GreenbroHeaderLogo: React.FC = () => (
   />
 );
 
-export type RootStackParamList = {
-  Auth: undefined;
-  App: undefined;
-};
-
 export type AuthStackParamList = {
   Login: { resetSuccessMessage?: string } | undefined;
   Signup: undefined;
@@ -52,8 +51,14 @@ export type AuthStackParamList = {
   TwoFactor: { challengeToken: string; email: string };
 };
 
+export type AppTabParamList = {
+  Dashboard: undefined;
+  Alerts: undefined;
+  Profile: undefined;
+};
+
 export type AppStackParamList = {
-  Tabs: undefined;
+  Tabs: NavigatorScreenParams<AppTabParamList> | undefined;
   SiteOverview: { siteId: string };
   DeviceDetail: { deviceId: string };
   AlertDetail: { alertId: string };
@@ -69,10 +74,9 @@ export type AppStackParamList = {
   TwoFactorSetup: undefined;
 };
 
-export type AppTabParamList = {
-  Dashboard: undefined;
-  Alerts: undefined;
-  Profile: undefined;
+export type RootStackParamList = {
+  Auth: undefined;
+  App: NavigatorScreenParams<AppStackParamList> | undefined;
 };
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -227,9 +231,16 @@ function AppNavigator() {
 interface RootNavigatorProps {
   isAuthenticated: boolean;
   sessionExpired?: boolean;
+  navigationRef?: NavigationContainerRefWithCurrent<RootStackParamList>;
+  onReady?: () => void;
 }
 
-export const RootNavigator: React.FC<RootNavigatorProps> = ({ isAuthenticated, sessionExpired }) => {
+export const RootNavigator: React.FC<RootNavigatorProps> = ({
+  isAuthenticated,
+  sessionExpired,
+  navigationRef,
+  onReady,
+}) => {
   console.log('RootNavigator: rendering', {
     stack: isAuthenticated ? 'App' : 'Auth',
   });
@@ -251,7 +262,7 @@ export const RootNavigator: React.FC<RootNavigatorProps> = ({ isAuthenticated, s
   );
 
   return (
-    <NavigationContainer theme={navigationTheme}>
+    <NavigationContainer<RootStackParamList> theme={navigationTheme} ref={navigationRef} onReady={onReady}>
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         {isAuthenticated ? (
           <RootStack.Screen name="App" component={AppNavigator} />
