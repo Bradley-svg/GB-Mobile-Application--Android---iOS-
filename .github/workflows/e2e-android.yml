@@ -13,6 +13,8 @@ jobs:
       NODE_ENV: development
       EXPO_PUBLIC_API_URL: http://10.0.2.2:4000
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/greenbro_e2e
+      FILE_STORAGE_ROOT: ${{ github.workspace }}/backend/uploads
+      FILE_SIGNING_SECRET: test-signing-secret
       HEATPUMP_HISTORY_DISABLED: "true"
       CONTROL_API_DISABLED: "true"
       MQTT_DISABLED: "true"
