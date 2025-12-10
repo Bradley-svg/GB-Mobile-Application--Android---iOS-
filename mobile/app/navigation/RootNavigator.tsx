@@ -24,6 +24,7 @@ import { DocumentsScreen } from '../screens/Documents/DocumentsScreen';
 import { SharingScreen } from '../screens/Profile/SharingScreen';
 import { ShareLinksScreen } from '../screens/Sharing/ShareLinksScreen';
 import { TwoFactorSetupScreen } from '../screens/Profile/TwoFactorSetupScreen';
+import { ScanDeviceScreen } from '../screens/Scan/ScanDeviceScreen';
 import { typography } from '../theme/typography';
 import { useAppTheme } from '../theme/useAppTheme';
 import { createSurfaceStyles } from '../components';
@@ -58,6 +59,7 @@ export type AppStackParamList = {
   AlertDetail: { alertId: string };
   Diagnostics: undefined;
   Search: undefined;
+  ScanDevice: undefined;
   WorkOrders: undefined;
   WorkOrderDetail: { workOrderId: string };
   MaintenanceCalendar: undefined;
@@ -217,6 +219,7 @@ function AppNavigator() {
       <AppStack.Screen name="Sharing" component={SharingScreen} />
       <AppStack.Screen name="ShareLinks" component={ShareLinksScreen} />
       <AppStack.Screen name="TwoFactorSetup" component={TwoFactorSetupScreen} />
+      <AppStack.Screen name="ScanDevice" component={ScanDeviceScreen} />
     </AppStack.Navigator>
   );
 }

@@ -1,6 +1,7 @@
 import axios, { AxiosError, AxiosRequestConfig } from 'axios';
 import Constants from 'expo-constants';
 import { useAuthStore } from '../store/authStore';
+import type { DeviceLookupResponse } from './types';
 
 type ExpoExtra = {
   apiUrl?: string;
@@ -87,3 +88,8 @@ api.interceptors.response.use(
     }
   }
 );
+
+export async function lookupDeviceByCode(code: string) {
+  const res = await api.post<DeviceLookupResponse>('/devices/lookup-by-code', { code });
+  return res.data;
+}

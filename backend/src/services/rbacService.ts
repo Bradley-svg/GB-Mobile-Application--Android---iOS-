@@ -66,3 +66,7 @@ export function canExportData(user: RoleInput) {
 export function canViewFiles(user: RoleInput) {
   return hasRole(user, ['owner', 'admin', 'facilities', 'contractor']);
 }
+
+export function canLookupDeviceByCode(user: RoleInput) {
+  return hasRole(user, ['owner', 'admin', 'facilities']);
+}

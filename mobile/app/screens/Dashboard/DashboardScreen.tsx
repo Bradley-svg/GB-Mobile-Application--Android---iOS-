@@ -11,6 +11,7 @@ import {
   Screen,
   Card,
   IconButton,
+  PrimaryButton,
   EmptyState,
   StatusPill,
   PillTabGroup,
@@ -27,6 +28,7 @@ import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppTheme, ThemeMode } from '../../theme/types';
 import { typography } from '../../theme/typography';
 import { createThemedStyles } from '../../theme/createThemedStyles';
+import { useAuthStore } from '../../store/authStore';
 
 type Navigation = NativeStackNavigationProp<AppStackParamList>;
 const CACHE_STALE_MS = 24 * 60 * 60 * 1000;
@@ -42,6 +44,8 @@ export const DashboardScreen: React.FC = () => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [cachedSites, setCachedSites] = useState<ApiSite[] | null>(null);
   const [cachedSitesSavedAt, setCachedSitesSavedAt] = useState<string | null>(null);
+  const role = useAuthStore((s) => s.user?.role ?? null);
+  const canScanDevices = role === 'owner' || role === 'admin' || role === 'facilities';
 
   useEffect(() => {
     if (data) {
@@ -155,6 +159,22 @@ export const DashboardScreen: React.FC = () => {
         <Ionicons name="search" size={18} color={colors.textSecondary} style={{ marginRight: spacing.sm }} />
         <Text style={[typography.body, styles.muted]}>Search sites and devices</Text>
       </TouchableOpacity>
+
+      {canScanDevices ? (
+        <Card style={styles.toolsCard} testID="dashboard-tools-card">
+          <View style={styles.toolsHeader}>
+            <Text style={[typography.subtitle, styles.title]}>Tools</Text>
+            <Text style={[typography.caption, styles.muted]}>
+              Scan a device label to jump straight to details.
+            </Text>
+          </View>
+          <PrimaryButton
+            label="Scan device"
+            onPress={() => navigation.navigate('ScanDevice')}
+            testID="scan-device-entry"
+          />
+        </Card>
+      ) : null}
 
       <Card style={styles.themeCard} testID="dashboard-theme-toggle">
         <View style={styles.themeRow}>
@@ -374,6 +394,12 @@ const createStyles = (theme: AppTheme) =>
     },
     themeCard: {
       marginBottom: theme.spacing.md,
+    },
+    toolsCard: {
+      marginBottom: theme.spacing.md,
+    },
+    toolsHeader: {
+      marginBottom: theme.spacing.sm,
     },
     themeRow: {
       flexDirection: 'row',

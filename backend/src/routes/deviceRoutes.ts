@@ -10,6 +10,7 @@ import {
   getDeviceSchedule,
   putDeviceSchedule,
   exportDeviceTelemetryCsvHandler,
+  lookupDeviceByCodeHandler,
 } from '../controllers/deviceController';
 import { requireAuth } from '../middleware/requireAuth';
 
@@ -32,5 +33,6 @@ router.get('/devices/:id/schedule', requireAuth, getDeviceSchedule);
 router.put('/devices/:id/schedule', requireAuth, putDeviceSchedule);
 router.post('/devices/:id/commands/setpoint', requireAuth, controlLimiter, sendSetpointCommand);
 router.post('/devices/:id/commands/mode', requireAuth, controlLimiter, sendModeCommand);
+router.post('/devices/lookup-by-code', requireAuth, lookupDeviceByCodeHandler);
 
 export default router;

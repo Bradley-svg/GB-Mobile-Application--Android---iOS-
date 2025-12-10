@@ -286,3 +286,16 @@ export type ShareLink = {
     name?: string | null;
   };
 };
+
+export type DeviceLookupResponse = {
+  device: {
+    id: string;
+    name?: string | null;
+    site_id: string;
+    site_name?: string | null;
+    status?: string | null;
+    last_seen_at?: string | null;
+    mac?: string | null;
+  };
+  navigateTo: 'deviceDetail';
+};

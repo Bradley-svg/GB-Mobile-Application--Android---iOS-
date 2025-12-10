@@ -170,6 +170,16 @@ export type DeviceSearchRow = DeviceRow & {
   site_city: string | null;
 };
 
+export type DeviceSummaryRow = {
+  id: string;
+  site_id: string;
+  name: string | null;
+  site_name: string | null;
+  status: string | null;
+  mac: string | null;
+  last_seen_at: Date | null;
+};
+
 export async function searchDevices(options: {
   organisationId: string;
   search?: string;
@@ -216,4 +226,56 @@ export async function searchDevices(options: {
   );
 
   return res.rows;
+}
+
+export async function findDeviceSummaryById(
+  id: string,
+  organisationId: string
+): Promise<DeviceSummaryRow | null> {
+  const res = await query<DeviceSummaryRow>(
+    `
+    select d.id,
+           d.site_id,
+           d.name,
+           s.name as site_name,
+           d.status,
+           d.mac,
+           coalesce(ds.last_seen_at, d.last_seen_at) as last_seen_at
+    from devices d
+    join sites s on d.site_id = s.id
+    left join device_snapshots ds on ds.device_id = d.id
+    where d.id = $1
+      and s.organisation_id = $2
+    limit 1
+  `,
+    [id, organisationId]
+  );
+
+  return res.rows[0] ?? null;
+}
+
+export async function findDeviceByMac(
+  mac: string,
+  organisationId: string
+): Promise<DeviceSummaryRow | null> {
+  const res = await query<DeviceSummaryRow>(
+    `
+    select d.id,
+           d.site_id,
+           d.name,
+           s.name as site_name,
+           d.status,
+           d.mac,
+           coalesce(ds.last_seen_at, d.last_seen_at) as last_seen_at
+    from devices d
+    join sites s on d.site_id = s.id
+    left join device_snapshots ds on ds.device_id = d.id
+    where lower(d.mac) = lower($1)
+      and s.organisation_id = $2
+    limit 1
+  `,
+    [mac, organisationId]
+  );
+
+  return res.rows[0] ?? null;
 }

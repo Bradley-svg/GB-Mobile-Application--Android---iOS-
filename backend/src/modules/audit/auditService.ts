@@ -10,7 +10,8 @@ export type AuditAction =
   | 'share_link_revoked'
   | 'auth_2fa_enabled'
   | 'auth_2fa_disabled'
-  | 'auth_2fa_challenge_passed';
+  | 'auth_2fa_challenge_passed'
+  | 'device_qr_lookup';
 
 export async function recordAuditEvent(input: CreateAuditEventInput & { action: AuditAction }) {
   try {

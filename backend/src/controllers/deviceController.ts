@@ -17,6 +17,7 @@ import {
 } from '../services/deviceScheduleService';
 import { ExportError, exportDeviceTelemetryCsv } from '../services/exportService';
 import { canControlDevice, canEditSchedules, canExportData } from '../services/rbacService';
+import { lookupDeviceByCode, DeviceQrLookupError } from '../modules/devices/qrLookupService';
 
 const deviceIdSchema = z.object({ id: z.string().uuid() });
 const telemetryQuerySchema = z.object({
@@ -45,6 +46,9 @@ const telemetryExportSchema = z.object({
   from: z.string().datetime(),
   to: z.string().datetime(),
   metrics: z.string().optional(),
+});
+const lookupCodeSchema = z.object({
+  code: z.string().min(1),
 });
 
 export async function getDevice(req: Request, res: Response, next: NextFunction) {
@@ -321,6 +325,43 @@ export async function sendModeCommand(req: Request, res: Response, next: NextFun
       default:
         return next(e);
     }
+  }
+}
+
+export async function lookupDeviceByCodeHandler(req: Request, res: Response, next: NextFunction) {
+  const parsedBody = lookupCodeSchema.safeParse(req.body);
+  if (!parsedBody.success) {
+    return res.status(400).json({ message: 'Invalid request' });
+  }
+
+  try {
+    const organisationId = await resolveOrganisationId(req.user!.id, res);
+    if (!organisationId) return;
+
+    const device = await lookupDeviceByCode({
+      code: parsedBody.data.code,
+      orgId: organisationId,
+      userId: req.user!.id,
+      userRole: req.user!.role,
+    });
+
+    return res.json({ device, navigateTo: 'deviceDetail' });
+  } catch (err) {
+    if (err instanceof DeviceQrLookupError) {
+      switch (err.reason) {
+        case 'INVALID_CODE':
+          return res.status(400).json({ message: err.message, code: 'ERR_INVALID_DEVICE_CODE' });
+        case 'FORBIDDEN':
+          return res.status(403).json({ message: err.message, code: 'ERR_QR_FORBIDDEN' });
+        case 'NOT_FOUND':
+          return res
+            .status(404)
+            .json({ message: err.message, code: 'ERR_DEVICE_CODE_NOT_FOUND' });
+        default:
+          return res.status(400).json({ message: err.message });
+      }
+    }
+    return next(err);
   }
 }
 
