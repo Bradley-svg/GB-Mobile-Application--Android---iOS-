@@ -27,6 +27,8 @@ const originalEnv = {
   HEATPUMP_HISTORY_API_KEY: process.env.HEATPUMP_HISTORY_API_KEY,
   HEAT_PUMP_HISTORY_URL: process.env.HEAT_PUMP_HISTORY_URL,
   HEAT_PUMP_HISTORY_API_KEY: process.env.HEAT_PUMP_HISTORY_API_KEY,
+  HEATPUMP_HISTORY_MAX_RANGE_HOURS: process.env.HEATPUMP_HISTORY_MAX_RANGE_HOURS,
+  HEATPUMP_HISTORY_PAGE_HOURS: process.env.HEATPUMP_HISTORY_PAGE_HOURS,
 };
 
 process.env.NODE_ENV = 'test';
@@ -57,6 +59,8 @@ const resetEnvToDefaults = () => {
   process.env.HEATPUMP_HISTORY_API_KEY = 'test-key';
   delete process.env.HEAT_PUMP_HISTORY_URL;
   delete process.env.HEAT_PUMP_HISTORY_API_KEY;
+  delete process.env.HEATPUMP_HISTORY_MAX_RANGE_HOURS;
+  delete process.env.HEATPUMP_HISTORY_PAGE_HOURS;
 };
 
 const buildConfig = () => {
@@ -115,7 +119,16 @@ afterAll(() => {
     }
   };
 
-  (['NODE_ENV', 'JWT_SECRET', 'HEATPUMP_HISTORY_URL', 'HEATPUMP_HISTORY_API_KEY', 'HEAT_PUMP_HISTORY_URL', 'HEAT_PUMP_HISTORY_API_KEY'] as const).forEach(
+  ([
+    'NODE_ENV',
+    'JWT_SECRET',
+    'HEATPUMP_HISTORY_URL',
+    'HEATPUMP_HISTORY_API_KEY',
+    'HEAT_PUMP_HISTORY_URL',
+    'HEAT_PUMP_HISTORY_API_KEY',
+    'HEATPUMP_HISTORY_MAX_RANGE_HOURS',
+    'HEATPUMP_HISTORY_PAGE_HOURS',
+  ] as const).forEach(
     (key) => restore(key)
   );
 });
@@ -324,5 +337,113 @@ describe('POST /heat-pump-history', () => {
       message: 'Heat pump history is disabled until required env vars are set',
     });
     expect(fetchHeatPumpHistoryMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects ranges that exceed the configured maximum window', async () => {
+    process.env.HEATPUMP_HISTORY_MAX_RANGE_HOURS = '1';
+    mockDb();
+
+    const res = await request(app)
+      .post('/heat-pump-history')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        ...requestBody,
+        from: '2025-12-03T08:12:46.503Z',
+        to: '2025-12-03T10:12:46.503Z',
+      })
+      .expect(400);
+
+    expect(res.body).toEqual({ message: 'Requested range exceeds maximum of 1 hours' });
+    expect(fetchHeatPumpHistoryMock).not.toHaveBeenCalled();
+  });
+
+  it('chunks long ranges and merges paged upstream results', async () => {
+    process.env.HEATPUMP_HISTORY_PAGE_HOURS = '2';
+    mockDb();
+    const from = '2025-12-03T00:00:00.000Z';
+    const to = '2025-12-03T06:00:00.000Z';
+
+    fetchHeatPumpHistoryMock
+      .mockResolvedValueOnce({
+        ok: true,
+        series: [
+          {
+            field: 'metric_compCurrentA',
+            points: [
+              { timestamp: '2025-12-03T00:30:00.000Z', value: 1 },
+              { timestamp: '2025-12-03T02:00:00.000Z', value: 2 },
+            ],
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        series: [
+          {
+            field: 'metric_compCurrentA',
+            points: [
+              { timestamp: '2025-12-03T02:00:00.000Z', value: 3 },
+              { timestamp: '2025-12-03T03:00:00.000Z', value: 4 },
+            ],
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        series: [
+          {
+            field: 'metric_compCurrentA',
+            points: [
+              { timestamp: '2025-12-03T04:00:00.000Z', value: 5 },
+              { timestamp: '2025-12-03T05:00:00.000Z', value: 6 },
+            ],
+          },
+        ],
+      });
+
+    const res = await request(app)
+      .post('/heat-pump-history')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ ...requestBody, from, to })
+      .expect(200);
+
+    expect(fetchHeatPumpHistoryMock).toHaveBeenCalledTimes(3);
+    expect(fetchHeatPumpHistoryMock).toHaveBeenNthCalledWith(1, {
+      mac: defaultDevice.mac,
+      from,
+      to: '2025-12-03T02:00:00.000Z',
+      aggregation: requestBody.aggregation,
+      mode: requestBody.mode,
+      fields: requestBody.fields,
+    });
+    expect(fetchHeatPumpHistoryMock).toHaveBeenNthCalledWith(2, {
+      mac: defaultDevice.mac,
+      from: '2025-12-03T02:00:00.000Z',
+      to: '2025-12-03T04:00:00.000Z',
+      aggregation: requestBody.aggregation,
+      mode: requestBody.mode,
+      fields: requestBody.fields,
+    });
+    expect(fetchHeatPumpHistoryMock).toHaveBeenNthCalledWith(3, {
+      mac: defaultDevice.mac,
+      from: '2025-12-03T04:00:00.000Z',
+      to,
+      aggregation: requestBody.aggregation,
+      mode: requestBody.mode,
+      fields: requestBody.fields,
+    });
+
+    expect(res.body.series).toEqual([
+      {
+        field: 'metric_compCurrentA',
+        points: [
+          { timestamp: '2025-12-03T00:30:00.000Z', value: 1 },
+          { timestamp: '2025-12-03T02:00:00.000Z', value: 3 },
+          { timestamp: '2025-12-03T03:00:00.000Z', value: 4 },
+          { timestamp: '2025-12-03T04:00:00.000Z', value: 5 },
+          { timestamp: '2025-12-03T05:00:00.000Z', value: 6 },
+        ],
+      },
+    ]);
   });
 });

@@ -1,4 +1,5 @@
 import fs from 'fs';
+import { performance } from 'node:perf_hooks';
 import { query } from '../config/db';
 import { getControlChannelStatus } from './deviceControlService';
 import { getMqttHealth } from '../integrations/mqttClient';
@@ -31,13 +32,31 @@ function isRecent(date: Date | null, windowMs: number, now: Date) {
   return now.getTime() - date.getTime() <= windowMs;
 }
 
+function mostRecentDate(dates: Array<Date | null>) {
+  const valid = dates.filter((d): d is Date => Boolean(d));
+  if (valid.length === 0) return null;
+  return valid.reduce((latest, current) =>
+    current.getTime() > latest.getTime() ? current : latest
+  );
+}
+
 export type HealthPlusPayload = {
   ok: boolean;
   env: string;
   db: 'ok' | 'error';
+  dbLatencyMs: number | null;
   version: string | null;
+  vendorFlags?: {
+    prodLike: boolean;
+    disabled: string[];
+    mqttDisabled: boolean;
+    controlDisabled: boolean;
+    heatPumpHistoryDisabled: boolean;
+    pushNotificationsDisabled: boolean;
+  };
   mqtt: {
     configured: boolean;
+    disabled?: boolean;
     lastIngestAt: string | null;
     lastErrorAt: string | null;
     lastError: string | null;
@@ -45,6 +64,7 @@ export type HealthPlusPayload = {
   };
   control: {
     configured: boolean;
+    disabled?: boolean;
     lastCommandAt: string | null;
     lastErrorAt: string | null;
     lastError: string | null;
@@ -52,9 +72,11 @@ export type HealthPlusPayload = {
   };
   heatPumpHistory: {
     configured: boolean;
+    disabled: boolean;
     lastSuccessAt: string | null;
     lastErrorAt: string | null;
     lastError: string | null;
+    lastCheckAt: string | null;
     healthy: boolean;
   };
   alertsWorker: {
@@ -63,6 +85,7 @@ export type HealthPlusPayload = {
   };
   push: {
     enabled: boolean;
+    disabled?: boolean;
     lastSampleAt: string | null;
     lastError: string | null;
   };
@@ -73,6 +96,7 @@ export type HealthPlusPayload = {
     lastRunAt: string | null;
     lastResult: 'clean' | 'infected' | 'error' | null;
     lastError: string | null;
+    latencyMs: number | null;
   };
   maintenance?: {
     openCount: number;
@@ -82,6 +106,7 @@ export type HealthPlusPayload = {
   storage?: {
     root: string;
     writable: boolean;
+    latencyMs: number | null;
   };
   alertsEngine: {
     lastRunAt: string | null;
@@ -105,30 +130,65 @@ export type HealthPlusResult = {
 export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusResult> {
   const env = process.env.NODE_ENV || 'development';
   const version = process.env.APP_VERSION || null;
+  const vendorDisableCandidates = [
+    'HEATPUMP_HISTORY_DISABLED',
+    'CONTROL_API_DISABLED',
+    'MQTT_DISABLED',
+    'PUSH_NOTIFICATIONS_DISABLED',
+  ];
+  const disabledFlags = vendorDisableCandidates.filter((flag) => process.env[flag] === 'true');
+  const mqttDisabled = disabledFlags.includes('MQTT_DISABLED');
+  const controlDisabled = disabledFlags.includes('CONTROL_API_DISABLED');
+  const pushDisabled = disabledFlags.includes('PUSH_NOTIFICATIONS_DISABLED');
+  let heatPumpHistoryDisabled = disabledFlags.includes('HEATPUMP_HISTORY_DISABLED');
   const mqttSnapshot = getMqttHealth();
   const controlSnapshot = getControlChannelStatus();
-  const pushEnabled = process.env.PUSH_HEALTHCHECK_ENABLED === 'true';
+  const pushEnabled = process.env.PUSH_HEALTHCHECK_ENABLED === 'true' && !pushDisabled;
   const alertsIntervalSec = Number(process.env.ALERT_WORKER_INTERVAL_SEC || 60);
   const alertsHeartbeatWindowMs = Math.max(alertsIntervalSec * 2 * 1000, 60 * 1000);
   const alertsWorkerEnabled =
     (process.env.ALERT_WORKER_ENABLED || 'true').toLowerCase() !== 'false';
   const alertsExpected = env === 'production' && alertsWorkerEnabled;
-  const heatPumpConfigured = getHeatPumpHistoryConfig().configured;
+  const prodLike = ['production', 'staging'].includes(env);
+  const heatPumpConfig = getHeatPumpHistoryConfig();
+  const heatPumpConfigured = heatPumpConfig.configured;
+  heatPumpHistoryDisabled = heatPumpConfig.disabled ?? heatPumpHistoryDisabled;
+  const antivirusCheckStarted = performance.now();
   const antivirusStatus = getVirusScannerStatus();
+  const antivirusLatencyMs = antivirusStatus.enabled ? performance.now() - antivirusCheckStarted : null;
+  const vendorFlags = {
+    prodLike,
+    disabled: disabledFlags,
+    mqttDisabled,
+    controlDisabled,
+    heatPumpHistoryDisabled,
+    pushNotificationsDisabled: pushDisabled,
+  };
+  let dbLatencyMs: number | null = null;
+  const storageRoot = getStorageRoot();
+  let storageLatencyMs: number | null = null;
 
   try {
-    const dbRes = await query('select 1 as ok');
-    const dbOk = dbRes.rows[0]?.ok === 1;
-    const storageRoot = getStorageRoot();
+    const dbStartedAt = performance.now();
+    let dbOk = false;
+    try {
+      const dbRes = await query('select 1 as ok');
+      dbOk = dbRes.rows[0]?.ok === 1;
+    } finally {
+      dbLatencyMs = performance.now() - dbStartedAt;
+    }
     let storageWritable = false;
+    const storageCheckStartedAt = performance.now();
 
     try {
       await fs.promises.mkdir(storageRoot, { recursive: true });
       await fs.promises.access(storageRoot, fs.constants.W_OK);
+      await fs.promises.readdir(storageRoot);
       storageWritable = true;
     } catch (storageErr) {
       log.warn({ err: storageErr }, 'storage root not writable');
     }
+    storageLatencyMs = performance.now() - storageCheckStartedAt;
 
     let pushHealth: PushHealthStatus | null = null;
     try {
@@ -160,9 +220,10 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
       mqttSnapshot.configured &&
       isRecent(mqttLastErrorAt, MQTT_ERROR_WINDOW_MS, now) &&
       (!mqttLastIngestAt || (mqttLastErrorAt as Date) >= mqttLastIngestAt);
+    const mqttExpected = mqttSnapshot.configured && !mqttDisabled;
     const mqttHealthy = statusLoadFailed
-      ? !mqttSnapshot.configured
-      : !mqttSnapshot.configured || (!mqttStale && !mqttRecentError);
+      ? !mqttExpected
+      : !mqttExpected || (!mqttStale && !mqttRecentError);
 
     const controlLastCommandAt = systemStatus?.control_last_command_at ?? null;
     const controlLastErrorAt = systemStatus?.control_last_error_at ?? null;
@@ -172,9 +233,10 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
       controlSnapshot.configured &&
       isRecent(controlLastErrorAt, CONTROL_ERROR_WINDOW_MS, now) &&
       (!controlLastCommandAt || (controlLastErrorAt as Date) >= controlLastCommandAt);
+    const controlExpected = controlSnapshot.configured && !controlDisabled;
     const controlHealthy = statusLoadFailed
-      ? !controlSnapshot.configured
-      : !controlSnapshot.configured || !controlRecentError;
+      ? !controlExpected
+      : !controlExpected || !controlRecentError;
 
     const alertsHeartbeat = systemStatus?.alerts_worker_last_heartbeat_at ?? null;
     const alertsHealthy =
@@ -237,6 +299,7 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
 
     const push = {
       enabled: pushEnabled,
+      disabled: pushDisabled,
       lastSampleAt: toIso(pushLastSampleAt),
       lastError: pushEnabled ? pushLastError : null,
     };
@@ -244,13 +307,15 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
     const heatPumpLastSuccessAt = systemStatus?.heat_pump_history_last_success_at ?? null;
     const heatPumpLastErrorAt = systemStatus?.heat_pump_history_last_error_at ?? null;
     const heatPumpLastError = systemStatus?.heat_pump_history_last_error ?? null;
+    const heatPumpLastCheckAt = mostRecentDate([heatPumpLastSuccessAt, heatPumpLastErrorAt]);
     const heatPumpSuccessRecent =
       heatPumpConfigured && !isStale(heatPumpLastSuccessAt, HEAT_PUMP_HISTORY_STALE_MS, now);
     const heatPumpErrorRecent =
       heatPumpConfigured && isRecent(heatPumpLastErrorAt, HEAT_PUMP_HISTORY_STALE_MS, now);
+    const heatPumpExpected = heatPumpConfigured && !heatPumpHistoryDisabled;
     const heatPumpHealthy = statusLoadFailed
-      ? !heatPumpConfigured
-      : !heatPumpConfigured ||
+      ? !heatPumpExpected
+      : !heatPumpExpected ||
         (heatPumpSuccessRecent && (!heatPumpErrorRecent || (heatPumpLastSuccessAt as Date) >= (heatPumpLastErrorAt as Date)));
     const antivirusHealthy =
       !antivirusStatus.configured ||
@@ -260,20 +325,23 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
     const ok = statusLoadFailed
       ? dbOk
       : dbOk &&
-        (!mqttSnapshot.configured || mqttHealthy) &&
-        (!controlSnapshot.configured || controlHealthy) &&
+        (!mqttExpected || mqttHealthy) &&
+        (!controlExpected || controlHealthy) &&
         (!alertsExpected || alertsHealthy) &&
         (!push.enabled || !push.lastError) &&
-        (!heatPumpConfigured || heatPumpHealthy) &&
+        (!heatPumpExpected || heatPumpHealthy) &&
         antivirusHealthy;
 
     const body: HealthPlusPayload = {
       ok,
       env,
       db: dbOk ? 'ok' : 'error',
+      dbLatencyMs,
       version,
+      vendorFlags,
       mqtt: {
         configured: mqttSnapshot.configured,
+        disabled: mqttDisabled,
         lastIngestAt: toIso(mqttLastIngestAt),
         lastErrorAt: toIso(mqttLastErrorAt),
         lastError: mqttLastError,
@@ -281,6 +349,7 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
       },
       control: {
         configured: controlSnapshot.configured,
+        disabled: controlDisabled,
         lastCommandAt: toIso(controlLastCommandAt),
         lastErrorAt: toIso(controlLastErrorAt),
         lastError: controlLastError,
@@ -288,9 +357,11 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
       },
       heatPumpHistory: {
         configured: heatPumpConfigured,
+        disabled: heatPumpHistoryDisabled,
         lastSuccessAt: toIso(heatPumpLastSuccessAt),
         lastErrorAt: toIso(heatPumpLastErrorAt),
         lastError: heatPumpLastError,
+        lastCheckAt: toIso(heatPumpLastCheckAt),
         healthy: heatPumpHealthy,
       },
       alertsWorker: {
@@ -305,11 +376,13 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
         lastRunAt: antivirusStatus.lastRunAt,
         lastResult: antivirusStatus.lastResult,
         lastError: antivirusStatus.lastError,
+        latencyMs: antivirusLatencyMs,
       },
       maintenance: undefined,
       storage: {
         root: storageRoot,
         writable: storageWritable,
+        latencyMs: storageLatencyMs,
       },
       alertsEngine,
     };
@@ -350,27 +423,33 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
       ok: false,
       env,
       db: 'error',
+      dbLatencyMs,
       version,
+      vendorFlags,
       mqtt: {
         configured: mqttSnapshot.configured,
+        disabled: mqttDisabled,
         lastIngestAt: null,
         lastErrorAt: null,
         lastError: mqttSnapshot.lastError ?? null,
-        healthy: !mqttSnapshot.configured,
+        healthy: mqttDisabled || !mqttSnapshot.configured,
       },
       control: {
         configured: controlSnapshot.configured,
+        disabled: controlDisabled,
         lastCommandAt: null,
         lastErrorAt: null,
         lastError: controlSnapshot.lastError ?? null,
-        healthy: !controlSnapshot.configured,
+        healthy: controlDisabled || !controlSnapshot.configured,
       },
       heatPumpHistory: {
         configured: heatPumpConfigured,
+        disabled: heatPumpHistoryDisabled,
         lastSuccessAt: null,
         lastErrorAt: null,
         lastError: null,
-        healthy: !heatPumpConfigured,
+        lastCheckAt: null,
+        healthy: heatPumpHistoryDisabled || !heatPumpConfigured,
       },
       alertsWorker: {
         lastHeartbeatAt: null,
@@ -378,6 +457,7 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
       },
       push: {
         enabled: pushEnabled,
+        disabled: pushDisabled,
         lastSampleAt: null,
         lastError: null,
       },
@@ -388,10 +468,12 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
         lastRunAt: antivirusStatus.lastRunAt,
         lastResult: antivirusStatus.lastResult,
         lastError: antivirusStatus.lastError,
+        latencyMs: antivirusLatencyMs,
       },
       storage: {
-        root: getStorageRoot(),
+        root: storageRoot,
         writable: false,
+        latencyMs: storageLatencyMs,
       },
       maintenance: {
         openCount: 0,

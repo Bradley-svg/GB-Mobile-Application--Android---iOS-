@@ -2,9 +2,12 @@ import { z } from 'zod';
 import {
   fetchHeatPumpHistory,
   getHeatPumpHistoryConfig,
+  type HeatPumpHistoryPoint,
   type HeatPumpHistoryResult,
+  type HeatPumpHistorySeries,
 } from '../integrations/heatPumpHistoryClient';
 import { getDeviceById } from '../repositories/devicesRepository';
+import { logger } from '../config/logger';
 
 const isoString = z
   .string()
@@ -34,6 +37,11 @@ const heatPumpHistoryRequestSchema = z
     (value) => Date.parse(value.from) <= Date.parse(value.to),
     { message: '`from` must be before or equal to `to`' }
   );
+
+const DEFAULT_MAX_RANGE_HOURS = 24;
+const DEFAULT_PAGE_RANGE_HOURS = 6;
+const warnedInvalidEnvKeys = new Set<string>();
+const log = logger.child({ module: 'heatPumpHistoryService' });
 
 export class HeatPumpHistoryValidationError extends Error {
   constructor(message = 'Invalid body') {
@@ -78,9 +86,26 @@ export async function getHistoryForRequest(
   }
 
   const config = getHeatPumpHistoryConfig();
+  if (config.disabled) {
+    throw new HeatPumpHistoryFeatureDisabledError(
+      'Heat pump history is disabled via HEATPUMP_HISTORY_DISABLED'
+    );
+  }
   if (config.nodeEnv !== 'development' && config.missingKeys.length > 0) {
     throw new HeatPumpHistoryFeatureDisabledError(
       'Heat pump history is disabled until required env vars are set'
+    );
+  }
+
+  const maxRangeHours = resolveMaxRangeHours();
+  const fromDate = new Date(parsed.data.from);
+  const toDate = new Date(parsed.data.to);
+  const rangeMs = toDate.getTime() - fromDate.getTime();
+  const maxRangeMs = maxRangeHours * 60 * 60 * 1000;
+
+  if (rangeMs > maxRangeMs) {
+    throw new HeatPumpHistoryValidationError(
+      `Requested range exceeds maximum of ${maxRangeHours} hours`
     );
   }
 
@@ -95,5 +120,109 @@ export async function getHistoryForRequest(
   }
 
   const { deviceId: _deviceId, ...historyRequest } = parsed.data;
-  return fetchHeatPumpHistory({ ...historyRequest, mac });
+  const maxPageHours = resolvePageHours(maxRangeHours);
+  if (rangeMs <= maxPageHours * 60 * 60 * 1000) {
+    return fetchHeatPumpHistory({ ...historyRequest, mac });
+  }
+
+  return fetchPagedHistory({ ...historyRequest, mac }, fromDate, toDate, maxPageHours);
+}
+
+function resolveHoursEnv(key: string, fallback: number) {
+  const raw = process.env[key];
+  if (!raw) return fallback;
+
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    if (!warnedInvalidEnvKeys.has(key)) {
+      log.warn({ key, raw }, 'invalid heat pump history hours env; using default');
+      warnedInvalidEnvKeys.add(key);
+    }
+    return fallback;
+  }
+
+  return parsed;
+}
+
+function resolveMaxRangeHours() {
+  return resolveHoursEnv('HEATPUMP_HISTORY_MAX_RANGE_HOURS', DEFAULT_MAX_RANGE_HOURS);
+}
+
+function resolvePageHours(maxRangeHours: number) {
+  const fallback = Math.min(DEFAULT_PAGE_RANGE_HOURS, maxRangeHours);
+  const resolved = resolveHoursEnv('HEATPUMP_HISTORY_PAGE_HOURS', fallback);
+  return Math.min(resolved, maxRangeHours);
+}
+
+function chunkRange(from: Date, to: Date, maxHours: number): Array<{ from: Date; to: Date }> {
+  const segments: Array<{ from: Date; to: Date }> = [];
+  const maxMs = maxHours * 60 * 60 * 1000;
+  let cursor = from.getTime();
+  const end = to.getTime();
+
+  while (cursor < end) {
+    const nextEnd = Math.min(cursor + maxMs, end);
+    segments.push({ from: new Date(cursor), to: new Date(nextEnd) });
+    if (nextEnd === end) break;
+    cursor = nextEnd;
+  }
+
+  return segments;
+}
+
+function mergeSeries(existing: Map<string, HeatPumpHistoryPoint[]>, next: HeatPumpHistorySeries[]) {
+  next.forEach((series) => {
+    const points = existing.get(series.field) ?? [];
+    points.push(...series.points);
+    existing.set(series.field, points);
+  });
+}
+
+function normalizeSeriesMap(series: Map<string, HeatPumpHistoryPoint[]>): HeatPumpHistorySeries[] {
+  return Array.from(series.entries()).map(([field, points]) => {
+    const sorted = [...points].sort(
+      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+    const deduped: HeatPumpHistoryPoint[] = [];
+    sorted.forEach((point) => {
+      const last = deduped[deduped.length - 1];
+      if (last && last.timestamp === point.timestamp) {
+        deduped[deduped.length - 1] = point;
+      } else {
+        deduped.push(point);
+      }
+    });
+
+    return { field, points: deduped };
+  });
+}
+
+async function fetchPagedHistory(
+  request: Omit<Parameters<typeof fetchHeatPumpHistory>[0], 'from' | 'to'>,
+  from: Date,
+  to: Date,
+  maxPageHours: number
+): Promise<HeatPumpHistoryResult> {
+  const segments = chunkRange(from, to, maxPageHours);
+  if (segments.length <= 1) {
+    return fetchHeatPumpHistory({ ...request, from: from.toISOString(), to: to.toISOString() });
+  }
+
+  const combined = new Map<string, HeatPumpHistoryPoint[]>();
+
+  for (const segment of segments) {
+    const result = await fetchHeatPumpHistory({
+      ...request,
+      from: segment.from.toISOString(),
+      to: segment.to.toISOString(),
+    });
+
+    if (!result.ok) {
+      return result;
+    }
+
+    mergeSeries(combined, result.series);
+  }
+
+  return { ok: true, series: normalizeSeriesMap(combined) };
 }

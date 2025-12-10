@@ -8,7 +8,7 @@ export function errorHandler(
   _next: NextFunction
 ) {
   logger.error(
-    { err, module: 'http', path: req.path, method: req.method },
+    { err, module: 'http', path: req.path, method: req.method, requestId: req.requestId },
     'unhandled error'
   );
 

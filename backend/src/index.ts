@@ -15,11 +15,13 @@ import fileRoutes from './routes/fileRoutes';
 import shareLinksRoutes from './routes/shareLinksRoutes';
 import { errorHandler } from './middleware/errorHandler';
 import { createCorsMiddleware } from './middleware/corsConfig';
+import { requestLogger } from './middleware/logger';
 import { logger } from './config/logger';
 import { checkVendorDisableFlags } from './config/vendorGuards';
 
 const app = express();
 
+app.use(requestLogger);
 app.use(createCorsMiddleware());
 app.use(express.json());
 

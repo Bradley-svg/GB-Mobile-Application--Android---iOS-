@@ -135,9 +135,19 @@ describe('GET /health-plus (baseline)', () => {
       ok: true,
       env: process.env.NODE_ENV,
       db: 'ok',
+      dbLatencyMs: expect.any(Number),
       version: 'test-version',
+      vendorFlags: {
+        prodLike: false,
+        disabled: [],
+        mqttDisabled: false,
+        controlDisabled: false,
+        heatPumpHistoryDisabled: false,
+        pushNotificationsDisabled: false,
+      },
       mqtt: {
         configured: false,
+        disabled: false,
         lastIngestAt: null,
         lastErrorAt: null,
         lastError: null,
@@ -145,6 +155,7 @@ describe('GET /health-plus (baseline)', () => {
       },
       control: {
         configured: false,
+        disabled: false,
         lastCommandAt: null,
         lastErrorAt: null,
         lastError: null,
@@ -152,9 +163,11 @@ describe('GET /health-plus (baseline)', () => {
       },
       heatPumpHistory: {
         configured: false,
+        disabled: false,
         lastSuccessAt: null,
         lastErrorAt: null,
         lastError: null,
+        lastCheckAt: null,
         healthy: true,
       },
       alertsWorker: {
@@ -163,6 +176,7 @@ describe('GET /health-plus (baseline)', () => {
       },
       push: {
         enabled: false,
+        disabled: false,
         lastSampleAt: null,
         lastError: null,
       },
@@ -173,10 +187,12 @@ describe('GET /health-plus (baseline)', () => {
         lastRunAt: null,
         lastResult: null,
         lastError: null,
+        latencyMs: null,
       },
       storage: {
         root: expect.any(String),
         writable: expect.any(Boolean),
+        latencyMs: expect.any(Number),
       },
       maintenance: {
         openCount: 5,
@@ -210,9 +226,19 @@ describe('GET /health-plus (baseline)', () => {
       ok: false,
       env: process.env.NODE_ENV,
       db: 'error',
+       dbLatencyMs: expect.any(Number),
       version: 'test-version',
+      vendorFlags: {
+        prodLike: false,
+        disabled: [],
+        mqttDisabled: false,
+        controlDisabled: false,
+        heatPumpHistoryDisabled: false,
+        pushNotificationsDisabled: false,
+      },
       mqtt: {
         configured: false,
+        disabled: false,
         lastIngestAt: null,
         lastErrorAt: null,
         lastError: null,
@@ -220,6 +246,7 @@ describe('GET /health-plus (baseline)', () => {
       },
       control: {
         configured: false,
+        disabled: false,
         lastCommandAt: null,
         lastErrorAt: null,
         lastError: null,
@@ -227,9 +254,11 @@ describe('GET /health-plus (baseline)', () => {
       },
       heatPumpHistory: {
         configured: false,
+        disabled: false,
         lastSuccessAt: null,
         lastErrorAt: null,
         lastError: null,
+        lastCheckAt: null,
         healthy: true,
       },
       alertsWorker: {
@@ -238,6 +267,7 @@ describe('GET /health-plus (baseline)', () => {
       },
       push: {
         enabled: false,
+        disabled: false,
         lastSampleAt: null,
         lastError: null,
       },
@@ -248,10 +278,12 @@ describe('GET /health-plus (baseline)', () => {
         lastRunAt: null,
         lastResult: null,
         lastError: null,
+        latencyMs: null,
       },
       storage: {
         root: expect.any(String),
         writable: expect.any(Boolean),
+        latencyMs: null,
       },
       maintenance: {
         openCount: 0,
@@ -299,7 +331,9 @@ describe('GET /health-plus heat pump history', () => {
     const res = await request(app).get('/health-plus').expect(200);
 
     expect(res.body.heatPumpHistory.configured).toBe(true);
+    expect(res.body.heatPumpHistory.disabled).toBe(false);
     expect(res.body.heatPumpHistory.lastSuccessAt).toBe(recentSuccess.toISOString());
+    expect(res.body.heatPumpHistory.lastCheckAt).toBe(recentSuccess.toISOString());
     expect(res.body.heatPumpHistory.healthy).toBe(true);
     expect(res.body.ok).toBe(true);
   });
@@ -320,7 +354,9 @@ describe('GET /health-plus heat pump history', () => {
     const res = await request(app).get('/health-plus').expect(200);
 
     expect(res.body.heatPumpHistory.configured).toBe(true);
+    expect(res.body.heatPumpHistory.disabled).toBe(false);
     expect(res.body.heatPumpHistory.lastErrorAt).toBe(recentError.toISOString());
+    expect(res.body.heatPumpHistory.lastCheckAt).toBe(recentError.toISOString());
     expect(res.body.heatPumpHistory.healthy).toBe(false);
     expect(res.body.ok).toBe(false);
   });
@@ -351,6 +387,7 @@ describe('GET /health-plus antivirus status', () => {
       lastRunAt,
       lastResult: 'clean',
       lastError: null,
+      latencyMs: expect.any(Number),
     });
     expect(res.body.ok).toBe(true);
   });
@@ -379,6 +416,7 @@ describe('GET /health-plus antivirus status', () => {
       lastRunAt,
       lastResult: 'scan_failed',
       lastError: 'timeout',
+      latencyMs: expect.any(Number),
     });
     expect(res.body.ok).toBe(false);
   });
