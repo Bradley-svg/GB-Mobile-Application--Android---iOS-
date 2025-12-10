@@ -9,10 +9,11 @@
 ## Fixes made
 - Removed/typed all lingering `any` usages in backend controllers/repositories/services and elevated `@typescript-eslint/no-explicit-any` to `error`.
 - Wired backend CI to enforce coverage via `npm run test:coverage` (Vitest thresholds already configured) and kept typecheck/lint/build steps intact.
+- Mobile CI now runs `npm run typecheck` (`tsc --noEmit`) in the mobile job alongside lint/test.
 - Hardened file delivery: signed URLs now embed file/org/user/action metadata, enforce expiry/org scope, and default to `FILE_SIGNED_URL_TTL_MINUTES`; `/files` only serves AV-clean files.
 - Clarified AV/quarantine semantics with a `file_status` column (`clean`/`infected`/`scan_failed`) and 503s on scan failures; non-clean files never stream.
 - Added persistent `audit_events` for file uploads (success/failure), signed URL issuance/download, and share link create/revoke, plus env/docs/test coverage.
-- Made Detox E2E workflow self-contained: starts Postgres, installs backend deps, runs migrate + seed (`seed:e2e`), boots backend server, waits on `/health-plus`, then runs Metro + Detox (`.github/workflows/e2e-android.yml`).
+- Made Detox E2E workflow self-contained: starts Postgres, installs backend deps, runs migrate + seed (`seed:e2e`), boots backend server, waits on `/health-plus`, then runs Metro + Detox (`.github/workflows/e2e-android.yml`); scheduled nightly via cron in addition to manual dispatch.
 - Added `seed:e2e` script (`backend/package.json`) and used `wait-on` for backend readiness; vendor heat-pump history is disabled in CI via `HEATPUMP_HISTORY_DISABLED=true`.
 - Added vendor-disable flags/guards for control/MQTT/push (CI only) plus prod-like warnings via `checkVendorDisableFlags`; documented flags in env templates/checklists/dev notes.
 - Promoted `react-native/no-unused-styles` to `error` across app/components/screens/theme and set backend/mobile lint scripts to `--max-warnings=0` to keep the baseline warning-free.
@@ -23,7 +24,7 @@
 - Retained earlier env/doc improvements (`STAGING_DATABASE_URL`, `DEMO_USER_PASSWORD`, `ALERT_RULE_REFRESH_MINUTES`, `HEALTH_BASE_URL`) in templates and checklists.
 
 ## Dev tooling / hygiene
-- Added dev:all and stop:all orchestration scripts for backend + mobile + emulator; dev:all now logs clear steps and handles missing seed/adb/DB more gracefully.
+- Added dev:all and stop:all orchestration scripts for backend + mobile + emulator; dev:all now checks API/Metro ports before starting, honors GREENBRO_PG_SERVICE, warns when adb is missing, prefers attached devices before launching Pixel_7_API_34, and logs clearer Postgres fallback messaging.
 
 ## Not fixed / notes
 - Detox workflow still depends on default dev env vars for other integrations; flags exist to disable control/MQTT/push/history in CI, but fully offline prod-like runs should supply real secrets.

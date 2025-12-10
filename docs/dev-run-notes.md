@@ -1,14 +1,16 @@
-# Local dev run & smoke (Windows + VS Code)
+﻿# Local dev run & smoke (Windows + VS Code)
 
 ## Recent updates
+- dev-all now checks ports 4000/8081 first (exits if non-Node/Expo processes own them), honors GREENBRO_PG_SERVICE with clearer messaging, prefers attached devices before launching Pixel_7_API_34, and warns if adb is missing.
+- Mobile CI now enforces `npm run typecheck` (`tsc --noEmit`) alongside lint/test; run it locally before pushing.
 - Theming rollout completed across all screens.
 - Unused styles are now enforced as errors across app/components/screens/theme; lint fails on warnings.
 - Navigation/data error guards added and covered by new tests.
 - Error-surface theming unified and exercised by ErrorCard theme snapshots.
 
 ## One-command dev environment
-- `npm run dev:all` – kills old Node/Expo/Metro on ports 4000/8081/8082, ensures Postgres is up (GREENBRO_PG_SERVICE or default), starts backend (migrate + optional seed + dev), starts Expo dev client on 8081, wires adb reverse, starts Pixel_7_API_34, and launches the app (`com.greenbro.mobile/.MainActivity`).
-- `npm run stop:all` – stops Node/Expo/Metro and attempts to shut down any running Android emulator (safe if nothing is running).
+- `npm run dev:all` - checks ports 4000/8081 and bails if they are held by non-Node/Expo processes, honors GREENBRO_PG_SERVICE (logs if missing), kills stale Node/Expo/Metro on 4000/8081/8082, starts backend (install + migrate + optional seed + dev), starts Metro on 8081, wires adb reverse, reuses attached devices/running emulators before launching Pixel_7_API_34, and launches the app (`com.greenbro.mobile/.MainActivity`).
+- `npm run stop:all` - stops Node/Expo/Metro and attempts to shut down any running Android emulator (safe if nothing is running).
 
 Requirements:
 - Postgres service or Docker compose configured as per `scripts/dev-all.ps1`.
@@ -16,7 +18,7 @@ Requirements:
 
 ## Pre-release checklist
 - Backend: `cd backend && npm run lint && npm run typecheck && npm test`
-- Mobile: `cd mobile && npm run lint && npm run typecheck && npm test -- --runInBand`
+- Mobile: `cd mobile && npm run lint && npm run typecheck && npm test -- --runInBand` (same lint/type/test trio runs in CI, including `npm run typecheck`)
 - Optional: Detox E2E: `npm run e2e:android` (emulator + backend required)
 - Vendor disable flags are for CI/local only and must remain **false** in staging/prod (`HEATPUMP_HISTORY_DISABLED`, `CONTROL_API_DISABLED`, `MQTT_DISABLED`, `PUSH_NOTIFICATIONS_DISABLED`).
 - Theming snapshots and ErrorCard guard tests are part of the UI regression safety net; do not skip them when cutting builds.
@@ -36,9 +38,10 @@ Requirements:
 - Commands:
   1) `cd mobile`
   2) `npm install`
-  3) `npm run start:devclient` (starts Metro on `localhost:8082` with cache clear). Equivalent manual command: `npx expo start --dev-client --localhost -c --port 8082`.
-- Port forwarding (emulator running): `adb reverse tcp:8082 tcp:8082` and `adb reverse tcp:4000 tcp:4000`. Helper scripts `./dev.sh` / `.\dev.ps1` now try to run these automatically when Expo starts; rerun the reverse commands after restarting the emulator.
+  3) `npm run start:devclient` (starts Metro on `localhost:8081` with cache clear). Equivalent manual command: `npx expo start --dev-client --localhost -c --port 8081`.
+- Port forwarding (emulator running): `adb reverse tcp:8081 tcp:8081` and `adb reverse tcp:4000 tcp:4000`. Helper scripts `./dev.sh` / `.\dev.ps1` now try to run these automatically when Expo starts; rerun the reverse commands after restarting the emulator.
 - Launch dev client: `adb shell am start -n com.greenbro.mobile/.MainActivity`
+- Typecheck: `npm run typecheck` (tsc --noEmit); this runs in CI alongside lint/test.
 - If the dev client is missing/out-of-date: `npx expo run:android --variant debug` then re-run the start command above.
 
 ## Smoke walkthrough (Android emulator)
@@ -46,17 +49,17 @@ Requirements:
 - Dashboard: fleet summary (sites/devices/alerts/health), search entry, connectivity pills, no offline banner when online, brand greens/greys only.
 - Search: `/fleet` search over sites/devices/alerts with health filter chips; offline uses cached data and shows stale indicator.
 - Site overview: site card status/last seen, device list with health + connectivity pills, last seen, quick actions (Device, Alerts, Documents).
-- Device detail: hero (name/firmware/connectivity), telemetry charts (1h/24h/7d tabs), “Compressor current (A)” history card shows “history disabled/unavailable” if HEATPUMP_* unset; control panel/setpoint/mode disabled when offline; schedule card + edit modal; control history from `/devices/:id/commands`; Documents link to documents screen.
-- Alerts: list with severity/health filters + offline cache; alert detail shows rule summary, snooze chips (15m/1h/4h/until resolved, max 24h), “Create work order” button and linked work-order preview.
-- Work orders & maintenance: list with status filter chips/SLA pills; detail supports status transitions (open → in_progress → done/cancelled), notes, checklist toggles, attachments card; maintenance calendar shows upcoming items from SLA/maintenance summary.
+- Device detail: hero (name/firmware/connectivity), telemetry charts (1h/24h/7d tabs), ΓÇ£Compressor current (A)ΓÇ¥ history card shows ΓÇ£history disabled/unavailableΓÇ¥ if HEATPUMP_* unset; control panel/setpoint/mode disabled when offline; schedule card + edit modal; control history from `/devices/:id/commands`; Documents link to documents screen.
+- Alerts: list with severity/health filters + offline cache; alert detail shows rule summary, snooze chips (15m/1h/4h/until resolved, max 24h), ΓÇ£Create work orderΓÇ¥ button and linked work-order preview.
+- Work orders & maintenance: list with status filter chips/SLA pills; detail supports status transitions (open ΓåÆ in_progress ΓåÆ done/cancelled), notes, checklist toggles, attachments card; maintenance calendar shows upcoming items from SLA/maintenance summary.
 - Documents: site/device documents list with upload/delete online-only; URLs point at `/files` and require auth (404 outside your org); Auth header must be forwarded if fronted by a CDN/proxy.
-- Sharing & access: Profile shows role pill (Owner) and “Sharing & access” → Share Links screen (list/create/revoke) for Admin/Owner; contractor flow remains disabled/read-only.
+- Sharing & access: Profile shows role pill (Owner) and ΓÇ£Sharing & accessΓÇ¥ ΓåÆ Share Links screen (list/create/revoke) for Admin/Owner; contractor flow remains disabled/read-only.
 - Diagnostics: Diagnostics screen shows `/health-plus` snapshot (db/mqtt/control/heatPumpHistory/alertsEngine/push/storage/workOrders) and alerts engine metrics (last run/duration/rules/active counts).
-- Offline smoke: toggle Airplane Mode → offline banner; Dashboard/Site/Device/Alerts use cached data and mark it stale; control/ack/mute/work-order mutations disabled with clear messaging.
+- Offline smoke: toggle Airplane Mode ΓåÆ offline banner; Dashboard/Site/Device/Alerts use cached data and mark it stale; control/ack/mute/work-order mutations disabled with clear messaging.
 
 ## Tests / verification commands (manual run as needed)
 - Backend: `cd backend && npm run typecheck && npm run lint && TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm test && npm run build`
-- 2025-12-08: ran `npm run migrate:dev`; `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm run migrate:test`; `npm test`; `npm run build` against local Postgres 16 — all passed. CSV export RBAC (owner/admin/facilities vs contractor), heat pump history scoping/env gating (good MAC, other-org, non-dev env missing), and `/files` org isolation now live in the standard `npm test` suite.
+- 2025-12-08: ran `npm run migrate:dev`; `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm run migrate:test`; `npm test`; `npm run build` against local Postgres 16 ΓÇö all passed. CSV export RBAC (owner/admin/facilities vs contractor), heat pump history scoping/env gating (good MAC, other-org, non-dev env missing), and `/files` org isolation now live in the standard `npm test` suite.
 - AV scan tests: env knobs are `AV_SCANNER_ENABLED`, `AV_SCANNER_CMD` (or `AV_SCANNER_HOST`/`AV_SCANNER_PORT` for clamd) plus `FILE_STORAGE_ROOT`. With the bundled stub: `cd backend && npm run test:av`; or `cross-env AV_SCANNER_ENABLED=true AV_SCANNER_CMD="node ./test/fixtures/av-sim.js" npm test -- test/virusScanner.test.ts`; or `cross-env AV_SCANNER_ENABLED=true AV_SCANNER_CMD="node ./test/fixtures/av-sim.js" npm test -- test/workOrderAttachments.api.test.ts test/documents.api.test.ts`. CI uses the stubbed script, not a real ClamAV daemon.
 - Mobile: `cd mobile && npm run typecheck && npm run lint && npm test -- --runInBand`
 - CI mirrors this (`npm test` plain for backend; `npm test -- --runInBand` for mobile). Detox configs remain intact; do not run Detox here.
@@ -68,11 +71,13 @@ Requirements:
 
 ### 2025-12-08: end-to-end local stack spin-up (Windows, Pixel_7_API_34 emulator)
 - Backend commands (PowerShell): `cd backend`; `npm install`; `npm run migrate:dev`; `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm run migrate:test`; `node scripts/init-local-db.js`; `npm run typecheck`; `npm run lint`; `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm test`; `npm run build`; `npm run dev` (running in its own terminal).
-- Health: `curl http://localhost:4000/health-plus` ⇒ `ok:true`, `db:"ok"`, storage writable, integrations configured:false where expected.
-- Mobile/Metro: `cd mobile`; `npm install`; `npx expo start --dev-client --localhost -c --port 8082 --android` (Metro listening on 8082).
-- Emulator wiring: `emulator -avd Pixel_7_API_34` (via `C:\Users\bradl.CRABNEBULA\AppData\Local\Android\Sdk\emulator\emulator.exe`); `adb reverse tcp:8082 tcp:8082`; `adb reverse tcp:4000 tcp:4000`; dev client installed with `npx expo run:android --variant debug`; app launched with `adb shell am start -n com.greenbro.mobile/.MainActivity`.
-- Verification: `adb logcat` shows Metro URL `localhost:8082` and JS bundle loaded; backend login succeeds for `demo@greenbro.com` / `password` via `curl`/`Invoke-RestMethod`; no Metro/backend error spam observed after launch.
+- Health: `curl http://localhost:4000/health-plus` ΓçÆ `ok:true`, `db:"ok"`, storage writable, integrations configured:false where expected.
+- Mobile/Metro: `cd mobile`; `npm install`; `npx expo start --dev-client --localhost -c --port 8081 --android` (Metro listening on 8081).
+- Emulator wiring: `emulator -avd Pixel_7_API_34` (via `C:\Users\bradl.CRABNEBULA\AppData\Local\Android\Sdk\emulator\emulator.exe`); `adb reverse tcp:8081 tcp:8081`; `adb reverse tcp:4000 tcp:4000`; dev client installed with `npx expo run:android --variant debug`; app launched with `adb shell am start -n com.greenbro.mobile/.MainActivity`.
+- Verification: `adb logcat` shows Metro URL `localhost:8081` and JS bundle loaded; backend login succeeds for `demo@greenbro.com` / `password` via `curl`/`Invoke-RestMethod`; no Metro/backend error spam observed after launch.
 
 ## Branding quick-check
 - Canonical assets only: `docs/branding/official/greenbro-logo-horizontal-gearO.{svg,png}`, `mobile/assets/greenbro/greenbro-logo-horizontal.png`, `greenbro-splash.png`, `greenbro-icon-1024.png`.
 - Quick grep sanity: run the two `rg` checks referenced in `docs/branding/README.md`; expected hits are limited to that warning, and app assets already point to the official PNG.
+
+
