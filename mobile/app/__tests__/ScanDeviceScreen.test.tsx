@@ -1,5 +1,6 @@
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { Text } from 'react-native';
 import { ScanDeviceScreen } from '../screens/Scan/ScanDeviceScreen';
 import { DashboardScreen } from '../screens/Dashboard/DashboardScreen';
 import { lookupDeviceByCode } from '../api/client';
@@ -8,6 +9,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useNetworkBanner } from '../hooks/useNetworkBanner';
 import { loadJsonWithMetadata } from '../utils/storage';
 import { useAuthStore } from '../store/authStore';
+import { useQrScanner, type QrScannerAdapter } from '../hooks/useQrScanner';
 
 jest.mock('../api/client', () => ({
   lookupDeviceByCode: jest.fn(),
@@ -22,6 +24,10 @@ jest.mock('../hooks/useNetworkBanner', () => ({
   useNetworkBanner: jest.fn(),
 }));
 
+jest.mock('../hooks/useQrScanner', () => ({
+  useQrScanner: jest.fn(),
+}));
+
 jest.mock('../utils/storage', () => ({
   loadJsonWithMetadata: jest.fn(),
   saveJson: jest.fn(),
@@ -32,6 +38,19 @@ const navigationMock = {
   navigate: jest.fn(),
   goBack: jest.fn(),
 };
+
+const createMockScanner = (onScan?: (text: string) => void): QrScannerAdapter => ({
+  permission: 'granted',
+  requestPermission: jest.fn(),
+  ScannerView: ({ onCodeScanned, testID }: { onCodeScanned: (text: string) => void; testID?: string }) => (
+    <Text
+      testID={testID ?? 'scan-device-scanner'}
+      onPress={() => (onScan ? onScan('device:mock') : onCodeScanned('device:mock'))}
+    >
+      mock scanner
+    </Text>
+  ),
+});
 
 describe('ScanDeviceScreen', () => {
   beforeEach(() => {
@@ -54,6 +73,7 @@ describe('ScanDeviceScreen', () => {
     });
     (useAlerts as jest.Mock).mockReturnValue({ data: [], isLoading: false });
     (loadJsonWithMetadata as jest.Mock).mockResolvedValue(null);
+    (useQrScanner as jest.Mock).mockReturnValue(createMockScanner());
   });
 
   afterEach(() => {
@@ -83,9 +103,9 @@ describe('ScanDeviceScreen', () => {
       navigateTo: 'deviceDetail',
     });
 
-    render(<ScanDeviceScreen />);
+    render(<ScanDeviceScreen scannerAdapter={createMockScanner()} />);
 
-    fireEvent.press(screen.getByTestId('scan-device-frame'));
+    fireEvent.press(screen.getByTestId('scan-device-scanner'));
 
     await waitFor(() =>
       expect(navigationMock.navigate).toHaveBeenCalledWith('DeviceDetail', { deviceId: 'device-1' })
@@ -98,9 +118,9 @@ describe('ScanDeviceScreen', () => {
       response: { status: 404, data: { code: 'ERR_DEVICE_CODE_NOT_FOUND' } },
     });
 
-    render(<ScanDeviceScreen />);
+    render(<ScanDeviceScreen scannerAdapter={createMockScanner()} />);
 
-    fireEvent.press(screen.getByTestId('scan-device-frame'));
+    fireEvent.press(screen.getByTestId('scan-device-scanner'));
 
     await waitFor(() => expect(screen.getByTestId('scan-device-error')).toBeTruthy());
   });
@@ -111,9 +131,9 @@ describe('ScanDeviceScreen', () => {
       response: { status: 403, data: { code: 'ERR_QR_FORBIDDEN' } },
     });
 
-    render(<ScanDeviceScreen />);
+    render(<ScanDeviceScreen scannerAdapter={createMockScanner()} />);
 
-    fireEvent.press(screen.getByTestId('scan-device-frame'));
+    fireEvent.press(screen.getByTestId('scan-device-scanner'));
 
     await waitFor(() => expect(screen.getByTestId('scan-device-error')).toBeTruthy());
   });
@@ -121,9 +141,9 @@ describe('ScanDeviceScreen', () => {
   it('shows network error banner on unexpected failures', async () => {
     (lookupDeviceByCode as jest.Mock).mockRejectedValue(new Error('network down'));
 
-    render(<ScanDeviceScreen />);
+    render(<ScanDeviceScreen scannerAdapter={createMockScanner()} />);
 
-    fireEvent.press(screen.getByTestId('scan-device-frame'));
+    fireEvent.press(screen.getByTestId('scan-device-scanner'));
 
     await waitFor(() => expect(screen.getByTestId('scan-device-network-error')).toBeTruthy());
   });
@@ -135,9 +155,7 @@ describe('ScanDeviceScreen', () => {
       });
     });
 
-    render(<ScanDeviceScreen />);
-
-    fireEvent.press(screen.getByTestId('scan-device-frame'));
+    render(<ScanDeviceScreen scannerAdapter={createMockScanner()} />);
 
     expect(lookupDeviceByCode).not.toHaveBeenCalled();
     expect(screen.getByTestId('scan-device-restricted')).toBeTruthy();

@@ -6,6 +6,7 @@ import { useLogin } from '../api/hooks';
 import { ThemeContext } from '../theme/ThemeProvider';
 import { lightTheme } from '../theme/themes';
 import { useAuthStore } from '../store/authStore';
+import * as navigation from '@react-navigation/native';
 
 jest.mock('../api/hooks', () => ({
   useLogin: jest.fn(),
@@ -22,8 +23,6 @@ jest.mock('@react-navigation/native', () => {
 
 const renderWithProviders = (ui: React.ReactElement, navigate = jest.fn()) => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const navigation = require('@react-navigation/native');
   (navigation.useNavigation as jest.Mock).mockReturnValue({ navigate });
 
   return render(

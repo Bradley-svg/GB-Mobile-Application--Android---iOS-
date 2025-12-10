@@ -1,12 +1,13 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TwoFactorScreen } from '../screens/Auth/TwoFactorScreen';
 import { useLoginTwoFactor } from '../api/auth/hooks';
 import { ThemeContext } from '../theme/ThemeProvider';
 import { lightTheme } from '../theme/themes';
 import { useAuthStore } from '../store/authStore';
+import * as navigation from '@react-navigation/native';
 
 jest.mock('../api/auth/hooks', () => ({
   useLoginTwoFactor: jest.fn(),
@@ -23,8 +24,6 @@ jest.mock('@react-navigation/native', () => {
 
 const renderWithProviders = (ui: React.ReactElement) => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const navigation = require('@react-navigation/native');
   (navigation.useRoute as jest.Mock).mockReturnValue({
     params: { challengeToken: 'challenge-123', email: 'demo@example.com' },
   });

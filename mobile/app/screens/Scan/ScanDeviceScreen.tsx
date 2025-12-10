@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text } from 'react-native';
 import axios from 'axios';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -11,6 +11,7 @@ import { createThemedStyles } from '../../theme/createThemedStyles';
 import { typography } from '../../theme/typography';
 import { useAuthStore } from '../../store/authStore';
 import type { AppTheme } from '../../theme/types';
+import { useQrScanner, type QrScannerAdapter } from '../../hooks/useQrScanner';
 
 type Navigation = NativeStackNavigationProp<AppStackParamList>;
 
@@ -19,7 +20,11 @@ type ScanError =
   | { type: 'forbidden'; message: string }
   | null;
 
-export const ScanDeviceScreen: React.FC = () => {
+type ScanDeviceScreenProps = {
+  scannerAdapter?: QrScannerAdapter;
+};
+
+export const ScanDeviceScreen: React.FC<ScanDeviceScreenProps> = ({ scannerAdapter }) => {
   const navigation = useNavigation<Navigation>();
   const { theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -30,8 +35,8 @@ export const ScanDeviceScreen: React.FC = () => {
   const [networkError, setNetworkError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const lastScanRef = useRef<string | null>(null);
-
-  const mockCode = 'device:33333333-3333-3333-3333-333333333333';
+  const defaultScanner = useQrScanner(canScan);
+  const { permission, requestPermission, ScannerView } = scannerAdapter ?? defaultScanner;
 
   const handleScan = useCallback(
     async (scannedCode: string) => {
@@ -69,6 +74,54 @@ export const ScanDeviceScreen: React.FC = () => {
     [canScan, isProcessing, navigation]
   );
 
+  const renderScanner = () => {
+    if (!canScan) {
+      return (
+        <RoleRestrictedHint
+          action="scan devices"
+          allowedRoles={['owner', 'admin', 'facilities']}
+          testID="scan-device-restricted"
+        />
+      );
+    }
+
+    if (permission === 'checking') {
+      return (
+        <ErrorCard
+          title="Requesting permission"
+          message="Requesting camera access to scan the QR code."
+          testID="scan-device-permission"
+        />
+      );
+    }
+
+    if (permission === 'denied') {
+      return (
+        <View style={styles.permissionContainer}>
+          <ErrorCard
+            title="Camera permission denied"
+            message="Enable camera access to scan devices."
+            testID="scan-device-permission-denied"
+          />
+          <PrimaryButton
+            label="Grant permission"
+            onPress={() => requestPermission().catch(() => setNetworkError('Unable to request permission'))}
+            style={styles.permissionButton}
+            variant="outline"
+            testID="scan-device-permission-button"
+          />
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.scannerWrapper} testID="scan-device-frame">
+        <ScannerView onCodeScanned={handleScan} testID="scan-device-scanner" />
+        <Text style={[typography.caption, styles.frameHint]}>Align the QR code inside the frame.</Text>
+      </View>
+    );
+  };
+
   return (
     <Screen scroll={false} testID="scan-device-screen">
       {networkError ? (
@@ -79,30 +132,7 @@ export const ScanDeviceScreen: React.FC = () => {
         <Text style={[typography.body, styles.subtitle]}>
           Align the QR code inside the frame to open the device.
         </Text>
-        {!canScan ? (
-          <RoleRestrictedHint
-            action="scan devices"
-            allowedRoles={['owner', 'admin', 'facilities']}
-            testID="scan-device-restricted"
-          />
-        ) : null}
-        <View style={styles.frameContainer}>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            style={styles.scanFrame}
-            disabled={!canScan || isProcessing}
-            onPress={() => handleScan(mockCode)}
-            testID="scan-device-frame"
-            accessibilityLabel="scan-device-frame"
-          >
-            <Text style={[typography.caption, styles.frameHint]}>
-              Tap to simulate scan
-            </Text>
-            <Text style={[typography.caption, styles.frameSubtle]}>
-              TODO: wire up the camera scanner when available.
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <View style={styles.frameContainer}>{renderScanner()}</View>
         {error?.type === 'not_found' ? (
           <ErrorCard
             title="Device not found"
@@ -147,24 +177,26 @@ const createStyles = (theme: AppTheme) =>
     frameContainer: {
       marginVertical: theme.spacing.lg,
     },
-    scanFrame: {
-      height: 220,
+    scannerWrapper: {
+      height: 280,
       borderRadius: theme.radius.lg,
+      overflow: 'hidden',
       borderWidth: 2,
       borderColor: theme.colors.brandGreen,
       backgroundColor: theme.colors.backgroundAlt,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: theme.spacing.md,
     },
     frameHint: {
-      color: theme.colors.textPrimary,
-    },
-    frameSubtle: {
       color: theme.colors.textSecondary,
-      marginTop: theme.spacing.xs,
+      textAlign: 'center',
+      marginTop: theme.spacing.sm,
     },
     cancelButton: {
       marginTop: theme.spacing.lg,
+    },
+    permissionContainer: {
+      marginTop: theme.spacing.md,
+    },
+    permissionButton: {
+      marginTop: theme.spacing.sm,
     },
   });

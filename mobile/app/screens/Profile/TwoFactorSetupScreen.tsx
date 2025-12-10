@@ -46,7 +46,7 @@ export const TwoFactorSetupScreen: React.FC = () => {
         }
       },
     });
-  }, []);
+  }, [setupMutation]);
 
   const onConfirm = async () => {
     setError(null);

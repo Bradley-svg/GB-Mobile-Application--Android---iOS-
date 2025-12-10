@@ -201,3 +201,20 @@ jest.mock('expo-image-picker', () => ({
   launchImageLibraryAsync: jest.fn(async () => ({ canceled: true, assets: [] })),
   MediaTypeOptions: { All: 'All', Images: 'Images' },
 }));
+
+jest.mock('expo-barcode-scanner', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const MockScanner = ({ onBarCodeScanned, testID }: { onBarCodeScanned?: (event: any) => void; testID?: string }) =>
+    React.createElement(View, {
+      testID: testID ?? 'mock-barcode-scanner',
+      onTouchEnd: () => onBarCodeScanned?.({ data: 'mock-code' }),
+      style: { flex: 1 },
+    });
+
+  return {
+    BarCodeScanner: MockScanner,
+    Constants: { BarCodeType: { qr: 'qr' } },
+    requestPermissionsAsync: jest.fn(async () => ({ status: 'granted' })),
+  };
+});
