@@ -1,6 +1,6 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-$hadError = $false
+$hadFatalError = $false
 
 Write-Host "=== GREENBRO dev:all orchestrator ==="
 Write-Host "This will: kill old processes, start backend, start mobile, wire adb, and launch the emulator."
@@ -16,6 +16,51 @@ $repoRoot = Resolve-Path -Path (Join-Path $PSScriptRoot "..")
 $backendPath = Join-Path $repoRoot "backend"
 $mobilePath = Join-Path $repoRoot "mobile"
 $composeFile = Join-Path $repoRoot "docker-compose.dev.yml"
+
+function Add-AndroidSdkToPath {
+  $sdkRoot = $null
+  if ($Env:ANDROID_HOME) {
+    $sdkRoot = $Env:ANDROID_HOME
+  } elseif ($Env:ANDROID_SDK_ROOT) {
+    $sdkRoot = $Env:ANDROID_SDK_ROOT
+  }
+
+  if (-not $sdkRoot) {
+    return $false
+  }
+
+  $pathsToPrepend = @()
+  $platformTools = Join-Path $sdkRoot "platform-tools"
+  $emulatorDir = Join-Path $sdkRoot "emulator"
+
+  foreach ($candidate in @($platformTools, $emulatorDir)) {
+    if ($candidate -and (Test-Path $candidate)) {
+      if (-not ($Env:PATH.Split(';') -contains $candidate)) {
+        $pathsToPrepend += $candidate
+      }
+    }
+  }
+
+  if ($pathsToPrepend.Count -gt 0) {
+    $Env:PATH = ($pathsToPrepend -join ';') + ';' + $Env:PATH
+  }
+
+  return $true
+}
+
+function Format-ErrorMessage {
+  param([Parameter(Mandatory = $true)]$ErrorObject)
+
+  try {
+    if ($ErrorObject -and $ErrorObject.Exception) {
+      return $ErrorObject.Exception.Message
+    }
+
+    return "$ErrorObject"
+  } catch {
+    return "$ErrorObject"
+  }
+}
 
 function Get-PortProcesses {
   param(
@@ -84,7 +129,7 @@ function Assert-PortAvailable {
 
   if ($blockingArray.Count -gt 0) {
     Write-Host "ERROR: Port $Port appears to be owned by a non-Node/Expo process. Stop it or free the port before rerunning dev-all." -ForegroundColor Red
-    $script:hadError = $true
+    $script:hadFatalError = $true
     exit 1
   }
 
@@ -116,13 +161,13 @@ function Get-AdbDeviceSets {
 
 if (-not (Test-Path $backendPath)) {
   Write-Host "ERROR: backend directory not found at $backendPath" -ForegroundColor Red
-  $hadError = $true
+  $hadFatalError = $true
   exit 1
 }
 
 if (-not (Test-Path $mobilePath)) {
   Write-Host "ERROR: mobile directory not found at $mobilePath" -ForegroundColor Red
-  $hadError = $true
+  $hadFatalError = $true
   exit 1
 }
 
@@ -132,7 +177,7 @@ Assert-PortAvailable -Port $metroPort -AllowedProcessNames $allowedDevProcesses
 
 Write-Host "Killing old Node/Expo/Metro processes on ports $apiPort, $metroPort, $legacyMetroPort..."
 try {
-  npx kill-port $apiPort $metroPort $legacyMetroPort | Out-Null
+  npx.cmd kill-port $apiPort $metroPort $legacyMetroPort | Out-Null
 } catch {
   Write-Host "kill-port not available or failed; continuing..."
 }
@@ -146,6 +191,23 @@ foreach ($name in @("node", "expo", "metro")) {
 }
 
 if ($processes.Count -gt 0) {
+  $safeProcesses = @()
+  foreach ($proc in $processes) {
+    $cmdLine = $null
+    try {
+      $cmdLine = (Get-CimInstance Win32_Process -Filter "ProcessId=$($proc.Id)" -ErrorAction SilentlyContinue).CommandLine
+    } catch {
+      $cmdLine = $null
+    }
+    if ($cmdLine -and $cmdLine -match "npm-cli.js") {
+      continue
+    }
+    $safeProcesses += $proc
+  }
+  $processes = $safeProcesses
+}
+
+if ($processes.Count -gt 0) {
   Write-Host "Stopping existing node/expo/metro processes..."
   $processes | Stop-Process -Force -ErrorAction SilentlyContinue
 } else {
@@ -155,105 +217,129 @@ if ($processes.Count -gt 0) {
 $pgServiceSource = if ($Env:GREENBRO_PG_SERVICE) { "GREENBRO_PG_SERVICE" } else { "default" }
 Write-Host "Ensuring Postgres service is running (service: $pgServiceName from $pgServiceSource)..."
 $pgStarted = $false
-$pgService = Get-Service -Name $pgServiceName -ErrorAction SilentlyContinue
-if ($pgService) {
-  if ($pgService.Status -ne 'Running') {
-    try {
-      Write-Host "Starting Postgres service $pgServiceName..."
-      Start-Service -Name $pgServiceName
-      Write-Host "Postgres service $pgServiceName started."
-      $pgStarted = $true
-    } catch {
-      Write-Warning "Failed to start Postgres service ${pgServiceName}: $($_)"
-    }
-  } else {
-    Write-Host "Postgres service $pgServiceName already running."
-    $pgStarted = $true
-  }
-} else {
-  if ($Env:GREENBRO_PG_SERVICE) {
-    Write-Warning "Postgres service $pgServiceName (GREENBRO_PG_SERVICE) not found. Update GREENBRO_PG_SERVICE or start Postgres manually."
-  } else {
-    Write-Warning "Postgres service $pgServiceName not found. Set GREENBRO_PG_SERVICE to your service name if it differs from the default."
-  }
-}
-
-if (-not $pgStarted -and (Test-Path $composeFile)) {
-  try {
-    $dockerCmd = Get-Command "docker" -ErrorAction SilentlyContinue
-    if ($dockerCmd) {
+try {
+  $pgService = Get-Service -Name $pgServiceName -ErrorAction SilentlyContinue
+  if ($pgService) {
+    if ($pgService.Status -ne 'Running') {
       try {
-        Write-Host "Attempting docker compose fallback (postgres service)..."
-        docker compose -f $composeFile up -d postgres | Out-Null
-        Write-Host "docker compose up -d postgres invoked."
+        Write-Host "Starting Postgres service $pgServiceName..."
+        Start-Service -Name $pgServiceName
+        Write-Host "Postgres service $pgServiceName started."
         $pgStarted = $true
       } catch {
-        Write-Warning "docker compose start for Postgres failed: $($_)"
+        Write-Warning "Failed to start Postgres service ${pgServiceName}: $($_)"
       }
     } else {
-      Write-Warning "docker not available; skipping docker compose Postgres start."
+      Write-Host "Postgres service $pgServiceName already running."
+      $pgStarted = $true
     }
-  } catch {
-    Write-Warning "Docker fallback failed: $($_.Exception.Message)"
+  } else {
+    if ($Env:GREENBRO_PG_SERVICE) {
+      Write-Warning "Postgres service $pgServiceName (GREENBRO_PG_SERVICE) not found. Update GREENBRO_PG_SERVICE or start Postgres manually."
+    } else {
+      Write-Warning "Postgres service $pgServiceName not found. Set GREENBRO_PG_SERVICE to your service name if it differs from the default."
+    }
   }
-} elseif (-not $pgStarted) {
-  Write-Host "docker-compose.dev.yml not found at $composeFile; skipping docker compose fallback."
+
+  if (-not $pgStarted -and (Test-Path $composeFile)) {
+    try {
+      $dockerCmd = Get-Command "docker" -ErrorAction SilentlyContinue
+      if ($dockerCmd) {
+        try {
+          Write-Host "Attempting docker compose fallback (postgres service)..."
+          docker compose -f $composeFile up -d postgres | Out-Null
+          Write-Host "docker compose up -d postgres invoked."
+          $pgStarted = $true
+        } catch {
+          Write-Warning "docker compose start for Postgres failed: $($_)"
+        }
+      } else {
+        Write-Warning "docker not available; skipping docker compose Postgres start."
+      }
+    } catch {
+      Write-Warning "Docker fallback failed: $(Format-ErrorMessage $_)"
+    }
+  } elseif (-not $pgStarted) {
+    Write-Host "docker-compose.dev.yml not found at $composeFile; skipping docker compose fallback."
+  }
+} catch {
+  Write-Warning "Unexpected error while checking Postgres: $(Format-ErrorMessage $_)"
 }
 
 if (-not $pgStarted) {
-  Write-Warning "Postgres was not started by this script; ensure your database is running before proceeding."
-  $hadError = $true
+  Write-Error "Postgres was not started by this script; ensure your database service is running before proceeding."
+  $hadFatalError = $true
 }
 
-Write-Host "Starting backend (install + migrate + seed + dev)..."
-$backendScript = @"
-Set-Location "$backendPath"
-npm install
-npm run migrate:dev
-if (Test-Path "package.json") {
-  try {
-    `$pkg = Get-Content package.json -Raw | ConvertFrom-Json
-    if (`$pkg.scripts.'seed:e2e') {
-      Write-Host "Running seed:e2e..."
-      try {
-        npm run seed:e2e
-      } catch {
-        Write-Host "seed:e2e failed: `$($_)" -ForegroundColor Yellow
+Write-Host "Preparing backend (install + migrate + seed)..."
+try {
+  Push-Location $backendPath
+  npm.cmd install
+  npm.cmd run migrate:dev
+
+  if (Test-Path "package.json") {
+    try {
+      $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+      if ($pkg.scripts.'seed:e2e') {
+        Write-Host "Running seed:e2e..."
+        npm.cmd run seed:e2e
+      } else {
+        Write-Host "No seed:e2e script found; skipping seeding." -ForegroundColor Yellow
       }
-    } else {
-      Write-Host "No seed:e2e script found; skipping seeding." -ForegroundColor Yellow
+    } catch {
+      Write-Error "Could not complete backend seed:e2e: $(Format-ErrorMessage $_)"
+      $hadFatalError = $true
     }
+  } else {
+    Write-Host "No package.json found; skipping seeding." -ForegroundColor Yellow
+  }
+} catch {
+  Write-Error "Backend setup failed (install/migrate/seed): $(Format-ErrorMessage $_)"
+  $hadFatalError = $true
+} finally {
+  Pop-Location | Out-Null
+}
+
+if (-not $hadFatalError) {
+  Write-Host "Starting backend dev server on port $apiPort..."
+  $backendStartScript = @"
+Set-Location "$backendPath"
+npm.cmd run dev
+"@
+  try {
+    Start-Process powershell -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", $backendStartScript
   } catch {
-    Write-Host "Could not read package.json to check for seed:e2e; skipping seeding. `$($_)" -ForegroundColor Yellow
+    Write-Error "Failed to launch backend process: $(Format-ErrorMessage $_)"
+    $hadFatalError = $true
   }
 } else {
-  Write-Host "No package.json found; skipping seeding." -ForegroundColor Yellow
-}
-npm run dev
-"@
-try {
-  Start-Process powershell -ArgumentList "-NoExit", "-Command", $backendScript
-} catch {
-  Write-Warning "Failed to launch backend process: $($_.Exception.Message)"
-  $hadError = $true
+  Write-Warning "Skipping backend start because earlier backend setup failed."
 }
 
-Write-Host "Starting mobile Metro / Expo dev client on port $metroPort..."
-$mobileScript = @"
+if (-not $hadFatalError) {
+  Write-Host "Starting mobile Metro / Expo dev client on port $metroPort..."
+  $mobileScript = @"
 Set-Location "$mobilePath"
-npm install
-npx expo start --dev-client --localhost --port $metroPort --clear
+npm.cmd install
+npx.cmd expo start --dev-client --localhost --port $metroPort --clear
 "@
-try {
-  Start-Process powershell -ArgumentList "-NoExit", "-Command", $mobileScript
-} catch {
-  Write-Warning "Failed to launch mobile Metro/Expo process: $($_.Exception.Message)"
-  $hadError = $true
+  try {
+    Start-Process powershell -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", $mobileScript
+  } catch {
+    Write-Error "Failed to launch mobile Metro/Expo process: $(Format-ErrorMessage $_)"
+    $hadFatalError = $true
+  }
+} else {
+  Write-Warning "Skipping mobile start because backend setup/start failed."
 }
 
 Start-Sleep -Seconds 15
 
 Write-Host "Setting up ADB reverse (ports $apiPort, $metroPort) and launching emulator/app..."
+$androidPathAdded = Add-AndroidSdkToPath
+if (-not $androidPathAdded) {
+  Write-Warning "ANDROID_HOME or ANDROID_SDK_ROOT not set; adb/emulator wiring may be skipped."
+}
 try {
   $adbReady = $true
   $adbCmd = Get-Command "adb" -ErrorAction SilentlyContinue
@@ -352,13 +438,13 @@ try {
     }
   }
 } catch {
-  Write-Warning "ADB/emulator wiring failed: $($_.Exception.Message)"
+  Write-Warning "ADB/emulator wiring failed: $(Format-ErrorMessage $_)"
 }
 
-if ($hadError) {
-  Write-Error "dev-all encountered one or more fatal errors."
+if ($hadFatalError) {
+  Write-Error "dev-all encountered one or more fatal errors. Check the log output above."
   exit 1
 } else {
-  Write-Host "dev-all completed successfully. Backend + Metro + emulator are running."
+  Write-Host "dev-all completed successfully. Backend, Metro, and emulator wiring have been attempted."
   exit 0
 }

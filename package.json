@@ -5,8 +5,8 @@
   "scripts": {
     "dev:backend": "cd backend && npm run dev",
     "dev:mobile": "cd mobile && npm run start:devclient",
-    "dev:all": "powershell -ExecutionPolicy Bypass -File scripts/dev-all.ps1",
-    "stop:all": "powershell -ExecutionPolicy Bypass -File scripts/stop-all.ps1",
+    "dev:all": "powershell -ExecutionPolicy Bypass -File ./scripts/dev-all.ps1",
+    "stop:all": "powershell -ExecutionPolicy Bypass -File ./scripts/stop-all.ps1",
     "lint": "npm run lint:backend && npm run lint:mobile",
     "lint:backend": "cd backend && npm run lint",
     "lint:mobile": "cd mobile && npm run lint",

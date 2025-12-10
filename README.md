@@ -31,4 +31,11 @@ npm install
 npm run dev
 ```
 
+## Run full stack locally
+
+```powershell
+npm run stop:all    # optional cleanup
+npm run dev:all     # starts backend + Metro + emulator (adb/emulator wiring is best-effort; logs in spawned terminals)
+```
+
 Environment variables for backend and mobile (dev/staging/prod) are summarised in `docs/envs.md`. Deployment notes for staging/production live in `docs/deploy.md`. Operational readiness checks live in `docs/checklists/operational-readiness.md`. Observability conventions and health-plus monitoring notes are in `docs/observability.md` (see `backend/scripts/check-health-plus.ts` for a CLI probe).
