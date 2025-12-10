@@ -5,12 +5,17 @@ import {
   issueTokens,
   loginUser,
   registerUser,
+  resetPasswordWithToken,
   revokeAllRefreshTokensForUser,
   revokeRefreshTokenForSession,
   verifyRefreshToken,
 } from '../services/authService';
 import { registerPushTokenForUser } from '../services/pushService';
 import { getUserContext } from '../services/userService';
+import { authAttemptLimiter } from '../middleware/rateLimit';
+import { createPasswordResetToken } from '../modules/auth/passwordResetService';
+import { findUserByEmail } from '../repositories/usersRepository';
+import { logger } from '../config/logger';
 
 const PUSH_TOKEN_RECENT_MINUTES = 10;
 
@@ -21,6 +26,14 @@ export const authLimiter = rateLimit({
   legacyHeaders: false,
   message: { message: 'Too many auth attempts. Please try again shortly.' },
 });
+
+function getAuthMetadata(req: Request) {
+  const userAgentHeader = req.headers['user-agent'];
+  return {
+    userAgent: typeof userAgentHeader === 'string' ? userAgentHeader : null,
+    ip: req.ip,
+  };
+}
 
 export async function signup(req: Request, res: Response, next: NextFunction) {
   const allowPublicSignup = process.env.AUTH_ALLOW_PUBLIC_SIGNUP === 'true';
@@ -56,32 +69,70 @@ export async function login(req: Request, res: Response, next: NextFunction) {
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: 'Invalid body' });
 
+  const authMetadata = getAuthMetadata(req);
+  const twoFactorEnabled = process.env.AUTH_2FA_ENABLED === 'true';
+
   try {
     const user = await loginUser(parsed.data.email, parsed.data.password);
-    const tokens = await issueTokens(user.id, { role: user.role });
+    if (twoFactorEnabled) {
+      // TODO: challenge the user for a second factor before issuing tokens.
+    }
+    const tokens = await issueTokens(user.id, { role: user.role, metadata: authMetadata });
+    authAttemptLimiter.recordSuccess(req.ip, parsed.data.email);
     res.json({ ...tokens, user });
   } catch (e) {
     if (e instanceof Error && e.message === 'INVALID_CREDENTIALS') {
+      authAttemptLimiter.recordFailure(req.ip, parsed.data.email);
       return res.status(401).json({ message: 'Invalid email or password' });
     }
     next(e);
   }
 }
 
-/**
- * Password reset is intentionally not implemented. Do not wire this route
- * until a full token/email-based reset flow is designed and approved.
- */
-export async function resetPassword(req: Request, res: Response) {
+export async function requestPasswordReset(req: Request, res: Response, next: NextFunction) {
   const schema = z.object({
     email: z.string().email(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: 'Invalid body' });
 
-  res.status(501).json({
-    error: 'Password reset is not yet implemented; contact support or an administrator.',
+  try {
+    const user = await findUserByEmail(parsed.data.email);
+    if (!user) {
+      return res.json({ message: 'If an account exists, a reset link has been sent.' });
+    }
+
+    const { token, expiresAt } = await createPasswordResetToken(user.id);
+    logger.info(
+      { userId: user.id, email: user.email, resetToken: token, expiresAt },
+      'password reset token generated'
+    );
+
+    // TODO: send password reset email with the token/link.
+    return res.json({ message: 'If an account exists, a reset link has been sent.' });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function resetPassword(req: Request, res: Response, next: NextFunction) {
+  const schema = z.object({
+    token: z.string().min(10),
+    password: z.string().min(6),
   });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: 'Invalid body' });
+
+  try {
+    await resetPasswordWithToken(parsed.data.token, parsed.data.password);
+    return res.json({ ok: true });
+  } catch (e) {
+    const invalidReasons = ['INVALID_RESET_TOKEN', 'EXPIRED_RESET_TOKEN'];
+    if (invalidReasons.includes((e as Error | undefined)?.message ?? '')) {
+      return res.status(400).json({ message: 'Invalid or expired reset token' });
+    }
+    next(e);
+  }
 }
 
 export async function refresh(req: Request, res: Response, next: NextFunction) {
@@ -92,8 +143,15 @@ export async function refresh(req: Request, res: Response, next: NextFunction) {
   if (!parsed.success) return res.status(400).json({ message: 'Invalid body' });
 
   try {
-    const { userId, tokenId } = await verifyRefreshToken(parsed.data.refreshToken);
-    const tokens = await issueTokens(userId, { rotateFromId: tokenId });
+    const { userId, tokenId, role, source } = await verifyRefreshToken(parsed.data.refreshToken);
+    if (process.env.AUTH_2FA_ENABLED === 'true') {
+      // TODO: ensure the session has a valid second factor before issuing new tokens.
+    }
+    const tokens = await issueTokens(userId, {
+      rotateFrom: { id: tokenId, type: source },
+      role,
+      metadata: getAuthMetadata(req),
+    });
     res.json(tokens);
   } catch (e) {
     const invalidReasons = [
@@ -101,6 +159,7 @@ export async function refresh(req: Request, res: Response, next: NextFunction) {
       'REFRESH_TOKEN_NOT_FOUND',
       'REFRESH_TOKEN_USER_MISMATCH',
       'REFRESH_TOKEN_REVOKED',
+      'REFRESH_TOKEN_MISMATCH',
       'REFRESH_TOKEN_EXPIRED',
     ];
     if (invalidReasons.includes((e as Error | undefined)?.message ?? '')) {
@@ -143,6 +202,7 @@ export async function logout(req: Request, res: Response, next: NextFunction) {
       'REFRESH_TOKEN_REVOKED',
       'REFRESH_TOKEN_EXPIRED',
       'MISSING_TOKEN_ID',
+      'REFRESH_TOKEN_MISMATCH',
     ];
     if (invalidReasons.includes((e as Error | undefined)?.message ?? '')) {
       return res.status(401).json({ message: 'Invalid refresh token' });

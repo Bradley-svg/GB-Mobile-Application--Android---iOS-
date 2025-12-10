@@ -45,3 +45,27 @@ export async function getUserContextById(userId: string): Promise<Omit<UserRow, 
 
   return res.rows[0] ?? null;
 }
+
+export async function updateUserPasswordHash(userId: string, passwordHash: string) {
+  await query(
+    `
+    update users
+    set password_hash = $2
+    where id = $1
+  `,
+    [userId, passwordHash]
+  );
+}
+
+export async function findUserById(userId: string): Promise<UserRow | null> {
+  const res = await query<UserRow>(
+    `
+    select id, email, password_hash, name, organisation_id, role, can_impersonate
+    from users
+    where id = $1
+  `,
+    [userId]
+  );
+
+  return res.rows[0] ?? null;
+}

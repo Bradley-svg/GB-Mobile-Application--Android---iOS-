@@ -6,18 +6,22 @@ import {
   logout,
   logoutAll,
   refresh,
+  requestPasswordReset,
+  resetPassword,
   registerPushToken,
   signup,
 } from '../controllers/authController';
 import { requireAuth } from '../middleware/requireAuth';
+import { authRateLimitMiddleware } from '../middleware/rateLimit';
 
 const router = Router();
 
-router.use(['/login', '/signup', '/refresh', '/logout', '/logout-all'], authLimiter);
+router.use(['/signup', '/refresh', '/logout', '/logout-all', '/request-password-reset', '/reset-password'], authLimiter);
 
 router.post('/signup', signup);
-router.post('/login', login);
-// Password reset remains intentionally unimplemented; do not expose until a full flow exists.
+router.post('/login', authRateLimitMiddleware, login);
+router.post('/request-password-reset', requestPasswordReset);
+router.post('/reset-password', resetPassword);
 router.post('/refresh', refresh);
 router.get('/me', requireAuth, me);
 router.post('/me/push-tokens', requireAuth, registerPushToken);

@@ -580,6 +580,8 @@ async function resetTables(client: Client) {
         telemetry_points,
         device_snapshots,
         refresh_tokens,
+        auth_sessions,
+        password_reset_tokens,
         push_tokens,
         user_preferences,
         alerts,

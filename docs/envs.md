@@ -10,7 +10,10 @@ Centralised reference for backend and mobile environment variables across dev/st
 - `ALLOW_TEST_DB_RESET`: Allow destructive truncation in tests when DB name is not obviously test-only (keep false outside dedicated test DBs).
 - `JWT_SECRET`: Secret for signing JWT access tokens. Use a long, random value in non-dev environments.
 - `REFRESH_TOKEN_DAYS`: Refresh token lifetime (days).
+- `AUTH_MAX_ATTEMPTS` / `AUTH_WINDOW_MINUTES` / `AUTH_LOCKOUT_MINUTES`: Rate limit and temporary lockout for failed login attempts (per IP and per username).
 - `AUTH_ALLOW_PUBLIC_SIGNUP`: Toggle for open signup (`false` by default).
+- `PASSWORD_RESET_TOKEN_MINUTES`: Minutes before a password reset token expires.
+- `AUTH_2FA_ENABLED`: Placeholder toggle for future two-factor enforcement (no-op today; keep false until implemented).
 - `DEMO_USER_PASSWORD`: Optional override for the seeded demo users created by `scripts/init-local-db.js`.
 - `USER ROLE SEMANTICS`: Roles are stored on each user row (`owner`, `admin`, `facilities`, `contractor`).
   - Owner/Admin: full control (device control, schedules, work orders, share links, document uploads).
