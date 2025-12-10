@@ -1,5 +1,6 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+$hadError = $false
 
 Write-Host "=== GREENBRO dev:all orchestrator ==="
 Write-Host "This will: kill old processes, start backend, start mobile, wire adb, and launch the emulator."
@@ -27,11 +28,11 @@ function Get-PortProcesses {
     try {
       $connections = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction Stop
       $pids = $connections | Select-Object -ExpandProperty OwningProcess -Unique
-      foreach ($pid in $pids) {
+      foreach ($procId in $pids) {
         try {
-          $processes += Get-Process -Id $pid -ErrorAction Stop
+          $processes += Get-Process -Id $procId -ErrorAction Stop
         } catch {
-          Write-Host "Could not resolve process $pid for port ${Port}: $($_)" -ForegroundColor Yellow
+          Write-Host "Could not resolve process $procId for port ${Port}: $($_)" -ForegroundColor Yellow
         }
       }
     } catch {
@@ -46,11 +47,11 @@ function Get-PortProcesses {
         if ($_.Line -match "LISTENING\s+(\d+)$") { [int]$Matches[1] }
       }
       $uniquePids = $pids | Sort-Object -Unique
-      foreach ($pid in $uniquePids) {
+      foreach ($procId in $uniquePids) {
         try {
-          $processes += Get-Process -Id $pid -ErrorAction Stop
+          $processes += Get-Process -Id $procId -ErrorAction Stop
         } catch {
-          Write-Host "Could not resolve process $pid for port ${Port} from netstat: $($_)" -ForegroundColor Yellow
+          Write-Host "Could not resolve process $procId for port ${Port} from netstat: $($_)" -ForegroundColor Yellow
         }
       }
     } catch {
@@ -68,19 +69,22 @@ function Assert-PortAvailable {
   )
 
   $listeners = Get-PortProcesses -Port $Port
-  if (-not $listeners -or $listeners.Count -eq 0) {
+  $listenerArray = @($listeners)
+  if (-not $listenerArray -or $listenerArray.Count -eq 0) {
     Write-Host "Port $Port is free."
     return
   }
 
-  $processSummary = $listeners | ForEach-Object { "$($_.ProcessName) (PID $($_.Id))" } | Sort-Object
+  $processSummary = $listenerArray | ForEach-Object { "$($_.ProcessName) (PID $($_.Id))" } | Sort-Object
   Write-Host "Port $Port is already in use by: $($processSummary -join ', ')"
 
   $allowedSet = $AllowedProcessNames | ForEach-Object { $_.ToLowerInvariant() }
-  $blocking = $listeners | Where-Object { $allowedSet -notcontains $_.ProcessName.ToLowerInvariant() }
+  $blocking = $listenerArray | Where-Object { $allowedSet -notcontains $_.ProcessName.ToLowerInvariant() }
+  $blockingArray = @($blocking)
 
-  if ($blocking.Count -gt 0) {
+  if ($blockingArray.Count -gt 0) {
     Write-Host "ERROR: Port $Port appears to be owned by a non-Node/Expo process. Stop it or free the port before rerunning dev-all." -ForegroundColor Red
+    $script:hadError = $true
     exit 1
   }
 
@@ -112,11 +116,13 @@ function Get-AdbDeviceSets {
 
 if (-not (Test-Path $backendPath)) {
   Write-Host "ERROR: backend directory not found at $backendPath" -ForegroundColor Red
+  $hadError = $true
   exit 1
 }
 
 if (-not (Test-Path $mobilePath)) {
   Write-Host "ERROR: mobile directory not found at $mobilePath" -ForegroundColor Red
+  $hadError = $true
   exit 1
 }
 
@@ -173,18 +179,22 @@ if ($pgService) {
 }
 
 if (-not $pgStarted -and (Test-Path $composeFile)) {
-  $dockerCmd = Get-Command "docker" -ErrorAction SilentlyContinue
-  if ($dockerCmd) {
-    try {
-      Write-Host "Attempting docker compose fallback (postgres service)..."
-      docker compose -f $composeFile up -d postgres | Out-Null
-      Write-Host "docker compose up -d postgres invoked."
-      $pgStarted = $true
-    } catch {
-      Write-Warning "docker compose start for Postgres failed: $($_)"
+  try {
+    $dockerCmd = Get-Command "docker" -ErrorAction SilentlyContinue
+    if ($dockerCmd) {
+      try {
+        Write-Host "Attempting docker compose fallback (postgres service)..."
+        docker compose -f $composeFile up -d postgres | Out-Null
+        Write-Host "docker compose up -d postgres invoked."
+        $pgStarted = $true
+      } catch {
+        Write-Warning "docker compose start for Postgres failed: $($_)"
+      }
+    } else {
+      Write-Warning "docker not available; skipping docker compose Postgres start."
     }
-  } else {
-    Write-Warning "docker not available; skipping docker compose Postgres start."
+  } catch {
+    Write-Warning "Docker fallback failed: $($_.Exception.Message)"
   }
 } elseif (-not $pgStarted) {
   Write-Host "docker-compose.dev.yml not found at $composeFile; skipping docker compose fallback."
@@ -192,6 +202,7 @@ if (-not $pgStarted -and (Test-Path $composeFile)) {
 
 if (-not $pgStarted) {
   Write-Warning "Postgres was not started by this script; ensure your database is running before proceeding."
+  $hadError = $true
 }
 
 Write-Host "Starting backend (install + migrate + seed + dev)..."
@@ -220,7 +231,12 @@ if (Test-Path "package.json") {
 }
 npm run dev
 "@
-Start-Process powershell -ArgumentList "-NoExit", "-Command", $backendScript
+try {
+  Start-Process powershell -ArgumentList "-NoExit", "-Command", $backendScript
+} catch {
+  Write-Warning "Failed to launch backend process: $($_.Exception.Message)"
+  $hadError = $true
+}
 
 Write-Host "Starting mobile Metro / Expo dev client on port $metroPort..."
 $mobileScript = @"
@@ -228,99 +244,121 @@ Set-Location "$mobilePath"
 npm install
 npx expo start --dev-client --localhost --port $metroPort --clear
 "@
-Start-Process powershell -ArgumentList "-NoExit", "-Command", $mobileScript
+try {
+  Start-Process powershell -ArgumentList "-NoExit", "-Command", $mobileScript
+} catch {
+  Write-Warning "Failed to launch mobile Metro/Expo process: $($_.Exception.Message)"
+  $hadError = $true
+}
 
 Start-Sleep -Seconds 15
 
 Write-Host "Setting up ADB reverse (ports $apiPort, $metroPort) and launching emulator/app..."
-$adbCmd = Get-Command "adb" -ErrorAction SilentlyContinue
-if (-not $adbCmd) {
-  Write-Host "WARNING: adb not found on PATH. Skipping emulator wiring." -ForegroundColor Yellow
-  return
-}
+try {
+  $adbReady = $true
+  $adbCmd = Get-Command "adb" -ErrorAction SilentlyContinue
+  if (-not $adbCmd) {
+    Write-Host "WARNING: adb not found on PATH. Skipping emulator wiring." -ForegroundColor Yellow
+    $adbReady = $false
+  }
 
-$adbPath = if ($adbCmd.Source) { $adbCmd.Source } else { $adbCmd.Path }
-$adbDevicesOutput = & $adbPath devices
-$deviceLines = $adbDevicesOutput | Select-Object -Skip 1 | Where-Object { $_ -match "\S" }
-$deviceSets = Get-AdbDeviceSets -DeviceLines $deviceLines
-$emulatorDevices = @($deviceSets.Emulator | Where-Object { $_ })
-$physicalDevices = @($deviceSets.Physical | Where-Object { $_ })
-$targetDeviceId = $null
+  if ($adbReady) {
+    $adbPath = if ($adbCmd.Source) { $adbCmd.Source } else { $adbCmd.Path }
+    $adbDevicesOutput = & $adbPath devices
+    $deviceLines = $adbDevicesOutput | Select-Object -Skip 1 | Where-Object { $_ -match "\S" }
+    $deviceSets = Get-AdbDeviceSets -DeviceLines $deviceLines
+    $emulatorDevices = @($deviceSets.Emulator | Where-Object { $_ })
+    $physicalDevices = @($deviceSets.Physical | Where-Object { $_ })
+    $targetDeviceId = $null
 
-if ($physicalDevices.Count -gt 0) {
-  $physicalList = $physicalDevices | ForEach-Object { $_.Id } | Sort-Object
-  Write-Host "Detected attached Android device(s): $($physicalList -join ', '). Using connected device; emulator start skipped."
-  $targetDeviceId = $physicalDevices[0].Id
-} elseif ($emulatorDevices.Count -gt 0) {
-  $emulatorList = $emulatorDevices | ForEach-Object { $_.Id } | Sort-Object
-  Write-Host "Reusing running emulator(s): $($emulatorList -join ', ')."
-  $targetDeviceId = $emulatorDevices[0].Id
-} else {
-  Write-Host "No ready device/emulator detected; trying to start $avdName..."
-  if (-not $Env:ANDROID_HOME -and -not $Env:ANDROID_SDK_ROOT) {
-    Write-Warning "ANDROID_HOME or ANDROID_SDK_ROOT not set; skipping emulator start."
-  } else {
-    $emulatorExe = $null
-    if ($Env:ANDROID_HOME) {
-      $candidate = Join-Path $Env:ANDROID_HOME "emulator\emulator.exe"
-      if (Test-Path $candidate) {
-        $emulatorExe = $candidate
-      }
-    }
-    if (-not $emulatorExe -and $Env:ANDROID_SDK_ROOT) {
-      $candidate = Join-Path $Env:ANDROID_SDK_ROOT "emulator\emulator.exe"
-      if (Test-Path $candidate) {
-        $emulatorExe = $candidate
-      }
-    }
-
-    if ($emulatorExe) {
-      Start-Process -FilePath $emulatorExe -ArgumentList "-avd", $avdName, "-netdelay", "none", "-netspeed", "full" | Out-Null
-      Write-Host "Waiting for emulator to report ready..."
-      & $adbPath "wait-for-device"
-      Start-Sleep -Seconds 5
-
-      $adbDevicesOutput = & $adbPath devices
-      $deviceLines = $adbDevicesOutput | Select-Object -Skip 1 | Where-Object { $_ -match "\S" }
-      $deviceSets = Get-AdbDeviceSets -DeviceLines $deviceLines
-      $emulatorDevices = @($deviceSets.Emulator | Where-Object { $_ })
-      if ($emulatorDevices.Count -gt 0) {
-        $targetDeviceId = $emulatorDevices[0].Id
-        Write-Host "Emulator reported ready as $targetDeviceId."
-      } else {
-        Write-Warning "Emulator start requested but adb did not report a ready device."
-      }
+    if ($physicalDevices.Count -gt 0) {
+      $physicalList = $physicalDevices | ForEach-Object { $_.Id } | Sort-Object
+      Write-Host "Detected attached Android device(s): $($physicalList -join ', '). Using connected device; emulator start skipped."
+      $targetDeviceId = $physicalDevices[0].Id
+    } elseif ($emulatorDevices.Count -gt 0) {
+      $emulatorList = $emulatorDevices | ForEach-Object { $_.Id } | Sort-Object
+      Write-Host "Reusing running emulator(s): $($emulatorList -join ', ')."
+      $targetDeviceId = $emulatorDevices[0].Id
     } else {
-      Write-Warning "Emulator binary not found under ANDROID_HOME/ANDROID_SDK_ROOT; skipping emulator start."
+      Write-Host "No ready device/emulator detected; trying to start $avdName..."
+      if (-not $Env:ANDROID_HOME -and -not $Env:ANDROID_SDK_ROOT) {
+        Write-Warning "ANDROID_HOME or ANDROID_SDK_ROOT not set; skipping emulator start."
+      } else {
+        $emulatorExe = $null
+        if ($Env:ANDROID_HOME) {
+          $candidate = Join-Path $Env:ANDROID_HOME "emulator\emulator.exe"
+          if (Test-Path $candidate) {
+            $emulatorExe = $candidate
+          }
+        }
+        if (-not $emulatorExe -and $Env:ANDROID_SDK_ROOT) {
+          $candidate = Join-Path $Env:ANDROID_SDK_ROOT "emulator\emulator.exe"
+          if (Test-Path $candidate) {
+            $emulatorExe = $candidate
+          }
+        }
+
+        if ($emulatorExe) {
+          Start-Process -FilePath $emulatorExe -ArgumentList "-avd", $avdName, "-netdelay", "none", "-netspeed", "full" | Out-Null
+          Write-Host "Waiting for emulator to report ready..."
+          & $adbPath "wait-for-device"
+          Start-Sleep -Seconds 5
+
+          $adbDevicesOutput = & $adbPath devices
+          $deviceLines = $adbDevicesOutput | Select-Object -Skip 1 | Where-Object { $_ -match "\S" }
+          $deviceSets = Get-AdbDeviceSets -DeviceLines $deviceLines
+          $emulatorDevices = @($deviceSets.Emulator | Where-Object { $_ })
+          if ($emulatorDevices.Count -gt 0) {
+            $targetDeviceId = $emulatorDevices[0].Id
+            Write-Host "Emulator reported ready as $targetDeviceId."
+          } else {
+            Write-Warning "Emulator start requested but adb did not report a ready device."
+          }
+        } else {
+          Write-Warning "Emulator binary not found under ANDROID_HOME/ANDROID_SDK_ROOT; skipping emulator start."
+        }
+      }
+    }
+
+    $adbArgs = @()
+    if ($targetDeviceId) {
+      $adbArgs = @("-s", $targetDeviceId)
+    } else {
+      Write-Warning "No Android device/emulator available for adb reverse; connect one and run adb reverse manually."
+      $adbReady = $false
+    }
+
+    if ($adbReady) {
+      try {
+        & $adbPath @adbArgs "reverse" "tcp:$apiPort" "tcp:$apiPort" | Out-Null
+        Write-Host "adb reverse set for API on $apiPort."
+      } catch {
+        Write-Warning "adb reverse for API failed: $($_)"
+      }
+
+      try {
+        & $adbPath @adbArgs "reverse" "tcp:$metroPort" "tcp:$metroPort" | Out-Null
+        Write-Host "adb reverse set for Metro on $metroPort."
+      } catch {
+        Write-Warning "adb reverse for Metro failed: $($_)"
+      }
+
+      try {
+        & $adbPath @adbArgs "shell" "am" "start" "-n" $androidPackage | Out-Null
+        Write-Host "Launched dev client ($androidPackage)."
+      } catch {
+        Write-Warning "Could not launch dev client: $($_)"
+      }
     }
   }
+} catch {
+  Write-Warning "ADB/emulator wiring failed: $($_.Exception.Message)"
 }
 
-$adbArgs = @()
-if ($targetDeviceId) {
-  $adbArgs = @("-s", $targetDeviceId)
+if ($hadError) {
+  Write-Error "dev-all encountered one or more fatal errors."
+  exit 1
 } else {
-  Write-Warning "No Android device/emulator available for adb reverse; connect one and run adb reverse manually."
-  return
-}
-
-try {
-  & $adbPath @adbArgs "reverse" "tcp:$apiPort" "tcp:$apiPort" | Out-Null
-  Write-Host "adb reverse set for API on $apiPort."
-} catch {
-  Write-Warning "adb reverse for API failed: $($_)"
-}
-
-try {
-  & $adbPath @adbArgs "reverse" "tcp:$metroPort" "tcp:$metroPort" | Out-Null
-  Write-Host "adb reverse set for Metro on $metroPort."
-} catch {
-  Write-Warning "adb reverse for Metro failed: $($_)"
-}
-
-try {
-  & $adbPath @adbArgs "shell" "am" "start" "-n" $androidPackage | Out-Null
-  Write-Host "Launched dev client ($androidPackage)."
-} catch {
-  Write-Warning "Could not launch dev client: $($_)"
+  Write-Host "dev-all completed successfully. Backend + Metro + emulator are running."
+  exit 0
 }
