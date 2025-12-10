@@ -7,7 +7,10 @@ export type AuditAction =
   | 'file_signed_url_created'
   | 'file_signed_url_downloaded'
   | 'share_link_created'
-  | 'share_link_revoked';
+  | 'share_link_revoked'
+  | 'auth_2fa_enabled'
+  | 'auth_2fa_disabled'
+  | 'auth_2fa_challenge_passed';
 
 export async function recordAuditEvent(input: CreateAuditEventInput & { action: AuditAction }) {
   try {

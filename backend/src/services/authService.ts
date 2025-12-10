@@ -37,7 +37,7 @@ export function resolveJwtSecret() {
 const JWT_SECRET = resolveJwtSecret();
 const REFRESH_EXPIRY_DAYS = Number(process.env.REFRESH_TOKEN_DAYS || 30);
 const REFRESH_EXPIRY_MS = REFRESH_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
-const TWO_FACTOR_ENABLED = process.env.AUTH_2FA_ENABLED === 'true';
+const TWO_FACTOR_CHALLENGE_EXP_MINUTES = 10;
 
 export type AuthUser = {
   id: string;
@@ -45,6 +45,7 @@ export type AuthUser = {
   name: string;
   organisation_id: string | null;
   role: UserRole;
+  two_factor_enabled?: boolean;
 };
 
 function isUserRole(value: unknown): value is UserRole {
@@ -74,6 +75,7 @@ export async function registerUser(email: string, password: string, name: string
     name: user.name,
     organisation_id: user.organisation_id,
     role: user.role,
+    two_factor_enabled: user.two_factor_enabled,
   };
 }
 
@@ -94,6 +96,7 @@ export async function loginUser(email: string, password: string): Promise<AuthUs
     name: user.name,
     organisation_id: user.organisation_id,
     role: user.role,
+    two_factor_enabled: user.two_factor_enabled,
   };
 }
 
@@ -152,10 +155,6 @@ export async function issueTokens(
   const sessionId = randomUUID();
   const refreshPayload = { sub: userId, type: 'refresh', jti: sessionId, role };
 
-  if (TWO_FACTOR_ENABLED) {
-    // TODO: enforce a second factor challenge before issuing session tokens.
-  }
-
   const accessToken = jwt.sign({ sub: userId, type: 'access', role }, JWT_SECRET, {
     expiresIn: '15m',
   });
@@ -182,6 +181,30 @@ export function verifyAccessToken(token: string) {
   if (decoded.type !== 'access') throw new Error('INVALID_TOKEN_TYPE');
   const role = isUserRole(decoded.role) ? decoded.role : 'facilities';
   return { userId: decoded.sub, role };
+}
+
+export function issueTwoFactorChallengeToken(userId: string, role: UserRole, metadata?: IssueTokensOptions['metadata']) {
+  const payload = {
+    sub: userId,
+    type: '2fa_challenge',
+    role,
+    metadata,
+  };
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: `${TWO_FACTOR_CHALLENGE_EXP_MINUTES}m` });
+}
+
+export function verifyTwoFactorChallengeToken(token: string) {
+  const decoded = jwt.verify(token, JWT_SECRET) as {
+    sub: string;
+    type: string;
+    role?: UserRole;
+    metadata?: IssueTokensOptions['metadata'];
+  };
+  if (decoded.type !== '2fa_challenge') {
+    throw new Error('INVALID_TOKEN_TYPE');
+  }
+  const role = isUserRole(decoded.role) ? decoded.role : undefined;
+  return { userId: decoded.sub, role, metadata: decoded.metadata };
 }
 
 export async function verifyRefreshToken(token: string) {

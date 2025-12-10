@@ -78,6 +78,8 @@ export const ProfileScreen: React.FC = () => {
   const roleLabel = user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Unknown';
   const canShare = isAdminOrOwner(user?.role) || isFacilities(user?.role);
   const contractorRole = isContractor(user?.role);
+  const showTwoFactor = isAdminOrOwner(user?.role) || isFacilities(user?.role);
+  const twoFactorEnabled = user?.two_factor_enabled === true;
   const { theme, mode, resolvedScheme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { colors, spacing, typography } = theme;
@@ -180,6 +182,34 @@ export const ProfileScreen: React.FC = () => {
           </Text>
         </View>
         <View style={styles.separator} />
+        {showTwoFactor ? (
+          <>
+            <TouchableOpacity
+              style={styles.listRow}
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate('TwoFactorSetup')}
+              testID="twofactor-row"
+            >
+              <View style={styles.rowLeft}>
+                <Ionicons
+                  name={twoFactorEnabled ? 'shield-checkmark-outline' : 'shield-outline'}
+                  size={18}
+                  color={colors.brandGreen}
+                />
+                <View style={{ marginLeft: spacing.sm }}>
+                  <Text style={[typography.body, styles.title]}>Two-factor authentication</Text>
+                  <Text style={[typography.caption, styles.muted]}>
+                    {twoFactorEnabled
+                      ? 'Authenticator app required on login.'
+                      : 'Add a 6-digit code from your authenticator app.'}
+                  </Text>
+                </View>
+              </View>
+              <StatusPill label={twoFactorEnabled ? 'Enabled' : 'Disabled'} tone={twoFactorEnabled ? 'success' : 'muted'} />
+            </TouchableOpacity>
+            <View style={styles.separator} />
+          </>
+        ) : null}
         <TouchableOpacity
           style={styles.listRow}
           activeOpacity={canShare ? 0.85 : 1}

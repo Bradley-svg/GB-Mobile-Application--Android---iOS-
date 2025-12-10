@@ -13,7 +13,9 @@ Centralised reference for backend and mobile environment variables across dev/st
 - `AUTH_MAX_ATTEMPTS` / `AUTH_WINDOW_MINUTES` / `AUTH_LOCKOUT_MINUTES`: Rate limit and temporary lockout for failed login attempts (per IP and per username).
 - `AUTH_ALLOW_PUBLIC_SIGNUP`: Toggle for open signup (`false` by default).
 - `PASSWORD_RESET_TOKEN_MINUTES`: Minutes before a password reset token expires.
-- `AUTH_2FA_ENABLED`: Placeholder toggle for future two-factor enforcement (no-op today; keep false until implemented).
+- `AUTH_2FA_ENABLED`: Enable/disable TOTP-based two-factor authentication (default false; when false, behaviour is unchanged).
+- `AUTH_2FA_ENFORCE_ROLES`: Comma-separated roles that must use 2FA when `AUTH_2FA_ENABLED=true` (for example `owner,admin`).
+- `AUTH_2FA_ISSUER`: Issuer label presented in authenticator apps (default `Greenbro`).
 - `DEMO_USER_PASSWORD`: Optional override for the seeded demo users created by `scripts/init-local-db.js`.
 - `USER ROLE SEMANTICS`: Roles are stored on each user row (`owner`, `admin`, `facilities`, `contractor`).
   - Owner/Admin: full control (device control, schedules, work orders, share links, document uploads).

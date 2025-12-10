@@ -137,6 +137,7 @@ export type AuthUser = {
   name: string;
   organisation_id?: string | null;
   role?: string | null;
+  two_factor_enabled?: boolean;
 };
 
 export type AuthTokens = {
@@ -144,7 +145,21 @@ export type AuthTokens = {
   refreshToken: string;
 };
 
-export type AuthResponse = AuthTokens & { user: AuthUser };
+export type AuthResponse = Partial<AuthTokens> & {
+  user?: AuthUser;
+  requires2fa?: boolean;
+  challengeToken?: string;
+  twoFactorSetupRequired?: boolean;
+};
+
+export type TwoFactorSetupResponse = {
+  secret: string;
+  otpauthUrl: string;
+};
+
+export type TwoFactorStatusResponse = {
+  enabled: boolean;
+};
 
 export type ControlFailureReason =
   | 'ABOVE_MAX'

@@ -8,14 +8,25 @@ import {
   resetPasswordWithToken,
   revokeAllRefreshTokensForUser,
   revokeRefreshTokenForSession,
+  issueTwoFactorChallengeToken,
+  verifyTwoFactorChallengeToken,
   verifyRefreshToken,
 } from '../services/authService';
 import { registerPushTokenForUser } from '../services/pushService';
 import { getUserContext } from '../services/userService';
 import { authAttemptLimiter } from '../middleware/rateLimit';
 import { createPasswordResetToken } from '../modules/auth/passwordResetService';
-import { findUserByEmail } from '../repositories/usersRepository';
+import { findUserByEmail, findUserById } from '../repositories/usersRepository';
 import { logger } from '../config/logger';
+import {
+  confirmTwoFactorSetup,
+  disableTwoFactorForUser,
+  isTwoFactorFeatureEnabled,
+  roleRequiresTwoFactor,
+  startTwoFactorSetup,
+  verifyTwoFactorForUser,
+} from '../modules/auth/twoFactorService';
+import { recordAuditEvent } from '../modules/audit/auditService';
 
 const PUSH_TOKEN_RECENT_MINUTES = 10;
 
@@ -70,20 +81,97 @@ export async function login(req: Request, res: Response, next: NextFunction) {
   if (!parsed.success) return res.status(400).json({ message: 'Invalid body' });
 
   const authMetadata = getAuthMetadata(req);
-  const twoFactorEnabled = process.env.AUTH_2FA_ENABLED === 'true';
+  const twoFactorEnabled = isTwoFactorFeatureEnabled();
 
   try {
     const user = await loginUser(parsed.data.email, parsed.data.password);
-    if (twoFactorEnabled) {
-      // TODO: challenge the user for a second factor before issuing tokens.
+
+    const roleEnforced = twoFactorEnabled && roleRequiresTwoFactor(user.role);
+    const requiresTwoFactor = twoFactorEnabled && user.two_factor_enabled;
+    if (requiresTwoFactor) {
+      const challengeToken = issueTwoFactorChallengeToken(user.id, user.role, authMetadata);
+      authAttemptLimiter.recordSuccess(req.ip, parsed.data.email);
+      return res.json({ requires2fa: true, challengeToken });
     }
+
     const tokens = await issueTokens(user.id, { role: user.role, metadata: authMetadata });
     authAttemptLimiter.recordSuccess(req.ip, parsed.data.email);
-    res.json({ ...tokens, user });
+    res.json({ ...tokens, user, twoFactorSetupRequired: roleEnforced && !user.two_factor_enabled });
   } catch (e) {
     if (e instanceof Error && e.message === 'INVALID_CREDENTIALS') {
       authAttemptLimiter.recordFailure(req.ip, parsed.data.email);
       return res.status(401).json({ message: 'Invalid email or password' });
+    }
+    next(e);
+  }
+}
+
+export async function loginTwoFactor(req: Request, res: Response, next: NextFunction) {
+  const schema = z.object({
+    challengeToken: z.string().min(10),
+    code: z.string().min(3),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: 'Invalid body' });
+
+  const authMetadata = getAuthMetadata(req);
+
+  try {
+    const { userId, role } = verifyTwoFactorChallengeToken(parsed.data.challengeToken);
+    const state = await verifyTwoFactorForUser(userId, parsed.data.code);
+    authAttemptLimiter.recordSuccess(req.ip, state.email);
+
+    const tokens = await issueTokens(userId, {
+      role: role ?? state.role,
+      metadata: authMetadata,
+    });
+
+    const dbUser = await findUserById(userId);
+    const responseUser = dbUser
+      ? {
+          id: dbUser.id,
+          email: dbUser.email,
+          name: dbUser.name,
+          organisation_id: dbUser.organisation_id,
+          role: dbUser.role,
+          two_factor_enabled: dbUser.two_factor_enabled,
+        }
+      : {
+          id: userId,
+          email: state.email,
+          name: '',
+          organisation_id: state.organisation_id,
+          role: state.role,
+          two_factor_enabled: true,
+        };
+
+    await recordAuditEvent({
+      action: 'auth_2fa_challenge_passed',
+      entityType: 'user',
+      entityId: userId,
+      userId,
+      orgId: state.organisation_id,
+      metadata: { role: responseUser.role },
+    });
+
+    res.json({ ...tokens, user: responseUser });
+  } catch (e) {
+    const message = (e as Error | undefined)?.message ?? '';
+    if (message === 'INVALID_2FA_CODE') {
+      authAttemptLimiter.recordFailure(req.ip);
+      return res.status(401).json({ message: 'Invalid or expired 2FA code' });
+    }
+    if (message === 'TWO_FACTOR_NOT_ENABLED' || message === 'USER_NOT_FOUND') {
+      return res.status(400).json({ message: 'Two-factor authentication not enabled for this user' });
+    }
+    if (message === 'TWO_FACTOR_DISABLED') {
+      return res.status(400).json({ message: 'Two-factor authentication is disabled' });
+    }
+    if ((e as Error | undefined)?.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: '2FA challenge expired' });
+    }
+    if ((e as Error | undefined)?.name === 'JsonWebTokenError' || message === 'INVALID_TOKEN_TYPE') {
+      return res.status(401).json({ message: 'Invalid challenge token' });
     }
     next(e);
   }
@@ -248,6 +336,60 @@ export async function registerPushToken(req: Request, res: Response, next: NextF
       res.json({ ok: true });
     }
   } catch (e) {
+    next(e);
+  }
+}
+
+export async function setupTwoFactor(req: Request, res: Response, next: NextFunction) {
+  const userId = req.user!.id;
+  try {
+    const user = await findUserById(userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    const { secret, otpauthUrl } = await startTwoFactorSetup(userId, user.email);
+    res.json({ secret, otpauthUrl });
+  } catch (e) {
+    const message = (e as Error | undefined)?.message ?? '';
+    if (message === 'TWO_FACTOR_DISABLED') {
+      return res.status(400).json({ message: 'Two-factor authentication is disabled' });
+    }
+    next(e);
+  }
+}
+
+export async function confirmTwoFactor(req: Request, res: Response, next: NextFunction) {
+  const userId = req.user!.id;
+  const schema = z.object({ code: z.string().min(3) });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: 'Invalid body' });
+
+  try {
+    await confirmTwoFactorSetup(userId, parsed.data.code);
+    res.json({ enabled: true });
+  } catch (e) {
+    const message = (e as Error | undefined)?.message ?? '';
+    if (message === 'TWO_FACTOR_DISABLED') {
+      return res.status(400).json({ message: 'Two-factor authentication is disabled' });
+    }
+    if (message === 'NO_TWO_FACTOR_PENDING') {
+      return res.status(400).json({ message: 'No pending 2FA setup for this user' });
+    }
+    if (message === 'INVALID_2FA_CODE') {
+      return res.status(401).json({ message: 'Invalid verification code' });
+    }
+    next(e);
+  }
+}
+
+export async function disableTwoFactor(req: Request, res: Response, next: NextFunction) {
+  const userId = req.user!.id;
+  try {
+    await disableTwoFactorForUser(userId);
+    res.json({ enabled: false });
+  } catch (e) {
+    const message = (e as Error | undefined)?.message ?? '';
+    if (message === 'TWO_FACTOR_DISABLED') {
+      return res.status(400).json({ message: 'Two-factor authentication is disabled' });
+    }
     next(e);
   }
 }

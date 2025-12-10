@@ -4,6 +4,7 @@
 - API logs are structured JSON via `pino`; every request includes `requestId` from `X-Request-ID` (see `src/middleware/logger.ts` and `src/config/requestContext.ts`).
 - Slow queries are flagged when they exceed `DB_SLOW_QUERY_MS` (set in env) and include SQL text plus timing; monitor these in staging/prod.
 - Auth, file, and control flows emit contextual metadata (user, session, ip, userAgent) to ease correlation with auth lockouts and file/audit events.
+- When `AUTH_2FA_ENABLED=true`, login and 2FA provisioning/challenge flows log rate-limit/lockout outcomes; ensure monitors account for intentional 429/401 responses when 2FA is required for enforced roles.
 - Log levels: `info` for routine events, `warn` for degraded vendor states, `error` for failed calls or unexpected states. Keep parsers pointed at `requestId` and `module` fields for grouping.
 
 ## /health-plus usage

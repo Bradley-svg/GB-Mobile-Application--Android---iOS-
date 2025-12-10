@@ -7,6 +7,7 @@ export type UserContext = {
   organisation_id: string | null;
   role: UserRole;
   can_impersonate?: boolean;
+  two_factor_enabled?: boolean;
 };
 
 export async function getUserContext(userId: string): Promise<UserContext | null> {

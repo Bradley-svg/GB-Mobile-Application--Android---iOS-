@@ -8,6 +8,7 @@ import { LoginScreen } from '../screens/Auth/LoginScreen';
 import { SignupScreen } from '../screens/Auth/SignupScreen';
 import { ForgotPasswordScreen } from '../screens/Auth/ForgotPasswordScreen';
 import { ResetPasswordScreen } from '../screens/Auth/ResetPasswordScreen';
+import { TwoFactorScreen } from '../screens/Auth/TwoFactorScreen';
 import { DashboardScreen } from '../screens/Dashboard/DashboardScreen';
 import { AlertsScreen } from '../screens/Alerts/AlertsScreen';
 import { ProfileScreen } from '../screens/Profile/ProfileScreen';
@@ -22,6 +23,7 @@ import { MaintenanceCalendarScreen } from '../screens/Maintenance/MaintenanceCal
 import { DocumentsScreen } from '../screens/Documents/DocumentsScreen';
 import { SharingScreen } from '../screens/Profile/SharingScreen';
 import { ShareLinksScreen } from '../screens/Sharing/ShareLinksScreen';
+import { TwoFactorSetupScreen } from '../screens/Profile/TwoFactorSetupScreen';
 import { typography } from '../theme/typography';
 import { useAppTheme } from '../theme/useAppTheme';
 import { createSurfaceStyles } from '../components';
@@ -46,6 +48,7 @@ export type AuthStackParamList = {
   Signup: undefined;
   ForgotPassword: undefined;
   ResetPassword: { token?: string } | undefined;
+  TwoFactor: { challengeToken: string; email: string };
 };
 
 export type AppStackParamList = {
@@ -61,6 +64,7 @@ export type AppStackParamList = {
   Documents: { scope: 'site' | 'device'; siteId?: string; deviceId?: string; title?: string };
   Sharing: undefined;
   ShareLinks: { scope: 'site' | 'device'; id: string; name: string };
+  TwoFactorSetup: undefined;
 };
 
 export type AppTabParamList = {
@@ -92,6 +96,7 @@ function AuthNavigator() {
       <AuthStack.Screen name="Signup" component={SignupScreen} />
       <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
       <AuthStack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+      <AuthStack.Screen name="TwoFactor" component={TwoFactorScreen} />
     </AuthStack.Navigator>
   );
 }
@@ -211,6 +216,7 @@ function AppNavigator() {
       <AppStack.Screen name="Documents" component={DocumentsScreen} />
       <AppStack.Screen name="Sharing" component={SharingScreen} />
       <AppStack.Screen name="ShareLinks" component={ShareLinksScreen} />
+      <AppStack.Screen name="TwoFactorSetup" component={TwoFactorSetupScreen} />
     </AppStack.Navigator>
   );
 }

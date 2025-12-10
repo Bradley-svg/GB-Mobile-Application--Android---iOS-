@@ -1,5 +1,13 @@
 export * from './types';
-export { useLogin, useRequestPasswordReset, useResetPassword } from './auth/hooks';
+export {
+  useLogin,
+  useLoginTwoFactor,
+  useRequestPasswordReset,
+  useResetPassword,
+  useTwoFactorSetup,
+  useTwoFactorConfirm,
+  useTwoFactorDisable,
+} from './auth/hooks';
 export { useSites, useSite } from './sites/hooks';
 export { useDevices, useDevice, useDeviceTelemetry } from './devices/hooks';
 export { useDeviceSchedule, useUpsertDeviceSchedule } from './devices/scheduleHooks';

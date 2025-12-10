@@ -2,10 +2,17 @@ import type { AxiosError } from 'axios';
 import { useMutation } from '@tanstack/react-query';
 import { useAuthStore } from '../../store/authStore';
 import { api } from '../client';
-import type { AuthResponse } from '../types';
+import type {
+  AuthResponse,
+  TwoFactorSetupResponse,
+  TwoFactorStatusResponse,
+} from '../types';
 
 type LoginPayload = { email: string; password: string };
 type LoginErrorResponse = { message?: string; error?: string };
+
+type TwoFactorLoginPayload = { challengeToken: string; code: string };
+type TwoFactorCodePayload = { code: string };
 
 type PasswordResetRequestPayload = { email: string };
 type ResetPasswordPayload = { token: string; password: string };
@@ -21,11 +28,16 @@ export function useLogin() {
     },
     onSuccess: async (data, variables) => {
       console.log('Login mutation: SUCCESS', { email: variables.email, user: data?.user?.email });
-      await setAuth({
-        accessToken: data.accessToken,
-        refreshToken: data.refreshToken,
-        user: data.user,
-      });
+      if (data.requires2fa) {
+        return;
+      }
+      if (data.accessToken && data.refreshToken && data.user) {
+        await setAuth({
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken,
+          user: data.user,
+        });
+      }
     },
     onError: (error, variables) => {
       const axiosError = error as AxiosError<LoginErrorResponse>;
@@ -34,6 +46,56 @@ export function useLogin() {
         status: axiosError.response?.status,
         data: axiosError.response?.data,
       });
+    },
+  });
+}
+
+export function useLoginTwoFactor() {
+  const setAuth = useAuthStore((s) => s.setAuth);
+
+  return useMutation({
+    mutationFn: async ({ challengeToken, code }: TwoFactorLoginPayload) => {
+      const res = await api.post<AuthResponse>('/auth/login/2fa', { challengeToken, code });
+      return res.data;
+    },
+    onSuccess: async (data, variables) => {
+      console.log('2FA login SUCCESS', { user: data?.user?.email });
+      if (data.accessToken && data.refreshToken && data.user) {
+        await setAuth({
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken,
+          user: data.user,
+        });
+      } else {
+        console.warn('2FA login succeeded but tokens were missing', { variables });
+      }
+    },
+  });
+}
+
+export function useTwoFactorSetup() {
+  return useMutation({
+    mutationFn: async () => {
+      const res = await api.post<TwoFactorSetupResponse>('/auth/2fa/setup');
+      return res.data;
+    },
+  });
+}
+
+export function useTwoFactorConfirm() {
+  return useMutation({
+    mutationFn: async ({ code }: TwoFactorCodePayload) => {
+      const res = await api.post<TwoFactorStatusResponse>('/auth/2fa/confirm', { code });
+      return res.data;
+    },
+  });
+}
+
+export function useTwoFactorDisable() {
+  return useMutation({
+    mutationFn: async () => {
+      const res = await api.post<TwoFactorStatusResponse>('/auth/2fa/disable');
+      return res.data;
     },
   });
 }

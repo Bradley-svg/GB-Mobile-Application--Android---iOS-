@@ -10,6 +10,10 @@ import {
   resetPassword,
   registerPushToken,
   signup,
+  loginTwoFactor,
+  setupTwoFactor,
+  confirmTwoFactor,
+  disableTwoFactor,
 } from '../controllers/authController';
 import { requireAuth } from '../middleware/requireAuth';
 import { authRateLimitMiddleware } from '../middleware/rateLimit';
@@ -20,6 +24,7 @@ router.use(['/signup', '/refresh', '/logout', '/logout-all', '/request-password-
 
 router.post('/signup', signup);
 router.post('/login', authRateLimitMiddleware, login);
+router.post('/login/2fa', authRateLimitMiddleware, loginTwoFactor);
 router.post('/request-password-reset', requestPasswordReset);
 router.post('/reset-password', resetPassword);
 router.post('/refresh', refresh);
@@ -27,5 +32,8 @@ router.get('/me', requireAuth, me);
 router.post('/me/push-tokens', requireAuth, registerPushToken);
 router.post('/logout', requireAuth, logout);
 router.post('/logout-all', requireAuth, logoutAll);
+router.post('/2fa/setup', requireAuth, setupTwoFactor);
+router.post('/2fa/confirm', requireAuth, confirmTwoFactor);
+router.post('/2fa/disable', requireAuth, disableTwoFactor);
 
 export default router;

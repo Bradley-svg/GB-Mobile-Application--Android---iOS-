@@ -20,6 +20,7 @@ type AuthUser = {
   name: string;
   organisation_id?: string | null;
   role?: string | null;
+  two_factor_enabled?: boolean;
 };
 
 type AuthState = {

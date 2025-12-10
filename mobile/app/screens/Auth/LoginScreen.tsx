@@ -74,10 +74,15 @@ export const LoginScreen: React.FC = () => {
       setSuccessMessage(null);
       setSessionExpired(false);
       console.log('LoginScreen: submitting login', { email: trimmedEmail });
-      await loginMutation.mutateAsync({
+      const result = await loginMutation.mutateAsync({
         email: trimmedEmail,
         password: trimmedPassword,
       });
+      if (result?.requires2fa && result.challengeToken) {
+        navigation.navigate('TwoFactor', { challengeToken: result.challengeToken, email: trimmedEmail });
+      } else if (result?.twoFactorSetupRequired) {
+        setError('Two-factor authentication is required for your role. Please enable 2FA in your profile.');
+      }
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
         console.error(err.response?.data ?? err.message);

@@ -153,4 +153,26 @@ describe('ProfileScreen notifications', () => {
 
     expect(navigateMock).toHaveBeenCalledWith('MaintenanceCalendar');
   });
+
+  it('shows two-factor row for admins/owners and navigates to setup', async () => {
+    const { getByTestId, getByText } = await renderProfile();
+
+    expect(getByTestId('twofactor-row')).toBeTruthy();
+    expect(getByText(/Two-factor authentication/)).toBeTruthy();
+
+    fireEvent.press(getByTestId('twofactor-row'));
+
+    expect(navigateMock).toHaveBeenCalledWith('TwoFactorSetup');
+  });
+
+  it('hides two-factor row for contractors', async () => {
+    useAuthStore.setState((state) => ({
+      ...state,
+      user: { ...(state.user as NonNullable<typeof state.user>), role: 'contractor' },
+    }));
+
+    const { queryByTestId } = await renderProfile();
+
+    expect(queryByTestId('twofactor-row')).toBeNull();
+  });
 });
