@@ -11,18 +11,31 @@ config.resolver.blockList = exclusionList([/node_modules_old\/.*/, /node_modules
 config.transformer = config.transformer || {};
 config.transformer.hermesParser = true;
 
-// Force bundle responses to be plain JS (no multipart streaming) to avoid
-// the client choking on progressive responses.
+// Server tweaks:
+// - Force single-part JS responses (no multipart/mixed).
+// - Rewrite Expo dev-client virtual entry to index.bundle so the dev client loads correctly.
 config.server = config.server || {};
 const originalEnhanceMiddleware = config.server.enhanceMiddleware;
-config.server.enhanceMiddleware = (middleware, server) => {
-  const enhanced = originalEnhanceMiddleware ? originalEnhanceMiddleware(middleware, server) : middleware;
-  return (req, res, next) => {
-    if (req.headers && typeof req.headers.accept === 'string' && req.headers.accept.includes('multipart/mixed')) {
-      req.headers.accept = 'application/javascript';
-    }
-    return enhanced(req, res, next);
-  };
+config.server = {
+  ...config.server,
+  enhanceMiddleware: (middleware, server) => {
+    const enhanced = originalEnhanceMiddleware ? originalEnhanceMiddleware(middleware, server) : middleware;
+    return (req, res, next) => {
+      // 1) Kill multipart/mixed so Metro serves a plain JS bundle.
+      const accept = req.headers && req.headers.accept;
+      if (typeof accept === 'string' && accept.includes('multipart/mixed')) {
+        req.headers.accept = 'application/javascript,application/json;q=0.9,*/*;q=0.8';
+      }
+
+      // 2) Rewrite Expo dev-client virtual entry to index.bundle (keep query string intact).
+      if (req.url && req.url.startsWith('/.expo/.virtual-metro-entry.bundle')) {
+        const [, query = ''] = req.url.split('?', 2);
+        req.url = `/index.bundle${query ? `?${query}` : ''}`;
+      }
+
+      return enhanced(req, res, next);
+    };
+  },
 };
 
 module.exports = config;
