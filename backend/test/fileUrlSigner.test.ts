@@ -12,19 +12,33 @@ describe('fileUrlSigner', () => {
     process.env.FILE_SIGNING_SECRET = SECRET;
     const expiresAt = new Date(Date.now() + 60_000);
 
-    const token = signFileToken('file-123', expiresAt);
+    const token = signFileToken({
+      fileId: 'file-123',
+      orgId: 'org-123',
+      userId: 'user-123',
+      role: 'admin',
+      expiresAt,
+    });
     const verification = verifyFileToken(token);
 
     expect(verification).toEqual({
       valid: true,
       expired: false,
       fileId: 'file-123',
+      orgId: 'org-123',
+      userId: 'user-123',
+      role: 'admin',
+      action: 'read',
     });
   });
 
   it('marks expired tokens correctly', () => {
     process.env.FILE_SIGNING_SECRET = SECRET;
-    const token = signFileToken('file-123', new Date(Date.now() - 1_000));
+    const token = signFileToken({
+      fileId: 'file-123',
+      orgId: 'org-123',
+      expiresAt: new Date(Date.now() - 1_000),
+    });
 
     const verification = verifyFileToken(token);
 

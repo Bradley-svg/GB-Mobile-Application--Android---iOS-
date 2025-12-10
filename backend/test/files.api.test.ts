@@ -3,7 +3,7 @@ import path from 'path';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import type { Express } from 'express';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { query } from '../src/config/db';
 import { signFileToken } from '../src/services/fileUrlSigner';
 
@@ -11,6 +11,7 @@ const DEFAULT_USER_ID = '44444444-4444-4444-4444-444444444444';
 const OTHER_USER_ID = '55555555-aaaa-bbbb-cccc-dddddddddddd';
 const OTHER_ORG_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
 const OTHER_ORG_SITE_ID = '99999999-9999-9999-9999-999999999999';
+const DEFAULT_ORG_ID = '11111111-1111-1111-1111-111111111111';
 
 const ATTACHMENT_PATH =
   'work-orders/11111111-1111-1111-1111-111111111111/55555555-5555-5555-5555-555555555555/pump-photo.jpg';
@@ -27,6 +28,7 @@ let token: string;
 let otherOrgToken: string;
 let storageRoot: string;
 let originalSigningSecret: string | undefined;
+let contractorToken: string;
 
 beforeAll(async () => {
   process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
@@ -105,6 +107,14 @@ beforeAll(async () => {
     { sub: OTHER_USER_ID, type: 'access', role: 'facilities' },
     process.env.JWT_SECRET
   );
+  contractorToken = jwt.sign(
+    { sub: DEFAULT_USER_ID, type: 'access', role: 'contractor' },
+    process.env.JWT_SECRET
+  );
+});
+
+beforeEach(async () => {
+  await query('delete from audit_events');
 });
 
 afterAll(() => {
@@ -172,6 +182,25 @@ describe('signed files API', () => {
     const body = download.text ?? download.body?.toString();
     expect(body).toBe('seeded attachment body');
     expect(download.headers['content-type']).toContain('image/jpeg');
+
+    const auditEvents = await query<{
+      action: string;
+      entity_id: string;
+      user_id: string | null;
+    }>(
+      `
+      select action, entity_id, user_id
+      from audit_events
+      order by created_at asc
+    `
+    );
+    expect(auditEvents.rows.map((row) => row.action)).toEqual([
+      'file_signed_url_created',
+      'file_signed_url_downloaded',
+    ]);
+    expect(auditEvents.rows[0]?.entity_id).toBe(ATTACHMENT_ID);
+    expect(auditEvents.rows[0]?.user_id).toBe(DEFAULT_USER_ID);
+    expect(auditEvents.rows[1]?.entity_id).toBe(ATTACHMENT_ID);
   });
 
   it('rejects other-organisation users when issuing signed URLs', async () => {
@@ -180,6 +209,17 @@ describe('signed files API', () => {
       .set('Authorization', `Bearer ${otherOrgToken}`)
       .send({})
       .expect(403);
+  });
+
+  it('blocks contractors from issuing signed URLs', async () => {
+    await request(app)
+      .post(`/files/${ATTACHMENT_ID}/signed-url`)
+      .set('Authorization', `Bearer ${contractorToken}`)
+      .send({})
+      .expect(403);
+
+    const events = await query<{ count: string }>('select count(*) as count from audit_events');
+    expect(Number(events.rows[0]?.count ?? 0)).toBe(0);
   });
 
   it('fails with 503 when file signing is disabled', async () => {
@@ -197,8 +237,18 @@ describe('signed files API', () => {
   it('returns 410 for expired tokens and 404 for invalid tokens', async () => {
     process.env.FILE_SIGNING_SECRET =
       process.env.FILE_SIGNING_SECRET || 'test-signing-secret';
-    const expiredToken = signFileToken(DOCUMENT_ID, new Date(Date.now() - 5_000));
+    const expiredToken = signFileToken({
+      fileId: DOCUMENT_ID,
+      orgId: DEFAULT_ORG_ID,
+      expiresAt: new Date(Date.now() - 5_000),
+    });
+    const wrongOrgToken = signFileToken({
+      fileId: DOCUMENT_ID,
+      orgId: OTHER_ORG_ID,
+      expiresAt: new Date(Date.now() + 5_000),
+    });
     await request(app).get(`/files/signed/${expiredToken}`).expect(410);
+    await request(app).get(`/files/signed/${wrongOrgToken}`).expect(404);
     await request(app).get(`/files/signed/not-a-token`).expect(404);
   });
 });

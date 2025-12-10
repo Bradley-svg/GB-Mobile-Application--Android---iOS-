@@ -1,6 +1,7 @@
 import request from 'supertest';
 import type { Express } from 'express';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { query } from '../src/config/db';
 import { resetTestDb } from './testDbSetup';
 
 const SITE_ID = '22222222-2222-2222-2222-222222222222';
@@ -47,6 +48,11 @@ describe('share links (authenticated)', () => {
       permissions: 'read_only',
     });
     expect(res.body.token).toBeTruthy();
+
+    const audits = await query<{ action: string }>(
+      'select action from audit_events order by created_at asc'
+    );
+    expect(audits.rows.map((row) => row.action)).toContain('share_link_created');
   });
 
   it('lists existing share links for a site', async () => {
@@ -82,6 +88,14 @@ describe('share links (authenticated)', () => {
 
     const ids = (listRes.body as any[]).map((l) => l.id);
     expect(ids).not.toContain(linkId);
+
+    const audits = await query<{ action: string }>(
+      'select action from audit_events order by created_at asc'
+    );
+    expect(audits.rows.map((row) => row.action)).toEqual([
+      'share_link_created',
+      'share_link_revoked',
+    ]);
   });
 
   it('rejects share link creation for contractors', async () => {

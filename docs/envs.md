@@ -25,7 +25,8 @@ Centralised reference for backend and mobile environment variables across dev/st
 - `FILE_STORAGE_ROOT`: Root path for uploaded files (defaults to `./storage` in local dev; must be writable on staging/prod hosts or the storage block in `/health-plus` will fail).
 - `FILE_STORAGE_BASE_URL`: Base URL used when returning `/files/...` links (use API origin in dev; point at the reverse-proxy/CDN origin in staging/prod).
 - `FILE_SIGNING_SECRET`: HMAC secret for issuing `/files/:id/signed-url` tokens; optional in dev, required in staging/prod if signed URLs are enabled. Do not reuse the JWT secret.
-- Signed URLs: issue tokens with `POST /files/:id/signed-url` (requires auth plus org/role checks) and consume with `GET /files/signed/:token`; uploads are still AV-scanned before they land in `FILE_STORAGE_ROOT` regardless of signing.
+- `FILE_SIGNED_URL_TTL_MINUTES`: Default lifetime (minutes) when callers omit `ttlSeconds` for signed URLs; tokens are org/file scoped with a hardcoded `read` action and are rejected when expired or org-mismatched.
+- Signed URLs: issue tokens with `POST /files/:id/signed-url` (requires auth plus org/role checks) and consume with `GET /files/signed/:token`; uploads are still AV-scanned before they land in `FILE_STORAGE_ROOT` regardless of signing, and files marked `scan_failed`/`infected` are never served.
 - `AV_SCANNER_ENABLED`: Enable antivirus scanning for uploads when `true`; in tests or when unset the scanner is stubbed and always reports clean. Staging/prod should set this to `true` with a real scanner target.
 - `AV_SCANNER_CMD`: Optional command/binary for scanning when enabled (defaults to `clamscan --no-summary` if unset) - use when running a local scanner process.
 - `AV_SCANNER_HOST` / `AV_SCANNER_PORT`: Optional clamd target; when both are set uploads are streamed to the daemon instead of running a local command. Mutually exclusive with `AV_SCANNER_CMD`.
@@ -40,6 +41,7 @@ Centralised reference for backend and mobile environment variables across dev/st
 - `CONTROL_API_KEY`: API key for the HTTP control endpoint (when enabled).
 - `CONTROL_API_DISABLED`: Optional flag to disable external control calls (used by CI/E2E).
 - `CONTROL_COMMAND_THROTTLE_MS`: Minimum interval (ms) between repeated control commands per device.
+- Audit logging: key file/share actions write to the `audit_events` table (uploads, signed-URL issuance/use, share link create/revoke); no env toggle is required.
 - `ALERT_WORKER_ENABLED`: Toggle alerts worker on/off (defaults true).
 - `ALERT_WORKER_INTERVAL_SEC` / `ALERT_OFFLINE_MINUTES` / `ALERT_OFFLINE_CRITICAL_MINUTES` / `ALERT_HIGH_TEMP_THRESHOLD` / `ALERT_RULE_REFRESH_MINUTES`: Cadence and threshold tuning for alert evaluation plus cache refresh.
 - `PUSH_HEALTHCHECK_ENABLED`: Toggle for sample push health check endpoint.

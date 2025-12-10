@@ -1,4 +1,5 @@
 import { query } from '../config/db';
+import type { FileStatus } from '../types/files';
 
 export type DocumentRow = {
   id: string;
@@ -15,6 +16,7 @@ export type DocumentRow = {
   relative_path: string;
   uploaded_by_user_id: string | null;
   created_at: string;
+  file_status: FileStatus;
 };
 
 export type CreateDocumentInput = {
@@ -30,6 +32,7 @@ export type CreateDocumentInput = {
   sizeBytes?: number | null;
   relativePath: string;
   uploadedByUserId?: string | null;
+  fileStatus?: FileStatus;
 };
 
 export async function listDocumentsForSite(
@@ -42,6 +45,7 @@ export async function listDocumentsForSite(
     from documents
     where org_id = $1
       and site_id = $2
+      and file_status = 'clean'
     order by created_at desc
   `,
     [orgId, siteId]
@@ -59,6 +63,7 @@ export async function listDocumentsForDevice(
     from documents
     where org_id = $1
       and device_id = $2
+      and file_status = 'clean'
     order by created_at desc
   `,
     [orgId, deviceId]
@@ -82,9 +87,10 @@ export async function createDocument(input: CreateDocumentInput): Promise<Docume
       size_bytes,
       relative_path,
       uploaded_by_user_id,
+      file_status,
       created_at
     )
-    values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, now())
+    values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, now())
     returning *
   `,
     [
@@ -100,6 +106,7 @@ export async function createDocument(input: CreateDocumentInput): Promise<Docume
       input.sizeBytes ?? null,
       input.relativePath,
       input.uploadedByUserId ?? null,
+      input.fileStatus ?? 'clean',
     ]
   );
 

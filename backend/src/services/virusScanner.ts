@@ -2,8 +2,9 @@ import fs from 'fs';
 import net from 'net';
 import { spawn } from 'child_process';
 import { logger } from '../config/logger';
+import type { FileStatus } from '../types/files';
 
-export type ScanResult = 'clean' | 'infected' | 'error';
+export type ScanResult = FileStatus;
 export type VirusScannerStatus = {
   configured: boolean;
   enabled: boolean;
@@ -77,7 +78,7 @@ async function scanWithCommand(filePath: string, commandString: string): Promise
     proc.stderr?.on('data', (chunk) => {
       stderr += chunk.toString();
     });
-    proc.on('error', () => settle('error'));
+    proc.on('error', () => settle('scan_failed'));
     proc.on('close', (code) => {
       const output = `${stdout} ${stderr}`.toLowerCase();
       if (output.includes('found') || output.includes('infected') || code === 1) {
@@ -88,7 +89,7 @@ async function scanWithCommand(filePath: string, commandString: string): Promise
         settle('clean');
         return;
       }
-      settle('error');
+      settle('scan_failed');
     });
   });
 }
@@ -109,8 +110,8 @@ async function scanWithSocket(
       resolve(result);
     };
 
-    socket.setTimeout(SCAN_TIMEOUT_MS, () => settle('error'));
-    socket.on('error', () => settle('error'));
+    socket.setTimeout(SCAN_TIMEOUT_MS, () => settle('scan_failed'));
+    socket.on('error', () => settle('scan_failed'));
     socket.on('data', (data) => {
       const text = data.toString().toUpperCase();
       if (text.includes('FOUND')) {
@@ -118,7 +119,7 @@ async function scanWithSocket(
       } else if (text.includes('OK')) {
         settle('clean');
       } else {
-        settle('error');
+        settle('scan_failed');
       }
     });
 
@@ -134,7 +135,7 @@ async function scanWithSocket(
         socket.write(buffer);
       });
 
-      readStream.on('error', () => settle('error'));
+      readStream.on('error', () => settle('scan_failed'));
       readStream.on('end', () => {
         const terminator = Buffer.alloc(4);
         terminator.writeUInt32BE(0, 0);
@@ -144,7 +145,7 @@ async function scanWithSocket(
 
     socket.on('close', () => {
       if (!settled) {
-        settle('error');
+        settle('scan_failed');
       }
     });
   });
@@ -183,8 +184,8 @@ export async function scanFile(filePath: string): Promise<ScanResult> {
     return result;
   } catch (err) {
     log.error({ err, path: filePath }, 'virus scan failed');
-    recordResult('error', target, err);
-    return 'error';
+    recordResult('scan_failed', target, err);
+    return 'scan_failed';
   }
 }
 

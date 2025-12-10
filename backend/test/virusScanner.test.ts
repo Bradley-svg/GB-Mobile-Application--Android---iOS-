@@ -102,13 +102,13 @@ describe('virusScanner command integration', () => {
     expect(result).toBe('infected');
   });
 
-  it('treats other failures as error', async () => {
+  it('treats other failures as scan_failed', async () => {
     process.env.AV_SCANNER_CMD = `node "${fixturePath}" --error`;
     const mod = await import('../src/services/virusScanner');
 
     const result = await mod.scanFile(tmpFile);
 
-    expect(result).toBe('error');
+    expect(result).toBe('scan_failed');
   });
 });
 

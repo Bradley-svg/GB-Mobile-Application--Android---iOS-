@@ -366,7 +366,7 @@ describe('GET /health-plus antivirus status', () => {
       enabled: true,
       target: 'command',
       lastRunAt,
-      lastResult: 'error',
+      lastResult: 'scan_failed',
       lastError: 'timeout',
     });
 
@@ -377,7 +377,7 @@ describe('GET /health-plus antivirus status', () => {
       enabled: true,
       target: 'command',
       lastRunAt,
-      lastResult: 'error',
+      lastResult: 'scan_failed',
       lastError: 'timeout',
     });
     expect(res.body.ok).toBe(false);

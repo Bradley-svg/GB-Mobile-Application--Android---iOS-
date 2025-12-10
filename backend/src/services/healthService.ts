@@ -252,7 +252,10 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
       ? !heatPumpConfigured
       : !heatPumpConfigured ||
         (heatPumpSuccessRecent && (!heatPumpErrorRecent || (heatPumpLastSuccessAt as Date) >= (heatPumpLastErrorAt as Date)));
-    const antivirusHealthy = !antivirusStatus.configured || antivirusStatus.lastResult !== 'error';
+    const antivirusHealthy =
+      !antivirusStatus.configured ||
+      !antivirusStatus.lastResult ||
+      antivirusStatus.lastResult === 'clean';
 
     const ok = statusLoadFailed
       ? dbOk

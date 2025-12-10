@@ -19,6 +19,7 @@ import {
 } from '../config/storage';
 import { canUploadDocuments } from '../services/rbacService';
 import { scanFile } from '../services/virusScanner';
+import { recordAuditEvent } from '../modules/audit/auditService';
 
 const paramsSchema = z.object({ id: z.string().uuid() });
 const documentBodySchema = z.object({
@@ -49,16 +50,33 @@ const mapDocument = (doc: {
   originalName: doc.original_name,
 });
 
-async function ensureCleanUpload(file: Express.Multer.File, res: Response) {
+async function ensureCleanUpload(
+  file: Express.Multer.File,
+  res: Response,
+  auditContext: { orgId: string; userId?: string | null; scope: 'site' | 'device'; scopeId: string }
+) {
   const scanResult = await scanFile(file.path);
-  if (scanResult === 'infected') {
+  if (scanResult !== 'clean') {
     await fs.promises.unlink(file.path).catch(() => {});
-    res.status(400).json({ message: 'File failed antivirus scan', code: 'ERR_FILE_INFECTED' });
-    return false;
-  }
-  if (scanResult === 'error') {
-    await fs.promises.unlink(file.path).catch(() => {});
-    res.status(503).json({ message: 'Antivirus scan unavailable', code: 'ERR_FILE_SCAN_FAILED' });
+    await recordAuditEvent({
+      orgId: auditContext.orgId,
+      userId: auditContext.userId ?? null,
+      action: 'file_upload_failure',
+      entityType: 'document_upload',
+      entityId: auditContext.scopeId,
+      metadata: {
+        scope: auditContext.scope,
+        scanResult,
+        mimeType: file.mimetype,
+        sizeBytes: file.size,
+        originalName: file.originalname,
+      },
+    });
+    const status = scanResult === 'infected' ? 400 : 503;
+    const message =
+      scanResult === 'infected' ? 'File failed antivirus scan' : 'Antivirus scan unavailable';
+    const code = scanResult === 'infected' ? 'ERR_FILE_INFECTED' : 'ERR_FILE_SCAN_FAILED';
+    res.status(status).json({ message, code });
     return false;
   }
   return true;
@@ -87,6 +105,10 @@ export async function listSiteDocumentsHandler(req: Request, res: Response, next
   }
 
   try {
+    if (!canUploadDocuments(req.user)) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+
     const organisationId = await resolveOrganisationId(req.user!.id, res);
     if (!organisationId) return;
 
@@ -107,6 +129,10 @@ export async function listDeviceDocumentsHandler(req: Request, res: Response, ne
   }
 
   try {
+    if (!canUploadDocuments(req.user)) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+
     const organisationId = await resolveOrganisationId(req.user!.id, res);
     if (!organisationId) return;
 
@@ -150,7 +176,12 @@ export async function uploadSiteDocumentHandler(req: Request, res: Response, nex
       return res.status(404).json({ message: 'Not found' });
     }
 
-    const clean = await ensureCleanUpload(file, res);
+    const clean = await ensureCleanUpload(file, res, {
+      orgId: organisationId,
+      userId: req.user?.id ?? null,
+      scope: 'site',
+      scopeId: parsedParams.data.id,
+    });
     if (!clean) return;
 
     const { storedName, originalName, relativePath, destination } = await persistDocumentFile(
@@ -173,6 +204,23 @@ export async function uploadSiteDocumentHandler(req: Request, res: Response, nex
       sizeBytes: file.size,
       relativePath,
       uploadedByUserId: req.user?.id ?? null,
+      fileStatus: 'clean',
+    });
+
+    await recordAuditEvent({
+      orgId: organisationId,
+      userId: req.user?.id ?? null,
+      action: 'file_upload_success',
+      entityType: 'document',
+      entityId: created.id,
+      metadata: {
+        scope: 'site',
+        scopeId: parsedParams.data.id,
+        mimeType: file.mimetype,
+        sizeBytes: file.size,
+        originalName,
+        relativePath,
+      },
     });
 
     res.status(201).json(mapDocument(created));
@@ -219,7 +267,12 @@ export async function uploadDeviceDocumentHandler(
       return res.status(404).json({ message: 'Not found' });
     }
 
-    const clean = await ensureCleanUpload(file, res);
+    const clean = await ensureCleanUpload(file, res, {
+      orgId: organisationId,
+      userId: req.user?.id ?? null,
+      scope: 'device',
+      scopeId: parsedParams.data.id,
+    });
     if (!clean) return;
 
     const { storedName, originalName, relativePath, destination } = await persistDocumentFile(
@@ -242,6 +295,23 @@ export async function uploadDeviceDocumentHandler(
       sizeBytes: file.size,
       relativePath,
       uploadedByUserId: req.user?.id ?? null,
+      fileStatus: 'clean',
+    });
+
+    await recordAuditEvent({
+      orgId: organisationId,
+      userId: req.user?.id ?? null,
+      action: 'file_upload_success',
+      entityType: 'document',
+      entityId: created.id,
+      metadata: {
+        scope: 'device',
+        scopeId: parsedParams.data.id,
+        mimeType: file.mimetype,
+        sizeBytes: file.size,
+        originalName,
+        relativePath,
+      },
     });
 
     res.status(201).json(mapDocument(created));

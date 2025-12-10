@@ -9,8 +9,15 @@ import {
   findWorkOrderAttachmentById,
   findWorkOrderAttachmentByRelativePath,
 } from '../repositories/workOrdersRepository';
-import { canViewFiles } from '../services/rbacService';
-import { isFileSigningEnabled, signFileToken, verifyFileToken } from '../services/fileUrlSigner';
+import { canShareReadOnly, canViewFiles } from '../services/rbacService';
+import {
+  getDefaultSignedUrlTtlSeconds,
+  isFileSigningEnabled,
+  signFileToken,
+  verifyFileToken,
+} from '../services/fileUrlSigner';
+import type { FileStatus } from '../types/files';
+import { recordAuditEvent } from '../modules/audit/auditService';
 
 const pathParamsSchema = z.object({
   path: z.string().min(1).max(500),
@@ -28,6 +35,7 @@ type FileTarget = {
   relativePath: string;
   mimeType: string | null;
   downloadName: string;
+  status: FileStatus;
 };
 
 function sanitizeRelativePath(rawPath: string): string | null {
@@ -40,24 +48,26 @@ function sanitizeRelativePath(rawPath: string): string | null {
 
 async function resolveFileTargetByRelativePath(relativePath: string): Promise<FileTarget | null> {
   const attachment = await findWorkOrderAttachmentByRelativePath(relativePath);
-  if (attachment?.relative_path) {
+  if (attachment?.relative_path && attachment.file_status === 'clean') {
     return {
       id: attachment.id,
       orgId: attachment.organisation_id,
       relativePath: attachment.relative_path,
       mimeType: attachment.mime_type,
       downloadName: attachment.original_name ?? attachment.filename ?? path.basename(relativePath),
+      status: attachment.file_status,
     };
   }
 
   const document = await findDocumentByRelativePath(relativePath);
-  if (document?.relative_path) {
+  if (document?.relative_path && document.file_status === 'clean') {
     return {
       id: document.id,
       orgId: document.org_id,
       relativePath: document.relative_path,
       mimeType: document.mime_type,
       downloadName: document.original_name ?? document.filename ?? path.basename(relativePath),
+      status: document.file_status,
     };
   }
 
@@ -66,24 +76,26 @@ async function resolveFileTargetByRelativePath(relativePath: string): Promise<Fi
 
 async function resolveFileTargetById(fileId: string): Promise<FileTarget | null> {
   const attachment = await findWorkOrderAttachmentById(fileId);
-  if (attachment?.relative_path) {
+  if (attachment?.relative_path && attachment.file_status === 'clean') {
     return {
       id: attachment.id,
       orgId: attachment.organisation_id,
       relativePath: attachment.relative_path,
       mimeType: attachment.mime_type,
       downloadName: attachment.original_name ?? attachment.filename ?? path.basename(attachment.relative_path),
+      status: attachment.file_status,
     };
   }
 
   const document = await findDocumentById(fileId);
-  if (document?.relative_path) {
+  if (document?.relative_path && document.file_status === 'clean') {
     return {
       id: document.id,
       orgId: document.org_id,
       relativePath: document.relative_path,
       mimeType: document.mime_type,
       downloadName: document.original_name ?? document.filename ?? path.basename(document.relative_path),
+      status: document.file_status,
     };
   }
 
@@ -91,6 +103,9 @@ async function resolveFileTargetById(fileId: string): Promise<FileTarget | null>
 }
 
 async function streamFile(target: FileTarget, res: Response, next: NextFunction) {
+  if (target.status !== 'clean') {
+    return res.status(404).json({ message: 'Not found' });
+  }
   const storageRoot = path.resolve(getStorageRoot());
   const absolutePath = path.resolve(storageRoot, target.relativePath);
   const relativeToRoot = path.relative(storageRoot, absolutePath);
@@ -155,7 +170,7 @@ export async function createSignedFileUrlHandler(
   res: Response,
   next: NextFunction
 ) {
-  if (!canViewFiles(req.user)) {
+  if (!canShareReadOnly(req.user)) {
     return res.status(403).json({ message: 'Forbidden' });
   }
 
@@ -188,9 +203,31 @@ export async function createSignedFileUrlHandler(
       return res.status(403).json({ message: 'Forbidden' });
     }
 
-    const ttl = parsedBody.data.ttlSeconds ?? 3600;
+    const requestedTtl = parsedBody.data.ttlSeconds ?? getDefaultSignedUrlTtlSeconds();
+    const ttl = Math.min(Math.max(requestedTtl, 1), 86_400);
     const expiresAt = new Date(Date.now() + ttl * 1000);
-    const token = signFileToken(target.id ?? parsedParams.data.id, expiresAt);
+    const token = signFileToken({
+      fileId: target.id ?? parsedParams.data.id,
+      orgId: organisationId,
+      userId: req.user?.id,
+      role: req.user?.role,
+      action: 'read',
+      expiresAt,
+    });
+
+    await recordAuditEvent({
+      orgId: organisationId,
+      userId: req.user?.id ?? null,
+      action: 'file_signed_url_created',
+      entityType: 'file',
+      entityId: target.id ?? parsedParams.data.id,
+      metadata: {
+        expiresAt: expiresAt.toISOString(),
+        ttlSeconds: ttl,
+        role: req.user?.role,
+        path: target.relativePath,
+      },
+    });
 
     res.json({ url: `/files/signed/${token}` });
   } catch (err) {
@@ -217,9 +254,23 @@ export async function serveSignedFileHandler(
 
   try {
     const target = await resolveFileTargetById(verification.fileId);
-    if (!target) {
+    if (!target || target.orgId !== verification.orgId) {
       return res.status(404).json({ message: 'Not found' });
     }
+
+    await recordAuditEvent({
+      orgId: target.orgId,
+      userId: verification.userId ?? null,
+      action: 'file_signed_url_downloaded',
+      entityType: 'file',
+      entityId: target.id ?? verification.fileId,
+      metadata: {
+        ip: req.ip,
+        role: verification.role,
+        tokenOrgId: verification.orgId,
+        path: target.relativePath,
+      },
+    });
 
     await streamFile(target, res, next);
   } catch (err) {

@@ -1,4 +1,5 @@
 import { query } from '../config/db';
+import type { FileStatus } from '../types/files';
 import type { AlertSeverity } from './alertsRepository';
 
 export type WorkOrderStatus = 'open' | 'in_progress' | 'done' | 'cancelled';
@@ -55,6 +56,7 @@ export type WorkOrderAttachmentRow = {
   relative_path: string | null;
   uploaded_by_user_id: string | null;
   created_at: string;
+  file_status: FileStatus;
 };
 
 export type CreateWorkOrderInput = {
@@ -87,6 +89,7 @@ export type CreateWorkOrderAttachmentInput = {
   uploadedByUserId?: string | null;
   label?: string | null;
   url?: string | null;
+  fileStatus?: FileStatus;
 };
 
 type WorkOrderFilters = {
@@ -476,9 +479,10 @@ export async function createWorkOrderAttachment(
       url,
       relative_path,
       uploaded_by_user_id,
-      created_at
+      created_at,
+      file_status
     )
-    values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())
+    values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now(), $11)
     returning *
   `,
     [
@@ -492,6 +496,7 @@ export async function createWorkOrderAttachment(
       input.url ?? null,
       input.relativePath,
       input.uploadedByUserId ?? null,
+      input.fileStatus ?? 'clean',
     ]
   );
 
@@ -508,6 +513,7 @@ export async function listWorkOrderAttachments(
     from work_order_attachments
     where work_order_id = $1
       and organisation_id = $2
+      and file_status = 'clean'
     order by created_at desc
   `,
     [workOrderId, organisationId]

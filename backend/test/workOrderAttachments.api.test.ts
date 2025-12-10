@@ -6,7 +6,7 @@ import type { Express } from 'express';
 import { beforeAll, afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { query } from '../src/config/db';
 
-const scanFileMock = vi.fn<[string], Promise<'clean' | 'infected' | 'error'>>();
+const scanFileMock = vi.fn<[string], Promise<'clean' | 'infected' | 'scan_failed'>>();
 
 vi.mock('../src/services/virusScanner', () => ({
   scanFile: (...args: unknown[]) => scanFileMock(...(args as [string])),
@@ -28,6 +28,7 @@ const OTHER_USER_ID = 'cccccccc-1111-2222-3333-dddddddddddd';
 let app: Express;
 let token: string;
 let otherOrgToken: string;
+let contractorToken: string;
 let lastScannedPath: string | null = null;
 
 beforeAll(async () => {
@@ -56,15 +57,21 @@ beforeAll(async () => {
   app = mod.default;
   token = jwt.sign({ sub: DEFAULT_USER_ID, type: 'access' }, process.env.JWT_SECRET);
   otherOrgToken = jwt.sign({ sub: OTHER_USER_ID, type: 'access' }, process.env.JWT_SECRET);
+  contractorToken = jwt.sign(
+    { sub: DEFAULT_USER_ID, type: 'access', role: 'contractor' },
+    process.env.JWT_SECRET
+  );
 });
 
-beforeEach(() => {
+beforeEach(async () => {
   lastScannedPath = null;
   scanFileMock.mockReset();
   scanFileMock.mockImplementation(async (filePath: string) => {
     lastScannedPath = filePath;
     return 'clean';
   });
+
+  await query('delete from audit_events');
 });
 
 afterAll(async () => {
@@ -95,6 +102,21 @@ describe('work order attachments API', () => {
       (att) => att.id === uploadRes.body.id
     );
     expect(found).toBeDefined();
+
+    const auditEvents = await query<{
+      action: string;
+      entity_id: string;
+      entity_type: string;
+    }>(
+      `
+      select action, entity_id, entity_type
+      from audit_events
+      order by created_at asc
+    `
+    );
+    expect(auditEvents.rows.map((row) => row.action)).toEqual(['file_upload_success']);
+    expect(auditEvents.rows[0]?.entity_id).toBe(uploadRes.body.id);
+    expect(auditEvents.rows[0]?.entity_type).toBe('work_order_attachment');
   });
 
   it('rejects infected uploads and does not persist attachments', async () => {
@@ -128,6 +150,11 @@ describe('work order attachments API', () => {
     expect(afterCount).toBe(beforeCount);
     expect(lastScannedPath).toBeTruthy();
     expect(fs.existsSync(lastScannedPath!)).toBe(false);
+
+    const auditEvents = await query<{ action: string }>(
+      'select action from audit_events order by created_at asc'
+    );
+    expect(auditEvents.rows.map((row) => row.action)).toEqual(['file_upload_failure']);
   });
 
   it('returns 503 on scanner errors without persisting attachments', async () => {
@@ -139,7 +166,7 @@ describe('work order attachments API', () => {
 
     scanFileMock.mockImplementationOnce(async (filePath: string) => {
       lastScannedPath = filePath;
-      return 'error';
+      return 'scan_failed';
     });
 
     const uploadRes = await request(app)
@@ -161,6 +188,11 @@ describe('work order attachments API', () => {
     expect(afterCount).toBe(beforeCount);
     expect(lastScannedPath).toBeTruthy();
     expect(fs.existsSync(lastScannedPath!)).toBe(false);
+
+    const auditEvents = await query<{ action: string }>(
+      'select action from audit_events order by created_at asc'
+    );
+    expect(auditEvents.rows.map((row) => row.action)).toEqual(['file_upload_failure']);
   });
 
   it('enforces organisation scoping', async () => {
@@ -168,5 +200,24 @@ describe('work order attachments API', () => {
       .get(`/work-orders/${WORK_ORDER_ID}/attachments`)
       .set('Authorization', `Bearer ${otherOrgToken}`)
       .expect(404);
+  });
+
+  it('blocks contractors from listing or uploading attachments', async () => {
+    await request(app)
+      .get(`/work-orders/${WORK_ORDER_ID}/attachments`)
+      .set('Authorization', `Bearer ${contractorToken}`)
+      .expect(403);
+
+    await request(app)
+      .post(`/work-orders/${WORK_ORDER_ID}/attachments`)
+      .set('Authorization', `Bearer ${contractorToken}`)
+      .attach('file', Buffer.from('denied'), {
+        filename: 'denied.txt',
+        contentType: 'text/plain',
+      })
+      .expect(403);
+
+    const audits = await query<{ count: string }>('select count(*) as count from audit_events');
+    expect(Number(audits.rows[0]?.count ?? 0)).toBe(0);
   });
 });

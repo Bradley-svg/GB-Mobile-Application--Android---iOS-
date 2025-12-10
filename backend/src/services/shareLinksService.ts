@@ -12,6 +12,7 @@ import { getUserContext, requireOrganisationId, type UserContext } from './userS
 import { canShareReadOnly } from './rbacService';
 import { getDeviceLastSeen } from '../repositories/devicesRepository';
 import { getDeviceTelemetry } from './telemetryService';
+import { recordAuditEvent } from '../modules/audit/auditService';
 
 const MAX_EXPIRY_DAYS = 90;
 
@@ -257,6 +258,20 @@ export async function createShareLinkForSite(
   const token = randomBytes(24).toString('hex');
   const row = await createShareLink(orgId, user.id, 'site', site.id, expiresAt, perms, token);
 
+  await recordAuditEvent({
+    orgId,
+    userId: user.id,
+    action: 'share_link_created',
+    entityType: 'share_link',
+    entityId: row.id,
+    metadata: {
+      scopeType: 'site',
+      scopeId: site.id,
+      expiresAt: expiresAt.toISOString(),
+      permissions: perms,
+    },
+  });
+
   return mapShareLink({ ...row, created_by_email: user.email, created_by_name: user.name });
 }
 
@@ -283,6 +298,20 @@ export async function createShareLinkForDevice(
   validateExpiry(expiresAt);
   const token = randomBytes(24).toString('hex');
   const row = await createShareLink(orgId, user.id, 'device', device.id, expiresAt, perms, token);
+
+  await recordAuditEvent({
+    orgId,
+    userId: user.id,
+    action: 'share_link_created',
+    entityType: 'share_link',
+    entityId: row.id,
+    metadata: {
+      scopeType: 'device',
+      scopeId: device.id,
+      expiresAt: expiresAt.toISOString(),
+      permissions: perms,
+    },
+  });
 
   return mapShareLink({ ...row, created_by_email: user.email, created_by_name: user.name });
 }
@@ -321,6 +350,19 @@ export async function revokeShareLinkForUser(userId: string, linkId: string): Pr
   if (!revoked) {
     throw new ShareLinkError('NOT_FOUND', 'Share link not found');
   }
+
+  await recordAuditEvent({
+    orgId,
+    userId: user.id,
+    action: 'share_link_revoked',
+    entityType: 'share_link',
+    entityId: revoked.id,
+    metadata: {
+      scopeType: revoked.scope_type,
+      scopeId: revoked.scope_id,
+      revokedAt: revoked.revoked_at?.toISOString() ?? new Date().toISOString(),
+    },
+  });
 
   return mapShareLink(revoked);
 }

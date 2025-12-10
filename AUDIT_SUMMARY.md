@@ -9,6 +9,9 @@
 ## Fixes made
 - Removed/typed all lingering `any` usages in backend controllers/repositories/services and elevated `@typescript-eslint/no-explicit-any` to `error`.
 - Wired backend CI to enforce coverage via `npm run test:coverage` (Vitest thresholds already configured) and kept typecheck/lint/build steps intact.
+- Hardened file delivery: signed URLs now embed file/org/user/action metadata, enforce expiry/org scope, and default to `FILE_SIGNED_URL_TTL_MINUTES`; `/files` only serves AV-clean files.
+- Clarified AV/quarantine semantics with a `file_status` column (`clean`/`infected`/`scan_failed`) and 503s on scan failures; non-clean files never stream.
+- Added persistent `audit_events` for file uploads (success/failure), signed URL issuance/download, and share link create/revoke, plus env/docs/test coverage.
 - Made Detox E2E workflow self-contained: starts Postgres, installs backend deps, runs migrate + seed (`seed:e2e`), boots backend server, waits on `/health-plus`, then runs Metro + Detox (`.github/workflows/e2e-android.yml`).
 - Added `seed:e2e` script (`backend/package.json`) and used `wait-on` for backend readiness; vendor heat-pump history is disabled in CI via `HEATPUMP_HISTORY_DISABLED=true`.
 - Added vendor-disable flags/guards for control/MQTT/push (CI only) plus prod-like warnings via `checkVendorDisableFlags`; documented flags in env templates/checklists/dev notes.

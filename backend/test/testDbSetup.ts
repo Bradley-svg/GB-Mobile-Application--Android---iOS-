@@ -572,6 +572,7 @@ async function resetTables(client: Client) {
 
   await client.query(`
       truncate table
+        audit_events,
         work_order_tasks,
         work_order_attachments,
         documents,

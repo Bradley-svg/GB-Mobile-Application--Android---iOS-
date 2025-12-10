@@ -30,6 +30,7 @@ import {
 } from '../config/storage';
 import { canManageWorkOrders } from '../services/rbacService';
 import { scanFile } from '../services/virusScanner';
+import { recordAuditEvent } from '../modules/audit/auditService';
 
 const workOrderIdParamSchema = z.object({ id: z.string().uuid() });
 const deviceIdParamSchema = z.object({ id: z.string().uuid() });
@@ -350,6 +351,10 @@ export async function listWorkOrderAttachmentsHandler(
   }
 
   try {
+    if (!canManageWorkOrders(req.user)) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+
     const organisationId = await resolveOrganisationId(req.user!.id, res);
     if (!organisationId) return;
 
@@ -394,17 +399,27 @@ export async function uploadWorkOrderAttachmentHandler(
     if (!workOrder) return res.status(404).json({ message: 'Not found' });
 
     const scanResult = await scanFile(file.path);
-    if (scanResult === 'infected') {
+    if (scanResult !== 'clean') {
       await fs.promises.unlink(file.path).catch(() => {});
-      return res
-        .status(400)
-        .json({ message: 'File failed antivirus scan', code: 'ERR_FILE_INFECTED' });
-    }
-    if (scanResult === 'error') {
-      await fs.promises.unlink(file.path).catch(() => {});
-      return res
-        .status(503)
-        .json({ message: 'Antivirus scan unavailable', code: 'ERR_FILE_SCAN_FAILED' });
+      await recordAuditEvent({
+        orgId: organisationId,
+        userId: req.user?.id ?? null,
+        action: 'file_upload_failure',
+        entityType: 'work_order_attachment',
+        entityId: parsedParams.data.id,
+        metadata: {
+          scanResult,
+          workOrderId: parsedParams.data.id,
+          mimeType: file.mimetype,
+          sizeBytes: file.size,
+          originalName: file.originalname,
+        },
+      });
+      const status = scanResult === 'infected' ? 400 : 503;
+      const message =
+        scanResult === 'infected' ? 'File failed antivirus scan' : 'Antivirus scan unavailable';
+      const code = scanResult === 'infected' ? 'ERR_FILE_INFECTED' : 'ERR_FILE_SCAN_FAILED';
+      return res.status(status).json({ message, code });
     }
 
     const originalName = file.originalname || 'upload';
@@ -427,6 +442,22 @@ export async function uploadWorkOrderAttachmentHandler(
       uploadedByUserId: req.user?.id ?? null,
       label: originalName,
       url: buildPublicUrl(relativePath),
+      fileStatus: 'clean',
+    });
+
+    await recordAuditEvent({
+      orgId: organisationId,
+      userId: req.user?.id ?? null,
+      action: 'file_upload_success',
+      entityType: 'work_order_attachment',
+      entityId: created.id,
+      metadata: {
+        workOrderId: parsedParams.data.id,
+        mimeType: file.mimetype,
+        sizeBytes: file.size,
+        originalName,
+        relativePath,
+      },
     });
 
     res.status(201).json(mapAttachmentResponse(created));
