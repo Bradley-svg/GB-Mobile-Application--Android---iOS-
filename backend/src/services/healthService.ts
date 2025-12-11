@@ -58,6 +58,8 @@ export type HealthPlusPayload = {
   mqtt: {
     configured: boolean;
     disabled?: boolean;
+    connected: boolean;
+    lastMessageAt: string | null;
     lastIngestAt: string | null;
     lastErrorAt: string | null;
     lastError: string | null;
@@ -139,11 +141,12 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
   ];
   const disabledFlags = vendorDisableCandidates.filter((flag) => process.env[flag] === 'true');
   const mqttDisabled = disabledFlags.includes('MQTT_DISABLED');
-  const controlDisabled = disabledFlags.includes('CONTROL_API_DISABLED');
+  let controlDisabled = disabledFlags.includes('CONTROL_API_DISABLED');
   const pushDisabled = disabledFlags.includes('PUSH_NOTIFICATIONS_DISABLED');
   let heatPumpHistoryDisabled = disabledFlags.includes('HEATPUMP_HISTORY_DISABLED');
   const mqttSnapshot = getMqttHealth();
   const controlSnapshot = getControlChannelStatus();
+  controlDisabled = controlSnapshot.disabled ?? controlDisabled;
   const pushEnabled = process.env.PUSH_HEALTHCHECK_ENABLED === 'true' && !pushDisabled;
   const alertsIntervalSec = Number(process.env.ALERT_WORKER_INTERVAL_SEC || 60);
   const alertsHeartbeatWindowMs = Math.max(alertsIntervalSec * 2 * 1000, 60 * 1000);
@@ -343,6 +346,8 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
       mqtt: {
         configured: mqttSnapshot.configured,
         disabled: mqttDisabled,
+        connected: mqttSnapshot.connected,
+        lastMessageAt: toIso(mqttSnapshot.lastMessageAt),
         lastIngestAt: toIso(mqttLastIngestAt),
         lastErrorAt: toIso(mqttLastErrorAt),
         lastError: mqttLastError,
@@ -430,6 +435,8 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
       mqtt: {
         configured: mqttSnapshot.configured,
         disabled: mqttDisabled,
+        connected: mqttSnapshot.connected,
+        lastMessageAt: toIso(mqttSnapshot.lastMessageAt),
         lastIngestAt: null,
         lastErrorAt: null,
         lastError: mqttSnapshot.lastError ?? null,

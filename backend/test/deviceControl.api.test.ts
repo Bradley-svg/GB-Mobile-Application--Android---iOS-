@@ -52,7 +52,7 @@ beforeAll(async () => {
   process.env.JWT_SECRET = 'test-secret';
   const mod = await import('../src/index');
   app = mod.default;
-  token = jwt.sign({ sub: 'user-ctrl', type: 'access' }, process.env.JWT_SECRET!);
+  token = jwt.sign({ sub: 'user-ctrl', type: 'access', role: 'admin' }, process.env.JWT_SECRET!);
 });
 
 beforeEach(() => {
@@ -82,6 +82,51 @@ describe('control endpoints', () => {
       .expect(400);
 
     expect(setDeviceSetpointMock).not.toHaveBeenCalled();
+  });
+
+  it('forbids contractors from issuing control commands', async () => {
+    const contractorToken = jwt.sign(
+      { sub: 'user-ctrl', type: 'access', role: 'contractor' },
+      process.env.JWT_SECRET!
+    );
+    getUserContextMock.mockResolvedValueOnce({
+      id: 'user-contractor',
+      organisation_id: 'org-ctrl',
+      email: 'contractor@test.com',
+      name: 'Contractor',
+      role: 'contractor',
+    });
+
+    await request(app)
+      .post('/devices/00000000-0000-0000-0000-000000000111/commands/setpoint')
+      .set('Authorization', `Bearer ${contractorToken}`)
+      .send({ metric: 'flow_temp', value: 44 })
+      .expect(403);
+
+    expect(setDeviceSetpointMock).not.toHaveBeenCalled();
+  });
+
+  it('allows facilities role to issue control commands', async () => {
+    const facilitiesToken = jwt.sign(
+      { sub: 'user-ctrl', type: 'access', role: 'facilities' },
+      process.env.JWT_SECRET!
+    );
+    getUserContextMock.mockResolvedValueOnce({
+      id: 'user-fac',
+      organisation_id: 'org-ctrl',
+      email: 'fac@test.com',
+      name: 'Facilities',
+      role: 'facilities',
+    });
+    setDeviceSetpointMock.mockResolvedValueOnce({ id: 'cmd-fac', status: 'success' });
+
+    await request(app)
+      .post('/devices/00000000-0000-0000-0000-000000000111/commands/setpoint')
+      .set('Authorization', `Bearer ${facilitiesToken}`)
+      .send({ metric: 'flow_temp', value: 44 })
+      .expect(200);
+
+    expect(setDeviceSetpointMock).toHaveBeenCalled();
   });
 
   it('maps validation errors from control service', async () => {

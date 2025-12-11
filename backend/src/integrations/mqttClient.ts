@@ -1,7 +1,9 @@
-import mqtt, { MqttClient } from 'mqtt';
+import EventEmitter from 'events';
+import mqtt, { type IClientOptions, type MqttClient } from 'mqtt';
 import { handleTelemetryMessage } from '../services/telemetryIngestService';
 import { markMqttIngestError, markMqttIngestSuccess } from '../services/statusService';
 import { logger } from '../config/logger';
+import { getVendorMqttConfig } from '../config/vendorMqttControl';
 
 let client: MqttClient | null = null;
 let messageCount = 0;
@@ -15,7 +17,12 @@ const MAX_RECONNECT_MS = 30_000;
 let reconnectDelayMs = BASE_RECONNECT_MS;
 const COMPONENT = 'mqttIngest';
 const log = logger.child({ module: COMPONENT });
-const MQTT_DISABLED = process.env.MQTT_DISABLED === 'true';
+type ClientFactory = (url: string, options: IClientOptions) => MqttClient;
+let clientFactory: ClientFactory | null = null;
+
+export function setMqttClientFactory(factory: ClientFactory | null) {
+  clientFactory = factory;
+}
 
 async function safeMarkMqttSuccess(now: Date) {
   try {
@@ -31,6 +38,29 @@ async function safeMarkMqttError(now: Date, err: unknown) {
   } catch (statusErr) {
     log.warn({ err: statusErr }, 'failed to record ingest error');
   }
+}
+
+function createMockClient(): MqttClient {
+  const emitter = new EventEmitter() as MqttClient & { connected?: boolean };
+  emitter.connected = false;
+  emitter.subscribe = ((topic: string, cb?: (err?: Error) => void) => {
+    cb?.();
+    return emitter;
+  }) as unknown as MqttClient['subscribe'];
+  emitter.publish = ((topic: string, message: string, _opts: unknown, cb?: (err?: Error) => void) => {
+    cb?.();
+    return true;
+  }) as unknown as MqttClient['publish'];
+  emitter.end = ((_force?: boolean) => emitter) as unknown as MqttClient['end'];
+  return emitter;
+}
+
+function buildClient(url: string, options: IClientOptions) {
+  if (clientFactory) return clientFactory(url, options);
+  if ((process.env.NODE_ENV || 'development') === 'test') {
+    return createMockClient();
+  }
+  return mqtt.connect(url, options);
 }
 
 function formatBroker(url: string | null) {
@@ -54,12 +84,12 @@ export type MqttHealth = {
 };
 
 export function getMqttHealth(): MqttHealth {
-  const mqttUrl = process.env.MQTT_URL || null;
+  const config = getVendorMqttConfig({ logMissing: false });
 
   return {
-    configured: MQTT_DISABLED ? false : Boolean(mqttUrl),
-    connected: MQTT_DISABLED ? false : Boolean(client?.connected),
-    broker: formatBroker(mqttUrl),
+    configured: config.configured,
+    connected: config.disabled ? false : Boolean(client?.connected),
+    broker: formatBroker(config.url),
     lastMessageAt: lastMessageAt ? lastMessageAt.toISOString() : null,
     lastConnectAt: lastConnectAt ? lastConnectAt.toISOString() : null,
     lastDisconnectAt: lastDisconnectAt ? lastDisconnectAt.toISOString() : null,
@@ -75,6 +105,11 @@ function clearReconnectTimer() {
 }
 
 function scheduleReconnect(reason: string) {
+  const config = getVendorMqttConfig({ logMissing: false });
+  if (config.disabled) {
+    log.warn({ reason }, 'skipping reconnect because MQTT ingest is disabled');
+    return;
+  }
   if (reconnectTimer) return;
   const delay = reconnectDelayMs;
   reconnectDelayMs = Math.min(reconnectDelayMs * 2, MAX_RECONNECT_MS);
@@ -91,42 +126,41 @@ function resetBackoff() {
 }
 
 function initConnection(isRetry: boolean) {
-  if (MQTT_DISABLED) {
+  const config = getVendorMqttConfig();
+  if (config.disabled) {
     log.warn({ reason: 'disabled' }, 'MQTT ingest disabled via MQTT_DISABLED');
     return null;
   }
 
-  const url = process.env.MQTT_URL;
-  const username = process.env.MQTT_USERNAME;
-  const password = process.env.MQTT_PASSWORD;
-
-  if (!url) {
+  if (!config.url) {
     log.warn({ reason: 'missing-url' }, 'MQTT_URL not set; MQTT ingest is disabled');
     return null;
   }
 
-  client = mqtt.connect(url, {
-    username,
-    password,
+  client = buildClient(config.url, {
+    username: config.username || undefined,
+    password: config.password || undefined,
     reconnectPeriod: 0,
+    connectTimeout: config.connectTimeoutMs,
   });
 
   client.on('connect', () => {
     resetBackoff();
-    log.info({ broker: formatBroker(url), retry: isRetry }, 'connected to broker');
+    (client as EventEmitter & { connected?: boolean }).connected = true;
+    log.info({ broker: formatBroker(config.url), retry: isRetry }, 'connected to broker');
     lastConnectAt = new Date();
     lastError = null;
-    client!.subscribe('greenbro/+/+/telemetry', (err) => {
+    client!.subscribe(config.telemetryTopic, (err) => {
       if (err) {
         log.error({ err }, 'subscribe error');
       } else {
-        log.info('subscribed to telemetry topics');
+        log.info({ topic: config.telemetryTopic }, 'subscribed to telemetry topics');
       }
     });
   });
 
   client.on('reconnect', () => {
-    log.info({ broker: formatBroker(url) }, 'reconnecting to broker');
+    log.info({ broker: formatBroker(config.url) }, 'reconnecting to broker');
   });
 
   client.on('message', async (topic, payload) => {
@@ -138,24 +172,29 @@ function initConnection(isRetry: boolean) {
     try {
       const ok = await handleTelemetryMessage(topic, payload);
       if (ok) {
+        lastError = null;
         await safeMarkMqttSuccess(now);
       } else {
+        lastError = 'telemetry ingest returned false';
         await safeMarkMqttError(now, 'telemetry ingest returned false');
       }
     } catch (e) {
       log.error({ err: e, topic }, 'failed to handle MQTT message');
+      lastError = (e as Error | undefined)?.message || 'MQTT ingest failure';
       await safeMarkMqttError(new Date(), e);
     }
   });
 
   client.on('error', (err) => {
+    (client as EventEmitter & { connected?: boolean }).connected = false;
     log.error({ err }, 'client error');
     lastError = err?.message || 'MQTT error';
-    safeMarkMqttError(new Date(), err);
+    void safeMarkMqttError(new Date(), err);
     scheduleReconnect('error');
   });
 
   client.on('close', () => {
+    (client as EventEmitter & { connected?: boolean }).connected = false;
     log.warn('connection closed');
     lastDisconnectAt = new Date();
     scheduleReconnect('close');

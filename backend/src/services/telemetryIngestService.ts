@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { getDeviceByExternalId } from '../repositories/devicesRepository';
 import { insertTelemetryBatch, upsertDeviceSnapshot } from '../repositories/telemetryRepository';
 import { logger } from '../config/logger';
+import { getVendorMqttConfig } from '../config/vendorMqttControl';
 
 type ParsedTopic = {
   siteExternalId: string;
@@ -36,11 +37,39 @@ export type TelemetryPayload = z.infer<typeof telemetryPayloadSchema>;
 const log = logger.child({ module: 'telemetry' });
 
 function parseTopic(topic: string): ParsedTopic | null {
-  const parts = topic.split('/');
-  if (parts.length !== 4) return null;
+  const topicParts = topic.split('/');
+  const pattern = getVendorMqttConfig({ logMissing: false }).telemetryTopic;
+  const patternParts = pattern.split('/');
+  if (patternParts.length !== topicParts.length) return null;
 
-  const [root, siteExternalId, deviceExternalId, type] = parts;
-  if (root !== 'greenbro' || type !== 'telemetry') return null;
+  let siteExternalId: string | null = null;
+  let deviceExternalId: string | null = null;
+  let wildcardCount = 0;
+
+  for (let idx = 0; idx < patternParts.length; idx += 1) {
+    const patternPart = patternParts[idx];
+    const topicPart = topicParts[idx];
+    if (patternPart === '+') {
+      wildcardCount += 1;
+      if (wildcardCount === 1) siteExternalId = topicPart;
+      if (wildcardCount === 2) deviceExternalId = topicPart;
+      continue;
+    }
+    if (patternPart.startsWith('{') && patternPart.endsWith('}')) {
+      const key = patternPart.slice(1, -1).toLowerCase();
+      if (key.includes('site')) {
+        siteExternalId = topicPart;
+      } else if (key.includes('device')) {
+        deviceExternalId = topicPart;
+      }
+      continue;
+    }
+    if (patternPart !== topicPart) {
+      return null;
+    }
+  }
+
+  if (!siteExternalId || !deviceExternalId) return null;
 
   return { siteExternalId, deviceExternalId };
 }
@@ -163,4 +192,3 @@ export async function handleHttpTelemetryIngest(params: {
 
   return storeTelemetry(device.id, parsedPayload, 'http');
 }
-

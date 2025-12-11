@@ -33,6 +33,12 @@ Requirements:
   5) `npm run dev` (binds to `http://localhost:4000`)
 - Health check: `curl http://localhost:4000/health-plus` should return `{ env: "development", db: "ok", ok: true }` plus blocks for `mqtt`, `control`, `heatPumpHistory` (configured: false if HEATPUMP_* unset), `alertsEngine`, `maintenance`, and `storage` (writable). If `heatPumpHistory.configured` is false/disabled, that is expected for local UI tests.
 
+## Vendor MQTT/control sandbox check
+- Populate broker + control secrets locally (do not commit): `MQTT_URL`, `MQTT_USERNAME`, `MQTT_PASSWORD`, `MQTT_TELEMETRY_TOPIC`/`MQTT_CONTROL_TOPIC_TEMPLATE` if the vendor uses non-default topics, `CONTROL_API_URL`, `CONTROL_API_KEY`, and keep `MQTT_DISABLED=false`, `CONTROL_API_DISABLED=false`.
+- Start the backend normally (`npm run dev`) and watch logs for `mqttIngest` connect + subscribe. `/health-plus` should show `mqttIngest.configured=true`, `mqttIngest.connected=true`, and `lastMessageAt` ticking after telemetry arrives.
+- `/health-plus` `control.configured=true` once `CONTROL_API_URL`/`CONTROL_API_KEY` are present and the disable flag is false; `lastCommandAt`/`lastError` echo status from the shared system_status table.
+- From the mobile Device screen, send a test setpoint/mode command: backend should log the command, persist it to history, and the vendor sandbox should reflect the change where possible.
+
 ## Mobile / Metro (Android dev client)
 - API base: `EXPO_PUBLIC_API_URL` if set; otherwise falls back to `http://10.0.2.2:4000` (Android emulator -> host loopback). Icons/splash/header use `mobile/assets/greenbro/greenbro-icon-1024.png`, `greenbro-splash.png`, and `greenbro-logo-horizontal.png`.
 - Commands:
@@ -79,5 +85,4 @@ Requirements:
 ## Branding quick-check
 - Canonical assets only: `docs/branding/official/greenbro-logo-horizontal-gearO.{svg,png}`, `mobile/assets/greenbro/greenbro-logo-horizontal.png`, `greenbro-splash.png`, `greenbro-icon-1024.png`.
 - Quick grep sanity: run the two `rg` checks referenced in `docs/branding/README.md`; expected hits are limited to that warning, and app assets already point to the official PNG.
-
 

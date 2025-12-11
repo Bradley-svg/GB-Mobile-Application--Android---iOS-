@@ -146,6 +146,7 @@ describe('GET /health-plus mqtt/control status', () => {
 
     expect(res.body.ok).toBe(true);
     expect(res.body.mqtt.configured).toBe(false);
+    expect(res.body.mqtt.connected).toBe(false);
     expect(res.body.mqtt.healthy).toBe(true);
     expect(res.body.control.configured).toBe(false);
     expect(res.body.control.healthy).toBe(true);
@@ -191,6 +192,27 @@ describe('GET /health-plus mqtt/control status', () => {
     expect(res.body.mqtt.configured).toBe(true);
     expect(res.body.mqtt.lastIngestAt).toBe(recentIngest.toISOString());
     expect(res.body.mqtt.healthy).toBe(true);
+    expect(res.body.ok).toBe(true);
+  });
+
+  it('exposes mqtt connection state and last message time', async () => {
+    const lastMessage = new Date();
+    getMqttHealthMock.mockReturnValue({
+      ...defaultMqtt,
+      configured: true,
+      connected: true,
+      lastMessageAt: lastMessage.toISOString(),
+    });
+    const recentIngest = new Date();
+    getSystemStatusMock.mockResolvedValue({
+      ...baseSystemStatus(),
+      mqtt_last_ingest_at: recentIngest,
+    });
+
+    const res = await request(app).get('/health-plus').expect(200);
+
+    expect(res.body.mqtt.connected).toBe(true);
+    expect(res.body.mqtt.lastMessageAt).toBe(lastMessage.toISOString());
     expect(res.body.ok).toBe(true);
   });
 

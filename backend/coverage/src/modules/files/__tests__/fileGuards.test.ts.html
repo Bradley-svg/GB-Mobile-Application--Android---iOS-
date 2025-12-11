@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">96.25% </span>
+                <span class="strong">96.34% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>154/160</span>
+                <span class='fraction'>158/164</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">96.25% </span>
+                <span class="strong">96.34% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>154/160</span>
+                <span class='fraction'>158/164</span>
             </div>
         
             
@@ -315,7 +315,19 @@
 <a name='L250'></a><a href='#L250'>250</a>
 <a name='L251'></a><a href='#L251'>251</a>
 <a name='L252'></a><a href='#L252'>252</a>
-<a name='L253'></a><a href='#L253'>253</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<a name='L253'></a><a href='#L253'>253</a>
+<a name='L254'></a><a href='#L254'>254</a>
+<a name='L255'></a><a href='#L255'>255</a>
+<a name='L256'></a><a href='#L256'>256</a>
+<a name='L257'></a><a href='#L257'>257</a>
+<a name='L258'></a><a href='#L258'>258</a>
+<a name='L259'></a><a href='#L259'>259</a>
+<a name='L260'></a><a href='#L260'>260</a>
+<a name='L261'></a><a href='#L261'>261</a>
+<a name='L262'></a><a href='#L262'>262</a>
+<a name='L263'></a><a href='#L263'>263</a>
+<a name='L264'></a><a href='#L264'>264</a>
+<a name='L265'></a><a href='#L265'>265</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -398,6 +410,18 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">6x</span>
@@ -576,7 +600,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSignedFileUrlHandler, serveSignedFileHandler } from '../../../controllers/filesController';
 import { uploadWorkOrderAttachmentHandler } from '../../../controllers/workOrdersController';
 &nbsp;
-const scanFileMock = vi.fn&lt;[string], Promise&lt;'clean' | 'infected' | 'scan_failed'&gt;&gt;();
+const scanFileMock = vi.fn&lt;(filePath: string) =&gt; Promise&lt;'clean' | 'infected' | 'scan_failed'&gt;&gt;();
 const getWorkOrderMock = vi.fn();
 const createWorkOrderAttachmentMock = vi.fn();
 const verifyFileTokenMock = vi.fn();
@@ -648,28 +672,40 @@ vi.mock('../../audit/auditService', () =&gt; ({
   recordAuditEvent: (...args: unknown[]) =&gt; recordAuditEventMock(...args),
 }));
 &nbsp;
-type MockResponse = Response &amp; { body?: unknown; statusCode?: number; headers: Record&lt;string, string&gt; };
+type MockResponse = {
+  body?: unknown;
+  statusCode?: number;
+  headers: Record&lt;string, string&gt;;
+  status: ReturnType&lt;typeof vi.fn&gt;;
+  json: ReturnType&lt;typeof vi.fn&gt;;
+  send: ReturnType&lt;typeof vi.fn&gt;;
+  setHeader: ReturnType&lt;typeof vi.fn&gt;;
+};
 &nbsp;
 function createMockResponse(): MockResponse {
-  const res: Partial&lt;MockResponse&gt; = {
+  const res: MockResponse = {
     headers: {},
+    status: vi.fn(),
+    json: vi.fn(),
+    send: vi.fn(),
+    setHeader: vi.fn(),
   };
   res.status = vi.fn((code: number) =&gt; {
     res.statusCode = code;
-    return res as Response;
+    return res;
   });
   res.json = vi.fn((payload: unknown) =&gt; {
     res.body = payload;
-    return res as Response;
+    return res;
   });
   res.send = vi.fn((payload: unknown) =&gt; {
 <span class="cstat-no" title="statement not covered" >    res.body = payload;</span>
-<span class="cstat-no" title="statement not covered" >    return res as Response;</span>
+<span class="cstat-no" title="statement not covered" >    return res;</span>
   });
   res.setHeader = vi.fn((key: string, value: string) =&gt; {
-<span class="cstat-no" title="statement not covered" >    res.headers![key] = value;</span>
+<span class="cstat-no" title="statement not covered" >    res.headers[key] = value;</span>
   });
-  return res as MockResponse;
+  return res;
 }
 &nbsp;
 describe('file access guards', () =&gt; {
@@ -715,7 +751,7 @@ describe('file access guards', () =&gt; {
     } as unknown as Request;
     const res = createMockResponse();
 &nbsp;
-    await uploadWorkOrderAttachmentHandler(req, res, vi.fn());
+    await uploadWorkOrderAttachmentHandler(req, res as unknown as Response, vi.fn());
 &nbsp;
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.body).toMatchObject({ code: 'ERR_FILE_INFECTED' });
@@ -745,7 +781,7 @@ describe('file access guards', () =&gt; {
     } as unknown as Request;
     const res = createMockResponse();
 &nbsp;
-    await uploadWorkOrderAttachmentHandler(req, res, vi.fn());
+    await uploadWorkOrderAttachmentHandler(req, res as unknown as Response, vi.fn());
 &nbsp;
     expect(res.status).toHaveBeenCalledWith(503);
     expect(res.body).toMatchObject({ code: 'ERR_FILE_SCAN_FAILED' });
@@ -780,7 +816,7 @@ describe('file access guards', () =&gt; {
       const res = createMockResponse();
       await serveSignedFileHandler(
         { params: { token: 'test-token' }, ip: '127.0.0.1' } as unknown as Request,
-        res,
+        res as unknown as Response,
         vi.fn()
       );
 &nbsp;
@@ -796,7 +832,7 @@ describe('file access guards', () =&gt; {
 &nbsp;
     await serveSignedFileHandler(
       { params: { token: 'expired-token' }, ip: '127.0.0.1' } as unknown as Request,
-      res,
+      res as unknown as Response,
       vi.fn()
     );
 &nbsp;
@@ -812,7 +848,7 @@ describe('file access guards', () =&gt; {
       user: { id: 'user-1', role: 'contractor' },
     } as unknown as Request;
 &nbsp;
-    await createSignedFileUrlHandler(req, res, vi.fn());
+    await createSignedFileUrlHandler(req, res as unknown as Response, vi.fn());
 &nbsp;
     expect(res.status).toHaveBeenCalledWith(403);
     expect(signFileTokenMock).not.toHaveBeenCalled();
@@ -826,7 +862,7 @@ describe('file access guards', () =&gt; {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-10T22:15:31.322Z
+                at 2025-12-11T09:48:08.926Z
             </div>
         <script src="../../../../prettify.js"></script>
         <script>

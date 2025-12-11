@@ -27,6 +27,7 @@ vi.mock('../src/services/statusService', () => ({
 
 vi.mock('../src/config/logger', () => ({
   logger: {
+    warn: (...args: unknown[]) => loggerWarnMock(...args),
     child: () => ({
       info: (...args: unknown[]) => loggerInfoMock(...args),
       warn: (...args: unknown[]) => loggerWarnMock(...args),
@@ -54,6 +55,7 @@ let setDeviceMode: typeof import('../src/services/deviceControlService').setDevi
 const originalMqttUrl = process.env.MQTT_URL;
 const originalControlUrl = process.env.CONTROL_API_URL;
 const originalControlKey = process.env.CONTROL_API_KEY;
+const originalControlDisabled = process.env.CONTROL_API_DISABLED;
 
 beforeAll(async () => {
   const mod = await import('../src/services/deviceControlService');
@@ -74,6 +76,7 @@ beforeEach(() => {
   process.env.MQTT_URL = 'mqtt://test-broker';
   delete process.env.CONTROL_API_URL;
   delete process.env.CONTROL_API_KEY;
+  delete process.env.CONTROL_API_DISABLED;
   (global as any).fetch = undefined;
   loggerInfoMock.mockReset();
   loggerWarnMock.mockReset();
@@ -81,9 +84,18 @@ beforeEach(() => {
 });
 
 afterAll(() => {
-  process.env.MQTT_URL = originalMqttUrl;
+  if (originalMqttUrl) {
+    process.env.MQTT_URL = originalMqttUrl;
+  } else {
+    delete process.env.MQTT_URL;
+  }
   if (originalControlUrl) process.env.CONTROL_API_URL = originalControlUrl;
   if (originalControlKey) process.env.CONTROL_API_KEY = originalControlKey;
+  if (originalControlDisabled) {
+    process.env.CONTROL_API_DISABLED = originalControlDisabled;
+  } else {
+    delete process.env.CONTROL_API_DISABLED;
+  }
 });
 
 describe('deviceControlService', () => {
@@ -115,6 +127,19 @@ describe('deviceControlService', () => {
     );
 
     expect(queryMock).not.toHaveBeenCalled();
+  });
+
+  it('short-circuits when control is disabled via env', async () => {
+    process.env.CONTROL_API_DISABLED = 'true';
+    getDeviceByIdMock.mockResolvedValue(baseDevice);
+
+    await expect(
+      setDeviceSetpoint('device-1', 'user-1', { metric: 'flow_temp', value: 45 })
+    ).rejects.toThrow('CONTROL_CHANNEL_UNCONFIGURED');
+
+    expect(connectMock).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(markControlCommandErrorMock).toHaveBeenCalled();
   });
 
   it('records a failed command when setpoint validation fails', async () => {

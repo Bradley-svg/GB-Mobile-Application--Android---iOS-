@@ -9,6 +9,7 @@ import {
   releaseWorkerLock,
   renewWorkerLock,
 } from '../repositories/workerLocksRepository';
+import { getVendorMqttConfig } from '../config/vendorMqttControl';
 
 const WORKER_NAME = 'mqttIngest';
 const ownerId = randomUUID();
@@ -74,18 +75,24 @@ function startRenewLoop() {
 
 async function start() {
   const env = process.env.NODE_ENV || 'development';
-  const mqttUrl = process.env.MQTT_URL;
-  const mqttUsernameSet = Boolean(process.env.MQTT_USERNAME);
+  const mqttConfig = getVendorMqttConfig({ logMissing: false });
+  const mqttUsernameSet = Boolean(mqttConfig.username);
 
   log.info(
     {
       env,
-      broker: resolveBrokerHost(mqttUrl),
+      broker: resolveBrokerHost(mqttConfig.url),
+      disabled: mqttConfig.disabled,
       usernameConfigured: mqttUsernameSet,
       lockTtlMs,
     },
     'starting mqtt ingest worker'
   );
+
+  if (mqttConfig.disabled) {
+    log.warn({ reason: 'disabled' }, 'MQTT ingest disabled; exiting worker');
+    return;
+  }
 
   const acquired = await acquireWorkerLock(WORKER_NAME, ownerId, lockTtlMs);
   if (!acquired) {
@@ -97,7 +104,8 @@ async function start() {
   mqttClient = initMqtt();
 
   if (!mqttClient) {
-    log.warn({ reason: 'missing-mqtt-url' }, 'MQTT ingest not started (MQTT_URL missing)');
+    const reason = mqttConfig.url ? 'failed-to-connect' : 'missing-mqtt-url';
+    log.warn({ reason }, 'MQTT ingest not started');
     await shutdown(0);
   }
 }

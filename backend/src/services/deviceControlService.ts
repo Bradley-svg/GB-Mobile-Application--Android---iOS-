@@ -1,4 +1,4 @@
-import mqtt, { MqttClient } from 'mqtt';
+import mqtt, { type MqttClient } from 'mqtt';
 import { sendControlOverHttp } from '../integrations/controlClient';
 import {
   insertCommandRow,
@@ -17,16 +17,13 @@ import {
   validateSetpointCommand,
 } from './deviceControlValidationService';
 import { logger } from '../config/logger';
+import { getVendorControlConfig } from '../config/vendorMqttControl';
 
 let commandClient: MqttClient | null = null;
-const controlHttpUrl = () => process.env.CONTROL_API_URL;
-const controlHttpKey = () => process.env.CONTROL_API_KEY;
 export const CONTROL_CHANNEL_UNCONFIGURED = 'CONTROL_CHANNEL_UNCONFIGURED';
 let lastControlError: string | null = null;
 let lastControlAttemptAt: Date | null = null;
-const CONTROL_API_DISABLED = process.env.CONTROL_API_DISABLED === 'true';
 const COMMAND_SOURCE = 'api';
-const COMMAND_THROTTLE_WINDOW_MS = Number(process.env.CONTROL_COMMAND_THROTTLE_MS || 5000);
 const log = logger.child({ module: 'command' });
 
 export class ControlThrottleError extends Error {
@@ -40,7 +37,18 @@ export class ControlThrottleError extends Error {
 
 type ControlConfig =
   | { type: 'http'; url: string; apiKey: string }
-  | { type: 'mqtt'; url: string };
+  | {
+      type: 'mqtt';
+      url: string;
+      username: string | null;
+      password: string | null;
+      commandTopicTemplate: string;
+    };
+
+function getThrottleWindowMs() {
+  const config = getVendorControlConfig({ logMissing: false });
+  return config.commandThrottleMs;
+}
 
 function recordControlError(err: unknown) {
   if (err instanceof Error) {
@@ -83,7 +91,8 @@ async function enforceCommandThrottle(
   userId: string,
   commandType: 'setpoint' | 'mode',
   payload: SetpointCommandPayload | ModeCommandPayload,
-  requestedValue: object
+  requestedValue: object,
+  windowMs: number
 ): Promise<ControlThrottleError | null> {
   const lastCommand = await getLastCommandForDevice(deviceId);
   if (!lastCommand || !lastCommand.requested_at) return null;
@@ -92,7 +101,7 @@ async function enforceCommandThrottle(
   if (Number.isNaN(lastRequestedAt.getTime())) return null;
 
   const elapsedMs = Date.now() - lastRequestedAt.getTime();
-  if (elapsedMs >= COMMAND_THROTTLE_WINDOW_MS) return null;
+  if (elapsedMs >= windowMs) return null;
 
   const secondsAgo = Math.max(1, Math.round(elapsedMs / 1000));
   const message = `Last ${commandType} command was ${secondsAgo}s ago; throttling repeat command.`;
@@ -114,45 +123,44 @@ async function enforceCommandThrottle(
 }
 
 function resolveControlConfig(): ControlConfig {
-  const httpUrl = controlHttpUrl();
-  const httpKey = controlHttpKey();
-
-  if (CONTROL_API_DISABLED) {
+  const config = getVendorControlConfig();
+  if (config.disabled || !config.transport) {
     recordControlError(CONTROL_CHANNEL_UNCONFIGURED);
     throw new Error(CONTROL_CHANNEL_UNCONFIGURED);
   }
 
-  if (httpUrl) {
-    if (!httpKey) {
+  if (config.transport === 'http') {
+    if (!config.apiUrl || !config.apiKey) {
       recordControlError(CONTROL_CHANNEL_UNCONFIGURED);
       throw new Error(CONTROL_CHANNEL_UNCONFIGURED);
     }
     lastControlError = null;
-    return { type: 'http', url: httpUrl, apiKey: httpKey };
+    return { type: 'http', url: config.apiUrl, apiKey: config.apiKey };
   }
 
-  const mqttUrl = process.env.MQTT_URL;
-  if (!mqttUrl) {
+  if (!config.mqttUrl) {
     recordControlError(CONTROL_CHANNEL_UNCONFIGURED);
     throw new Error(CONTROL_CHANNEL_UNCONFIGURED);
   }
 
   lastControlError = null;
-  return { type: 'mqtt', url: mqttUrl };
+  return {
+    type: 'mqtt',
+    url: config.mqttUrl,
+    username: config.mqttUsername,
+    password: config.mqttPassword,
+    commandTopicTemplate: config.commandTopicTemplate,
+  };
 }
 
-function getCommandClient(config?: Extract<ControlConfig, { type: 'mqtt' }>) {
+function getCommandClient(config: Extract<ControlConfig, { type: 'mqtt' }>) {
   if (commandClient) return commandClient;
 
-  const url = config?.url || process.env.MQTT_URL;
-  const username = process.env.MQTT_USERNAME;
-  const password = process.env.MQTT_PASSWORD;
-
-  if (!url) {
-    throw new Error('MQTT_URL not set; cannot send commands');
-  }
-
-  commandClient = mqtt.connect(url, { username, password });
+  const url = config.url;
+  commandClient = mqtt.connect(url, {
+    username: config.username || undefined,
+    password: config.password || undefined,
+  });
 
   commandClient.on('connect', () => {
     log.info({ broker: formatTarget(url) }, 'MQTT command client connected');
@@ -160,6 +168,7 @@ function getCommandClient(config?: Extract<ControlConfig, { type: 'mqtt' }>) {
 
   commandClient.on('error', (err) => {
     log.error({ err }, 'MQTT command error');
+    recordControlError(err);
   });
 
   return commandClient;
@@ -181,6 +190,10 @@ async function publishCommand(
       }
     });
   });
+}
+
+function buildCommandTopic(template: string, deviceExternalId: string) {
+  return template.replace('{deviceExternalId}', deviceExternalId);
 }
 
 async function sendSetpointToExternal(
@@ -227,7 +240,7 @@ async function sendSetpointToExternal(
     }
   }
 
-  const topic = `greenbro/${deviceExternalId}/commands`;
+  const topic = buildCommandTopic(controlConfig.commandTopicTemplate, deviceExternalId);
   const message = JSON.stringify(body);
 
   log.info(
@@ -236,6 +249,7 @@ async function sendSetpointToExternal(
       metric: payload.metric,
       value: payload.value,
       transport: 'mqtt',
+      topic,
     },
     'publishing setpoint'
   );
@@ -278,10 +292,10 @@ async function sendModeToExternal(
     }
   }
 
-  const topic = `greenbro/${deviceExternalId}/commands`;
+  const topic = buildCommandTopic(controlConfig.commandTopicTemplate, deviceExternalId);
   const message = JSON.stringify(body);
 
-  log.info({ deviceExternalId, mode: payload.mode, transport: 'mqtt' }, 'publishing mode');
+  log.info({ deviceExternalId, mode: payload.mode, transport: 'mqtt', topic }, 'publishing mode');
 
   try {
     await publishCommand(topic, message, controlConfig);
@@ -339,6 +353,7 @@ export async function setDeviceSetpoint(
   );
 
   let controlConfig: ControlConfig;
+  const throttleWindowMs = getThrottleWindowMs();
   try {
     controlConfig = resolveControlConfig();
   } catch (err) {
@@ -351,14 +366,15 @@ export async function setDeviceSetpoint(
     userId,
     'setpoint',
     payload,
-    requestedValue
+    requestedValue,
+    throttleWindowMs
   );
   if (throttleError) {
     log.warn(
       {
         deviceId: device.id,
         deviceExternalId: device.external_id,
-        windowMs: COMMAND_THROTTLE_WINDOW_MS,
+        windowMs: throttleWindowMs,
       },
       'setpoint command throttled'
     );
@@ -400,33 +416,22 @@ export async function setDeviceSetpoint(
 }
 
 export function getControlChannelStatus() {
-  const httpUrl = controlHttpUrl();
-  const httpKey = controlHttpKey();
-  const mqttUrl = process.env.MQTT_URL || null;
-
-  let configured = false;
-  let type: ControlConfig['type'] | null = null;
+  const config = getVendorControlConfig({ logMissing: false });
   let target: string | null = null;
+  if (config.transport === 'http') {
+    target = config.apiUrl;
+  } else if (config.transport === 'mqtt') {
+    target = config.mqttUrl;
+  }
   let error = lastControlError;
-
-  if (httpUrl) {
-    type = 'http';
-    target = httpUrl;
-    configured = Boolean(httpKey);
-    if (!configured) {
-      error = CONTROL_CHANNEL_UNCONFIGURED;
-    }
-  } else if (mqttUrl) {
-    type = 'mqtt';
-    target = mqttUrl;
-    configured = true;
-  } else {
+  if (!config.configured && !config.disabled) {
     error = CONTROL_CHANNEL_UNCONFIGURED;
   }
 
   return {
-    configured,
-    type,
+    configured: config.configured,
+    disabled: config.disabled,
+    type: config.transport,
     target: formatTarget(target),
     lastCommandAt: lastControlAttemptAt ? lastControlAttemptAt.toISOString() : null,
     lastError: error,
@@ -478,6 +483,7 @@ export async function setDeviceMode(
   );
 
   let controlConfig: ControlConfig;
+  const throttleWindowMs = getThrottleWindowMs();
   try {
     controlConfig = resolveControlConfig();
   } catch (err) {
@@ -490,14 +496,15 @@ export async function setDeviceMode(
     userId,
     'mode',
     payload,
-    requestedValue
+    requestedValue,
+    throttleWindowMs
   );
   if (throttleError) {
     log.warn(
       {
         deviceId: device.id,
         deviceExternalId: device.external_id,
-        windowMs: COMMAND_THROTTLE_WINDOW_MS,
+        windowMs: throttleWindowMs,
       },
       'mode command throttled'
     );

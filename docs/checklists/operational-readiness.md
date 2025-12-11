@@ -6,6 +6,7 @@ Use this before staging/production releases to confirm services and clients are 
 - [ ] Secrets populated with `NODE_ENV=production`, `APP_VERSION=0.8.0`, staging `DATABASE_URL`, `CORS_ALLOWED_ORIGINS`, strong `JWT_SECRET`, and 2FA settings (`AUTH_2FA_ENABLED=true`, `AUTH_2FA_ENFORCE_ROLES=owner,admin`).
 - [ ] Migrations applied to the staging database; bootstrap/seed run where appropriate (`npm run staging:bootstrap`).
 - [ ] `/health-plus` returns ok: db/storage writable, AV configured or explicitly disabled, push block reflects staging Expo token, MQTT/control/history blocks show configured vs disabled flags as intended.
+- [ ] MQTT/control wired with vendor topics/commands: `MQTT_URL`/`MQTT_USERNAME`/`MQTT_PASSWORD` (and topic templates) present, `CONTROL_API_URL`/`CONTROL_API_KEY` set when enabled, disable flags false; `/health-plus` shows `mqttIngest.connected` after samples and `control.configured=true`.
 - [ ] File storage root writable, `FILE_STORAGE_BASE_URL` points at the staging API/CDN origin, and `FILE_SIGNING_SECRET` set; signed URLs tested if enabled for mobile.
 - [ ] AV scanner reachable when `AV_SCANNER_ENABLED=true`; failures investigated before release.
 - [ ] Push: `EXPO_ACCESS_TOKEN` set, `PUSH_NOTIFICATIONS_ENABLED_ROLES` correct; `/me/push/test` succeeds from a staging client.
@@ -17,6 +18,7 @@ Use this before staging/production releases to confirm services and clients are 
 - [ ] Secrets set with production endpoints and unique secrets (`JWT_SECRET`, `FILE_SIGNING_SECRET`), `APP_VERSION=0.8.0`, and restricted `CORS_ALLOWED_ORIGINS`.
 - [ ] Migrations applied as part of deployment; no demo seed data pushed to production.
 - [ ] `/health-plus` green for db/storage/AV/push, MQTT/control/history configured with disable flags left `false`.
+- [ ] MQTT/control endpoints reachable with correct topic templates/keys; `/health-plus` shows `mqttIngest.connected` with recent `lastMessageAt` and control status includes `lastCommandAt`/`lastError` as expected.
 - [ ] File storage durable and writable; AV scanner enabled and reachable; signed URLs issued with a production-only signing secret.
 - [ ] Push configured with production `EXPO_ACCESS_TOKEN`; sample push checks pass when enabled.
 - [ ] MQTT/control/history endpoints reachable; vendor disable flags stay false unless deliberately offline (document if toggled).
