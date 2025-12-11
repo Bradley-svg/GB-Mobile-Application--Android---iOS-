@@ -67,18 +67,19 @@ export default function ThemePreviewPage() {
 
   return (
     <AppShell
-      title="Theme Preview"
       navItems={[
-        { label: "Dashboard" },
-        { label: "Theme Preview", active: true },
-        { label: "Settings" },
+        { label: "Dashboard", href: "/app" },
+        { label: "Theme Preview", href: "/_playground/theme-preview", active: true },
+        { label: "Settings", href: "/app/profile" },
       ]}
-      topActions={
+      pageTitle="Theme Preview"
+      topLeftSlot={
         <div style={{ display: "flex", gap: theme.spacing.sm }}>
           <Badge tone="neutral">Mode: {mode}</Badge>
           <Badge tone="brand">Resolved: {resolvedMode}</Badge>
         </div>
       }
+      topRightSlot={null}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: theme.spacing.lg }}>
         <Card title="Theme controls" subtitle="Toggle light/dark/system modes">

@@ -42,7 +42,7 @@ export default function TwoFactorPage() {
         return;
       }
       await completeTwoFactor(challengeToken, values.code.trim());
-      router.replace("/");
+      router.replace("/app");
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const status = err.response?.status;

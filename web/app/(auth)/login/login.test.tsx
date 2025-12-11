@@ -44,6 +44,6 @@ describe("LoginPage", () => {
 
     await waitFor(() => expect(mockLogin).toHaveBeenCalled());
     expect(mockLogin).toHaveBeenCalledWith("demo@greenbro.com", "password123");
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/app"));
   });
 });

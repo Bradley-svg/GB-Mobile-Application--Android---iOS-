@@ -12,6 +12,8 @@ type ButtonProps = {
   size?: ButtonSize;
   iconLeft?: ReactNode;
   iconRight?: ReactNode;
+  as?: "button" | "a";
+  href?: string;
 } & ButtonHTMLAttributes<HTMLButtonElement>;
 
 const px = (value: number) => `${value}px`;
@@ -22,6 +24,8 @@ export function Button({
   size = "md",
   iconLeft,
   iconRight,
+  as = "button",
+  href,
   disabled,
   className,
   ...rest
@@ -53,28 +57,41 @@ export function Button({
   const opacity = disabled ? 0.6 : 1;
   const cursor = disabled ? "not-allowed" : "pointer";
 
+  const baseStyles = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap,
+    padding: paddings,
+    borderRadius,
+    background: palette.background,
+    color: palette.text,
+    border: `1px solid ${palette.border}`,
+    fontSize: theme.typography.body.fontSize,
+    fontWeight: theme.typography.subtitle.fontWeight,
+    cursor,
+    opacity,
+    transition: "transform 120ms ease, box-shadow 120ms ease",
+    boxShadow: variant === "primary" ? `0 6px 18px ${theme.colors.shadow}` : "none",
+    textDecoration: "none",
+  } as const;
+
+  if (as === "a") {
+    return (
+      <a className={clsx(className)} href={href} style={baseStyles}>
+        {iconLeft && <span style={{ display: "flex", alignItems: "center" }}>{iconLeft}</span>}
+        <span style={{ lineHeight: px(theme.typography.body.fontSize + 4) }}>{children}</span>
+        {iconRight && <span style={{ display: "flex", alignItems: "center" }}>{iconRight}</span>}
+      </a>
+    );
+  }
+
   return (
     <button
       type="button"
       className={clsx(className)}
       disabled={disabled}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap,
-        padding: paddings,
-        borderRadius,
-        background: palette.background,
-        color: palette.text,
-        border: `1px solid ${palette.border}`,
-        fontSize: theme.typography.body.fontSize,
-        fontWeight: theme.typography.subtitle.fontWeight,
-        cursor,
-        opacity,
-        transition: "transform 120ms ease, box-shadow 120ms ease",
-        boxShadow: variant === "primary" ? `0 6px 18px ${theme.colors.shadow}` : "none",
-      }}
+      style={baseStyles}
       {...rest}
     >
       {iconLeft && <span style={{ display: "flex", alignItems: "center" }}>{iconLeft}</span>}

@@ -64,7 +64,7 @@ export default function LoginPage() {
         );
         return;
       }
-      router.replace("/");
+      router.replace("/app");
     } catch (err) {
       const lockout = parseLockout(err);
       if (lockout) {

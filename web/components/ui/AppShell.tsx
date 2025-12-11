@@ -1,25 +1,29 @@
 "use client";
 
+import Link from "next/link";
 import { ReactNode } from "react";
 import { useTheme } from "@/theme/ThemeProvider";
 
 type NavItem = {
   label: string;
+  href: string;
   active?: boolean;
   icon?: ReactNode;
 };
 
 type AppShellProps = {
-  title?: string;
   navItems?: NavItem[];
-  topActions?: ReactNode;
+  topLeftSlot?: ReactNode;
+  topRightSlot?: ReactNode;
+  pageTitle?: string;
   children: ReactNode;
 };
 
 export function AppShell({
-  title = "Dashboard",
   navItems = [],
-  topActions,
+  topLeftSlot,
+  topRightSlot,
+  pageTitle = "Dashboard",
   children,
 }: AppShellProps) {
   const { theme } = useTheme();
@@ -42,6 +46,10 @@ export function AppShell({
           display: "flex",
           flexDirection: "column",
           gap: theme.spacing.md,
+          position: "sticky",
+          top: 0,
+          alignSelf: "flex-start",
+          height: "100vh",
         }}
       >
         <div
@@ -66,9 +74,9 @@ export function AppShell({
         </div>
         <nav style={{ display: "flex", flexDirection: "column", gap: theme.spacing.xs }}>
           {navItems.map((item) => (
-            <button
+            <Link
               key={item.label}
-              type="button"
+              href={item.href}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -78,13 +86,13 @@ export function AppShell({
                 border: `1px solid ${item.active ? theme.colors.borderStrong : "transparent"}`,
                 color: theme.colors.textPrimary,
                 borderRadius: theme.radius.md,
-                cursor: "pointer",
-                textAlign: "left",
+                textDecoration: "none",
+                fontWeight: item.active ? 600 : 500,
               }}
             >
               {item.icon}
-              <span style={{ fontWeight: item.active ? 600 : 500 }}>{item.label}</span>
-            </button>
+              <span>{item.label}</span>
+            </Link>
           ))}
         </nav>
       </aside>
@@ -98,14 +106,19 @@ export function AppShell({
             padding: `${theme.spacing.md}px ${theme.spacing.lg}px`,
             backgroundColor: theme.colors.surfaceAlt,
             borderBottom: `1px solid ${theme.colors.borderSubtle}`,
+            gap: theme.spacing.md,
+            position: "sticky",
+            top: 0,
+            zIndex: 10,
           }}
         >
-          <div>
+          <div style={{ display: "flex", flexDirection: "column", gap: theme.spacing.xs }}>
             <p
               style={{
                 margin: 0,
                 color: theme.colors.textSecondary,
                 fontSize: theme.typography.caption.fontSize,
+                letterSpacing: 0.2,
               }}
             >
               Greenbro
@@ -117,16 +130,20 @@ export function AppShell({
                 fontWeight: theme.typography.title2.fontWeight,
               }}
             >
-              {title}
+              {pageTitle}
             </h1>
           </div>
-          {topActions}
+          <div style={{ display: "flex", alignItems: "center", gap: theme.spacing.md, flexWrap: "wrap" }}>
+            {topLeftSlot}
+            {topRightSlot}
+          </div>
         </header>
         <main
           style={{
             flex: 1,
             padding: `${theme.spacing.lg}px`,
             backgroundColor: theme.colors.backgroundAlt,
+            minHeight: "calc(100vh - 80px)",
           }}
         >
           {children}
