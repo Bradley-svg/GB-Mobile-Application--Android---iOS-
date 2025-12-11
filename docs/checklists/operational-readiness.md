@@ -3,7 +3,7 @@
 Use this before staging/production releases to confirm services and clients are configured.
 
 ## Staging
-- [ ] Secrets populated with `NODE_ENV=production`, `APP_VERSION=0.7.0`, staging `DATABASE_URL`, `CORS_ALLOWED_ORIGINS`, strong `JWT_SECRET`, and 2FA settings (`AUTH_2FA_ENABLED=true`, `AUTH_2FA_ENFORCE_ROLES=owner,admin`).
+- [ ] Secrets populated with `NODE_ENV=production`, `APP_VERSION=0.8.0`, staging `DATABASE_URL`, `CORS_ALLOWED_ORIGINS`, strong `JWT_SECRET`, and 2FA settings (`AUTH_2FA_ENABLED=true`, `AUTH_2FA_ENFORCE_ROLES=owner,admin`).
 - [ ] Migrations applied to the staging database; bootstrap/seed run where appropriate (`npm run staging:bootstrap`).
 - [ ] `/health-plus` returns ok: db/storage writable, AV configured or explicitly disabled, push block reflects staging Expo token, MQTT/control/history blocks show configured vs disabled flags as intended.
 - [ ] File storage root writable, `FILE_STORAGE_BASE_URL` points at the staging API/CDN origin, and `FILE_SIGNING_SECRET` set; signed URLs tested if enabled for mobile.
@@ -14,7 +14,7 @@ Use this before staging/production releases to confirm services and clients are 
 - [ ] Alerts worker enabled with recent heartbeat; `DB_SLOW_QUERY_MS` tuned for staging.
 
 ## Production
-- [ ] Secrets set with production endpoints and unique secrets (`JWT_SECRET`, `FILE_SIGNING_SECRET`), `APP_VERSION=0.7.0`, and restricted `CORS_ALLOWED_ORIGINS`.
+- [ ] Secrets set with production endpoints and unique secrets (`JWT_SECRET`, `FILE_SIGNING_SECRET`), `APP_VERSION=0.8.0`, and restricted `CORS_ALLOWED_ORIGINS`.
 - [ ] Migrations applied as part of deployment; no demo seed data pushed to production.
 - [ ] `/health-plus` green for db/storage/AV/push, MQTT/control/history configured with disable flags left `false`.
 - [ ] File storage durable and writable; AV scanner enabled and reachable; signed URLs issued with a production-only signing secret.
@@ -23,7 +23,7 @@ Use this before staging/production releases to confirm services and clients are 
 - [ ] RBAC verified for owner/admin/facilities/contractor across control, work orders, documents, sharing, and QR/device lookup.
 
 ## Mobile
-- [ ] `EXPO_PUBLIC_API_URL` matches the target environment in the chosen `eas.json` profile; Android versionCode and iOS buildNumber align with the release (0.7.0 / 7 / 0.7.0).
+- [ ] `EXPO_PUBLIC_API_URL` matches the target environment in the chosen `eas.json` profile; Android versionCode and iOS buildNumber align with the release (0.8.0 / 8 / 0.8.0).
 - [ ] Expo credentials available for the selected profile; staging/production builds reference the correct API URL.
 - [ ] Lint/type/tests clean; Detox targets the Pixel_7_API_34 emulator with Metro on 8081.
 - [ ] Push tested end-to-end against the target backend (registration + `/me/push/test` via Diagnostics).

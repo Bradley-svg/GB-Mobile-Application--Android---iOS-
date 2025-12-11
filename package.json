@@ -1,7 +1,7 @@
 {
   "name": "greenbro-monorepo",
   "private": true,
-  "version": "0.7.0",
+  "version": "0.8.0",
   "scripts": {
     "dev:backend": "cd backend && npm run dev",
     "dev:mobile": "cd mobile && npm run start:devclient",
