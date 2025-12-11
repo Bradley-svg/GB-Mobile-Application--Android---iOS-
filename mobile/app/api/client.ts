@@ -17,7 +17,9 @@ const useSignedFileUrls =
     : Boolean(rawUseSignedFileUrls);
 
 const apiUrl =
-  (Constants.expoConfig?.extra as ExpoExtra | undefined)?.apiUrl ?? 'http://10.0.2.2:4000';
+  process.env.EXPO_PUBLIC_API_URL ||
+  (Constants.expoConfig?.extra as ExpoExtra | undefined)?.apiUrl ||
+  'http://192.168.10.167:4000';
 
 console.log('Greenbro API base URL at runtime:', apiUrl);
 
