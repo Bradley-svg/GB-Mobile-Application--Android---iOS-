@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { fetchOrgs, type OrgSummary } from "@/lib/api/orgs";
+import { useUserRole } from "@/lib/useUserRole";
 
 type OrgState = {
   currentOrgId: string | null;

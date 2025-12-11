@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 import { useTheme } from "@/theme/ThemeProvider";
 
 type BadgeTone = "brand" | "neutral" | "success" | "warning" | "error" | "info";
@@ -8,9 +8,9 @@ type BadgeTone = "brand" | "neutral" | "success" | "warning" | "error" | "info";
 type BadgeProps = {
   children: ReactNode;
   tone?: BadgeTone;
-};
+} & HTMLAttributes<HTMLSpanElement>;
 
-export function Badge({ children, tone = "neutral" }: BadgeProps) {
+export function Badge({ children, tone = "neutral", ...rest }: BadgeProps) {
   const { theme } = useTheme();
 
   const palette = {
@@ -36,6 +36,7 @@ export function Badge({ children, tone = "neutral" }: BadgeProps) {
         fontSize: theme.typography.caption.fontSize,
         fontWeight: theme.typography.label.fontWeight,
       }}
+      {...rest}
     >
       {children}
     </span>

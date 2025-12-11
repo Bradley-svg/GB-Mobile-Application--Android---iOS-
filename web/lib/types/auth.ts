@@ -18,3 +18,21 @@ export type AuthResponse = Partial<AuthTokens> & {
   challengeToken?: string;
   twoFactorSetupRequired?: boolean;
 };
+
+export type TwoFactorSetupResponse = {
+  secret: string;
+  otpauthUrl?: string;
+};
+
+export type TwoFactorStatusResponse = {
+  enabled: boolean;
+};
+
+export type AuthSession = {
+  id: string;
+  userAgent?: string | null;
+  ip?: string | null;
+  createdAt: string;
+  lastUsedAt: string | null;
+  current?: boolean;
+};
