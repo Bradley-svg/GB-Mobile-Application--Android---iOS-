@@ -23,8 +23,9 @@ const renderWithTheme = (ui: React.ReactElement) =>
 const baseTelemetry: DeviceTelemetry = {
   range: '24h',
   metrics: {
-    supply_temp: [{ ts: '2025-01-01T10:00:00Z', value: 45 }],
-    return_temp: [{ ts: '2025-01-01T10:00:00Z', value: 38 }],
+    tank_temp: [{ ts: '2025-01-01T10:00:00Z', value: 45 }],
+    dhw_temp: [{ ts: '2025-01-01T10:00:00Z', value: 38 }],
+    ambient_temp: [{ ts: '2025-01-01T10:00:00Z', value: 22 }],
     flow_rate: [{ ts: '2025-01-01T10:00:00Z', value: 12 }],
     power_kw: [{ ts: '2025-01-01T10:00:00Z', value: 5 }],
     cop: [{ ts: '2025-01-01T10:00:00Z', value: 3.2 }],
@@ -32,29 +33,37 @@ const baseTelemetry: DeviceTelemetry = {
 };
 
 describe('DeviceGaugesSection', () => {
-  it('renders gauges when telemetry is present', () => {
+  it('renders grouped gauges when telemetry is present', () => {
     renderWithTheme(
       <DeviceGaugesSection telemetry={baseTelemetry} isOffline={false} compressorCurrent={22} />
     );
 
     expect(screen.getByText(/Status gauges/i)).toBeTruthy();
-    expect(screen.getByText(/Leaving water temp/i)).toBeTruthy();
-    expect(screen.getByText(/Return water temp/i)).toBeTruthy();
+    expect(screen.getByText(/Temperatures/i)).toBeTruthy();
+    expect(screen.getByText(/Tank temperature/i)).toBeTruthy();
+    expect(screen.getByText(/DHW temperature/i)).toBeTruthy();
+    expect(screen.getByText(/Ambient temperature/i)).toBeTruthy();
     expect(screen.getByText(/Power draw/i)).toBeTruthy();
+    expect(screen.getByText(/COP/i)).toBeTruthy();
     expect(screen.getByText(/22.0 A/)).toBeTruthy();
   });
 
-  it('renders "No data" indicators for missing metrics', () => {
+  it('renders per-gauge empty messaging when metrics are missing', () => {
     const telemetryWithoutFlow: DeviceTelemetry = {
       ...baseTelemetry,
-      metrics: { ...baseTelemetry.metrics, flow_rate: [] },
+      metrics: { ...baseTelemetry.metrics, ambient_temp: [] },
     };
 
     renderWithTheme(
-      <DeviceGaugesSection telemetry={telemetryWithoutFlow} isOffline={false} compressorCurrent={null} />
+      <DeviceGaugesSection
+        telemetry={telemetryWithoutFlow}
+        isOffline={false}
+        compressorCurrent={null}
+      />
     );
 
-    expect(screen.getAllByText(/No data/i).length).toBeGreaterThan(0);
+    expect(screen.getByTestId('gauge-ambient-temp-empty')).toBeTruthy();
+    expect(screen.getAllByText(/No recent data/i).length).toBeGreaterThan(0);
   });
 
   it('shows an empty state when telemetry is missing', () => {

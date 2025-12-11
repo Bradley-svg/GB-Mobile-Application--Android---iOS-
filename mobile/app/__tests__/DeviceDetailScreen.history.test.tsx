@@ -247,8 +247,8 @@ describe('DeviceDetailScreen heat pump history', () => {
     fireEvent.press(screen.getByTestId('pill-compressor'));
     fireEvent.press(screen.getByTestId('pill-compressor'));
 
-    expect(screen.getByText('Compressor current (A)')).toBeTruthy();
-    expect(screen.queryByText('No history for this period.')).toBeNull();
+    expect(screen.getByTestId('pill-compressor_current')).toBeTruthy();
+    expect(screen.queryByText('No history for this metric in the selected range.')).toBeNull();
     expect(screen.getByTestId('heatPumpHistoryChart')).toBeTruthy();
   });
 
@@ -262,8 +262,8 @@ describe('DeviceDetailScreen heat pump history', () => {
     await renderDeviceDetail();
     fireEvent.press(screen.getByTestId('pill-compressor'));
 
-    expect(screen.getByText('Compressor current (A)')).toBeTruthy();
-    expect(screen.getByText('No history for this period.')).toBeTruthy();
+    expect(screen.getByTestId('pill-compressor_current')).toBeTruthy();
+    expect(screen.getByText('No history for this metric in the selected range.')).toBeTruthy();
   });
 
   it('shows an inline error when the history request fails', async () => {
@@ -319,7 +319,7 @@ describe('DeviceDetailScreen heat pump history', () => {
     await renderDeviceDetail();
     fireEvent.press(screen.getByTestId('pill-compressor'));
 
-    expect(screen.getByText(/Live vendor history via \/heat-pump-history/i)).toBeTruthy();
+    expect(screen.getByText(/Live vendor history: Compressor current.*\/heat-pump-history/i)).toBeTruthy();
   });
 
   it('disables history when mac is missing', async () => {
@@ -345,6 +345,21 @@ describe('DeviceDetailScreen heat pump history', () => {
     ];
     expect(options.enabled).toBe(false);
     expect(screen.getByText(/History unavailable for this device/i)).toBeTruthy();
+  });
+
+  it('switches metrics and requests the selected metric fields', async () => {
+    await renderDeviceDetail();
+    fireEvent.press(screen.getByTestId('pill-compressor'));
+
+    fireEvent.press(screen.getByTestId('pill-cop'));
+
+    const lastCall =
+      (useHeatPumpHistory as jest.Mock).mock.calls[
+        (useHeatPumpHistory as jest.Mock).mock.calls.length - 1
+      ][0] as HeatPumpHistoryRequest;
+    const fieldNames = lastCall.fields.map((f) => f.field);
+    expect(fieldNames).toContain('metric_cop');
+    expect(fieldNames).toContain('metric_compCurrentA');
   });
 
   it('allows selecting 1h, 6h, 24h, and 7d ranges for telemetry and history', async () => {

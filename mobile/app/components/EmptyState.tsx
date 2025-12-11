@@ -8,15 +8,21 @@ import { createThemedStyles } from '../theme/createThemedStyles';
 type Props = {
   message: string;
   testID?: string;
+  variant?: 'default' | 'compact';
 };
 
-export const EmptyState: React.FC<Props> = ({ message, testID }) => {
+export const EmptyState: React.FC<Props> = ({ message, testID, variant = 'default' }) => {
   const { theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   return (
-    <View style={styles.container} testID={testID}>
-      <Text style={[typography.body, styles.text]}>{message}</Text>
+    <View
+      style={[styles.container, variant === 'compact' ? styles.containerCompact : null]}
+      testID={testID}
+    >
+      <Text style={[typography.body, styles.text, variant === 'compact' ? styles.textCompact : null]}>
+        {message}
+      </Text>
     </View>
   );
 };
@@ -32,8 +38,15 @@ const createStyles = (theme: AppTheme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
+    containerCompact: {
+      paddingVertical: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.md,
+    },
     text: {
       color: theme.colors.textPrimary,
       textAlign: 'center',
+    },
+    textCompact: {
+      color: theme.colors.textSecondary,
     },
   });

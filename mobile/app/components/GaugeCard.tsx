@@ -3,6 +3,7 @@ import { View, Text, LayoutChangeEvent } from 'react-native';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from './Card';
+import { EmptyState } from './EmptyState';
 import { useAppTheme } from '../theme/useAppTheme';
 import type { AppTheme } from '../theme/types';
 import { createThemedStyles } from '../theme/createThemedStyles';
@@ -22,6 +23,7 @@ export type GaugeCardProps = {
    */
   direction?: 'ascending' | 'descending';
   testID?: string;
+  emptyMessage?: string;
 };
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
@@ -44,6 +46,7 @@ export const GaugeCard: React.FC<GaugeCardProps> = ({
   thresholds,
   direction = 'ascending',
   testID,
+  emptyMessage,
 }) => {
   const { theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -151,28 +154,28 @@ export const GaugeCard: React.FC<GaugeCardProps> = ({
         </Text>
       </View>
 
-      <View style={styles.gaugeContainer} onLayout={onLayout}>
-        <Svg width={gaugeWidth} height={gaugeHeight}>
-          {segments.map((segment, index) => {
-            const start = startAngle + (endAngle - startAngle) * segment.start;
-            const end = startAngle + (endAngle - startAngle) * segment.end;
-            const path = describeArc(centerX, centerY, radius, start, end);
-            const isActive = index === highlightSegmentIndex;
+      {hasValue ? (
+        <View style={styles.gaugeContainer} onLayout={onLayout}>
+          <Svg width={gaugeWidth} height={gaugeHeight}>
+            {segments.map((segment, index) => {
+              const start = startAngle + (endAngle - startAngle) * segment.start;
+              const end = startAngle + (endAngle - startAngle) * segment.end;
+              const path = describeArc(centerX, centerY, radius, start, end);
+              const isActive = index === highlightSegmentIndex;
 
-            return (
-              <Path
-                key={`${segment.start}-${segment.end}`}
-                d={path}
-                stroke={hasValue ? segment.color : colors.borderSubtle}
-                strokeWidth={strokeWidth}
-                strokeLinecap="round"
-                fill="none"
-                opacity={isActive || !hasValue ? 0.9 : 0.35}
-              />
-            );
-          })}
+              return (
+                <Path
+                  key={`${segment.start}-${segment.end}`}
+                  d={path}
+                  stroke={segment.color}
+                  strokeWidth={strokeWidth}
+                  strokeLinecap="round"
+                  fill="none"
+                  opacity={isActive ? 0.9 : 0.35}
+                />
+              );
+            })}
 
-          {hasValue ? (
             <Line
               x1={centerX}
               y1={centerY}
@@ -182,49 +185,51 @@ export const GaugeCard: React.FC<GaugeCardProps> = ({
               strokeWidth={Math.max(2, strokeWidth * 0.35)}
               strokeLinecap="round"
             />
-          ) : null}
 
-          <Circle cx={centerX} cy={centerY} r={strokeWidth * 1.15} fill={colors.card} />
-          <Circle
-            cx={centerX}
-            cy={centerY}
-            r={strokeWidth * 0.95}
-            fill={centerColor[status]}
-            opacity={status === 'nodata' ? 0.6 : 1}
-          />
-        </Svg>
+            <Circle cx={centerX} cy={centerY} r={strokeWidth * 1.15} fill={colors.card} />
+            <Circle cx={centerX} cy={centerY} r={strokeWidth * 0.95} fill={centerColor[status]} />
+          </Svg>
 
-        <View
-          pointerEvents="none"
-          style={[
-            styles.centerOverlay,
-            {
-              top: centerY - strokeWidth * 0.95,
-              left: centerX - strokeWidth * 0.95,
-              width: strokeWidth * 1.9,
-              height: strokeWidth * 1.9,
-            },
-          ]}
-        >
           <View
+            pointerEvents="none"
             style={[
-              styles.iconBadge,
+              styles.centerOverlay,
               {
-                backgroundColor: status === 'nodata' ? colors.backgroundAlt : colors.card,
-                borderColor: colors.card,
+                top: centerY - strokeWidth * 0.95,
+                left: centerX - strokeWidth * 0.95,
+                width: strokeWidth * 1.9,
+                height: strokeWidth * 1.9,
               },
             ]}
           >
-            <Ionicons
-              name={statusIcon[status]}
-              size={strokeWidth * 0.7}
-              color={status === 'nodata' ? colors.textMuted : colors.textPrimary}
-            />
+            <View
+              style={[
+                styles.iconBadge,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.card,
+                },
+              ]}
+            >
+              <Ionicons
+                name={statusIcon[status]}
+                size={strokeWidth * 0.7}
+                color={colors.textPrimary}
+              />
+            </View>
+            <Text style={[typography.label, styles.statusLabel]}>{statusLabel[status]}</Text>
+            <Text style={[typography.title2, styles.valueText]}>{formattedValue}</Text>
           </View>
-          <Text style={[typography.label, styles.statusLabel]}>{statusLabel[status]}</Text>
-          <Text style={[typography.title2, styles.valueText]}>{formattedValue}</Text>
         </View>
-      </View>
+      ) : (
+        <View style={styles.emptyState}>
+          <EmptyState
+            message={emptyMessage ?? 'No recent data'}
+            variant="compact"
+            testID={testID ? `${testID}-empty` : undefined}
+          />
+        </View>
+      )}
     </Card>
   );
 };
@@ -272,5 +277,8 @@ const createStyles = (theme: AppTheme) =>
     },
     valueText: {
       color: theme.colors.textPrimary,
+    },
+    emptyState: {
+      marginTop: theme.spacing.sm,
     },
   });

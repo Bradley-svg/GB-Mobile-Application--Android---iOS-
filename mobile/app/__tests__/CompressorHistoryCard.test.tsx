@@ -1,7 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { CompressorHistoryCard } from '../screens/Device/CompressorHistoryCard';
-import type { TimeRange } from '../api/types';
+import type { HeatPumpMetric, TimeRange } from '../api/types';
 import { ThemeContext } from '../theme/ThemeProvider';
 import { lightTheme } from '../theme/themes';
 
@@ -46,10 +46,31 @@ const renderWithTheme = (ui: React.ReactElement) =>
     </ThemeContext.Provider>
   );
 
+const metricOptions = [
+  {
+    key: 'compressor_current' as HeatPumpMetric,
+    label: 'Compressor current',
+    unit: 'A',
+    decimals: 1,
+    color: lightTheme.colors.chartPrimary,
+  },
+  {
+    key: 'cop' as HeatPumpMetric,
+    label: 'COP',
+    unit: '',
+    decimals: 2,
+    color: lightTheme.colors.chartSecondary,
+  },
+];
+
 const baseProps = {
+  metric: 'compressor_current' as HeatPumpMetric,
+  metricOptions,
+  status: 'ok' as const,
   isLoading: false,
   range: '24h' as TimeRange,
   onRangeChange: jest.fn(),
+  onMetricChange: jest.fn(),
   onRetry: jest.fn(),
   points: [],
   errorMessage: 'Failed',
@@ -65,14 +86,13 @@ describe('CompressorHistoryCard', () => {
       <CompressorHistoryCard {...baseProps} status="ok" isLoading errorMessage="Loading" />
     );
 
-    expect(screen.getByText(/Loading history/i)).toBeTruthy();
+    expect(screen.getByTestId('compressor-history-loading')).toBeTruthy();
   });
 
   it('renders chart when data is present', () => {
     renderWithTheme(
       <CompressorHistoryCard
         {...baseProps}
-        status="ok"
         points={[{ x: new Date('2025-01-01T12:00:00Z'), y: 12 }]}
       />
     );
@@ -81,15 +101,12 @@ describe('CompressorHistoryCard', () => {
     expect(screen.getByTestId('victory-line').props.style.data.stroke).toBe(
       lightTheme.colors.chartPrimary
     );
-    expect(screen.getByTestId('victory-area').props.style.data.fill).toBe(
-      lightTheme.colors.chartAreaPrimary
-    );
   });
 
   it('renders empty state when no data is returned', () => {
     renderWithTheme(<CompressorHistoryCard {...baseProps} status="noData" />);
 
-    expect(screen.getByText(/No history for this period/i)).toBeTruthy();
+    expect(screen.getByText(/No history for this metric in the selected range/i)).toBeTruthy();
   });
 
   it('renders error state for backend or offline failures', () => {
@@ -115,11 +132,25 @@ describe('CompressorHistoryCard', () => {
     renderWithTheme(
       <CompressorHistoryCard
         {...baseProps}
-        status="ok"
-        vendorCaption="Live vendor history via /heat-pump-history"
+        vendorCaption="Live vendor history: Compressor current via /heat-pump-history"
       />
     );
 
-    expect(screen.getByText(/Live vendor history via/)).toBeTruthy();
+    expect(screen.getByText(/Live vendor history: Compressor current/i)).toBeTruthy();
+  });
+
+  it('updates legend when metric changes', () => {
+    const onMetricChange = jest.fn();
+    renderWithTheme(
+      <CompressorHistoryCard
+        {...baseProps}
+        points={[{ x: new Date('2025-01-01T12:00:00Z'), y: 6.2 }]}
+        onMetricChange={onMetricChange}
+      />
+    );
+
+    expect(screen.getByText(/Compressor current.*6.2 A/i)).toBeTruthy();
+    fireEvent.press(screen.getByTestId('pill-cop'));
+    expect(onMetricChange).toHaveBeenCalledWith('cop');
   });
 });

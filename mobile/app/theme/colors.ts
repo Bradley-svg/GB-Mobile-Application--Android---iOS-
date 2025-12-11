@@ -47,6 +47,9 @@ export type ThemeColors = {
   chartPrimary: string;
   chartSecondary: string;
   chartAreaPrimary: string;
+  chartTertiary: string;
+  chartQuaternary: string;
+  chartAreaSecondary: string;
 };
 
 export type ThemeGradients = {
@@ -94,6 +97,9 @@ export const lightColors: ThemeColors = {
   chartPrimary: '#39B54A',
   chartSecondary: '#D97706',
   chartAreaPrimary: 'rgba(22, 163, 74, 0.12)',
+  chartTertiary: '#2563EB',
+  chartQuaternary: '#0EA5E9',
+  chartAreaSecondary: 'rgba(37, 99, 235, 0.12)',
   gaugeBackground: '#FFFFFF',
   gaugeArcSafe: '#39B54A',
   gaugeArcWarning: '#D97706',
@@ -145,6 +151,9 @@ export const darkColors: ThemeColors = {
   chartPrimary: '#39B54A',
   chartSecondary: '#F59E0B',
   chartAreaPrimary: 'rgba(34, 197, 94, 0.18)',
+  chartTertiary: '#60A5FA',
+  chartQuaternary: '#22D3EE',
+  chartAreaSecondary: 'rgba(96, 165, 250, 0.18)',
   gaugeBackground: '#0F151C',
   gaugeArcSafe: '#39B54A',
   gaugeArcWarning: '#F59E0B',

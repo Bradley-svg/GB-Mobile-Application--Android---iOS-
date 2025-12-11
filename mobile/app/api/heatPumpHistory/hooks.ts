@@ -24,11 +24,12 @@ const retryDelay = (attempt: number) => attempt * 1000;
 
 export function useHeatPumpHistory(
   params: HeatPumpHistoryRequest,
-  options?: { enabled?: boolean }
+  options?: { enabled?: boolean; staleTime?: number }
 ) {
   return useQuery({
     queryKey: [...HEAT_PUMP_HISTORY_QUERY_KEY, params],
     enabled: options?.enabled ?? true,
+    staleTime: options?.staleTime ?? 60 * 1000,
     queryFn: async (): Promise<HeatPumpHistoryResponse> => {
       try {
         const response = await api.post<HeatPumpHistoryResponse>('/heat-pump-history', {

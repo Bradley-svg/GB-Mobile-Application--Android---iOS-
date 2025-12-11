@@ -5,5 +5,8 @@ export const getChartTheme = (theme: AppTheme) => ({
   gridColor: theme.colors.borderSubtle,
   linePrimary: theme.colors.chartPrimary,
   lineSecondary: theme.colors.chartSecondary,
+  lineTertiary: theme.colors.chartTertiary,
+  lineQuaternary: theme.colors.chartQuaternary,
   areaFillPrimary: theme.colors.chartAreaPrimary,
+  areaFillSecondary: theme.colors.chartAreaSecondary,
 });

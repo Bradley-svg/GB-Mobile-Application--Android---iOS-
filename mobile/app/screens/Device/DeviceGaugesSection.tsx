@@ -1,5 +1,5 @@
 /* eslint react-native/no-unused-styles: "warn" */
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text } from 'react-native';
 import type { DeviceTelemetry } from '../../api/types';
 import { EmptyState, GaugeCard, OfflineBanner } from '../../components';
@@ -27,11 +27,27 @@ type GaugeMetric = {
   testID?: string;
 };
 
+type GaugeGroup = {
+  key: string;
+  title: string;
+  gauges: GaugeMetric[];
+};
+
 const latestMetricValue = (telemetry?: DeviceTelemetry | null, key?: string) => {
   if (!telemetry || !key) return null;
   const points = telemetry.metrics[key] ?? [];
   if (!points.length) return null;
   return points[points.length - 1]?.value ?? null;
+};
+
+const pickLatestMetricValue = (telemetry: DeviceTelemetry | null | undefined, keys: string[]) => {
+  for (const key of keys) {
+    const value = latestMetricValue(telemetry, key);
+    if (value !== null && value !== undefined) {
+      return value;
+    }
+  }
+  return null;
 };
 
 const formatUpdatedAt = (timestamp?: string | null) => {
@@ -51,92 +67,141 @@ export const DeviceGaugesSection: React.FC<DeviceGaugesSectionProps> = ({
   const { theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { typography } = theme;
+  const [gridColumns, setGridColumns] = useState(2);
 
-  const supplyTemp = latestMetricValue(telemetry, 'supply_temp');
-  const returnTemp = latestMetricValue(telemetry, 'return_temp');
-  const flowRate = latestMetricValue(telemetry, 'flow_rate');
-  const power = latestMetricValue(telemetry, 'power_kw');
-  const cop = latestMetricValue(telemetry, 'cop');
+  const tankTemp = pickLatestMetricValue(telemetry, ['tank_temp', 'tank_temp_c', 'supply_temp']);
+  const dhwTemp = pickLatestMetricValue(telemetry, ['dhw_temp', 'dhw_temp_c', 'return_temp']);
+  const ambientTemp = pickLatestMetricValue(telemetry, ['ambient_temp', 'outdoor_temp', 'ambient']);
+  const flowRate = pickLatestMetricValue(telemetry, ['flow_rate']);
+  const power = pickLatestMetricValue(telemetry, ['power_kw']);
+  const cop = pickLatestMetricValue(telemetry, ['cop']);
 
   const deltaT =
-    supplyTemp != null && returnTemp != null ? Number((supplyTemp - returnTemp).toFixed(1)) : null;
+    tankTemp != null && dhwTemp != null ? Number((tankTemp - dhwTemp).toFixed(1)) : null;
 
-  const gauges: GaugeMetric[] = [
-    {
-      key: 'compressor',
-      label: 'Compressor current',
-      value: compressorCurrent ?? null,
-      unit: 'A',
-      min: 0,
-      max: 60,
-      thresholds: { warn: 30, critical: 45 },
-      testID: 'semi-circular-gauge-compressor',
-    },
-    {
-      key: 'supply_temp',
-      label: 'Leaving water temp',
-      value: supplyTemp,
-      unit: '\u00B0C',
-      min: 5,
-      max: 70,
-      thresholds: { warn: 55, critical: 60 },
-      testID: 'gauge-supply-temp',
-    },
-    {
-      key: 'return_temp',
-      label: 'Return water temp',
-      value: returnTemp,
-      unit: '\u00B0C',
-      min: 5,
-      max: 65,
-      thresholds: { warn: 48, critical: 58 },
-      testID: 'gauge-return-temp',
-    },
-    {
-      key: 'flow_rate',
-      label: 'Flow rate',
-      value: flowRate,
-      unit: 'L/s',
-      min: 0,
-      max: 30,
-      thresholds: { warn: 18, critical: 24 },
-      testID: 'gauge-flow-rate',
-    },
-    {
-      key: 'power_kw',
-      label: 'Power draw',
-      value: power,
-      unit: 'kW',
-      min: 0,
-      max: 30,
-      thresholds: { warn: 18, critical: 24 },
-      testID: 'gauge-power',
-    },
-    {
-      key: 'delta_t',
-      label: 'Temperature delta',
-      value: deltaT,
-      unit: '\u00B0C',
-      min: 0,
-      max: 25,
-      thresholds: { warn: 15, critical: 20 },
-      testID: 'gauge-delta',
-    },
-    {
-      key: 'cop',
-      label: 'COP',
-      value: cop,
-      unit: '',
-      min: 0,
-      max: 8,
-      thresholds: { warn: 2.5, critical: 1.8 },
-      direction: 'descending',
-      testID: 'gauge-cop',
-    },
-  ];
+  const gaugeGroups: GaugeGroup[] = useMemo(
+    () => [
+      {
+        key: 'temperatures',
+        title: 'Temperatures',
+        gauges: [
+          {
+            key: 'tank_temp',
+            label: 'Tank temperature',
+            value: tankTemp,
+            unit: '\u00B0C',
+            min: 5,
+            max: 70,
+            thresholds: { warn: 55, critical: 60 },
+            testID: 'gauge-supply-temp',
+          },
+          {
+            key: 'dhw_temp',
+            label: 'DHW temperature',
+            value: dhwTemp,
+            unit: '\u00B0C',
+            min: 5,
+            max: 65,
+            thresholds: { warn: 48, critical: 58 },
+            testID: 'gauge-return-temp',
+          },
+          {
+            key: 'ambient_temp',
+            label: 'Ambient temperature',
+            value: ambientTemp,
+            unit: '\u00B0C',
+            min: -10,
+            max: 45,
+            thresholds: { warn: 32, critical: 38 },
+            testID: 'gauge-ambient-temp',
+          },
+        ],
+      },
+      {
+        key: 'compressor',
+        title: 'Compressor',
+        gauges: [
+          {
+            key: 'compressor',
+            label: 'Compressor current',
+            value: compressorCurrent ?? null,
+            unit: 'A',
+            min: 0,
+            max: 60,
+            thresholds: { warn: 30, critical: 45 },
+            testID: 'semi-circular-gauge-compressor',
+          },
+        ],
+      },
+      {
+        key: 'power',
+        title: 'Power & efficiency',
+        gauges: [
+          {
+            key: 'power_kw',
+            label: 'Power draw',
+            value: power,
+            unit: 'kW',
+            min: 0,
+            max: 30,
+            thresholds: { warn: 18, critical: 24 },
+            testID: 'gauge-power',
+          },
+          {
+            key: 'cop',
+            label: 'COP',
+            value: cop,
+            unit: '',
+            min: 0,
+            max: 8,
+            thresholds: { warn: 2.5, critical: 1.8 },
+            direction: 'descending',
+            testID: 'gauge-cop',
+          },
+        ],
+      },
+      {
+        key: 'flow',
+        title: 'Flow & delta',
+        gauges: [
+          {
+            key: 'flow_rate',
+            label: 'Flow rate',
+            value: flowRate,
+            unit: 'L/s',
+            min: 0,
+            max: 30,
+            thresholds: { warn: 18, critical: 24 },
+            testID: 'gauge-flow-rate',
+          },
+          {
+            key: 'delta_t',
+            label: 'Temperature delta',
+            value: deltaT,
+            unit: '\u00B0C',
+            min: 0,
+            max: 25,
+            thresholds: { warn: 15, critical: 20 },
+            testID: 'gauge-delta',
+          },
+        ],
+      },
+    ],
+    [ambientTemp, compressorCurrent, cop, dhwTemp, flowRate, power, tankTemp, deltaT]
+  );
 
   const hasTelemetry = !!telemetry;
   const updatedLabel = formatUpdatedAt(lastUpdatedAt || compressorUpdatedAt);
+  const gridItemStyle = gridColumns === 3 ? styles.gridItemThird : styles.gridItemHalf;
+
+  const onLayoutGrid = useCallback(
+    (event: { nativeEvent: { layout: { width: number } } }) => {
+      const width = event.nativeEvent.layout.width;
+      if (!width) return;
+      setGridColumns(width > 900 ? 3 : 2);
+    },
+    [setGridColumns]
+  );
 
   return (
     <View style={styles.section} testID="device-gauges-card">
@@ -175,24 +240,33 @@ export const DeviceGaugesSection: React.FC<DeviceGaugesSectionProps> = ({
         </View>
       ) : (
         <>
-          <View style={styles.grid}>
-            {gauges.map((gauge) => (
-              <View key={gauge.key} style={styles.gridItem}>
-                <GaugeCard
-                  label={gauge.label}
-                  value={gauge.value}
-                  unit={gauge.unit}
-                  min={gauge.min}
-                  max={gauge.max}
-                  thresholds={gauge.thresholds}
-                  direction={gauge.direction}
-                  testID={gauge.testID}
-                />
+          <View onLayout={onLayoutGrid}>
+            {gaugeGroups.map((group) => (
+              <View key={group.key} style={styles.group}>
+                <Text style={[typography.subtitle, styles.groupTitle]}>{group.title}</Text>
+                <View style={styles.grid}>
+                  {group.gauges.map((gauge) => (
+                    <View key={gauge.key} style={gridItemStyle}>
+                      <GaugeCard
+                        label={gauge.label}
+                        value={gauge.value}
+                        unit={gauge.unit}
+                        min={gauge.min}
+                        max={gauge.max}
+                        thresholds={gauge.thresholds}
+                        direction={gauge.direction}
+                        testID={gauge.testID}
+                        emptyMessage="No recent data"
+                      />
+                    </View>
+                  ))}
+                </View>
               </View>
             ))}
           </View>
           <Text style={[typography.caption, styles.footer]}>
-            Gauges map the latest readings into expected operating ranges.
+            Gauges map the latest readings into expected operating ranges across temperature,
+            electrical, and flow metrics.
           </Text>
         </>
       )}
@@ -229,8 +303,18 @@ const createStyles = (theme: AppTheme) =>
       justifyContent: 'space-between',
       marginTop: theme.spacing.sm,
     },
-    gridItem: {
+    gridItemHalf: {
       width: '48%',
+    },
+    gridItemThird: {
+      width: '32%',
+    },
+    group: {
+      marginBottom: theme.spacing.md,
+    },
+    groupTitle: {
+      color: theme.colors.textPrimary,
+      marginBottom: theme.spacing.xs,
     },
     emptyStateWrapper: {
       marginTop: theme.spacing.sm,

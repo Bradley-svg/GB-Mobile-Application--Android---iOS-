@@ -29,6 +29,15 @@ export type ApiDevice = {
 
 export type TimeRange = '1h' | '6h' | '24h' | '7d';
 
+export type HeatPumpMetric =
+  | 'compressor_current'
+  | 'cop'
+  | 'tank_temp'
+  | 'dhw_temp'
+  | 'ambient_temp'
+  | 'flow_rate'
+  | 'power_kw';
+
 export type DeviceTelemetry = {
   range: TimeRange;
   metrics: Record<string, { ts: string; value: number }[]>;

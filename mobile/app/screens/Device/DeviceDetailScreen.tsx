@@ -39,6 +39,7 @@ import type {
   DeviceSchedule,
   DeviceTelemetry,
   HeatPumpHistoryRequest,
+  HeatPumpMetric,
   TimeRange,
 } from '../../api/types';
 import {
@@ -55,7 +56,7 @@ import {
   healthDisplay,
 } from '../../components';
 import { DeviceGaugesSection } from './DeviceGaugesSection';
-import { CompressorHistoryCard } from './CompressorHistoryCard';
+import { CompressorHistoryCard, HistoryMetricOption } from './CompressorHistoryCard';
 import type { HistoryStatus } from './types';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { loadJsonWithMetadata, saveJson, isCacheOlderThan } from '../../utils/storage';
@@ -82,6 +83,67 @@ const RANGE_TO_WINDOW_MS: Record<TimeRange, number> = {
   '7d': 7 * 24 * 60 * 60 * 1000,
 };
 
+type HistoryMetricDefinition = {
+  key: HeatPumpMetric;
+  label: string;
+  unit?: string;
+  decimals?: number;
+  field: string;
+};
+
+const HISTORY_METRIC_DEFS: HistoryMetricDefinition[] = [
+  {
+    key: 'compressor_current',
+    label: 'Compressor current',
+    unit: 'A',
+    decimals: 1,
+    field: 'metric_compCurrentA',
+  },
+  {
+    key: 'cop',
+    label: 'COP',
+    unit: '',
+    decimals: 2,
+    field: 'metric_cop',
+  },
+  {
+    key: 'tank_temp',
+    label: 'Tank temp',
+    unit: '\u00B0C',
+    decimals: 1,
+    field: 'metric_tankTempC',
+  },
+  {
+    key: 'dhw_temp',
+    label: 'DHW temp',
+    unit: '\u00B0C',
+    decimals: 1,
+    field: 'metric_dhwTempC',
+  },
+  {
+    key: 'ambient_temp',
+    label: 'Ambient temp',
+    unit: '\u00B0C',
+    decimals: 1,
+    field: 'metric_ambientTempC',
+  },
+  {
+    key: 'flow_rate',
+    label: 'Flow rate',
+    unit: 'L/s',
+    decimals: 1,
+    field: 'metric_flowRate',
+  },
+  {
+    key: 'power_kw',
+    label: 'Power',
+    unit: 'kW',
+    decimals: 1,
+    field: 'metric_powerKw',
+  },
+];
+const COMPRESSOR_METRIC_KEY: HeatPumpMetric = 'compressor_current';
+
 type CachedDeviceDetail = {
   device: ApiDevice;
   telemetry: DeviceTelemetry;
@@ -98,6 +160,7 @@ export const DeviceDetailScreen: React.FC = () => {
   const [telemetryRange, setTelemetryRange] = useState<TimeRange>('24h');
   const [historyRange, setHistoryRange] = useState<TimeRange>('6h');
   const [historyView, setHistoryView] = useState<'telemetry' | 'compressor' | 'timeline'>('telemetry');
+  const [historyMetric, setHistoryMetric] = useState<HeatPumpMetric>(COMPRESSOR_METRIC_KEY);
   const [cachedDeviceDetail, setCachedDeviceDetail] = useState<CachedDeviceDetail | null>(null);
   const [cachedSavedAt, setCachedSavedAt] = useState<string | null>(null);
   const [cacheLoading, setCacheLoading] = useState(false);
@@ -211,6 +274,32 @@ export const DeviceDetailScreen: React.FC = () => {
     };
   }, [historyRange]);
 
+  const selectedHistoryMetricDef = useMemo(
+    () => HISTORY_METRIC_DEFS.find((def) => def.key === historyMetric) ?? HISTORY_METRIC_DEFS[0],
+    [historyMetric]
+  );
+  const compressorMetricDef =
+    HISTORY_METRIC_DEFS.find((def) => def.key === COMPRESSOR_METRIC_KEY) ?? HISTORY_METRIC_DEFS[0];
+
+  const historyFields = useMemo(() => {
+    const fields: HeatPumpHistoryRequest['fields'] = [];
+    const pushField = (def?: HistoryMetricDefinition) => {
+      if (!def) return;
+      if (fields.some((field) => field.field === def.field)) return;
+      fields.push({
+        field: def.field,
+        unit: def.unit,
+        decimals: def.decimals,
+        displayName: def.label,
+        propertyName: '',
+      });
+    };
+
+    pushField(compressorMetricDef);
+    pushField(selectedHistoryMetricDef);
+    return fields;
+  }, [compressorMetricDef, selectedHistoryMetricDef]);
+
   const historyRequest: HeatPumpHistoryRequest | null = useMemo(() => {
     if (!deviceId || !mac) return null;
     return {
@@ -219,17 +308,44 @@ export const DeviceDetailScreen: React.FC = () => {
       to: historyWindow.to,
       aggregation: 'raw',
       mode: 'live',
-      fields: [
-        {
-          field: 'metric_compCurrentA',
-          unit: 'A',
-          decimals: 1,
-          displayName: 'Compressor current',
-          propertyName: '',
-        },
-      ],
+      fields: historyFields,
     };
-  }, [deviceId, historyWindow.from, historyWindow.to, mac]);
+  }, [deviceId, historyFields, historyWindow.from, historyWindow.to, mac]);
+
+  const historyMetricOptions = useMemo<HistoryMetricOption[]>(() => {
+    const colorForMetric = (key: HeatPumpMetric) => {
+      switch (key) {
+        case 'compressor_current':
+          return chartTheme.linePrimary;
+        case 'cop':
+          return chartTheme.lineSecondary;
+        case 'flow_rate':
+          return chartTheme.lineQuaternary;
+        case 'power_kw':
+          return chartTheme.lineSecondary;
+        case 'ambient_temp':
+          return chartTheme.lineTertiary;
+        case 'tank_temp':
+        case 'dhw_temp':
+          return chartTheme.lineTertiary;
+        default:
+          return chartTheme.linePrimary;
+      }
+    };
+
+    return HISTORY_METRIC_DEFS.map((def) => ({
+      key: def.key,
+      label: def.label,
+      unit: def.unit,
+      decimals: def.decimals,
+      color: colorForMetric(def.key),
+    }));
+  }, [
+    chartTheme.linePrimary,
+    chartTheme.lineQuaternary,
+    chartTheme.lineSecondary,
+    chartTheme.lineTertiary,
+  ]);
 
   const heatPumpHistoryQuery = useHeatPumpHistory(
     historyRequest ?? {
@@ -300,10 +416,6 @@ export const DeviceDetailScreen: React.FC = () => {
     if (!metrics) return false;
     return Object.values(metrics).some((points) => points.length > 0);
   }, [telemetryData]);
-  const hasAnyHistoryPoints = useMemo(() => {
-    const series = heatPumpHistoryQuery.data?.series ?? [];
-    return series.some((s) => (s.points ?? []).length > 0);
-  }, [heatPumpHistoryQuery.data]);
   const isStale = useMemo(() => {
     if (!lastUpdatedAt) return false;
     const ts = new Date(lastUpdatedAt).getTime();
@@ -354,27 +466,62 @@ export const DeviceDetailScreen: React.FC = () => {
     [telemetryRange]
   );
 
-  const heatPumpSeries = useMemo(() => {
-    const data = heatPumpHistoryQuery.data;
-    if (!data || !data.series || data.series.length === 0) return [];
+  const historySeriesByField = useMemo(() => {
+    const series = heatPumpHistoryQuery.data?.series ?? [];
+    return series.reduce<Record<string, typeof series[number]>>((acc, curr) => {
+      acc[curr.field] = curr;
+      return acc;
+    }, {});
+  }, [heatPumpHistoryQuery.data?.series]);
 
-    const firstSeries = data.series[0];
-    return firstSeries.points
+  const hasAnyHistoryPoints = useMemo(
+    () =>
+      Object.values(historySeriesByField).some((series) =>
+        (series.points ?? []).some((p) => p.value !== null)
+      ),
+    [historySeriesByField]
+  );
+
+  const mapHistoryPoints = (series?: { points?: { timestamp: string; value: number | null }[] }) =>
+    (series?.points ?? [])
       .filter((p) => p.value !== null)
-      .map((p) => ({
-        x: new Date(p.timestamp),
-        y: p.value as number,
-      }));
-  }, [heatPumpHistoryQuery.data]);
+      .map((p) => ({ x: new Date(p.timestamp), y: p.value as number }));
+
+  const selectedHistoryOption = useMemo(
+    () => historyMetricOptions.find((opt) => opt.key === historyMetric) ?? historyMetricOptions[0],
+    [historyMetric, historyMetricOptions]
+  );
+
+  const selectedHistorySeries = selectedHistoryMetricDef
+    ? historySeriesByField[selectedHistoryMetricDef.field]
+    : undefined;
+  const selectedHistoryPoints = useMemo(
+    () => mapHistoryPoints(selectedHistorySeries),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectedHistorySeries?.points]
+  );
+
+  const compressorHistorySeries = historySeriesByField[compressorMetricDef.field];
+  const compressorHistoryPoints = useMemo(
+    () => mapHistoryPoints(compressorHistorySeries),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [compressorHistorySeries?.points]
+  );
 
   const latestCompressorPoint = useMemo(() => {
-    if (!heatPumpSeries.length) return null;
-    const last = heatPumpSeries[heatPumpSeries.length - 1];
+    const sourcePoints =
+      compressorHistoryPoints.length > 0
+        ? compressorHistoryPoints
+        : selectedHistoryMetricDef?.key === COMPRESSOR_METRIC_KEY
+        ? selectedHistoryPoints
+        : [];
+    if (!sourcePoints.length) return null;
+    const last = sourcePoints[sourcePoints.length - 1];
     return {
       value: last.y,
       timestamp: last.x instanceof Date ? last.x.toISOString() : null,
     };
-  }, [heatPumpSeries]);
+  }, [compressorHistoryPoints, selectedHistoryMetricDef?.key, selectedHistoryPoints]);
 
   const compressorGaugeValue = latestCompressorPoint?.value ?? null;
   const compressorGaugeUpdatedAt = latestCompressorPoint?.timestamp ?? null;
@@ -390,14 +537,14 @@ export const DeviceDetailScreen: React.FC = () => {
     if (heatPumpHistoryQuery.isError) {
       return deriveHistoryStatus(historyErrorObj as HeatPumpHistoryError | undefined);
     }
-    if (!heatPumpHistoryQuery.isLoading && heatPumpSeries.length === 0) {
+    if (!heatPumpHistoryQuery.isLoading && selectedHistoryPoints.length === 0) {
       return 'noData';
     }
     return 'ok';
   }, [
     heatPumpHistoryQuery.isError,
     heatPumpHistoryQuery.isLoading,
-    heatPumpSeries.length,
+    selectedHistoryPoints.length,
     historyErrorObj,
     historyRequest,
     isOffline,
@@ -477,7 +624,8 @@ export const DeviceDetailScreen: React.FC = () => {
   const telemetryErrorObj = telemetryQuery.error;
   const telemetryOfflineEmpty = isOffline && !telemetryData && !telemetryLoading;
   const historyErrorMessage =
-    mapHistoryError(historyStatus) || 'Failed to load history. Try again or contact support.';
+    mapHistoryError(historyStatus) ||
+    `Failed to load ${selectedHistoryMetricDef?.label ?? 'history'}. Try again or contact support.`;
   const isOfflineWithCache = isOffline && !!cachedDeviceDetail;
   const showUnknownLastUpdated = !lastUpdatedAt && (hasAnyTelemetryPoints || hasAnyHistoryPoints);
   const cacheStale = isCacheOlderThan(cachedSavedAt ?? cachedDeviceDetail?.cachedAt ?? null, CACHE_STALE_MS);
@@ -1165,16 +1313,23 @@ export const DeviceDetailScreen: React.FC = () => {
       ) : null}
       {historyView === 'compressor' ? (
         <CompressorHistoryCard
+          metric={historyMetric}
+          metricOptions={historyMetricOptions}
           status={historyStatus}
           isLoading={heatPumpHistoryQuery.isLoading}
           range={historyRange}
           onRangeChange={setHistoryRange}
+          onMetricChange={setHistoryMetric}
           onRetry={() => refetchHistory()}
-          points={heatPumpSeries}
+          points={selectedHistoryPoints}
           errorMessage={historyErrorMessage}
           testID="compressor-current-card"
           vendorCaption={
-            vendorHistoryEnabled ? 'Live vendor history via /heat-pump-history' : undefined
+            vendorHistoryEnabled
+              ? `Live vendor history: ${selectedHistoryOption?.label}${
+                  selectedHistoryOption?.unit ? ` (${selectedHistoryOption.unit})` : ''
+                } via /heat-pump-history`
+              : undefined
           }
         />
       ) : null}
@@ -1870,7 +2025,3 @@ const createStyles = (theme: AppTheme) => {
     },
   });
 };
-
-
-
-
