@@ -43,6 +43,21 @@ const DEFAULT_PAGE_RANGE_HOURS = 6;
 const warnedInvalidEnvKeys = new Set<string>();
 const log = logger.child({ module: 'heatPumpHistoryService' });
 
+function logDevVendorCall(params: {
+  deviceId: string;
+  mac: string;
+  from: string;
+  to: string;
+  seriesLength: number;
+}) {
+  if ((process.env.NODE_ENV || 'development') !== 'development') return;
+  log.info(params, 'heat pump history vendor call');
+}
+
+function countPoints(series: HeatPumpHistorySeries[]) {
+  return series.reduce((total, entry) => total + entry.points.length, 0);
+}
+
 export class HeatPumpHistoryValidationError extends Error {
   constructor(message = 'Invalid body') {
     super(message);
@@ -119,13 +134,23 @@ export async function getHistoryForRequest(
     throw new HeatPumpHistoryMissingMacError('Device has no MAC configured');
   }
 
-  const { deviceId: _deviceId, ...historyRequest } = parsed.data;
+  const { deviceId, ...historyRequest } = parsed.data;
   const maxPageHours = resolvePageHours(maxRangeHours);
   if (rangeMs <= maxPageHours * 60 * 60 * 1000) {
-    return fetchHeatPumpHistory({ ...historyRequest, mac });
+    const result = await fetchHeatPumpHistory({ ...historyRequest, mac });
+    if (result.ok) {
+      logDevVendorCall({
+        deviceId,
+        mac,
+        from: parsed.data.from,
+        to: parsed.data.to,
+        seriesLength: countPoints(result.series),
+      });
+    }
+    return result;
   }
 
-  return fetchPagedHistory({ ...historyRequest, mac }, fromDate, toDate, maxPageHours);
+  return fetchPagedHistory({ ...historyRequest, mac }, fromDate, toDate, maxPageHours, deviceId);
 }
 
 function resolveHoursEnv(key: string, fallback: number) {
@@ -201,11 +226,26 @@ async function fetchPagedHistory(
   request: Omit<Parameters<typeof fetchHeatPumpHistory>[0], 'from' | 'to'>,
   from: Date,
   to: Date,
-  maxPageHours: number
+  maxPageHours: number,
+  deviceId: string
 ): Promise<HeatPumpHistoryResult> {
   const segments = chunkRange(from, to, maxPageHours);
   if (segments.length <= 1) {
-    return fetchHeatPumpHistory({ ...request, from: from.toISOString(), to: to.toISOString() });
+    const result = await fetchHeatPumpHistory({
+      ...request,
+      from: from.toISOString(),
+      to: to.toISOString(),
+    });
+    if (result.ok) {
+      logDevVendorCall({
+        deviceId,
+        mac: request.mac,
+        from: from.toISOString(),
+        to: to.toISOString(),
+        seriesLength: countPoints(result.series),
+      });
+    }
+    return result;
   }
 
   const combined = new Map<string, HeatPumpHistoryPoint[]>();
@@ -220,6 +260,14 @@ async function fetchPagedHistory(
     if (!result.ok) {
       return result;
     }
+
+    logDevVendorCall({
+      deviceId,
+      mac: request.mac,
+      from: segment.from.toISOString(),
+      to: segment.to.toISOString(),
+      seriesLength: countPoints(result.series),
+    });
 
     mergeSeries(combined, result.series);
   }
