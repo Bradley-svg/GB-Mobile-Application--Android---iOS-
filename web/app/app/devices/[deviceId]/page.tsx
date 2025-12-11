@@ -23,6 +23,7 @@ import type { ApiDevice, LastSeenSummary } from "@/lib/types/fleet";
 import type { HeatPumpHistoryResponse, HeatPumpMetric } from "@/lib/types/history";
 import type { DeviceTelemetry, TimeRange } from "@/lib/types/telemetry";
 import { useTheme } from "@/theme/ThemeProvider";
+import { useOrgStore } from "@/lib/orgStore";
 
 type TabKey = "status" | "metrics" | "history" | "parameters";
 
@@ -159,21 +160,22 @@ export default function DeviceDetailPage() {
   const params = useParams<{ deviceId: string }>();
   const deviceId = params?.deviceId;
   const { theme } = useTheme();
+  const currentOrgId = useOrgStore((s) => s.currentOrgId);
   const [tab, setTab] = useState<TabKey>("status");
   const [telemetryRange, setTelemetryRange] = useState<TimeRange>("6h");
   const [historyRange, setHistoryRange] = useState<TimeRange>("6h");
   const [historyMetric, setHistoryMetric] = useState<HeatPumpMetric>("compressor_current");
 
   const deviceQuery = useQuery({
-    queryKey: ["device", deviceId],
+    queryKey: ["device", deviceId, currentOrgId],
     enabled: !!deviceId,
-    queryFn: () => fetchDevice(deviceId as string),
+    queryFn: () => fetchDevice(deviceId as string, currentOrgId),
   });
 
   const telemetryQuery = useQuery({
-    queryKey: ["device-telemetry", deviceId, telemetryRange],
+    queryKey: ["device-telemetry", deviceId, telemetryRange, currentOrgId],
     enabled: !!deviceId,
-    queryFn: () => fetchDeviceTelemetry(deviceId as string, telemetryRange),
+    queryFn: () => fetchDeviceTelemetry(deviceId as string, telemetryRange, currentOrgId),
     staleTime: 60_000,
   });
 
@@ -182,7 +184,7 @@ export default function DeviceDetailPage() {
   const historyFrom = new Date(now - RANGE_TO_WINDOW_MS[historyRange]).toISOString();
   const historyTo = new Date(now).toISOString();
   const historyQuery = useQuery<HeatPumpHistoryResponse>({
-    queryKey: ["heat-pump-history", deviceId, historyMetric, historyRange],
+    queryKey: ["heat-pump-history", deviceId, historyMetric, historyRange, currentOrgId],
     enabled: !!deviceId,
     queryFn: () =>
       fetchHeatPumpHistory({
@@ -190,6 +192,7 @@ export default function DeviceDetailPage() {
         from: historyFrom,
         to: historyTo,
         fields: [{ field: historyDefinition.field }],
+        orgId: currentOrgId ?? undefined,
       }),
     staleTime: 60_000,
   });

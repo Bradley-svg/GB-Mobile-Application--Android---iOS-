@@ -5,6 +5,7 @@ type FleetParams = {
   q?: string;
   health?: HealthStatus[];
   tag?: string | null;
+  orgId?: string | null;
 };
 
 export async function fetchFleet(params: FleetParams = {}): Promise<FleetSearchResult> {
@@ -13,6 +14,7 @@ export async function fetchFleet(params: FleetParams = {}): Promise<FleetSearchR
       q: params.q?.trim() || undefined,
       health: params.health && params.health.length > 0 ? params.health : undefined,
       tag: params.tag ?? undefined,
+      orgId: params.orgId ?? undefined,
     },
   });
   return res.data;

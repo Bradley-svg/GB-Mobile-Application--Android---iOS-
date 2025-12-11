@@ -7,6 +7,7 @@ import Link from "next/link";
 import { AppShell, Badge, Button } from "@/components/ui";
 import { me } from "@/lib/api/authApi";
 import { useAuthStore } from "@/lib/authStore";
+import { useOrgRoleAwareLoader, useOrgStore } from "@/lib/orgStore";
 import { useUserRole } from "@/lib/useUserRole";
 import { useTheme } from "@/theme/ThemeProvider";
 
@@ -28,6 +29,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);
   const { theme } = useTheme();
   const { isAdmin, isOwner, isFacilities } = useUserRole();
+  const orgStore = useOrgStore();
+  const loadOrgs = useOrgRoleAwareLoader();
 
   useEffect(() => {
     let active = true;
@@ -51,6 +54,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         }
       }
       if (active) {
+        await loadOrgs(state.user?.organisation_id ?? null);
         setIsReady(true);
       }
     };
@@ -99,12 +103,28 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       navItems={navItems.map((item) => ({ ...item, active: pathname === item.href || pathname.startsWith(`${item.href}/`) }))}
       pageTitle={title}
       topLeftSlot={
-        <div style={{ display: "flex", gap: theme.spacing.sm, alignItems: "center" }}>
-          <span style={{ color: theme.colors.textSecondary, fontSize: theme.typography.caption.fontSize }}>Organisation</span>
-          <Button variant="secondary" size="sm">
-            Greenbro (placeholder)
-          </Button>
-        </div>
+        isOwner || isAdmin || isFacilities ? (
+          <div style={{ display: "flex", gap: theme.spacing.sm, alignItems: "center" }}>
+            <span style={{ color: theme.colors.textSecondary, fontSize: theme.typography.caption.fontSize }}>Organisation</span>
+            <select
+              value={orgStore.currentOrgId ?? ""}
+              onChange={(e) => orgStore.setOrg(e.target.value)}
+              style={{
+                padding: `${theme.spacing.xs}px ${theme.spacing.sm}px`,
+                borderRadius: theme.radius.md,
+                border: `1px solid ${theme.colors.borderSubtle}`,
+                background: theme.colors.surface,
+                color: theme.colors.textPrimary,
+              }}
+            >
+              {orgStore.orgs.map((org) => (
+                <option key={org.id} value={org.id}>
+                  {org.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null
       }
       topRightSlot={
         <div style={{ display: "flex", alignItems: "center", gap: theme.spacing.sm }}>

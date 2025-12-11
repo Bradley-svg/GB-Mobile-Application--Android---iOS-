@@ -2,12 +2,13 @@ import axios from "axios";
 import { api } from "./httpClient";
 import type { HeatPumpHistoryRequest, HeatPumpHistoryResponse, HeatPumpHistoryError } from "@/lib/types/history";
 
-export async function fetchHeatPumpHistory(params: HeatPumpHistoryRequest): Promise<HeatPumpHistoryResponse> {
+export async function fetchHeatPumpHistory(params: HeatPumpHistoryRequest & { orgId?: string | null }): Promise<HeatPumpHistoryResponse> {
   try {
     const res = await api.post<HeatPumpHistoryResponse>("/heat-pump-history", {
       ...params,
       aggregation: params.aggregation ?? "raw",
       mode: params.mode ?? "live",
+      orgId: params.orgId ?? undefined,
     });
     return res.data;
   } catch (err) {

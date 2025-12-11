@@ -10,6 +10,7 @@ import { formatRelativeTime } from "@/lib/formatRelativeTime";
 import type { ApiDevice, FleetSearchResult, LastSeenSummary } from "@/lib/types/fleet";
 import type { DeviceTelemetry } from "@/lib/types/telemetry";
 import { useTheme } from "@/theme/ThemeProvider";
+import { useOrgStore } from "@/lib/orgStore";
 
 type MetricValue = string | number | null | undefined;
 
@@ -56,12 +57,13 @@ type FleetDeviceCardProps = {
 
 function FleetDeviceCard({ device }: FleetDeviceCardProps) {
   const { theme } = useTheme();
+  const currentOrgId = useOrgStore((s) => s.currentOrgId);
   const status = (device.status || "").toLowerCase();
   const isOffline = device.health === "offline" || device.last_seen?.isOffline || status.includes("off");
 
   const telemetryQuery = useQuery({
-    queryKey: ["device-telemetry", device.id],
-    queryFn: () => fetchDeviceTelemetry(device.id, "1h"),
+    queryKey: ["device-telemetry", device.id, currentOrgId],
+    queryFn: () => fetchDeviceTelemetry(device.id, "1h", currentOrgId),
     staleTime: 60_000,
   });
 
@@ -198,11 +200,12 @@ const ListSkeleton = () => {
 
 export default function FleetOverviewPage() {
   const { theme } = useTheme();
+  const currentOrgId = useOrgStore((s) => s.currentOrgId);
   const [selectedSiteId, setSelectedSiteId] = useState<string | "all">("all");
 
   const fleetQuery = useQuery<FleetSearchResult>({
-    queryKey: ["fleet", selectedSiteId],
-    queryFn: () => fetchFleet(),
+    queryKey: ["fleet", selectedSiteId, currentOrgId],
+    queryFn: () => fetchFleet({ orgId: currentOrgId ?? undefined }),
     staleTime: 30_000,
   });
 
