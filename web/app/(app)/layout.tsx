@@ -16,6 +16,8 @@ const pathTitleMap: Record<string, string> = {
   "/app/alerts": "Alerts",
   "/app/work-orders": "Work orders",
   "/app/maintenance": "Maintenance",
+  "/app/documents": "Documents",
+  "/app/sharing": "Sharing",
   "/app/admin": "Admin",
   "/app/profile": "Profile",
 };
@@ -100,6 +102,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       { label: "Alerts", href: "/app/alerts", icon: navBadge("AL") },
       { label: "Work orders", href: "/app/work-orders", icon: navBadge("WO") },
       { label: "Maintenance", href: "/app/maintenance", icon: navBadge("MT") },
+      { label: "Documents", href: "/app/documents", icon: navBadge("DC") },
+      { label: "Sharing", href: "/app/sharing", icon: navBadge("SH") },
       { label: "Admin", href: "/app/admin", icon: navBadge("AD"), hidden: !(isOwner || isAdmin || isFacilities) },
       { label: "Profile", href: "/app/profile", icon: navBadge("PR") },
     ];
