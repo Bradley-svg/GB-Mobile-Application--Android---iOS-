@@ -1,5 +1,5 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { render, waitFor } from '@testing-library/react-native';
 import { useColorScheme } from 'react-native';
 import { AppThemeProvider } from '../theme/ThemeProvider';
 import { StatusPill } from '../components/StatusPill';
@@ -14,26 +14,28 @@ describe('Themed components', () => {
     setScheme('light');
   });
 
-  it('renders StatusPill and PrimaryButton in light mode', () => {
-    const tree = render(
+  it('renders StatusPill and PrimaryButton in light mode', async () => {
+    const { getByText, toJSON } = render(
       <AppThemeProvider>
         <StatusPill label="Online" tone="success" />
         <PrimaryButton label="Action" />
       </AppThemeProvider>
-    ).toJSON();
+    );
 
-    expect(tree).toMatchSnapshot();
+    await waitFor(() => expect(getByText('Online')).toBeTruthy());
+    expect(toJSON()).toMatchSnapshot();
   });
 
-  it('renders StatusPill and PrimaryButton in dark mode', () => {
+  it('renders StatusPill and PrimaryButton in dark mode', async () => {
     setScheme('dark');
-    const tree = render(
+    const { getByText, toJSON } = render(
       <AppThemeProvider>
         <StatusPill label="Online" tone="success" />
         <PrimaryButton label="Action" />
       </AppThemeProvider>
-    ).toJSON();
+    );
 
-    expect(tree).toMatchSnapshot();
+    await waitFor(() => expect(getByText('Online')).toBeTruthy());
+    expect(toJSON()).toMatchSnapshot();
   });
 });

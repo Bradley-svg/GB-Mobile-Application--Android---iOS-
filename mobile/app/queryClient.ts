@@ -8,5 +8,8 @@ export const queryClient = new QueryClient({
       retry: false,
       ...(isTestEnv ? { gcTime: 0 } : {}),
     },
+    mutations: {
+      ...(isTestEnv ? { gcTime: 0 } : {}),
+    },
   },
 });

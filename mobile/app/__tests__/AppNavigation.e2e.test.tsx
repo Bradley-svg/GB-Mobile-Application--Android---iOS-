@@ -5,6 +5,11 @@ import App from '../../App';
 import { useAuthStore } from '../store/authStore';
 import { api } from '../api/client';
 
+declare global {
+  // eslint-disable-next-line no-var
+  var __RENDER_ALL_SCREENS__: boolean | undefined;
+}
+
 jest.mock('../screens/Maintenance/MaintenanceCalendarScreen', () => ({
   MaintenanceCalendarScreen: () => null,
 }));
@@ -174,6 +179,10 @@ jest.mock('../screens/Profile/ProfileScreen', () => {
 });
 
 describe('AppNavigation flow', () => {
+  beforeAll(() => {
+    global.__RENDER_ALL_SCREENS__ = true;
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     act(() => {
@@ -194,6 +203,10 @@ describe('AppNavigation flow', () => {
     jest.spyOn(api, 'get').mockResolvedValue({
       data: { id: 'user-1', email: 'demo@greenbro.com', name: 'Demo User' },
     } as Awaited<ReturnType<typeof api.get>>);
+  });
+
+  afterAll(() => {
+    global.__RENDER_ALL_SCREENS__ = false;
   });
 
   afterEach(() => {

@@ -1,23 +1,169 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Themed components renders StatusPill and PrimaryButton in dark mode 1`] = `
-<View
-  style={
-    {
-      "backgroundColor": "#0F151C",
-      "flex": 1,
+[
+  <View
+    style={
+      [
+        {
+          "borderRadius": 12,
+          "paddingHorizontal": 12,
+          "paddingVertical": 6,
+        },
+        {
+          "backgroundColor": "rgba(34, 197, 94, 0.16)",
+        },
+        undefined,
+      ]
     }
-  }
-/>
+  >
+    <Text
+      style={
+        [
+          {
+            "fontSize": 12,
+            "fontWeight": "600",
+            "letterSpacing": 0.5,
+          },
+          {
+            "color": "#22C55E",
+          },
+        ]
+      }
+    >
+      Online
+    </Text>
+  </View>,
+  <TouchableOpacity
+    activeOpacity={0.9}
+    style={
+      [
+        {
+          "alignSelf": "stretch",
+          "borderRadius": 12,
+        },
+        undefined,
+        null,
+      ]
+    }
+  >
+    <View
+      style={
+        [
+          {
+            "alignItems": "center",
+            "alignSelf": "stretch",
+            "borderRadius": 12,
+            "justifyContent": "center",
+            "minHeight": 48,
+            "paddingVertical": 12,
+          },
+          null,
+        ]
+      }
+    >
+      <Text
+        style={
+          [
+            {
+              "fontSize": 16,
+              "fontWeight": "600",
+            },
+            {
+              "color": "#0F151C",
+              "textAlign": "center",
+            },
+            null,
+          ]
+        }
+      >
+        Action
+      </Text>
+    </View>
+  </TouchableOpacity>,
+]
 `;
 
 exports[`Themed components renders StatusPill and PrimaryButton in light mode 1`] = `
-<View
-  style={
-    {
-      "backgroundColor": "#FFFFFF",
-      "flex": 1,
+[
+  <View
+    style={
+      [
+        {
+          "borderRadius": 12,
+          "paddingHorizontal": 12,
+          "paddingVertical": 6,
+        },
+        {
+          "backgroundColor": "rgba(22, 163, 74, 0.18)",
+        },
+        undefined,
+      ]
     }
-  }
-/>
+  >
+    <Text
+      style={
+        [
+          {
+            "fontSize": 12,
+            "fontWeight": "600",
+            "letterSpacing": 0.5,
+          },
+          {
+            "color": "#16A34A",
+          },
+        ]
+      }
+    >
+      Online
+    </Text>
+  </View>,
+  <TouchableOpacity
+    activeOpacity={0.9}
+    style={
+      [
+        {
+          "alignSelf": "stretch",
+          "borderRadius": 12,
+        },
+        undefined,
+        null,
+      ]
+    }
+  >
+    <View
+      style={
+        [
+          {
+            "alignItems": "center",
+            "alignSelf": "stretch",
+            "borderRadius": 12,
+            "justifyContent": "center",
+            "minHeight": 48,
+            "paddingVertical": 12,
+          },
+          null,
+        ]
+      }
+    >
+      <Text
+        style={
+          [
+            {
+              "fontSize": 16,
+              "fontWeight": "600",
+            },
+            {
+              "color": "#FFFFFF",
+              "textAlign": "center",
+            },
+            null,
+          ]
+        }
+      >
+        Action
+      </Text>
+    </View>
+  </TouchableOpacity>,
+]
 `;

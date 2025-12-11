@@ -50,6 +50,11 @@ Requirements:
 - Typecheck: `npm run typecheck` (tsc --noEmit); this runs in CI alongside lint/test.
 - If the dev client is missing/out-of-date: `npx expo run:android --variant debug` then re-run the start command above.
 
+## Near-prod Android build (qaRelease)
+- Preconditions: backend running on port 4000 with vendor history/MQTT/control envs set; keep the safety flags on for local demos (`PUSH_NOTIFICATIONS_DISABLED=true`, `MQTT_DISABLED=true`, `CONTROL_API_DISABLED=true`, `HEATPUMP_HISTORY_DISABLED=false` if you want live history).
+- Commands: `npm run stop:all`; `npm run dev:all` (or bring up backend + Metro separately); `cd mobile && npm run android:qa` to build/install the debuggable release-like `qaRelease` variant (bundles JS via `bundleQaReleaseJsAndAssets`, default API `http://10.0.2.2:4000`).
+- Expect: Pixel_7_API_34 boots the app without the Metro “Loading from 10.0.2.2:8081” screen; device detail/history/gauges load against the local backend; Diagnostics shows heatPumpHistory as HEALTHY and MQTT/control as UNCONFIGURED or HEALTHY depending on flags; no “Unable to load script /index.android.bundle” error.
+
 ## Smoke walkthrough (Android emulator)
 - Login: white background, horizontal GREENBR(gear)O logo, brand gradient button. Use `demo@greenbro.com` / `password`.
 - Dashboard: fleet summary (sites/devices/alerts/health), search entry, connectivity pills, no offline banner when online, brand greens/greys only.
@@ -85,4 +90,3 @@ Requirements:
 ## Branding quick-check
 - Canonical assets only: `docs/branding/official/greenbro-logo-horizontal-gearO.{svg,png}`, `mobile/assets/greenbro/greenbro-logo-horizontal.png`, `greenbro-splash.png`, `greenbro-icon-1024.png`.
 - Quick grep sanity: run the two `rg` checks referenced in `docs/branding/README.md`; expected hits are limited to that warning, and app assets already point to the official PNG.
-

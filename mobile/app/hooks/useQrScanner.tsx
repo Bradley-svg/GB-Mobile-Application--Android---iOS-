@@ -1,10 +1,11 @@
 import React from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  BarCodeScanner,
-  type BarCodeEvent,
+  Camera,
+  CameraView,
+  type BarcodeScanningResult,
   type PermissionResponse,
-} from 'expo-barcode-scanner';
+} from 'expo-camera';
 
 export type QrPermissionStatus = 'checking' | 'granted' | 'denied';
 
@@ -18,7 +19,7 @@ export function useQrScanner(enabled: boolean): QrScannerAdapter {
   const [permission, setPermission] = useState<QrPermissionStatus>('checking');
 
   const requestPermission = useCallback(async () => {
-    const response: PermissionResponse = await BarCodeScanner.requestPermissionsAsync();
+    const response: PermissionResponse = await Camera.requestCameraPermissionsAsync();
     setPermission(response.status === 'granted' ? 'granted' : 'denied');
   }, []);
 
@@ -28,7 +29,17 @@ export function useQrScanner(enabled: boolean): QrScannerAdapter {
       return;
     }
 
-    requestPermission().catch(() => setPermission('denied'));
+    const syncPermissions = async () => {
+      const response: PermissionResponse = await Camera.getCameraPermissionsAsync();
+      if (response.status === 'granted') {
+        setPermission('granted');
+        return;
+      }
+
+      await requestPermission();
+    };
+
+    syncPermissions().catch(() => setPermission('denied'));
   }, [enabled, requestPermission]);
 
   const ScannerView = useMemo(
@@ -41,7 +52,7 @@ export function useQrScanner(enabled: boolean): QrScannerAdapter {
         testID?: string;
       }) {
         const handleScan = useCallback(
-          (event: BarCodeEvent) => {
+          (event: BarcodeScanningResult) => {
             if (event?.data) {
               onCodeScanned(event.data);
             }
@@ -50,10 +61,10 @@ export function useQrScanner(enabled: boolean): QrScannerAdapter {
         );
 
         return (
-          <BarCodeScanner
+          <CameraView
             style={{ flex: 1 }}
-            onBarCodeScanned={handleScan}
-            barCodeTypes={[BarCodeScanner.Constants.BarCodeType.qr]}
+            onBarcodeScanned={handleScan}
+            barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
             testID={testID}
           />
         );

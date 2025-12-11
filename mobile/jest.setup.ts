@@ -108,20 +108,40 @@ jest.mock('@react-navigation/native-stack', () => {
   const React = require('react');
   return {
     createNativeStackNavigator: () => {
-      const Screen = ({
-        component: Component,
-        children,
-        ...rest
-      }: {
-        component?: React.ComponentType<any>;
-        children?: React.ReactNode;
-      }) => {
+      const Screen = () => null;
+
+      const renderChild = (child: any) => {
+        if (!child || !child.props) return null;
+
+        const { component: Component, children: screenChildren, ...rest } = child.props;
         if (Component) return React.createElement(Component, rest);
-        if (typeof children === 'function') return (children as Function)(rest);
-        return children ?? null;
+        if (typeof screenChildren === 'function') return (screenChildren as Function)(rest);
+        return screenChildren ?? null;
       };
-      const Navigator = ({ children }: { children: React.ReactNode }) =>
-        React.createElement(React.Fragment, {}, children);
+
+      const Navigator = ({
+        children,
+        initialRouteName,
+      }: {
+        children: React.ReactNode;
+        initialRouteName?: string;
+      }) => {
+        const childArray = React.Children.toArray(children) as any[];
+        if ((global as any).__RENDER_ALL_SCREENS__) {
+          return React.createElement(
+            React.Fragment,
+            {},
+            childArray.map((child, index) => React.createElement(React.Fragment, { key: index }, renderChild(child)))
+          );
+        }
+
+        const activeChild =
+          (initialRouteName && childArray.find((child) => child?.props?.name === initialRouteName)) ??
+          childArray[0];
+
+        return renderChild(activeChild);
+      };
+
       return { Navigator, Screen };
     },
   };
@@ -261,19 +281,27 @@ jest.mock('expo-image-picker', () => ({
   MediaTypeOptions: { All: 'All', Images: 'Images' },
 }));
 
-jest.mock('expo-barcode-scanner', () => {
+jest.mock('expo-camera', () => {
   const React = require('react');
   const { View } = require('react-native');
-  const MockScanner = ({ onBarCodeScanned, testID }: { onBarCodeScanned?: (event: any) => void; testID?: string }) =>
+  const MockCameraView = ({
+    onBarcodeScanned,
+    testID,
+  }: {
+    onBarcodeScanned?: (event: any) => void;
+    testID?: string;
+  }) =>
     React.createElement(View, {
-      testID: testID ?? 'mock-barcode-scanner',
-      onTouchEnd: () => onBarCodeScanned?.({ data: 'mock-code' }),
+      testID: testID ?? 'mock-camera-view',
+      onTouchEnd: () => onBarcodeScanned?.({ data: 'mock-code' }),
       style: { flex: 1 },
     });
 
   return {
-    BarCodeScanner: MockScanner,
-    Constants: { BarCodeType: { qr: 'qr' } },
-    requestPermissionsAsync: jest.fn(async () => ({ status: 'granted' })),
+    CameraView: MockCameraView,
+    Camera: {
+      requestCameraPermissionsAsync: jest.fn(async () => ({ status: 'granted' })),
+      getCameraPermissionsAsync: jest.fn(async () => ({ status: 'granted' })),
+    },
   };
 });

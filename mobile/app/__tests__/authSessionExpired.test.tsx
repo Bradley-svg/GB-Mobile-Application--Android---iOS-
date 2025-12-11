@@ -1,6 +1,6 @@
 import { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import React from 'react';
-import { act, render } from '@testing-library/react-native';
+import { act, render, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { RootNavigator } from '../navigation/RootNavigator';
@@ -76,13 +76,13 @@ describe('session expired handling', () => {
       setSessionExpired(true);
     });
 
-    const { getByText, queryByText, rerender } = render(
+    const { findByText, queryByText, rerender } = render(
       <QueryClientProvider client={queryClient}>
         <RootNavigator isAuthenticated={false} sessionExpired={true} />
       </QueryClientProvider>
     );
 
-    expect(getByText(/session has expired/i)).toBeTruthy();
+    expect(await findByText(/session has expired/i)).toBeTruthy();
 
     await act(async () => {
       await setAuth({
@@ -101,7 +101,7 @@ describe('session expired handling', () => {
       </QueryClientProvider>
     );
 
-    expect(queryByText(/session has expired/i)).toBeNull();
+    await waitFor(() => expect(queryByText(/session has expired/i)).toBeNull());
     queryClient.clear();
   });
 });
