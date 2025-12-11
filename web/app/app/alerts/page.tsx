@@ -9,7 +9,7 @@ import { fetchHealthPlus } from "@/lib/api/healthPlus";
 import { formatRelativeTime } from "@/lib/formatRelativeTime";
 import { useOrgStore } from "@/lib/orgStore";
 import type { Alert, AlertSeverity } from "@/lib/types/alerts";
-import type { HealthPlusPayload } from "@/lib/types/health";
+import type { HealthPlusPayload } from "@/lib/types/healthPlus";
 import { useTheme } from "@/theme/ThemeProvider";
 
 type StatusFilter = "open" | "resolved" | "all";
