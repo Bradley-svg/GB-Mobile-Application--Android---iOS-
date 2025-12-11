@@ -1,13 +1,14 @@
 import fs from 'fs';
 import { performance } from 'node:perf_hooks';
 import { query } from '../config/db';
-import { getControlChannelStatus } from './deviceControlService';
-import { getMqttHealth } from '../integrations/mqttClient';
-import { runPushHealthCheck, type PushHealthStatus } from './pushService';
-import { type SystemStatus, getSystemStatus, getSystemStatusByKey } from './statusService';
 import { logger } from '../config/logger';
 import { getStorageRoot } from '../config/storage';
+import { getAppVersion } from '../config/version';
+import { getControlChannelStatus } from './deviceControlService';
+import { getMqttHealth } from '../integrations/mqttClient';
 import { getHeatPumpHistoryConfig } from '../integrations/heatPumpHistoryClient';
+import { runPushHealthCheck, type PushHealthStatus } from './pushService';
+import { type SystemStatus, getSystemStatus, getSystemStatusByKey } from './statusService';
 import { getVirusScannerStatus } from './virusScanner';
 
 const MQTT_INGEST_STALE_MS = 5 * 60 * 1000;
@@ -129,7 +130,7 @@ export type HealthPlusResult = {
 
 export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusResult> {
   const env = process.env.NODE_ENV || 'development';
-  const version = process.env.APP_VERSION || null;
+  const version = getAppVersion();
   const vendorDisableCandidates = [
     'HEATPUMP_HISTORY_DISABLED',
     'CONTROL_API_DISABLED',

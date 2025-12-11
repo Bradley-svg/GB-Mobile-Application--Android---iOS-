@@ -2,7 +2,7 @@
   "expo": {
     "name": "greenbro-mobile",
     "slug": "greenbro-mobile",
-    "version": "1.0.0",
+    "version": "0.7.0",
     "orientation": "portrait",
     "icon": "./assets/greenbro/greenbro-icon-1024.png",
     "userInterfaceStyle": "light",
@@ -14,10 +14,12 @@
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "icon": "./assets/greenbro/greenbro-icon-1024.png"
+      "icon": "./assets/greenbro/greenbro-icon-1024.png",
+      "buildNumber": "0.7.0"
     },
     "android": {
       "package": "com.greenbro.mobile",
+      "versionCode": 7,
       "adaptiveIcon": {
         "foregroundImage": "./assets/greenbro/greenbro-icon-1024.png",
         "backgroundColor": "#FFFFFF"

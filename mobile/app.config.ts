@@ -3,6 +3,9 @@ import { ExpoConfig, ConfigContext } from 'expo/config';
 const BRAND_BACKGROUND = '#FFFFFF';
 const ICON_PATH = './assets/greenbro/greenbro-icon-1024.png';
 const SPLASH_PATH = './assets/greenbro/greenbro-splash.png';
+const APP_VERSION = '0.7.0';
+const ANDROID_VERSION_CODE = 7;
+const IOS_BUILD_NUMBER = '0.7.0';
 
 export default ({ config }: ConfigContext): ExpoConfig => {
   // EXPO_PUBLIC_API_URL is baked into the bundle and exposed via Constants.expoConfig.extra.apiUrl
@@ -13,7 +16,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ...config,
     name: 'greenbro-mobile',
     slug: 'greenbro-mobile',
-    version: '1.0.0',
+    version: APP_VERSION,
     orientation: 'portrait',
     icon: ICON_PATH,
     userInterfaceStyle: 'light',
@@ -27,11 +30,13 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       ...(config.ios || {}),
       supportsTablet: true,
       icon: ICON_PATH,
+      buildNumber: IOS_BUILD_NUMBER,
     },
     android: {
       ...(config.android || {}),
       // Unique application id required for native builds/dev client
       package: 'com.greenbro.mobile',
+      versionCode: ANDROID_VERSION_CODE,
       adaptiveIcon: {
         foregroundImage: ICON_PATH,
         backgroundColor: BRAND_BACKGROUND,

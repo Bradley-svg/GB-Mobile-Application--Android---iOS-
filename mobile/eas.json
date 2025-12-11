@@ -21,7 +21,8 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.greenbro.co.za"
       }
-    }
+    },
+    "appVersionSource": "local"
   },
   "submit": {
     "production": {}

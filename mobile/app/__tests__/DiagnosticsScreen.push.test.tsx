@@ -13,7 +13,7 @@ describe('DiagnosticsScreen push test', () => {
   const baseHealth = {
     ok: true,
     env: 'development',
-    version: '1.0.0',
+    version: '0.7.0',
     db: 'ok' as const,
     dbLatencyMs: 10,
     vendorFlags: { disabled: [], prodLike: false, mqttDisabled: false, controlDisabled: false, heatPumpHistoryDisabled: false, pushNotificationsDisabled: false },

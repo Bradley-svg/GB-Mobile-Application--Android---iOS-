@@ -5,7 +5,7 @@ import type { HealthPlusPayload } from '../src/services/healthService';
 const basePayload: HealthPlusPayload = {
   ok: false,
   env: 'test',
-  version: '1.0.0',
+  version: '0.7.0',
   db: 'error',
   dbLatencyMs: 42,
   vendorFlags: {

@@ -1,7 +1,7 @@
 {
   "name": "greenbro-monorepo",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.7.0",
   "scripts": {
     "dev:backend": "cd backend && npm run dev",
     "dev:mobile": "cd mobile && npm run start:devclient",
@@ -16,6 +16,8 @@
     "test": "npm run test:backend && npm run test:mobile",
     "test:backend": "cd backend && npm test",
     "test:mobile": "cd mobile && npm test",
-    "e2e:android": "cd mobile && npm run e2e:test:android"
+    "e2e:android": "cd mobile && npm run e2e:test:android",
+    "release:check": "npm run lint && npm run typecheck && npm test && npm run e2e:android",
+    "release:tag": "node scripts/create-release-tag.js"
   }
 }

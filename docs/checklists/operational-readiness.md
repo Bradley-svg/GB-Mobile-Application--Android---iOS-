@@ -1,39 +1,30 @@
 # Operational Readiness Checklist
 
-Use this checklist before staging/production releases to confirm core services and clients are configured.
+Use this before staging/production releases to confirm services and clients are configured.
 
-## Backend
-- [ ] `.env`/secrets populated for the target environment (dev/staging/prod) with:
-  - `PORT`, `NODE_ENV`, `APP_VERSION`
-  - `DATABASE_URL` / `TEST_DATABASE_URL` (plus `STAGING_DATABASE_URL` for bootstrap scripts)
-  - `DB_SLOW_QUERY_MS` set appropriately for the environment (e.g., tighter in prod)
-  - `CORS_ALLOWED_ORIGINS`
-  - `JWT_SECRET`, `REFRESH_TOKEN_DAYS`, `AUTH_ALLOW_PUBLIC_SIGNUP`
-  - File storage: `FILE_STORAGE_ROOT`, `FILE_STORAGE_BASE_URL`, `FILE_SIGNING_SECRET`
-  - Antivirus: `AV_SCANNER_ENABLED`, `AV_SCANNER_CMD` **or** `AV_SCANNER_HOST` + `AV_SCANNER_PORT`
-  - Push: `EXPO_ACCESS_TOKEN`, `PUSH_NOTIFICATIONS_ENABLED_ROLES`, `PUSH_NOTIFICATIONS_DISABLED`, `PUSH_HEALTHCHECK_ENABLED`, `PUSH_HEALTHCHECK_TOKEN`, `PUSH_HEALTHCHECK_INTERVAL_MINUTES`
-  - MQTT ingest: `MQTT_URL`, `MQTT_USERNAME`, `MQTT_PASSWORD`
-  - Alerts worker: `ALERT_OFFLINE_MINUTES`, `ALERT_OFFLINE_CRITICAL_MINUTES`, `ALERT_HIGH_TEMP_THRESHOLD`, `ALERT_RULE_REFRESH_MINUTES`, `ALERT_WORKER_INTERVAL_SEC`, `WORKER_LOCK_TTL_SEC`, `ALERT_WORKER_ENABLED`
-  - Control API: `CONTROL_API_URL`, `CONTROL_API_KEY`, `CONTROL_COMMAND_THROTTLE_MS`
-  - Heat-pump history: `HEATPUMP_HISTORY_URL`, `HEATPUMP_HISTORY_API_KEY`, `HEATPUMP_HISTORY_TIMEOUT_MS`, `HEATPUMP_HISTORY_MAX_RANGE_HOURS`, `HEATPUMP_HISTORY_PAGE_HOURS`
-  - Ensure CI-only disable flags are **false** in staging/prod: `HEATPUMP_HISTORY_DISABLED`, `CONTROL_API_DISABLED`, `MQTT_DISABLED`, `PUSH_NOTIFICATIONS_DISABLED`
-  - Health probes/scripts: `HEALTH_BASE_URL`
-  - Local demo data: `DEMO_USER_PASSWORD` (optional override for seeded users)
-- [ ] Database migrations applied via `npm run migrate:dev` (or environment-specific) and DB seeded where appropriate.
-- [ ] Hot-path indexes deployed for alerts/work orders/telemetry (migration 000012_hot_path_indexes).
-- [ ] File storage root is writable and AV scan path reachable; signed URL secret set and distinct from JWT secret.
-- [ ] `/health-plus` returns `ok: true` with populated sections for db/storage and any enabled integrations.
-- [ ] Heat-pump history upstream reachable, organisation scoping verified, and range caps/paging tuned for the target tenant.
-- [ ] RBAC policies verified for owner/admin/facilities/contractor across auth, alerts, work orders, documents, and file download routes.
-- [ ] Lint errors (including unused-style enforcement on mobile) are treated as release blockers in CI/deploy pipelines.
+## Staging
+- [ ] Secrets populated with `NODE_ENV=production`, `APP_VERSION=0.7.0`, staging `DATABASE_URL`, `CORS_ALLOWED_ORIGINS`, strong `JWT_SECRET`, and 2FA settings (`AUTH_2FA_ENABLED=true`, `AUTH_2FA_ENFORCE_ROLES=owner,admin`).
+- [ ] Migrations applied to the staging database; bootstrap/seed run where appropriate (`npm run staging:bootstrap`).
+- [ ] `/health-plus` returns ok: db/storage writable, AV configured or explicitly disabled, push block reflects staging Expo token, MQTT/control/history blocks show configured vs disabled flags as intended.
+- [ ] File storage root writable, `FILE_STORAGE_BASE_URL` points at the staging API/CDN origin, and `FILE_SIGNING_SECRET` set; signed URLs tested if enabled for mobile.
+- [ ] AV scanner reachable when `AV_SCANNER_ENABLED=true`; failures investigated before release.
+- [ ] Push: `EXPO_ACCESS_TOKEN` set, `PUSH_NOTIFICATIONS_ENABLED_ROLES` correct; `/me/push/test` succeeds from a staging client.
+- [ ] Heat-pump history configured with staging vendor keys or explicitly disabled via `HEATPUMP_HISTORY_DISABLED=true`; range caps (`HEATPUMP_HISTORY_MAX_RANGE_HOURS`, `HEATPUMP_HISTORY_PAGE_HOURS`) aligned.
+- [ ] Disable flags (`MQTT_DISABLED`, `CONTROL_API_DISABLED`, `HEATPUMP_HISTORY_DISABLED`, `PUSH_NOTIFICATIONS_DISABLED`) match the intended staging posture (CI/offline vs fully integrated).
+- [ ] Alerts worker enabled with recent heartbeat; `DB_SLOW_QUERY_MS` tuned for staging.
+
+## Production
+- [ ] Secrets set with production endpoints and unique secrets (`JWT_SECRET`, `FILE_SIGNING_SECRET`), `APP_VERSION=0.7.0`, and restricted `CORS_ALLOWED_ORIGINS`.
+- [ ] Migrations applied as part of deployment; no demo seed data pushed to production.
+- [ ] `/health-plus` green for db/storage/AV/push, MQTT/control/history configured with disable flags left `false`.
+- [ ] File storage durable and writable; AV scanner enabled and reachable; signed URLs issued with a production-only signing secret.
+- [ ] Push configured with production `EXPO_ACCESS_TOKEN`; sample push checks pass when enabled.
+- [ ] MQTT/control/history endpoints reachable; vendor disable flags stay false unless deliberately offline (document if toggled).
+- [ ] RBAC verified for owner/admin/facilities/contractor across control, work orders, documents, sharing, and QR/device lookup.
 
 ## Mobile
-- [ ] `EXPO_PUBLIC_API_URL` points at the correct environment API (dev/staging/prod) and is reflected in `eas.json` profiles.
-- [ ] Expo EAS credentials available for the release channel/profile being built.
-- [ ] Feature flags set appropriately (e.g., `EXPO_PUBLIC_USE_SIGNED_FILE_URLS`, signed file URLs, any gating for heat-pump history).
-- [ ] Detox config targets `Pixel_7_API_34` and Metro port matches `reversePorts` (default 8081 unless overridden).
-- [ ] Push notifications tested end-to-end against the target Expo project (token registration + backend push dispatch).
-- [ ] Branded assets validated (icon/splash/header) and theme mode (light/dark/system) manually smoke tested.
-- [ ] Theming rollout completed across all screens; error surfaces share the unified palette.
-- [ ] Lint rules treat unused styles as errors on mobile; CI/deploys should block on lint failures.
-- [ ] Navigation/data error guards added on mobile screens.
+- [ ] `EXPO_PUBLIC_API_URL` matches the target environment in the chosen `eas.json` profile; Android versionCode and iOS buildNumber align with the release (0.7.0 / 7 / 0.7.0).
+- [ ] Expo credentials available for the selected profile; staging/production builds reference the correct API URL.
+- [ ] Lint/type/tests clean; Detox targets the Pixel_7_API_34 emulator with Metro on 8081.
+- [ ] Push tested end-to-end against the target backend (registration + `/me/push/test` via Diagnostics).
+- [ ] Branded assets/theme validated (light/dark/system), navigation and error guards hold across dashboard → device flows and QR scanning.
