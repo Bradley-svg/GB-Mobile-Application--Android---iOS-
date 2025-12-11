@@ -18,6 +18,9 @@
     "test:mobile": "cd mobile && npm test",
     "e2e:android": "cd mobile && npm run e2e:test:android",
     "release:check": "npm run lint && npm run typecheck && npm test && npm run e2e:android",
-    "release:tag": "node scripts/create-release-tag.js"
+    "release:tag": "node scripts/create-release-tag.js",
+    "web:dev": "cd web && next dev",
+    "web:build": "cd web && next build",
+    "web:start": "cd web && next start"
   }
 }
