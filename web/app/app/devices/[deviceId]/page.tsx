@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
   Line,
@@ -159,11 +159,20 @@ function MetricGrid({
 export default function DeviceDetailPage() {
   const params = useParams<{ deviceId: string }>();
   const deviceId = params?.deviceId;
+  const searchParams = useSearchParams();
   const { theme } = useTheme();
   const currentOrgId = useOrgStore((s) => s.currentOrgId);
   const [tab, setTab] = useState<TabKey>("status");
-  const [telemetryRange, setTelemetryRange] = useState<TimeRange>("6h");
-  const [historyRange, setHistoryRange] = useState<TimeRange>("6h");
+  const initialRange = useMemo<TimeRange>(() => {
+    const value = searchParams?.get("range");
+    const allowed: TimeRange[] = ["1h", "6h", "24h", "7d"];
+    if (value && allowed.includes(value as TimeRange)) {
+      return value as TimeRange;
+    }
+    return "6h";
+  }, [searchParams]);
+  const [telemetryRange, setTelemetryRange] = useState<TimeRange>(initialRange);
+  const [historyRange, setHistoryRange] = useState<TimeRange>(initialRange);
   const [historyMetric, setHistoryMetric] = useState<HeatPumpMetric>("compressor_current");
 
   const deviceQuery = useQuery({
