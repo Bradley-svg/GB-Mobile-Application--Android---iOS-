@@ -50,7 +50,7 @@ function main() {
   summary.migrations = 'applied';
 
   console.log('Seeding staging database with demo data...');
-  run('node scripts/init-local-db.js', env, 'seed staging database');
+  run('npm run seed:demo -- --reset', env, 'seed staging database');
   summary.seed = 'ok';
 
   console.log(JSON.stringify(summary, null, 2));

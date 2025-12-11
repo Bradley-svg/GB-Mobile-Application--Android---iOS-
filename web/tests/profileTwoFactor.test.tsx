@@ -1,5 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+
+vi.mock("@/config/env", async () => {
+  const actual = await vi.importActual<typeof import("@/config/env")>("@/config/env");
+  return {
+    ...actual,
+    get AUTH_2FA_ENABLED() {
+      return process.env.NEXT_PUBLIC_AUTH_2FA_ENABLED === "true";
+    },
+    getAuth2faEnforcedRoles: () =>
+      (process.env.NEXT_PUBLIC_AUTH_2FA_ENFORCE_ROLES ?? "")
+        .split(",")
+        .map((role) => role.trim().toLowerCase())
+        .filter(Boolean),
+    get AUTH_2FA_ENFORCE_ROLES() {
+      return (process.env.NEXT_PUBLIC_AUTH_2FA_ENFORCE_ROLES ?? "")
+        .split(",")
+        .map((role) => role.trim().toLowerCase())
+        .filter(Boolean);
+    },
+  };
+});
+
 import ProfilePage from "@/app/app/profile/page";
 import { useAuthStore } from "@/lib/authStore";
 import { ThemeProvider } from "@/theme/ThemeProvider";
@@ -40,6 +62,7 @@ const renderWithTheme = async () => {
 beforeEach(() => {
   vi.clearAllMocks();
   process.env.NEXT_PUBLIC_AUTH_2FA_ENFORCE_ROLES = "";
+  process.env.NEXT_PUBLIC_AUTH_2FA_ENABLED = "true";
   setupTwoFactorMock.mockResolvedValue({
     secret: "SECRET-123",
     otpauthUrl: "otpauth://totp/Greenbro:test@example.com?secret=SECRET-123",
@@ -107,5 +130,13 @@ describe("Profile page two-factor", () => {
 
     const disableButton = screen.getByTestId("disable-2fa-button") as HTMLButtonElement;
     expect(disableButton).not.toBeDisabled();
+  });
+
+  it("hides setup controls when two-factor is disabled by env", async () => {
+    process.env.NEXT_PUBLIC_AUTH_2FA_ENABLED = "false";
+    await renderWithTheme();
+
+    expect(screen.getByText(/disabled by backend/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("enable-2fa-button")).not.toBeInTheDocument();
   });
 });

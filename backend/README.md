@@ -31,7 +31,7 @@ Environment files `.env.development`, `.env.staging`, and `.env.production` shou
 ## Database migrations
 - Schema is managed via `node-pg-migrate` under `backend/migrations/`. Run `npm run migrate:dev` (or `npm run migrate` with `DATABASE_URL` set) to apply migrations locally, and `npm run migrate:test` against `TEST_DATABASE_URL` for test databases.
 - Keep schema changes in migrations; the old `sql/*.sql` snapshots were removed to avoid drift with the migration source of truth.
-- `scripts/init-local-db.js` now seeds demo data and expects the migrations to have already run.
+- `npm run seed:demo` seeds demo data and expects the migrations to have already run (owner `demo@greenbro.com` / `GreenbroDemo#2025!`, hero MAC `38:18:2B:60:A9:94`).
 
 ## Telemetry storage
 
@@ -119,8 +119,8 @@ Alerts logic and the mobile UI depend on these metric names (`supply_temp`, `ret
 npm install
 # Apply migrations
 npm run migrate:dev
-# Seed demo data (sites/devices/sample telemetry)
-node scripts/init-local-db.js
+# Seed demo data (sites/devices/sample telemetry, alerts, work orders, docs, share links)
+npm run seed:demo -- --reset
 # API server
 npm run dev
 # MQTT ingest worker (requires MQTT_* env vars)

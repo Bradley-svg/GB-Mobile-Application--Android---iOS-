@@ -12,6 +12,12 @@
 - Production: `NEXT_PUBLIC_API_URL=https://api.greenbro.co.za`, `NEXT_PUBLIC_EMBEDDED=true`.
 - Backend CORS: keep `WEB_ALLOWED_ORIGINS` aligned (local `http://localhost:3000`, staging host, production `https://app.greenbro.co.za,https://www.greenbro.co.za`).
 - Framing headers (new): with `NEXT_PUBLIC_EMBEDDED=true`, Next.js emits `Content-Security-Policy: frame-ancestors 'self' https://www.greenbro.co.za https://greenbro.co.za;` plus `X-Frame-Options: ALLOW-FROM https://www.greenbro.co.za`. Override the allowlist with `FRAME_ANCESTORS` (comma-separated) for staging if the marketing site lives elsewhere; when embeds are off the headers fall back to `SAMEORIGIN`.
+- Session/auth knobs: `NEXT_PUBLIC_SESSION_IDLE_MINUTES` (default 30) and `NEXT_PUBLIC_SESSION_ABSOLUTE_HOURS` (default 8) control idle/absolute timeouts; `NEXT_PUBLIC_AUTH_STORAGE_MODE=local-storage|cookie` reserves room for a future httpOnly-cookie mode; `NEXT_PUBLIC_AUTH_2FA_ENABLED` should mirror backend `AUTH_2FA_ENABLED`.
+
+## Security headers and CSP
+- Frame ancestors: default allow list is `'self' https://www.greenbro.co.za https://greenbro.co.za` (plus localhost in dev). Set `FRAME_ANCESTORS`/`NEXT_FRAME_ANCESTORS` to a comma-separated list in staging when testing embeds from other hosts. When `NEXT_PUBLIC_EMBEDDED=false`, `frame-ancestors` collapses to `'self'` and `X-Frame-Options` is `SAMEORIGIN`.
+- Content Security Policy: `default-src 'self'; script-src 'self' ('unsafe-eval' in dev); style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' <API origin> (plus localhost/ws in dev); frame-ancestors ...; object-src 'none'; base-uri 'self'; form-action 'self'; X-Frame-Options mirrors the frame-ancestors allow list.
+- Extending CSP: when adding new vendors (analytics, fonts, embeds), update the source lists in `next.config.mjs` and note the change in this doc; staging overrides should stay narrow. Keep API origin in `connect-src` and ensure any new frame hosts are also added to backend `WEB_ALLOWED_ORIGINS`.
 
 ## Deploy flow
 - Staging: push to `main` → workflow builds/tests with staging API + embeds enabled, deploys to the staging Vercel project.

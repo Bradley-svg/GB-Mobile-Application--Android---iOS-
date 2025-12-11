@@ -46,6 +46,7 @@ export default function LoginPage() {
   const { theme } = useTheme();
   const { appendEmbedParam } = useEmbed();
   const successMessage = searchParams.get("success");
+  const expiredReason = searchParams.get("expired");
   const [error, setError] = useState<string | null>(null);
   const {
     register,
@@ -110,6 +111,8 @@ export default function LoginPage() {
 
         {successMessage ? (
           <Badge tone="success"> {successMessage}</Badge>
+        ) : expiredReason ? (
+          <Badge tone="warning">Session expired. Please sign in again.</Badge>
         ) : null}
 
         {error ? (

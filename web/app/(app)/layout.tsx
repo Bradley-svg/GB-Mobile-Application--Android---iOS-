@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AppShell, Badge, Button } from "@/components/ui";
@@ -9,7 +9,9 @@ import { useAuthStore } from "@/lib/authStore";
 import { useOrgRoleAwareLoader, useOrgStore } from "@/lib/orgStore";
 import { useUserRole } from "@/lib/useUserRole";
 import { useEmbed } from "@/lib/useEmbed";
+import { useSessionTimeout, type SessionExpireReason } from "@/lib/useSessionTimeout";
 import { useTheme } from "@/theme/ThemeProvider";
+import { AUTH_2FA_ENFORCE_ROLES } from "@/config/env";
 
 const pathTitleMap: Record<string, string> = {
   "/app": "Fleet overview",
@@ -40,15 +42,41 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const accessToken = useAuthStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.user);
+  const logoutAll = useAuthStore((s) => s.logoutAll);
+  const recordActivity = useAuthStore((s) => s.recordActivity);
+  const twoFactorSetupRequired = useAuthStore((s) => s.twoFactorSetupRequired);
   const loadFromStorage = useAuthStore((s) => s.loadFromStorage);
   const setUser = useAuthStore((s) => s.setUser);
-  const logout = useAuthStore((s) => s.logout);
   const [isReady, setIsReady] = useState(false);
   const { theme } = useTheme();
   const { isAdmin, isOwner, isFacilities } = useUserRole();
   const orgStore = useOrgStore();
   const loadOrgs = useOrgRoleAwareLoader();
   const { embedActive: embedMode, appendEmbedParam, embedFromQuery } = useEmbed();
+  const clearOrgState = useCallback(() => {
+    try {
+      useOrgStore.persist?.clearStorage?.();
+    } catch {
+      // ignore
+    }
+    useOrgStore.setState({ currentOrgId: null, orgs: [], loading: false, error: null });
+  }, []);
+  const sessionExpiredReason = useSessionTimeout(
+    useCallback(
+      (reason) => {
+        const loginPath = appendEmbedParam(`/login?expired=${reason}`);
+        logoutAll({ redirectTo: loginPath, delayMs: 400, onCleared: () => clearOrgState() });
+        setIsReady(false);
+      },
+      [appendEmbedParam, clearOrgState, logoutAll],
+    ),
+  );
+
+  useEffect(() => {
+    if (accessToken) {
+      recordActivity();
+    }
+  }, [accessToken, recordActivity]);
 
   useEffect(() => {
     let active = true;
@@ -139,6 +167,18 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     return items.filter((item) => !item.hidden);
   }, [isAdmin, isFacilities, isOwner, navBadge]);
 
+  const requiresTwoFactorSetup = useMemo(() => {
+    const role = user?.role?.toLowerCase() ?? "";
+    const enforced = AUTH_2FA_ENFORCE_ROLES.includes(role);
+    const missingSetup = enforced && !user?.two_factor_enabled;
+    return Boolean(twoFactorSetupRequired || missingSetup);
+  }, [twoFactorSetupRequired, user?.role, user?.two_factor_enabled]);
+
+  const handleLogout = useCallback(() => {
+    const loginPath = appendEmbedParam("/login");
+    logoutAll({ redirectTo: loginPath, onCleared: () => clearOrgState() });
+  }, [appendEmbedParam, clearOrgState, logoutAll]);
+
   const title =
     pathTitleMap[pathname] ??
     (pathname.startsWith("/app/work-orders")
@@ -153,6 +193,66 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       : pathname.startsWith("/app/maintenance")
         ? pathSubtitleMap["/app/maintenance"]
         : undefined);
+
+  const sessionOverlay = sessionExpiredReason ? (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.55)",
+        display: "grid",
+        placeItems: "center",
+        zIndex: 1000,
+      }}
+    >
+      <div
+        style={{
+          background: theme.colors.card,
+          color: theme.colors.textPrimary,
+          borderRadius: theme.radius.lg,
+          padding: theme.spacing.xl,
+          border: `1px solid ${theme.colors.borderSubtle}`,
+          boxShadow: `0 24px 48px ${theme.colors.shadow}`,
+          maxWidth: 420,
+          width: "90%",
+          display: "grid",
+          gap: theme.spacing.sm,
+        }}
+      >
+        <Badge tone="warning" style={{ justifySelf: "flex-start" }}>
+          Session expired
+        </Badge>
+        <h2 style={{ margin: 0 }}>
+          {sessionExpiredReason === "idle" ? "Signed out for inactivity" : "Session duration reached"}
+        </h2>
+        <p style={{ margin: 0, color: theme.colors.textSecondary }}>
+          Please log in again to continue. We cleared your credentials to keep the dashboard secure.
+        </p>
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <Button variant="primary" onClick={() => router.replace(appendEmbedParam("/login"))}>
+            Go to login
+          </Button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  if (sessionExpiredReason) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: theme.colors.background,
+          color: theme.colors.textPrimary,
+        }}
+      >
+        {sessionOverlay}
+      </div>
+    );
+  }
 
   if (!isReady || !accessToken || !user) {
     return (
@@ -228,13 +328,43 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               >
                 {initials}
               </div>
-              <Button variant="ghost" size="sm" onClick={() => logout()}>
+              <Button variant="ghost" size="sm" onClick={handleLogout}>
                 Logout
               </Button>
             </div>
           )
       }
     >
+      {requiresTwoFactorSetup ? (
+        <div
+          style={{
+            marginBottom: theme.spacing.md,
+            padding: `${theme.spacing.sm}px ${theme.spacing.md}px`,
+            borderRadius: theme.radius.md,
+            border: `1px solid ${theme.colors.warning}`,
+            background: theme.colors.warningSoft,
+            color: theme.colors.warning,
+            display: "flex",
+            alignItems: "center",
+            gap: theme.spacing.sm,
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: theme.spacing.sm, flexWrap: "wrap" }}>
+            <Badge tone="warning">Security</Badge>
+            <span>
+              Two-factor authentication is required for your role. Finish setup in Profile to avoid interrupted logins.
+            </span>
+          </div>
+          <a
+            href={appendEmbedParam("/app/profile")}
+            style={{ color: theme.colors.textPrimary, textDecoration: "underline", fontWeight: 600 }}
+          >
+            Go to profile
+          </a>
+        </div>
+      ) : null}
       {children}
     </AppShell>
   );

@@ -25,6 +25,39 @@ const nextConfig = (() => {
   const primaryFrameAncestor =
     frameAncestors.find((entry) => entry !== "'self'") || "https://www.greenbro.co.za";
   const xFrameValue = embedEnabled ? `ALLOW-FROM ${primaryFrameAncestor}` : "SAMEORIGIN";
+  const normalizedApiUrl = resolvedApiUrl ? resolvedApiUrl.replace(/\/$/, "") : undefined;
+  const connectSources = new Set(["'self'"]);
+  if (normalizedApiUrl) connectSources.add(normalizedApiUrl);
+  connectSources.add("https://fonts.googleapis.com");
+  connectSources.add("https://fonts.gstatic.com");
+  if (!isProdBuild) {
+    connectSources.add("http://localhost:3000");
+    connectSources.add("http://127.0.0.1:3000");
+    connectSources.add("ws://localhost:3000");
+    connectSources.add("ws://127.0.0.1:3000");
+  }
+  const scriptSources = new Set(["'self'"]);
+  if (!isProdBuild) {
+    scriptSources.add("'unsafe-eval'");
+  }
+  const styleSources = new Set(["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"]);
+  const fontSources = new Set(["'self'", "data:", "https://fonts.gstatic.com"]);
+  const imgSources = new Set(["'self'", "data:", "blob:"]);
+  const cspDirectives = [
+    ["default-src", ["'self'"]],
+    ["script-src", Array.from(scriptSources)],
+    ["style-src", Array.from(styleSources)],
+    ["img-src", Array.from(imgSources)],
+    ["font-src", Array.from(fontSources)],
+    ["connect-src", Array.from(connectSources)],
+    ["frame-ancestors", frameAncestors],
+    ["object-src", ["'none'"]],
+    ["base-uri", ["'self'"]],
+    ["form-action", ["'self'"]],
+  ];
+  const contentSecurityPolicy = cspDirectives
+    .map(([key, values]) => `${key} ${(values ?? []).join(" ")}`)
+    .join("; ");
 
   if (isProdBuild && (!resolvedApiUrl || resolvedEmbedded === undefined)) {
     throw new Error(
@@ -46,7 +79,7 @@ const nextConfig = (() => {
           headers: [
             {
               key: "Content-Security-Policy",
-              value: `frame-ancestors ${frameAncestors.join(" ")};`,
+              value: contentSecurityPolicy,
             },
             {
               key: "X-Frame-Options",

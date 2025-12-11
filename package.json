@@ -25,6 +25,8 @@
     "web:build:prod": "cd web && NEXT_PUBLIC_API_URL=https://staging.api.greenbro.co.za NEXT_PUBLIC_EMBEDDED=true next build",
     "web:test": "cd web && npm test",
     "web:test:coverage": "cd web && npm run test:coverage",
-    "web:e2e": "cd web && npm run e2e"
+    "web:e2e": "cd web && npm run e2e",
+    "demo:seed": "cd backend && npm run seed:demo",
+    "demo:reset": "cd backend && npm run seed:demo -- --reset"
   }
 }

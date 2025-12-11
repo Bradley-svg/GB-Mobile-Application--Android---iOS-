@@ -14,7 +14,7 @@ import {
 import { useAuthStore } from "@/lib/authStore";
 import { formatRelativeTime } from "@/lib/formatRelativeTime";
 import type { AuthSession, AuthUser } from "@/lib/types/auth";
-import { getAuth2faEnforcedRoles } from "@/config/env";
+import { AUTH_2FA_ENABLED, getAuth2faEnforcedRoles } from "@/config/env";
 import { useOrgStore } from "@/lib/orgStore";
 import { useUserRole } from "@/lib/useUserRole";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -47,6 +47,7 @@ export function TwoFactorSection({ user, onUserUpdate }: TwoFactorSectionProps) 
   const twoFactorEnabled = Boolean(user.two_factor_enabled);
   const role = user.role?.toLowerCase() ?? "";
   const isEnforced = getAuth2faEnforcedRoles().includes(role);
+  const twoFactorFeatureEnabled = AUTH_2FA_ENABLED;
 
   useEffect(() => {
     let active = true;
@@ -121,6 +122,24 @@ export function TwoFactorSection({ user, onUserUpdate }: TwoFactorSectionProps) 
       setIsDisabling(false);
     }
   };
+
+  if (!twoFactorFeatureEnabled) {
+    return (
+      <Card title="Two-factor authentication" subtitle="Use an authenticator app to protect sign-in.">
+        <div style={{ display: "flex", flexDirection: "column", gap: theme.spacing.sm }}>
+          <div style={{ display: "flex", gap: theme.spacing.sm, flexWrap: "wrap", alignItems: "center" }}>
+            <Badge tone={twoFactorEnabled ? "success" : "warning"} data-testid="2fa-status">
+              {twoFactorEnabled ? "2FA enabled" : "2FA disabled"}
+            </Badge>
+            <Badge tone="neutral">Disabled by backend</Badge>
+          </div>
+          <p style={{ margin: 0, color: theme.colors.textSecondary }}>
+            Two-factor authentication is turned off for this environment. Web controls are hidden to match the backend.
+          </p>
+        </div>
+      </Card>
+    );
+  }
 
   const showSetup = step !== "idle";
   const canSubmitCode = code.trim().length >= 6 && (step === "ready" || step === "verified" || step === "verifying");

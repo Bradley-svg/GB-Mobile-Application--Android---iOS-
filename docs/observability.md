@@ -38,3 +38,6 @@
   - Pair with slow-query logs and X-Request-ID to trace user impact.
 - History/diagnostics: `heatPumpHistory` failures, alerts engine runs, and storage writability.
 - Auth: bursts of rate-limited logins (HTTP 429) or frequent refresh-token revocations can indicate attack or client issues.
+
+## Web security references
+- Session/idle behaviour, CSP/frame policies, and pen-test notes live in `docs/security-web.md`. Use the Diagnostics page to confirm headers and embed allow lists in staging/prod.

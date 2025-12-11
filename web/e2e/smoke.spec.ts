@@ -1,7 +1,9 @@
 import { expect, test } from "@playwright/test";
 
-const demoEmail = process.env.WEB_E2E_EMAIL || "demo@greenbro.com";
-const demoPassword = process.env.WEB_E2E_PASSWORD || "password";
+const demoEmail = process.env.WEB_E2E_EMAIL || process.env.DEMO_EMAIL || "demo@greenbro.com";
+const demoPassword =
+  process.env.WEB_E2E_PASSWORD || process.env.DEMO_PASSWORD || "GreenbroDemo#2025!";
+const heroDeviceName = process.env.WEB_E2E_HERO_DEVICE || "Heat Pump #1";
 
 test("web smoke flow: login, fleet, device history, alerts", async ({ page }) => {
   await page.goto("/login");
@@ -13,9 +15,12 @@ test("web smoke flow: login, fleet, device history, alerts", async ({ page }) =>
   await page.waitForURL("**/app**", { timeout: 30_000 });
 
   const deviceLinks = page.locator('a[href^="/app/devices/"]');
+  await expect(page.getByRole("link", { name: new RegExp(heroDeviceName, "i") })).toBeVisible({
+    timeout: 30_000,
+  });
   await expect(deviceLinks.first()).toBeVisible({ timeout: 30_000 });
 
-  await deviceLinks.first().click();
+  await page.getByRole("link", { name: new RegExp(heroDeviceName, "i") }).first().click();
   await page.waitForURL("**/app/devices/**", { timeout: 30_000 });
 
   await page.getByRole("button", { name: "History" }).click();
