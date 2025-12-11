@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { AppShell, Badge, Button } from "@/components/ui";
 import { me } from "@/lib/api/authApi";
 import { useAuthStore } from "@/lib/authStore";
@@ -15,6 +14,8 @@ import { useTheme } from "@/theme/ThemeProvider";
 const pathTitleMap: Record<string, string> = {
   "/app": "Fleet overview",
   "/app/alerts": "Alerts",
+  "/app/work-orders": "Work orders",
+  "/app/maintenance": "Maintenance",
   "/app/admin": "Admin",
   "/app/profile": "Profile",
 };
@@ -71,18 +72,47 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     };
   }, [loadFromStorage, logout, router, setUser]);
 
+  const navBadge = (label: string) => (
+    <span
+      aria-hidden
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 26,
+        height: 26,
+        borderRadius: theme.radius.md,
+        backgroundColor: theme.colors.backgroundAlt,
+        border: `1px solid ${theme.colors.borderSubtle}`,
+        fontSize: theme.typography.caption.fontSize,
+        fontWeight: theme.typography.subtitle.fontWeight,
+        color: theme.colors.textSecondary,
+      }}
+    >
+      {label}
+    </span>
+  );
+
   const navItems = useMemo(() => {
     const items = [
-      { label: "Dashboard", href: "/app", icon: "📊" },
-      { label: "Sites / Devices", href: "/app/devices", icon: "🛠️" },
-      { label: "Alerts", href: "/app/alerts", icon: "🚨" },
-      { label: "Admin", href: "/app/admin", icon: "🛡️", hidden: !(isOwner || isAdmin || isFacilities) },
-      { label: "Profile", href: "/app/profile", icon: "👤" },
+      { label: "Dashboard", href: "/app", icon: navBadge("DB") },
+      { label: "Sites / Devices", href: "/app/devices", icon: navBadge("DV") },
+      { label: "Alerts", href: "/app/alerts", icon: navBadge("AL") },
+      { label: "Work orders", href: "/app/work-orders", icon: navBadge("WO") },
+      { label: "Maintenance", href: "/app/maintenance", icon: navBadge("MT") },
+      { label: "Admin", href: "/app/admin", icon: navBadge("AD"), hidden: !(isOwner || isAdmin || isFacilities) },
+      { label: "Profile", href: "/app/profile", icon: navBadge("PR") },
     ];
     return items.filter((item) => !item.hidden);
-  }, [isAdmin, isFacilities, isOwner]);
+  }, [isAdmin, isFacilities, isOwner, navBadge]);
 
-  const title = pathTitleMap[pathname] ?? "Dashboard";
+  const title =
+    pathTitleMap[pathname] ??
+    (pathname.startsWith("/app/work-orders")
+      ? "Work orders"
+      : pathname.startsWith("/app/maintenance")
+        ? "Maintenance"
+        : "Dashboard");
 
   if (!isReady || !accessToken || !user) {
     return (
