@@ -110,4 +110,16 @@ describe('CompressorHistoryCard', () => {
     fireEvent.press(screen.getByTestId('pill-7d'));
     expect(onRangeChange).toHaveBeenCalledWith('7d');
   });
+
+  it('renders vendor caption when provided', () => {
+    renderWithTheme(
+      <CompressorHistoryCard
+        {...baseProps}
+        status="ok"
+        vendorCaption="Live vendor history via /heat-pump-history"
+      />
+    );
+
+    expect(screen.getByText(/Live vendor history via/)).toBeTruthy();
+  });
 });

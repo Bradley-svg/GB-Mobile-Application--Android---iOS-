@@ -18,6 +18,7 @@ type CompressorHistoryCardProps = {
   points: { x: Date; y: number }[];
   errorMessage: string;
   testID?: string;
+  vendorCaption?: string;
 };
 
 const formatTick = (range: TimeRange) => (value: Date | number) => {
@@ -42,6 +43,7 @@ export const CompressorHistoryCard: React.FC<CompressorHistoryCardProps> = ({
   points,
   errorMessage,
   testID,
+  vendorCaption,
 }) => {
   const { theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -77,6 +79,7 @@ export const CompressorHistoryCard: React.FC<CompressorHistoryCardProps> = ({
           value={range}
           options={[
             { value: '1h', label: '1h' },
+            { value: '6h', label: '6h' },
             { value: '24h', label: '24h' },
             { value: '7d', label: '7d' },
           ]}
@@ -123,6 +126,11 @@ export const CompressorHistoryCard: React.FC<CompressorHistoryCardProps> = ({
           </VictoryChart>
         </View>
       )}
+      {vendorCaption ? (
+        <Text style={[typography.caption, styles.caption]} testID="compressor-history-caption">
+          {vendorCaption}
+        </Text>
+      ) : null}
     </Card>
   );
 };
@@ -151,5 +159,9 @@ const createStyles = (theme: AppTheme) =>
     },
     chartWrapper: {
       marginTop: theme.spacing.sm,
+    },
+    caption: {
+      marginTop: theme.spacing.xs,
+      color: theme.colors.textSecondary,
     },
   });

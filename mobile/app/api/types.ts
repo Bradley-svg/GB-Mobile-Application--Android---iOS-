@@ -27,7 +27,7 @@ export type ApiDevice = {
   connectivity_status?: string | null;
 };
 
-export type TimeRange = '1h' | '24h' | '7d';
+export type TimeRange = '1h' | '6h' | '24h' | '7d';
 
 export type DeviceTelemetry = {
   range: TimeRange;

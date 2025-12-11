@@ -13,6 +13,7 @@ import {
   useSite,
   useHeatPumpHistory,
   useWorkOrdersList,
+  useHealthPlus,
 } from '../api/hooks';
 import * as navigation from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
@@ -32,6 +33,7 @@ jest.mock('../api/hooks', () => ({
   useSite: jest.fn(),
   useHeatPumpHistory: jest.fn(),
   useWorkOrdersList: jest.fn(),
+  useHealthPlus: jest.fn(),
 }));
 
 jest.mock('../hooks/useNetworkBanner', () => ({
@@ -110,6 +112,68 @@ describe('DeviceDetailScreen heat pump history', () => {
       isPending: false,
     });
 
+    (useHealthPlus as jest.Mock).mockReturnValue({
+      data: {
+        ok: true,
+        env: 'test',
+        version: 'test',
+        mqtt: {
+          configured: false,
+          healthy: true,
+          lastIngestAt: null,
+          lastErrorAt: null,
+          lastError: null,
+        },
+        control: {
+          configured: false,
+          healthy: true,
+          lastCommandAt: null,
+          lastErrorAt: null,
+          lastError: null,
+        },
+        heatPumpHistory: {
+          configured: true,
+          disabled: false,
+          healthy: true,
+          lastSuccessAt: null,
+          lastErrorAt: null,
+          lastError: null,
+          lastCheckAt: null,
+        },
+        alertsWorker: {
+          healthy: true,
+          lastHeartbeatAt: null,
+        },
+        push: {
+          enabled: false,
+          lastSampleAt: null,
+          lastError: null,
+        },
+        antivirus: {
+          configured: false,
+          enabled: false,
+          target: null,
+          lastRunAt: null,
+          lastResult: null,
+          lastError: null,
+          latencyMs: null,
+        },
+        alertsEngine: {
+          lastRunAt: null,
+          lastDurationMs: null,
+          rulesLoaded: null,
+          activeAlertsTotal: null,
+          activeWarning: null,
+          activeCritical: null,
+          activeInfo: null,
+          evaluated: null,
+          triggered: null,
+        },
+      },
+      isLoading: false,
+      isError: false,
+    });
+
     (useDeviceSchedule as jest.Mock).mockReturnValue({
       data: null,
       isLoading: false,
@@ -159,7 +223,7 @@ describe('DeviceDetailScreen heat pump history', () => {
     expect(params.aggregation).toBe('raw');
     expect(params.fields[0].field).toBe('metric_compCurrentA');
     expect(params.to).toBe('2025-01-01T12:00:00.000Z');
-    expect(params.from).toBe('2024-12-31T12:00:00.000Z');
+    expect(params.from).toBe('2025-01-01T06:00:00.000Z');
 
     jest.useRealTimers();
   });
@@ -251,6 +315,13 @@ describe('DeviceDetailScreen heat pump history', () => {
     expect(screen.getByText(/History temporarily unavailable/i)).toBeTruthy();
   });
 
+  it('shows vendor caption when heat pump history is configured', async () => {
+    await renderDeviceDetail();
+    fireEvent.press(screen.getByTestId('pill-compressor'));
+
+    expect(screen.getByText(/Live vendor history via \/heat-pump-history/i)).toBeTruthy();
+  });
+
   it('disables history when mac is missing', async () => {
     (useDevice as jest.Mock).mockReturnValue({
       data: { ...baseDevice, mac: null },
@@ -276,7 +347,7 @@ describe('DeviceDetailScreen heat pump history', () => {
     expect(screen.getByText(/History unavailable for this device/i)).toBeTruthy();
   });
 
-  it('allows selecting 1h, 24h, and 7d ranges for telemetry and history', async () => {
+  it('allows selecting 1h, 6h, 24h, and 7d ranges for telemetry and history', async () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2025-01-01T12:00:00.000Z'));
 
@@ -301,6 +372,7 @@ describe('DeviceDetailScreen heat pump history', () => {
     const historyParams = (useHeatPumpHistory as jest.Mock).mock.calls.map(
       ([params]: [HeatPumpHistoryRequest]) => params
     );
+    expect(historyParams[0].from).toBe('2025-01-01T06:00:00.000Z');
     const latestHistoryCall = historyParams[historyParams.length - 1];
     expect(latestHistoryCall.from).toBe('2025-01-01T11:00:00.000Z');
     expect(latestHistoryCall.to).toBe('2025-01-01T12:00:00.000Z');

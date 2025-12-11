@@ -30,6 +30,7 @@ import {
   useDeviceSchedule,
   useUpsertDeviceSchedule,
   useWorkOrdersList,
+  useHealthPlus,
 } from '../../api/hooks';
 import type {
   ApiDevice,
@@ -76,6 +77,7 @@ const CACHE_STALE_MS = 24 * 60 * 60 * 1000;
 const DEVICE_CACHE_KEY = (deviceId: string) => `device-cache:${deviceId}`;
 const RANGE_TO_WINDOW_MS: Record<TimeRange, number> = {
   '1h': 60 * 60 * 1000,
+  '6h': 6 * 60 * 60 * 1000,
   '24h': 24 * 60 * 60 * 1000,
   '7d': 7 * 24 * 60 * 60 * 1000,
 };
@@ -94,7 +96,7 @@ export const DeviceDetailScreen: React.FC = () => {
   const deviceId = route.params?.deviceId ?? '';
   const navigation = useNavigation<Navigation>();
   const [telemetryRange, setTelemetryRange] = useState<TimeRange>('24h');
-  const [historyRange, setHistoryRange] = useState<TimeRange>('24h');
+  const [historyRange, setHistoryRange] = useState<TimeRange>('6h');
   const [historyView, setHistoryView] = useState<'telemetry' | 'compressor' | 'timeline'>('telemetry');
   const [cachedDeviceDetail, setCachedDeviceDetail] = useState<CachedDeviceDetail | null>(null);
   const [cachedSavedAt, setCachedSavedAt] = useState<string | null>(null);
@@ -144,6 +146,7 @@ export const DeviceDetailScreen: React.FC = () => {
   const refetchTelemetry = telemetryQuery.refetch;
   const mac = deviceQuery.data?.mac ?? cachedDeviceDetail?.device.mac ?? null;
   const { isOffline } = useNetworkBanner();
+  const healthPlusQuery = useHealthPlus({ enabled: !isOffline });
   const userRole = useAuthStore((s) => s.user?.role);
   const contractorReadOnly = isContractor(userRole);
   const readOnlyCopy = 'Read-only access for your role.';
@@ -375,6 +378,10 @@ export const DeviceDetailScreen: React.FC = () => {
 
   const compressorGaugeValue = latestCompressorPoint?.value ?? null;
   const compressorGaugeUpdatedAt = latestCompressorPoint?.timestamp ?? null;
+  const vendorHistoryEnabled = useMemo(() => {
+    const heatPumpHistoryConfig = healthPlusQuery.data?.heatPumpHistory;
+    return Boolean(heatPumpHistoryConfig?.configured && !heatPumpHistoryConfig?.disabled);
+  }, [healthPlusQuery.data]);
 
   const historyErrorObj = heatPumpHistoryQuery.error;
   const historyStatus = useMemo<HistoryStatus>(() => {
@@ -1166,6 +1173,9 @@ export const DeviceDetailScreen: React.FC = () => {
           points={heatPumpSeries}
           errorMessage={historyErrorMessage}
           testID="compressor-current-card"
+          vendorCaption={
+            vendorHistoryEnabled ? 'Live vendor history via /heat-pump-history' : undefined
+          }
         />
       ) : null}
 
@@ -1860,10 +1870,6 @@ const createStyles = (theme: AppTheme) => {
     },
   });
 };
-
-
-
-
 
 
 

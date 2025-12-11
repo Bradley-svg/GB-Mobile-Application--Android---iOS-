@@ -22,6 +22,7 @@ import {
   useWorkOrderAttachments,
   useUploadWorkOrderAttachment,
   useSignedFileUrl,
+  useHealthPlus,
 } from '../api/hooks';
 import { useShareLinks, useCreateShareLink, useRevokeShareLink } from '../api/shareLinks/hooks';
 import { useNetworkBanner } from '../hooks/useNetworkBanner';
@@ -45,6 +46,7 @@ jest.mock('../api/hooks', () => ({
   useWorkOrderAttachments: jest.fn(),
   useUploadWorkOrderAttachment: jest.fn(),
   useSignedFileUrl: jest.fn(),
+  useHealthPlus: jest.fn(),
 }));
 
 jest.mock('../api/shareLinks/hooks', () => ({
@@ -159,6 +161,67 @@ describe('navigation role guards', () => {
     (useDeviceCommands as jest.Mock).mockReturnValue({ data: [], isLoading: false, isError: false });
     (useSetpointCommand as jest.Mock).mockReturnValue({ mutateAsync: jest.fn(), isPending: false });
     (useModeCommand as jest.Mock).mockReturnValue({ mutateAsync: jest.fn(), isPending: false });
+    (useHealthPlus as jest.Mock).mockReturnValue({
+      data: {
+        ok: true,
+        env: 'test',
+        version: 'test',
+        mqtt: {
+          configured: false,
+          healthy: true,
+          lastIngestAt: null,
+          lastErrorAt: null,
+          lastError: null,
+        },
+        control: {
+          configured: false,
+          healthy: true,
+          lastCommandAt: null,
+          lastErrorAt: null,
+          lastError: null,
+        },
+        heatPumpHistory: {
+          configured: true,
+          disabled: false,
+          healthy: true,
+          lastSuccessAt: null,
+          lastErrorAt: null,
+          lastError: null,
+          lastCheckAt: null,
+        },
+        alertsWorker: {
+          healthy: true,
+          lastHeartbeatAt: null,
+        },
+        push: {
+          enabled: false,
+          lastSampleAt: null,
+          lastError: null,
+        },
+        antivirus: {
+          configured: false,
+          enabled: false,
+          target: null,
+          lastRunAt: null,
+          lastResult: null,
+          lastError: null,
+          latencyMs: null,
+        },
+        alertsEngine: {
+          lastRunAt: null,
+          lastDurationMs: null,
+          rulesLoaded: null,
+          activeAlertsTotal: null,
+          activeWarning: null,
+          activeCritical: null,
+          activeInfo: null,
+          evaluated: null,
+          triggered: null,
+        },
+      },
+      isLoading: false,
+      isError: false,
+    });
     (useWorkOrdersList as jest.Mock).mockReturnValue({ data: [], isLoading: false, isError: false });
     (useDeviceSchedule as jest.Mock).mockReturnValue({
       data: {
