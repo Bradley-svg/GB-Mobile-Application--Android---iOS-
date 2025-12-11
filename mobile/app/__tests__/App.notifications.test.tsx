@@ -20,13 +20,13 @@ jest.mock('../api/hooks', () => ({
 }));
 
 jest.mock('../navigation/RootNavigator', () => {
-  const React = require('react');
+  const ReactActual = jest.requireActual('react') as typeof React;
   return {
     RootNavigator: ({ onReady }: { onReady?: () => void }) => {
-      React.useEffect(() => {
+      ReactActual.useEffect(() => {
         onReady?.();
       }, [onReady]);
-      return React.createElement('View', null);
+      return ReactActual.createElement('View', null);
     },
   };
 });

@@ -4,6 +4,8 @@ import { authenticator } from 'otplib';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { query } from '../../../config/db';
 import { resetAuthRateLimiter } from '../../../middleware/rateLimit';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore test helpers live outside src rootDir
 import { resetTestDb } from '../../../../test/testDbSetup';
 
 const FACILITIES_EMAIL = 'demo@example.com';

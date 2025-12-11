@@ -37,6 +37,7 @@ type DispatchResult = {
   sent: number;
   errors: string[];
   skippedReason?: string;
+  skipped?: boolean;
 };
 
 function parseEnabledRoles(raw: string | undefined): UserRole[] {
@@ -81,7 +82,7 @@ async function dispatchPushMessages(tokens: PushTokenRow[], build: (token: PushT
   }
 
   if (messages.length === 0) {
-    return { attempted: 0, sent: 0, errors: [], skippedReason: 'no_valid_tokens' };
+    return { attempted: 0, sent: 0, errors: [], skippedReason: 'no_valid_tokens', skipped: true };
   }
 
   const accessToken = process.env.EXPO_ACCESS_TOKEN;
@@ -92,6 +93,7 @@ async function dispatchPushMessages(tokens: PushTokenRow[], build: (token: PushT
       sent: 0,
       errors: ['EXPO_ACCESS_TOKEN missing'],
       skippedReason: 'not_configured',
+      skipped: true,
     };
   }
 
@@ -291,7 +293,7 @@ export async function sendTestNotification(options: {
   orgId: string;
   userId: string;
   tokens: PushTokenRow[];
-}) {
+}): Promise<DispatchResult | { skipped: true; reason: 'disabled' }> {
   if (isPushDisabled()) {
     await recordPushAudit({
       orgId: options.orgId,

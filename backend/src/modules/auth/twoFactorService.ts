@@ -59,13 +59,14 @@ export async function confirmTwoFactorSetup(userId: string, code: string) {
     throw new Error('INVALID_2FA_CODE');
   }
 
+  const orgId = state.organisation_id ?? 'unknown';
   await activateTwoFactorSecret(userId);
   await recordAuditEvent({
     action: 'auth_2fa_enabled',
     entityType: 'user',
     entityId: userId,
     userId,
-    orgId: state.organisation_id,
+    orgId,
     metadata: { role: state.role },
   });
 
@@ -82,13 +83,14 @@ export async function disableTwoFactorForUser(userId: string) {
     throw new Error('USER_NOT_FOUND');
   }
 
+  const orgId = state.organisation_id ?? 'unknown';
   await disableTwoFactor(userId);
   await recordAuditEvent({
     action: 'auth_2fa_disabled',
     entityType: 'user',
     entityId: userId,
     userId,
-    orgId: state.organisation_id,
+    orgId,
     metadata: { role: state.role },
   });
 

@@ -5,6 +5,8 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { logger } from '../../../config/logger';
 import { query } from '../../../config/db';
 import { resetAuthRateLimiter } from '../../../middleware/rateLimit';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore test helpers live outside src rootDir
 import { resetTestDb } from '../../../../test/testDbSetup';
 
 let app: Express;

@@ -77,6 +77,12 @@ export async function sendTestPushNotification(
     }
 
     const result = await sendTestNotification({ orgId, userId, tokens });
+    if (!('attempted' in result)) {
+      return res
+        .status(503)
+        .json({ code: 'PUSH_NOT_CONFIGURED', message: 'Push is not configured for this env' });
+    }
+
     if (result.skippedReason === 'not_configured') {
       return res
         .status(503)

@@ -94,7 +94,9 @@ describe('pushService.sendAlertNotification', () => {
     expect(getTokensMock).toHaveBeenCalledWith('org-1', ['user-1']);
     expect(sendExpoPushMessagesMock).toHaveBeenCalledTimes(1);
     expect(sendExpoPushMessagesMock.mock.calls[0][0]).toHaveLength(1);
-    expect(result?.sent).toBe(1);
+    if (result && 'sent' in result) {
+      expect(result.sent).toBe(1);
+    }
   });
 
   it('includes navigation metadata in alert payloads', async () => {

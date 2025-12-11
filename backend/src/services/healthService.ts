@@ -95,7 +95,7 @@ export type HealthPlusPayload = {
     enabled: boolean;
     target: 'command' | 'socket' | null;
     lastRunAt: string | null;
-    lastResult: 'clean' | 'infected' | 'error' | null;
+    lastResult: 'clean' | 'infected' | 'error' | 'scan_failed' | null;
     lastError: string | null;
     latencyMs: number | null;
   };

@@ -117,7 +117,8 @@ export const authAttemptLimiter = new AuthRateLimiter();
 
 export function authRateLimitMiddleware(req: Request, res: Response, next: NextFunction) {
   const username = typeof req.body?.email === 'string' ? req.body.email : undefined;
-  const check = authAttemptLimiter.check(req.ip, username);
+  const clientIp = req.ip ?? req.socket?.remoteAddress ?? 'unknown';
+  const check = authAttemptLimiter.check(clientIp, username);
   if (check.allowed) {
     return next();
   }

@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSignedFileUrlHandler, serveSignedFileHandler } from '../../../controllers/filesController';
 import { uploadWorkOrderAttachmentHandler } from '../../../controllers/workOrdersController';
 
-const scanFileMock = vi.fn<[string], Promise<'clean' | 'infected' | 'scan_failed'>>();
+const scanFileMock = vi.fn<(filePath: string) => Promise<'clean' | 'infected' | 'scan_failed'>>();
 const getWorkOrderMock = vi.fn();
 const createWorkOrderAttachmentMock = vi.fn();
 const verifyFileTokenMock = vi.fn();
@@ -79,28 +79,40 @@ vi.mock('../../audit/auditService', () => ({
   recordAuditEvent: (...args: unknown[]) => recordAuditEventMock(...args),
 }));
 
-type MockResponse = Response & { body?: unknown; statusCode?: number; headers: Record<string, string> };
+type MockResponse = {
+  body?: unknown;
+  statusCode?: number;
+  headers: Record<string, string>;
+  status: ReturnType<typeof vi.fn>;
+  json: ReturnType<typeof vi.fn>;
+  send: ReturnType<typeof vi.fn>;
+  setHeader: ReturnType<typeof vi.fn>;
+};
 
 function createMockResponse(): MockResponse {
-  const res: Partial<MockResponse> = {
+  const res: MockResponse = {
     headers: {},
+    status: vi.fn(),
+    json: vi.fn(),
+    send: vi.fn(),
+    setHeader: vi.fn(),
   };
   res.status = vi.fn((code: number) => {
     res.statusCode = code;
-    return res as Response;
+    return res;
   });
   res.json = vi.fn((payload: unknown) => {
     res.body = payload;
-    return res as Response;
+    return res;
   });
   res.send = vi.fn((payload: unknown) => {
     res.body = payload;
-    return res as Response;
+    return res;
   });
   res.setHeader = vi.fn((key: string, value: string) => {
-    res.headers![key] = value;
+    res.headers[key] = value;
   });
-  return res as MockResponse;
+  return res;
 }
 
 describe('file access guards', () => {
@@ -146,7 +158,7 @@ describe('file access guards', () => {
     } as unknown as Request;
     const res = createMockResponse();
 
-    await uploadWorkOrderAttachmentHandler(req, res, vi.fn());
+    await uploadWorkOrderAttachmentHandler(req, res as unknown as Response, vi.fn());
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.body).toMatchObject({ code: 'ERR_FILE_INFECTED' });
@@ -176,7 +188,7 @@ describe('file access guards', () => {
     } as unknown as Request;
     const res = createMockResponse();
 
-    await uploadWorkOrderAttachmentHandler(req, res, vi.fn());
+    await uploadWorkOrderAttachmentHandler(req, res as unknown as Response, vi.fn());
 
     expect(res.status).toHaveBeenCalledWith(503);
     expect(res.body).toMatchObject({ code: 'ERR_FILE_SCAN_FAILED' });
@@ -211,7 +223,7 @@ describe('file access guards', () => {
       const res = createMockResponse();
       await serveSignedFileHandler(
         { params: { token: 'test-token' }, ip: '127.0.0.1' } as unknown as Request,
-        res,
+        res as unknown as Response,
         vi.fn()
       );
 
@@ -227,7 +239,7 @@ describe('file access guards', () => {
 
     await serveSignedFileHandler(
       { params: { token: 'expired-token' }, ip: '127.0.0.1' } as unknown as Request,
-      res,
+      res as unknown as Response,
       vi.fn()
     );
 
@@ -243,7 +255,7 @@ describe('file access guards', () => {
       user: { id: 'user-1', role: 'contractor' },
     } as unknown as Request;
 
-    await createSignedFileUrlHandler(req, res, vi.fn());
+    await createSignedFileUrlHandler(req, res as unknown as Response, vi.fn());
 
     expect(res.status).toHaveBeenCalledWith(403);
     expect(signFileTokenMock).not.toHaveBeenCalled();

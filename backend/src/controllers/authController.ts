@@ -37,9 +37,10 @@ export const authLimiter = rateLimit({
 
 function getAuthMetadata(req: Request) {
   const userAgentHeader = req.headers['user-agent'];
+  const clientIp = req.ip ?? req.socket?.remoteAddress ?? null;
   return {
     userAgent: typeof userAgentHeader === 'string' ? userAgentHeader : null,
-    ip: req.ip,
+    ip: clientIp,
   };
 }
 
@@ -79,6 +80,7 @@ export async function login(req: Request, res: Response, next: NextFunction) {
 
   const authMetadata = getAuthMetadata(req);
   const twoFactorEnabled = isTwoFactorFeatureEnabled();
+  const clientIp = authMetadata.ip ?? 'unknown';
 
   try {
     const user = await loginUser(parsed.data.email, parsed.data.password);
@@ -87,16 +89,16 @@ export async function login(req: Request, res: Response, next: NextFunction) {
     const requiresTwoFactor = twoFactorEnabled && user.two_factor_enabled;
     if (requiresTwoFactor) {
       const challengeToken = issueTwoFactorChallengeToken(user.id, user.role, authMetadata);
-      authAttemptLimiter.recordSuccess(req.ip, parsed.data.email);
+      authAttemptLimiter.recordSuccess(clientIp, parsed.data.email);
       return res.json({ requires2fa: true, challengeToken });
     }
 
     const tokens = await issueTokens(user.id, { role: user.role, metadata: authMetadata });
-    authAttemptLimiter.recordSuccess(req.ip, parsed.data.email);
+    authAttemptLimiter.recordSuccess(clientIp, parsed.data.email);
     res.json({ ...tokens, user, twoFactorSetupRequired: roleEnforced && !user.two_factor_enabled });
   } catch (e) {
     if (e instanceof Error && e.message === 'INVALID_CREDENTIALS') {
-      authAttemptLimiter.recordFailure(req.ip, parsed.data.email);
+      authAttemptLimiter.recordFailure(clientIp, parsed.data.email);
       return res.status(401).json({ message: 'Invalid email or password' });
     }
     next(e);
@@ -112,11 +114,12 @@ export async function loginTwoFactor(req: Request, res: Response, next: NextFunc
   if (!parsed.success) return res.status(400).json({ message: 'Invalid body' });
 
   const authMetadata = getAuthMetadata(req);
+  const clientIp = authMetadata.ip ?? 'unknown';
 
   try {
     const { userId, role } = verifyTwoFactorChallengeToken(parsed.data.challengeToken);
     const state = await verifyTwoFactorForUser(userId, parsed.data.code);
-    authAttemptLimiter.recordSuccess(req.ip, state.email);
+    authAttemptLimiter.recordSuccess(clientIp, state.email);
 
     const tokens = await issueTokens(userId, {
       role: role ?? state.role,
@@ -147,7 +150,7 @@ export async function loginTwoFactor(req: Request, res: Response, next: NextFunc
       entityType: 'user',
       entityId: userId,
       userId,
-      orgId: state.organisation_id,
+      orgId: state.organisation_id ?? dbUser?.organisation_id ?? 'unknown',
       metadata: { role: responseUser.role },
     });
 
@@ -155,7 +158,7 @@ export async function loginTwoFactor(req: Request, res: Response, next: NextFunc
   } catch (e) {
     const message = (e as Error | undefined)?.message ?? '';
     if (message === 'INVALID_2FA_CODE') {
-      authAttemptLimiter.recordFailure(req.ip);
+      authAttemptLimiter.recordFailure(clientIp);
       return res.status(401).json({ message: 'Invalid or expired 2FA code' });
     }
     if (message === 'TWO_FACTOR_NOT_ENABLED' || message === 'USER_NOT_FOUND') {
