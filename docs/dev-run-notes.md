@@ -16,6 +16,10 @@ Requirements:
 - Postgres service or Docker compose configured as per `scripts/dev-all.ps1`.
 - adb and Android SDK (Pixel_7_API_34) installed and on PATH.
 
+## Web dashboard (Next.js)
+- Bring up the API first via `npm run dev:all` (or `npm run dev:backend` if you only need the backend) so `http://localhost:4000` is live with seed data.
+- In a second terminal run `npm run web:dev` (Next dev server on `http://localhost:3000`, respects `NEXT_PUBLIC_API_URL` in `web/.env.local`). This can run alongside the mobile dev client.
+
 ## Pre-release checklist
 - Backend: `cd backend && npm run lint && npm run typecheck && npm test`
 - Mobile: `cd mobile && npm run lint && npm run typecheck && npm test -- --runInBand` (same lint/type/test trio runs in CI, including `npm run typecheck`)
@@ -70,6 +74,8 @@ Requirements:
 
 ## Tests / verification commands (manual run as needed)
 - Backend: `cd backend && npm run typecheck && npm run lint && TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm test && npm run build`
+- Web: `npm run web:test:coverage` (or `cd web && npm run test:coverage`) collects coverage over `app/**` and `lib/**` with current thresholds 65/60/60/65; use `npm run web:test` for a quick run without coverage.
+- Web Playwright smoke: `WEB_E2E_BASE_URL=http://localhost:3000 WEB_E2E_EMAIL=demo@greenbro.com WEB_E2E_PASSWORD=password npm run web:e2e` (requires the API running/seeded and the web app served at the base URL; run `npm exec --prefix web playwright install --with-deps` once to fetch browsers; manual GitHub workflow `web-e2e` accepts inputs/secrets for seeded envs).
 - 2025-12-08: ran `npm run migrate:dev`; `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/greenbro_test ALLOW_TEST_DB_RESET=true npm run migrate:test`; `npm test`; `npm run build` against local Postgres 16 ΓÇö all passed. CSV export RBAC (owner/admin/facilities vs contractor), heat pump history scoping/env gating (good MAC, other-org, non-dev env missing), and `/files` org isolation now live in the standard `npm test` suite.
 - AV scan tests: env knobs are `AV_SCANNER_ENABLED`, `AV_SCANNER_CMD` (or `AV_SCANNER_HOST`/`AV_SCANNER_PORT` for clamd) plus `FILE_STORAGE_ROOT`. With the bundled stub: `cd backend && npm run test:av`; or `cross-env AV_SCANNER_ENABLED=true AV_SCANNER_CMD="node ./test/fixtures/av-sim.js" npm test -- test/virusScanner.test.ts`; or `cross-env AV_SCANNER_ENABLED=true AV_SCANNER_CMD="node ./test/fixtures/av-sim.js" npm test -- test/workOrderAttachments.api.test.ts test/documents.api.test.ts`. CI uses the stubbed script, not a real ClamAV daemon.
 - Mobile: `cd mobile && npm run typecheck && npm run lint && npm test -- --runInBand`

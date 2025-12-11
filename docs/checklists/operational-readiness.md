@@ -24,6 +24,11 @@ Use this before staging/production releases to confirm services and clients are 
 - [ ] MQTT/control/history endpoints reachable; vendor disable flags stay false unless deliberately offline (document if toggled).
 - [ ] RBAC verified for owner/admin/facilities/contractor across control, work orders, documents, sharing, and QR/device lookup.
 
+## Web
+- [ ] Dev server healthy against the target API (`npm run dev:all` or backend up on :4000, then `npm run web:dev` on :3000 with `NEXT_PUBLIC_API_URL` set as needed).
+- [ ] Unit + coverage run clean: `npm run web:test:coverage` (app/lib coverage thresholds 65/60/60/65).
+- [ ] Browser smoke passes: `npm run web:e2e` against a seeded env (`WEB_E2E_BASE_URL`/`WEB_E2E_EMAIL`/`WEB_E2E_PASSWORD` set; Playwright browsers installed or workflow `web-e2e` triggered).
+
 ## Mobile
 - [ ] `EXPO_PUBLIC_API_URL` matches the target environment in the chosen `eas.json` profile; Android versionCode and iOS buildNumber align with the release (0.8.0 / 8 / 0.8.0).
 - [ ] Expo credentials available for the selected profile; staging/production builds reference the correct API URL.
