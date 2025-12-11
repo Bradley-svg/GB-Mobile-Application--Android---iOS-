@@ -234,14 +234,8 @@ export default function AlertsPage() {
         <InlineBanner tone={healthBanner.tone} title={healthBanner.title} message={healthBanner.message} />
       ) : null}
 
-      <Card>
+      <Card title="Alerts" subtitle="Live alerts from your organisation. Click a row to open full details.">
         <div style={{ display: "flex", justifyContent: "space-between", gap: theme.spacing.md, flexWrap: "wrap" }}>
-          <div>
-            <h2 style={{ margin: 0 }}>Alerts</h2>
-            <p style={{ margin: 0, color: theme.colors.textSecondary }}>
-              Live alerts from your organisation. Click a row to open full details.
-            </p>
-          </div>
           <div style={{ display: "flex", flexDirection: "column", gap: theme.spacing.xs }}>
             <span style={{ color: theme.colors.textSecondary, fontSize: theme.typography.caption.fontSize }}>
               Status filter

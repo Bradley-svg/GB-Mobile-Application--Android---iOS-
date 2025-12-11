@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -24,8 +24,10 @@ import type { HeatPumpHistoryResponse, HeatPumpMetric } from "@/lib/types/histor
 import type { DeviceTelemetry, TimeRange } from "@/lib/types/telemetry";
 import { useTheme } from "@/theme/ThemeProvider";
 import { useOrgStore } from "@/lib/orgStore";
+import type { StatusKind } from "@/components/ui/StatusPill";
 
 type TabKey = "status" | "metrics" | "history" | "parameters";
+const DEGREE = "\u00b0C";
 
 const TELEMETRY_METRICS = {
   supply: ["supply_temp", "supply_temperature_c"],
@@ -48,9 +50,9 @@ const HISTORY_METRICS: Array<{
 }> = [
   { key: "compressor_current", label: "Compressor current", unit: "A", field: "metric_compCurrentA", decimals: 1 },
   { key: "cop", label: "COP", field: "metric_cop", decimals: 2 },
-  { key: "tank_temp", label: "Tank temp", unit: "°C", field: "metric_tankTempC", decimals: 1 },
-  { key: "dhw_temp", label: "DHW temp", unit: "°C", field: "metric_dhwTempC", decimals: 1 },
-  { key: "ambient_temp", label: "Ambient temp", unit: "°C", field: "metric_ambientTempC", decimals: 1 },
+  { key: "tank_temp", label: "Tank temp", unit: DEGREE, field: "metric_tankTempC", decimals: 1 },
+  { key: "dhw_temp", label: "DHW temp", unit: DEGREE, field: "metric_dhwTempC", decimals: 1 },
+  { key: "ambient_temp", label: "Ambient temp", unit: DEGREE, field: "metric_ambientTempC", decimals: 1 },
   { key: "flow_rate", label: "Flow rate", unit: "L/s", field: "metric_flowRate", decimals: 1 },
   { key: "power_kw", label: "Power", unit: "kW", field: "metric_powerKw", decimals: 1 },
 ];
@@ -108,19 +110,60 @@ const formatLastSeen = (lastSeen?: LastSeenSummary | null, iso?: string | null) 
   return formatRelativeTime(iso, "Unknown");
 };
 
-const formatValue = (value: unknown, unit?: string) => {
-  if (value === null || value === undefined || value === "") return "—";
+const formatValue = (value: unknown, unit?: string, decimals?: number) => {
+  if (value === null || value === undefined || value === "") return "N/A";
   if (typeof value === "number") {
-    const rounded = Math.abs(value) >= 10 ? value.toFixed(1) : value.toFixed(2);
-    return `${rounded}${unit ?? ""}`;
+    const places = decimals ?? (Math.abs(value) >= 10 ? 1 : 2);
+    return `${value.toFixed(places)}${unit ?? ""}`;
   }
   return `${value}${unit ?? ""}`;
 };
 
+const deriveStatus = (device: ApiDevice | undefined, isOffline: boolean): StatusKind => {
+  if (isOffline) return "offline";
+  if (device?.health === "critical") return "critical";
+  if (device?.health === "warning") return "warning";
+  if (device?.health === "healthy") return "healthy";
+  if ((device?.status || "").toLowerCase().includes("unconfig")) return "unconfigured";
+  return "info";
+};
+
+type PillOption<T extends string> = { value: T; label: string };
+
+function PillGroup<T extends string>({ value, options, onChange }: { value: T; options: Array<PillOption<T>>; onChange: (value: T) => void }) {
+  const { theme } = useTheme();
+  return (
+    <div style={{ display: "flex", gap: theme.spacing.xs, flexWrap: "wrap" }}>
+      {options.map((option) => {
+        const active = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onChange(option.value)}
+            style={{
+              padding: `${theme.spacing.xs}px ${theme.spacing.sm}px`,
+              borderRadius: theme.radius.pill,
+              border: `1px solid ${active ? theme.colors.primaryMuted : theme.colors.borderSubtle}`,
+              backgroundColor: active ? theme.colors.brandSoft : theme.colors.surface,
+              color: active ? theme.colors.primaryMuted : theme.colors.textPrimary,
+              fontWeight: theme.typography.label.fontWeight,
+              cursor: "pointer",
+              boxShadow: active ? `0 8px 18px ${theme.colors.shadow}` : "none",
+            }}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function MetricGrid({
   rows,
 }: {
-  rows: { label: string; value: string | number | null | undefined; unit?: string }[];
+  rows: { label: string; value: string | number | null | undefined; unit?: string; decimals?: number }[];
 }) {
   const { theme } = useTheme();
   return (
@@ -142,13 +185,12 @@ function MetricGrid({
             display: "flex",
             flexDirection: "column",
             gap: 6,
+            boxShadow: `0 8px 18px ${theme.colors.shadow}`,
           }}
         >
-          <span style={{ color: theme.colors.textSecondary, fontSize: theme.typography.caption.fontSize }}>
-            {row.label}
-          </span>
+          <span style={{ color: theme.colors.textSecondary, fontSize: theme.typography.caption.fontSize }}>{row.label}</span>
           <strong style={{ fontSize: theme.typography.subtitle.fontSize, fontWeight: theme.typography.subtitle.fontWeight }}>
-            {formatValue(row.value, row.unit)}
+            {formatValue(row.value, row.unit, row.decimals)}
           </strong>
         </div>
       ))}
@@ -217,21 +259,24 @@ export default function DeviceDetailPage() {
 
   const isOffline =
     device?.health === "offline" || device?.last_seen?.isOffline || (device?.status || "").toLowerCase().includes("off");
+  const statusKind = deriveStatus(device, isOffline);
 
   const metricRows = useMemo(
     () => [
-      { label: "Tank °C", value: latestMetric(telemetry, TELEMETRY_METRICS.tank), unit: "°C" },
-      { label: "DHW °C", value: latestMetric(telemetry, TELEMETRY_METRICS.dhw), unit: "°C" },
-      { label: "Ambient °C", value: latestMetric(telemetry, TELEMETRY_METRICS.ambient), unit: "°C" },
-      { label: "Supply °C", value: latestMetric(telemetry, TELEMETRY_METRICS.supply), unit: "°C" },
-      { label: "Return °C", value: latestMetric(telemetry, TELEMETRY_METRICS.return), unit: "°C" },
-      { label: "Compressor A", value: latestMetric(telemetry, TELEMETRY_METRICS.compressor) },
+      { label: "Tank", value: latestMetric(telemetry, TELEMETRY_METRICS.tank), unit: DEGREE },
+      { label: "DHW", value: latestMetric(telemetry, TELEMETRY_METRICS.dhw), unit: DEGREE },
+      { label: "Ambient", value: latestMetric(telemetry, TELEMETRY_METRICS.ambient), unit: DEGREE },
+      { label: "Supply", value: latestMetric(telemetry, TELEMETRY_METRICS.supply), unit: DEGREE },
+      { label: "Return", value: latestMetric(telemetry, TELEMETRY_METRICS.return), unit: DEGREE },
+      { label: "Compressor", value: latestMetric(telemetry, TELEMETRY_METRICS.compressor), unit: " A" },
       { label: "EEV steps", value: latestMetric(telemetry, TELEMETRY_METRICS.eev) },
       { label: "Mode", value: latestMetric(telemetry, TELEMETRY_METRICS.mode) },
       { label: "Defrost", value: latestMetric(telemetry, TELEMETRY_METRICS.defrost) },
     ],
     [telemetry],
   );
+
+  const heroMetrics = metricRows.filter((row) => ["Tank", "DHW", "Ambient", "Compressor", "EEV steps", "Mode", "Defrost"].includes(row.label));
 
   const chartData = useMemo(
     () =>
@@ -258,10 +303,26 @@ export default function DeviceDetailPage() {
       ? "Live vendor history via /heat-pump-history"
       : undefined;
 
+  if (deviceQuery.isLoading) {
+    return (
+      <Card>
+        <p style={{ margin: 0, color: theme.colors.textSecondary }}>Loading device...</p>
+      </Card>
+    );
+  }
+
+  if (deviceQuery.isError || !device) {
+    return (
+      <Card title="Could not load device">
+        <p style={{ margin: 0, color: theme.colors.textSecondary }}>Check the device ID or try again later.</p>
+      </Card>
+    );
+  }
+
   const content = (() => {
     if (tab === "status") {
       return (
-        <Card title="Status">
+        <Card title="Status snapshot" subtitle="Latest readings from the device">
           <MetricGrid rows={metricRows} />
         </Card>
       );
@@ -269,18 +330,18 @@ export default function DeviceDetailPage() {
 
     if (tab === "metrics") {
       return (
-        <Card title="Metrics">
+        <Card title="Telemetry" subtitle="Overlay of key temperatures">
           <div style={{ display: "flex", gap: theme.spacing.sm, marginBottom: theme.spacing.sm, flexWrap: "wrap" }}>
-            {(["1h", "6h", "24h", "7d"] as TimeRange[]).map((range) => (
-              <Button
-                key={range}
-                variant={telemetryRange === range ? "primary" : "secondary"}
-                size="sm"
-                onClick={() => setTelemetryRange(range)}
-              >
-                {range}
-              </Button>
-            ))}
+            <PillGroup<TimeRange>
+              value={telemetryRange}
+              options={([
+                { value: "1h", label: "1h" },
+                { value: "6h", label: "6h" },
+                { value: "24h", label: "24h" },
+                { value: "7d", label: "7d" },
+              ]) as Array<PillOption<TimeRange>>}
+              onChange={(range) => setTelemetryRange(range)}
+            />
           </div>
 
           {telemetryQuery.isLoading ? (
@@ -290,16 +351,26 @@ export default function DeviceDetailPage() {
           ) : chartData.length === 0 ? (
             <p style={{ color: theme.colors.textSecondary }}>No telemetry data in this range.</p>
           ) : (
-            <div style={{ width: "100%", height: 320 }}>
+            <div style={{ width: "100%", height: 340 }}>
               <ResponsiveContainer>
-                <LineChart data={chartData}>
+                <LineChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 12 }}>
                   <CartesianGrid strokeDasharray="4 4" stroke={theme.colors.borderSubtle} />
                   <XAxis
                     dataKey="timestamp"
                     tickFormatter={(ts) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     tick={{ fill: theme.colors.textSecondary, fontSize: 12 }}
+                    label={{ value: "Time", position: "insideBottomRight", offset: -6, fill: theme.colors.textSecondary, fontSize: 12 }}
                   />
-                  <YAxis tick={{ fill: theme.colors.textSecondary, fontSize: 12 }} />
+                  <YAxis
+                    tick={{ fill: theme.colors.textSecondary, fontSize: 12 }}
+                    label={{
+                      value: `Temperature (${DEGREE})`,
+                      angle: -90,
+                      position: "insideLeft",
+                      fill: theme.colors.textSecondary,
+                      fontSize: 12,
+                    }}
+                  />
                   <Tooltip
                     labelFormatter={(ts) => new Date(ts as number).toLocaleString()}
                     contentStyle={{
@@ -308,7 +379,7 @@ export default function DeviceDetailPage() {
                       color: theme.colors.textPrimary,
                     }}
                   />
-                  <Legend />
+                  <Legend wrapperStyle={{ paddingTop: 8 }} />
                   <Line type="monotone" dataKey="tank_temp" name="Tank" stroke={theme.colors.chartPrimary} dot={false} />
                   <Line type="monotone" dataKey="dhw_temp" name="DHW" stroke={theme.colors.chartSecondary} dot={false} />
                   <Line type="monotone" dataKey="ambient_temp" name="Ambient" stroke={theme.colors.chartTertiary} dot={false} />
@@ -324,7 +395,7 @@ export default function DeviceDetailPage() {
 
     if (tab === "history") {
       return (
-        <Card title="History">
+        <Card title="History" subtitle="Vendor history with labelled axes">
           <div style={{ display: "flex", gap: theme.spacing.sm, flexWrap: "wrap", marginBottom: theme.spacing.sm }}>
             <select
               value={historyMetric}
@@ -342,11 +413,16 @@ export default function DeviceDetailPage() {
                 </option>
               ))}
             </select>
-            {(["1h", "6h", "24h", "7d"] as TimeRange[]).map((range) => (
-              <Button key={range} size="sm" variant={historyRange === range ? "primary" : "secondary"} onClick={() => setHistoryRange(range)}>
-                {range}
-              </Button>
-            ))}
+            <PillGroup<TimeRange>
+              value={historyRange}
+              options={([
+                { value: "1h", label: "1h" },
+                { value: "6h", label: "6h" },
+                { value: "24h", label: "24h" },
+                { value: "7d", label: "7d" },
+              ]) as Array<PillOption<TimeRange>>}
+              onChange={(range) => setHistoryRange(range)}
+            />
           </div>
 
           {historyQuery.isLoading ? (
@@ -358,20 +434,30 @@ export default function DeviceDetailPage() {
           ) : historyPoints.length === 0 ? (
             <p style={{ color: theme.colors.textSecondary }}>No history points for this metric.</p>
           ) : (
-            <div style={{ width: "100%", height: 320 }}>
+            <div style={{ width: "100%", height: 340 }}>
               <ResponsiveContainer>
-                <LineChart data={historyPoints}>
+                <LineChart data={historyPoints} margin={{ top: 8, right: 16, left: 0, bottom: 12 }}>
                   <CartesianGrid strokeDasharray="4 4" stroke={theme.colors.borderSubtle} />
                   <XAxis
                     dataKey="timestamp"
                     tickFormatter={(ts) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     tick={{ fill: theme.colors.textSecondary, fontSize: 12 }}
+                    label={{ value: "Time", position: "insideBottomRight", offset: -6, fill: theme.colors.textSecondary, fontSize: 12 }}
                   />
-                  <YAxis tick={{ fill: theme.colors.textSecondary, fontSize: 12 }} />
+                  <YAxis
+                    tick={{ fill: theme.colors.textSecondary, fontSize: 12 }}
+                    label={{
+                      value: historyDefinition.unit ? `${historyDefinition.label} (${historyDefinition.unit})` : historyDefinition.label,
+                      angle: -90,
+                      position: "insideLeft",
+                      fill: theme.colors.textSecondary,
+                      fontSize: 12,
+                    }}
+                  />
                   <Tooltip
                     labelFormatter={(ts) => new Date(ts as number).toLocaleString()}
                     formatter={(value: number | null) => [
-                      value == null ? "—" : value.toFixed(historyDefinition.decimals ?? 1),
+                      value == null ? "N/A" : value.toFixed(historyDefinition.decimals ?? 1),
                       historyDefinition.label,
                     ]}
                     contentStyle={{
@@ -380,7 +466,7 @@ export default function DeviceDetailPage() {
                       color: theme.colors.textPrimary,
                     }}
                   />
-                  <Legend />
+                  <Legend wrapperStyle={{ paddingTop: 8 }} />
                   <Line
                     type="monotone"
                     dataKey="value"
@@ -401,10 +487,7 @@ export default function DeviceDetailPage() {
     }
 
     return (
-      <Card title="Parameters">
-        <p style={{ marginTop: 0, color: theme.colors.textSecondary }}>
-          Read-only parameters shown here. Editing will be added later.
-        </p>
+      <Card title="Parameters" subtitle="Read-only parameters shown here">
         <MetricGrid
           rows={[
             { label: "Controller", value: device?.controller ?? "N/A" },
@@ -418,53 +501,77 @@ export default function DeviceDetailPage() {
     );
   })();
 
-  if (deviceQuery.isLoading) {
-    return (
-      <Card>
-        <p style={{ margin: 0, color: theme.colors.textSecondary }}>Loading device...</p>
-      </Card>
-    );
-  }
-
-  if (deviceQuery.isError || !device) {
-    return (
-      <Card title="Could not load device">
-        <p style={{ margin: 0, color: theme.colors.textSecondary }}>Check the device ID or try again later.</p>
-      </Card>
-    );
-  }
-
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: theme.spacing.md }}>
-      <Card>
-        <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: theme.spacing.sm }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <h2 style={{ margin: 0 }}>{device.name}</h2>
-            <span style={{ color: theme.colors.textSecondary, fontFamily: "monospace" }}>{device.mac || "MAC unknown"}</span>
-            <span style={{ color: theme.colors.textSecondary }}>{device.site_name || "Unknown site"}</span>
-            <span style={{ color: theme.colors.textSecondary }}>
-              Last seen: {formatLastSeen(device.last_seen, device.last_seen_at ?? undefined)}
-            </span>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: theme.spacing.sm }}>
-            <StatusPill status={isOffline ? "offline" : "online"} />
-            <Badge tone={isOffline ? "error" : "success"}>{isOffline ? "Offline" : "Online"}</Badge>
-            <Link href="/app/alerts" style={{ color: theme.colors.primary }}>
+    <div className="device-layout">
+      <div className="device-hero">
+        <Card
+          title={device.name}
+          subtitle={device.site_name ?? "Unknown site"}
+          actions={
+            <Button as="a" href="/app/alerts" variant="secondary" size="sm">
               View alerts
-            </Link>
-          </div>
-        </div>
-
-        <div style={{ marginTop: theme.spacing.md, display: "flex", gap: theme.spacing.sm, flexWrap: "wrap" }}>
-          {(["status", "metrics", "history", "parameters"] as TabKey[]).map((key) => (
-            <Button key={key} size="sm" variant={tab === key ? "primary" : "secondary"} onClick={() => setTab(key)}>
-              {key.charAt(0).toUpperCase() + key.slice(1)}
             </Button>
-          ))}
-        </div>
-      </Card>
+          }
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: theme.spacing.sm }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <span style={{ color: theme.colors.textSecondary, fontFamily: "monospace" }}>{device.mac || "MAC unknown"}</span>
+              <span style={{ color: theme.colors.textSecondary }}>
+                Last seen: {formatLastSeen(device.last_seen, device.last_seen_at ?? undefined)}
+              </span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: theme.spacing.sm, flexWrap: "wrap" }}>
+              <StatusPill status={statusKind} />
+              <Badge tone={isOffline ? "error" : "success"}>{isOffline ? "Offline" : "Healthy"}</Badge>
+            </div>
+          </div>
 
-      {content}
+          <div style={{ marginTop: theme.spacing.md }}>
+            <MetricGrid rows={heroMetrics} />
+          </div>
+
+          <div style={{ marginTop: theme.spacing.md }}>
+            <PillGroup<TabKey>
+              value={tab}
+              options={([
+                { value: "status", label: "Status" },
+                { value: "metrics", label: "Metrics" },
+                { value: "history", label: "History" },
+                { value: "parameters", label: "Parameters" },
+              ]) as Array<PillOption<TabKey>>}
+              onChange={(next) => setTab(next)}
+            />
+          </div>
+        </Card>
+      </div>
+
+      <div className="device-content">{content}</div>
+
+      <style>{`
+        .device-layout {
+          display: grid;
+          gap: ${theme.spacing.lg}px;
+        }
+        @media (min-width: 1200px) {
+          .device-layout {
+            grid-template-columns: 380px 1fr;
+            align-items: start;
+          }
+          .device-hero {
+            position: sticky;
+            top: ${theme.spacing.xl}px;
+          }
+        }
+        @media (max-width: 1199px) {
+          .device-layout {
+            grid-template-columns: 1fr;
+          }
+          .device-hero,
+          .device-content {
+            grid-column: 1;
+          }
+        }
+      `}</style>
     </div>
   );
 }

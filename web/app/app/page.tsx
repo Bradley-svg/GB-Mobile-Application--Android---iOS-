@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { Badge, Card, StatusPill } from "@/components/ui";
@@ -11,6 +11,7 @@ import type { ApiDevice, FleetSearchResult, LastSeenSummary } from "@/lib/types/
 import type { DeviceTelemetry } from "@/lib/types/telemetry";
 import { useTheme } from "@/theme/ThemeProvider";
 import { useOrgStore } from "@/lib/orgStore";
+import type { StatusKind } from "@/components/ui/StatusPill";
 
 type MetricValue = string | number | null | undefined;
 
@@ -51,15 +52,30 @@ const formatLastSeen = (lastSeen?: LastSeenSummary | null, fallbackIso?: string 
   return formatRelativeTime(fallbackIso, "Unknown");
 };
 
-type FleetDeviceCardProps = {
-  device: ApiDevice;
+const formatMetricValue = (value: MetricValue, suffix = "") => {
+  if (value === null || value === undefined || value === "") return "N/A";
+  if (typeof value === "number") {
+    const rounded = Math.abs(value) >= 10 ? value.toFixed(1) : value.toFixed(2);
+    return `${rounded}${suffix}`;
+  }
+  return `${value}${suffix}`;
 };
 
-function FleetDeviceCard({ device }: FleetDeviceCardProps) {
+const deriveStatus = (device: ApiDevice, isOffline: boolean): StatusKind => {
+  if (isOffline) return "offline";
+  if (device.health === "critical") return "critical";
+  if (device.health === "warning") return "warning";
+  if (device.health === "healthy") return "healthy";
+  if ((device.status || "").toLowerCase().includes("unconfig")) return "unconfigured";
+  return "info";
+};
+
+function FleetDeviceCard({ device }: { device: ApiDevice }) {
   const { theme } = useTheme();
   const currentOrgId = useOrgStore((s) => s.currentOrgId);
   const status = (device.status || "").toLowerCase();
   const isOffline = device.health === "offline" || device.last_seen?.isOffline || status.includes("off");
+  const statusKind = deriveStatus(device, isOffline);
 
   const telemetryQuery = useQuery({
     queryKey: ["device-telemetry", device.id, currentOrgId],
@@ -81,18 +97,19 @@ function FleetDeviceCard({ device }: FleetDeviceCardProps) {
   const renderMetric = (label: string, value: MetricValue, suffix = "") => (
     <div
       style={{
-        padding: `${theme.spacing.xs}px ${theme.spacing.sm}px`,
+        padding: `${theme.spacing.sm}px ${theme.spacing.md}px`,
         borderRadius: theme.radius.md,
         border: `1px solid ${theme.colors.borderSubtle}`,
         backgroundColor: theme.colors.surface,
         display: "flex",
         flexDirection: "column",
-        gap: 4,
+        gap: 6,
+        boxShadow: `0 8px 18px ${theme.colors.shadow}`,
       }}
     >
       <span style={{ color: theme.colors.textSecondary, fontSize: theme.typography.caption.fontSize }}>{label}</span>
       <strong style={{ fontSize: theme.typography.subtitle.fontSize, fontWeight: theme.typography.subtitle.fontWeight }}>
-        {value === null || value === undefined || value === "" ? "—" : `${value}${suffix}`}
+        {formatMetricValue(value, suffix)}
       </strong>
     </div>
   );
@@ -110,25 +127,33 @@ function FleetDeviceCard({ device }: FleetDeviceCardProps) {
           border: `1px solid ${theme.colors.borderSubtle}`,
           borderRadius: theme.radius.lg,
           backgroundColor: theme.colors.card,
-          padding: theme.spacing.lg,
-          boxShadow: `0 8px 24px ${theme.colors.shadow}`,
+          padding: theme.spacing.xl,
+          boxShadow: `0 14px 32px ${theme.colors.shadow}`,
           display: "flex",
           flexDirection: "column",
-          gap: theme.spacing.md,
-          minHeight: 240,
+          gap: theme.spacing.lg,
+          minHeight: 260,
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", gap: theme.spacing.sm, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <span style={{ fontWeight: theme.typography.subtitle.fontWeight }}>{device.name}</span>
-            <span style={{ color: theme.colors.textSecondary, fontFamily: "monospace" }}>
-              {device.mac || "MAC unknown"}
+        <div style={{ display: "flex", justifyContent: "space-between", gap: theme.spacing.lg, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span style={{ color: theme.colors.textSecondary, fontSize: theme.typography.caption.fontSize, letterSpacing: 0.4 }}>
+              Heat pump
             </span>
-            <span style={{ color: theme.colors.textSecondary }}>{device.site_name || "Unknown site"}</span>
+            <span style={{ fontWeight: theme.typography.subtitle.fontWeight, fontSize: theme.typography.title2.fontSize }}>
+              {device.name}
+            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: theme.spacing.sm, flexWrap: "wrap" }}>
+              <span style={{ color: theme.colors.textSecondary, fontFamily: "monospace" }}>{device.mac || "MAC unknown"}</span>
+              <Badge tone="brand">{device.site_name || "Unknown site"}</Badge>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: theme.spacing.sm, flexWrap: "wrap" }}>
+              <Badge tone="info">Last seen {formatLastSeen(device.last_seen, device.last_seen_at ?? undefined)}</Badge>
+            </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: theme.spacing.sm }}>
-            <StatusPill status={isOffline ? "offline" : "online"} />
-            <Badge tone="neutral">{formatLastSeen(device.last_seen, device.last_seen_at ?? undefined)}</Badge>
+          <div style={{ display: "flex", alignItems: "center", gap: theme.spacing.sm, flexWrap: "wrap" }}>
+            <StatusPill status={statusKind} />
+            <Badge tone={isOffline ? "error" : "success"}>{isOffline ? "Offline" : "Connected"}</Badge>
           </div>
         </div>
 
@@ -139,9 +164,9 @@ function FleetDeviceCard({ device }: FleetDeviceCardProps) {
             gap: theme.spacing.sm,
           }}
         >
-          {renderMetric("Tank °C", metrics.tank, typeof metrics.tank === "number" ? "°" : "")}
-          {renderMetric("DHW °C", metrics.dhw, typeof metrics.dhw === "number" ? "°" : "")}
-          {renderMetric("Ambient °C", metrics.ambient, typeof metrics.ambient === "number" ? "°" : "")}
+          {renderMetric("Tank degC", metrics.tank, typeof metrics.tank === "number" ? "°C" : "")}
+          {renderMetric("DHW degC", metrics.dhw, typeof metrics.dhw === "number" ? "°C" : "")}
+          {renderMetric("Ambient degC", metrics.ambient, typeof metrics.ambient === "number" ? "°C" : "")}
           {renderMetric("Compressor A", metrics.compressor)}
           {renderMetric("EEV steps", metrics.eev)}
           {renderMetric("Mode", metrics.mode)}
@@ -179,17 +204,18 @@ const ListSkeleton = () => {
             border: `1px solid ${theme.colors.borderSubtle}`,
             borderRadius: theme.radius.lg,
             backgroundColor: theme.colors.card,
-            padding: theme.spacing.lg,
-            minHeight: 200,
+            padding: theme.spacing.xl,
+            minHeight: 220,
             display: "flex",
             flexDirection: "column",
             gap: theme.spacing.sm,
             animation: "pulse 1.6s ease-in-out infinite",
-            opacity: 0.8,
+            opacity: 0.85,
           }}
         >
-          <div style={{ height: 12, width: "40%", background: theme.colors.backgroundAlt, borderRadius: theme.radius.sm }} />
+          <div style={{ height: 12, width: "48%", background: theme.colors.backgroundAlt, borderRadius: theme.radius.sm }} />
           <div style={{ height: 10, width: "60%", background: theme.colors.backgroundAlt, borderRadius: theme.radius.sm }} />
+          <div style={{ height: 10, width: "32%", background: theme.colors.backgroundAlt, borderRadius: theme.radius.sm }} />
           <div style={{ height: 120, background: theme.colors.backgroundAlt, borderRadius: theme.radius.md }} />
         </div>
       ))}
@@ -222,19 +248,13 @@ export default function FleetOverviewPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: theme.spacing.lg }}>
-      <Card>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: theme.spacing.md }}>
-          <div>
-            <h2 style={{ margin: 0, fontSize: theme.typography.subtitle.fontSize, fontWeight: theme.typography.subtitle.fontWeight }}>
-              Fleet overview
-            </h2>
-            <p style={{ margin: 0, color: theme.colors.textSecondary }}>
-              Devices grouped by status with quick metrics. Click a card to drill into details.
-            </p>
-          </div>
+      <Card
+        title="Fleet overview"
+        subtitle="SmartMonitoring-style snapshot of every connected heat pump"
+        actions={
           <div style={{ display: "flex", alignItems: "center", gap: theme.spacing.sm }}>
             <label style={{ color: theme.colors.textSecondary, fontSize: theme.typography.caption.fontSize }}>
-              Site filter
+              Site
             </label>
             <select
               value={selectedSiteId}
@@ -255,6 +275,61 @@ export default function FleetOverviewPage() {
               ))}
             </select>
           </div>
+        }
+      >
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: theme.spacing.md }}>
+          <div
+            style={{
+              padding: theme.spacing.md,
+              borderRadius: theme.radius.md,
+              border: `1px solid ${theme.colors.borderSubtle}`,
+              backgroundColor: theme.colors.surface,
+              display: "flex",
+              flexDirection: "column",
+              gap: theme.spacing.xs,
+            }}
+          >
+            <span style={{ color: theme.colors.textSecondary, fontSize: theme.typography.caption.fontSize }}>Devices</span>
+            <strong style={{ fontSize: theme.typography.title2.fontSize, fontWeight: theme.typography.title2.fontWeight }}>
+              {filteredDevices.length}
+            </strong>
+          </div>
+          <div
+            style={{
+              padding: theme.spacing.md,
+              borderRadius: theme.radius.md,
+              border: `1px solid ${theme.colors.borderSubtle}`,
+              backgroundColor: theme.colors.surface,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: theme.spacing.sm,
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: theme.spacing.xs }}>
+              <span style={{ color: theme.colors.textSecondary, fontSize: theme.typography.caption.fontSize }}>Healthy</span>
+              <strong style={{ fontSize: theme.typography.title2.fontSize }}>{onlineDevices.length}</strong>
+            </div>
+            <StatusPill status="healthy" subdued />
+          </div>
+          <div
+            style={{
+              padding: theme.spacing.md,
+              borderRadius: theme.radius.md,
+              border: `1px solid ${theme.colors.borderSubtle}`,
+              backgroundColor: theme.colors.surface,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: theme.spacing.sm,
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: theme.spacing.xs }}>
+              <span style={{ color: theme.colors.textSecondary, fontSize: theme.typography.caption.fontSize }}>Offline</span>
+              <strong style={{ fontSize: theme.typography.title2.fontSize }}>{offlineDevices.length}</strong>
+            </div>
+            <StatusPill status="offline" subdued />
+          </div>
         </div>
       </Card>
 
@@ -273,11 +348,17 @@ export default function FleetOverviewPage() {
           </p>
         </Card>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: theme.spacing.lg }}>
-          <Section title="Online" count={onlineDevices.length}>
+        <div
+          style={{
+            display: "grid",
+            gap: theme.spacing.lg,
+            gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))",
+          }}
+        >
+          <Section title="Online" count={onlineDevices.length} status="healthy">
             <DeviceGrid devices={onlineDevices} />
           </Section>
-          <Section title="Offline" count={offlineDevices.length}>
+          <Section title="Offline" count={offlineDevices.length} status="offline">
             <DeviceGrid devices={offlineDevices} />
           </Section>
         </div>
@@ -310,15 +391,17 @@ function DeviceGrid({ devices }: { devices: ApiDevice[] }) {
   );
 }
 
-function Section({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
+function Section({ title, count, status, children }: { title: string; count: number; status: StatusKind; children: ReactNode }) {
   const { theme } = useTheme();
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: theme.spacing.sm }}>
-      <div style={{ display: "flex", alignItems: "center", gap: theme.spacing.sm }}>
+      <div style={{ display: "flex", alignItems: "center", gap: theme.spacing.sm, flexWrap: "wrap" }}>
         <h3 style={{ margin: 0 }}>{title}</h3>
-        <Badge tone={title === "Offline" ? "error" : "success"}>{count}</Badge>
+        <Badge tone="neutral">{count}</Badge>
+        <StatusPill status={status} subdued />
       </div>
       {children}
     </div>
   );
 }
+

@@ -1,0 +1,547 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`FleetOverviewPage layout > renders fleet summary layout 1`] = `
+<DocumentFragment>
+  <div
+    style="display: flex; flex-direction: column; gap: 16px;"
+  >
+    <div
+      style="background-color: rgb(249, 251, 253); border: 1px solid rgb(211, 218, 227); border-radius: 22px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12); padding: 24px; display: flex; flex-direction: column; gap: 12px;"
+    >
+      <div
+        style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap;"
+      >
+        <div
+          style="display: flex; flex-direction: column; gap: 4px;"
+        >
+          <h2
+            style="margin: 0px; font-size: 16px; font-weight: 600; letter-spacing: 0.1px; color: rgb(17, 17, 17);"
+          >
+            Fleet overview
+          </h2>
+          <p
+            style="margin: 0px; color: rgb(85, 85, 85); font-size: 14px;"
+          >
+            SmartMonitoring-style snapshot of every connected heat pump
+          </p>
+        </div>
+        <div
+          style="display: flex; align-items: center; gap: 8px;"
+        >
+          <div
+            style="display: flex; align-items: center; gap: 8px;"
+          >
+            <label
+              style="color: rgb(85, 85, 85); font-size: 12px;"
+            >
+              Site
+            </label>
+            <select
+              style="padding: 4px 8px; border-radius: 12px; border: 1px solid rgb(211, 218, 227); background: rgb(249, 251, 253); color: rgb(17, 17, 17);"
+            >
+              <option
+                value="all"
+              >
+                All sites
+              </option>
+              <option
+                value="site-1"
+              >
+                HQ
+              </option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div
+        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;"
+      >
+        <div
+          style="padding: 12px; border-radius: 12px; border: 1px solid rgb(211, 218, 227); background-color: rgb(249, 251, 253); display: flex; flex-direction: column; gap: 4px;"
+        >
+          <span
+            style="color: rgb(85, 85, 85); font-size: 12px;"
+          >
+            Devices
+          </span>
+          <strong
+            style="font-size: 20px; font-weight: 600;"
+          >
+            2
+          </strong>
+        </div>
+        <div
+          style="padding: 12px; border-radius: 12px; border: 1px solid rgb(211, 218, 227); background-color: rgb(249, 251, 253); display: flex; align-items: center; justify-content: space-between; gap: 8px;"
+        >
+          <div
+            style="display: flex; flex-direction: column; gap: 4px;"
+          >
+            <span
+              style="color: rgb(85, 85, 85); font-size: 12px;"
+            >
+              Healthy
+            </span>
+            <strong
+              style="font-size: 20px;"
+            >
+              1
+            </strong>
+          </div>
+          <span
+            style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 999px; background-color: rgba(22, 163, 74, 0.18); color: rgb(22, 163, 74); border: 1px solid rgb(22, 163, 74); font-size: 12px; font-weight: 600; box-shadow: none;"
+          >
+            <span
+              aria-hidden="true"
+              style="width: 8px; height: 8px; border-radius: 50%; background-color: rgb(22, 163, 74); box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.18);"
+            />
+            Healthy
+          </span>
+        </div>
+        <div
+          style="padding: 12px; border-radius: 12px; border: 1px solid rgb(211, 218, 227); background-color: rgb(249, 251, 253); display: flex; align-items: center; justify-content: space-between; gap: 8px;"
+        >
+          <div
+            style="display: flex; flex-direction: column; gap: 4px;"
+          >
+            <span
+              style="color: rgb(85, 85, 85); font-size: 12px;"
+            >
+              Offline
+            </span>
+            <strong
+              style="font-size: 20px;"
+            >
+              1
+            </strong>
+          </div>
+          <span
+            style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 999px; background-color: rgba(220, 38, 38, 0.16); color: rgb(220, 38, 38); border: 1px solid rgb(220, 38, 38); font-size: 12px; font-weight: 600; box-shadow: none;"
+          >
+            <span
+              aria-hidden="true"
+              style="width: 8px; height: 8px; border-radius: 50%; background-color: rgb(220, 38, 38); box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.16);"
+            />
+            Offline
+          </span>
+        </div>
+      </div>
+    </div>
+    <div
+      style="display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));"
+    >
+      <div
+        style="display: flex; flex-direction: column; gap: 8px;"
+      >
+        <div
+          style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;"
+        >
+          <h3
+            style="margin: 0px;"
+          >
+            Online
+          </h3>
+          <span
+            style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 999px; background-color: rgb(239, 243, 247); color: rgb(85, 85, 85); border: 1px solid rgb(211, 218, 227); font-size: 12px; font-weight: 600; box-shadow: none;"
+          >
+            1
+          </span>
+          <span
+            style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 999px; background-color: rgba(22, 163, 74, 0.18); color: rgb(22, 163, 74); border: 1px solid rgb(22, 163, 74); font-size: 12px; font-weight: 600; box-shadow: none;"
+          >
+            <span
+              aria-hidden="true"
+              style="width: 8px; height: 8px; border-radius: 50%; background-color: rgb(22, 163, 74); box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.18);"
+            />
+            Healthy
+          </span>
+        </div>
+        <div
+          style="display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));"
+        >
+          <a
+            href="/app/devices/dev-1"
+            style="text-decoration: none; color: rgb(17, 17, 17);"
+          >
+            <div
+              style="border: 1px solid rgb(211, 218, 227); border-radius: 22px; background-color: rgb(249, 251, 253); padding: 24px; box-shadow: 0 14px 32px rgba(0, 0, 0, 0.12); display: flex; flex-direction: column; gap: 16px; min-height: 260px;"
+            >
+              <div
+                style="display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;"
+              >
+                <div
+                  style="display: flex; flex-direction: column; gap: 6px;"
+                >
+                  <span
+                    style="color: rgb(85, 85, 85); font-size: 12px; letter-spacing: 0.4px;"
+                  >
+                    Heat pump
+                  </span>
+                  <span
+                    style="font-weight: 600; font-size: 20px;"
+                  >
+                    Heat Pump #1
+                  </span>
+                  <div
+                    style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;"
+                  >
+                    <span
+                      style="color: rgb(85, 85, 85); font-family: monospace;"
+                    >
+                      AA:BB:CC:DD
+                    </span>
+                    <span
+                      style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 999px; background-color: rgb(221, 239, 227); color: rgb(45, 156, 62); border: 1px solid rgb(45, 156, 62); font-size: 12px; font-weight: 600; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);"
+                    >
+                      HQ
+                    </span>
+                  </div>
+                  <div
+                    style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;"
+                  >
+                    <span
+                      style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 999px; background-color: rgba(37, 99, 235, 0.16); color: rgb(37, 99, 235); border: 1px solid rgb(37, 99, 235); font-size: 12px; font-weight: 600; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);"
+                    >
+                      Last seen 5 minutes ago
+                    </span>
+                  </div>
+                </div>
+                <div
+                  style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;"
+                >
+                  <span
+                    style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 999px; background-color: rgba(22, 163, 74, 0.18); color: rgb(22, 163, 74); border: 1px solid rgb(22, 163, 74); font-size: 12px; font-weight: 600; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);"
+                  >
+                    <span
+                      aria-hidden="true"
+                      style="width: 8px; height: 8px; border-radius: 50%; background-color: rgb(22, 163, 74); box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.18);"
+                    />
+                    Healthy
+                  </span>
+                  <span
+                    style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 999px; background-color: rgba(22, 163, 74, 0.18); color: rgb(22, 163, 74); border: 1px solid rgb(22, 163, 74); font-size: 12px; font-weight: 600; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);"
+                  >
+                    Connected
+                  </span>
+                </div>
+              </div>
+              <div
+                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px;"
+              >
+                <div
+                  style="padding: 8px 12px; border-radius: 12px; border: 1px solid rgb(211, 218, 227); background-color: rgb(249, 251, 253); display: flex; flex-direction: column; gap: 6px; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);"
+                >
+                  <span
+                    style="color: rgb(85, 85, 85); font-size: 12px;"
+                  >
+                    Tank degC
+                  </span>
+                  <strong
+                    style="font-size: 16px; font-weight: 600;"
+                  >
+                    N/A
+                  </strong>
+                </div>
+                <div
+                  style="padding: 8px 12px; border-radius: 12px; border: 1px solid rgb(211, 218, 227); background-color: rgb(249, 251, 253); display: flex; flex-direction: column; gap: 6px; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);"
+                >
+                  <span
+                    style="color: rgb(85, 85, 85); font-size: 12px;"
+                  >
+                    DHW degC
+                  </span>
+                  <strong
+                    style="font-size: 16px; font-weight: 600;"
+                  >
+                    N/A
+                  </strong>
+                </div>
+                <div
+                  style="padding: 8px 12px; border-radius: 12px; border: 1px solid rgb(211, 218, 227); background-color: rgb(249, 251, 253); display: flex; flex-direction: column; gap: 6px; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);"
+                >
+                  <span
+                    style="color: rgb(85, 85, 85); font-size: 12px;"
+                  >
+                    Ambient degC
+                  </span>
+                  <strong
+                    style="font-size: 16px; font-weight: 600;"
+                  >
+                    N/A
+                  </strong>
+                </div>
+                <div
+                  style="padding: 8px 12px; border-radius: 12px; border: 1px solid rgb(211, 218, 227); background-color: rgb(249, 251, 253); display: flex; flex-direction: column; gap: 6px; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);"
+                >
+                  <span
+                    style="color: rgb(85, 85, 85); font-size: 12px;"
+                  >
+                    Compressor A
+                  </span>
+                  <strong
+                    style="font-size: 16px; font-weight: 600;"
+                  >
+                    N/A
+                  </strong>
+                </div>
+                <div
+                  style="padding: 8px 12px; border-radius: 12px; border: 1px solid rgb(211, 218, 227); background-color: rgb(249, 251, 253); display: flex; flex-direction: column; gap: 6px; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);"
+                >
+                  <span
+                    style="color: rgb(85, 85, 85); font-size: 12px;"
+                  >
+                    EEV steps
+                  </span>
+                  <strong
+                    style="font-size: 16px; font-weight: 600;"
+                  >
+                    N/A
+                  </strong>
+                </div>
+                <div
+                  style="padding: 8px 12px; border-radius: 12px; border: 1px solid rgb(211, 218, 227); background-color: rgb(249, 251, 253); display: flex; flex-direction: column; gap: 6px; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);"
+                >
+                  <span
+                    style="color: rgb(85, 85, 85); font-size: 12px;"
+                  >
+                    Mode
+                  </span>
+                  <strong
+                    style="font-size: 16px; font-weight: 600;"
+                  >
+                    N/A
+                  </strong>
+                </div>
+                <div
+                  style="padding: 8px 12px; border-radius: 12px; border: 1px solid rgb(211, 218, 227); background-color: rgb(249, 251, 253); display: flex; flex-direction: column; gap: 6px; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);"
+                >
+                  <span
+                    style="color: rgb(85, 85, 85); font-size: 12px;"
+                  >
+                    Defrost
+                  </span>
+                  <strong
+                    style="font-size: 16px; font-weight: 600;"
+                  >
+                    N/A
+                  </strong>
+                </div>
+              </div>
+              <span
+                style="color: rgb(85, 85, 85); font-size: 12px;"
+              >
+                Loading metrics...
+              </span>
+            </div>
+          </a>
+        </div>
+      </div>
+      <div
+        style="display: flex; flex-direction: column; gap: 8px;"
+      >
+        <div
+          style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;"
+        >
+          <h3
+            style="margin: 0px;"
+          >
+            Offline
+          </h3>
+          <span
+            style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 999px; background-color: rgb(239, 243, 247); color: rgb(85, 85, 85); border: 1px solid rgb(211, 218, 227); font-size: 12px; font-weight: 600; box-shadow: none;"
+          >
+            1
+          </span>
+          <span
+            style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 999px; background-color: rgba(220, 38, 38, 0.16); color: rgb(220, 38, 38); border: 1px solid rgb(220, 38, 38); font-size: 12px; font-weight: 600; box-shadow: none;"
+          >
+            <span
+              aria-hidden="true"
+              style="width: 8px; height: 8px; border-radius: 50%; background-color: rgb(220, 38, 38); box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.16);"
+            />
+            Offline
+          </span>
+        </div>
+        <div
+          style="display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));"
+        >
+          <a
+            href="/app/devices/dev-2"
+            style="text-decoration: none; color: rgb(17, 17, 17);"
+          >
+            <div
+              style="border: 1px solid rgb(211, 218, 227); border-radius: 22px; background-color: rgb(249, 251, 253); padding: 24px; box-shadow: 0 14px 32px rgba(0, 0, 0, 0.12); display: flex; flex-direction: column; gap: 16px; min-height: 260px;"
+            >
+              <div
+                style="display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;"
+              >
+                <div
+                  style="display: flex; flex-direction: column; gap: 6px;"
+                >
+                  <span
+                    style="color: rgb(85, 85, 85); font-size: 12px; letter-spacing: 0.4px;"
+                  >
+                    Heat pump
+                  </span>
+                  <span
+                    style="font-weight: 600; font-size: 20px;"
+                  >
+                    Offline Pump
+                  </span>
+                  <div
+                    style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;"
+                  >
+                    <span
+                      style="color: rgb(85, 85, 85); font-family: monospace;"
+                    >
+                      EE:FF:GG:HH
+                    </span>
+                    <span
+                      style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 999px; background-color: rgb(221, 239, 227); color: rgb(45, 156, 62); border: 1px solid rgb(45, 156, 62); font-size: 12px; font-weight: 600; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);"
+                    >
+                      HQ
+                    </span>
+                  </div>
+                  <div
+                    style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;"
+                  >
+                    <span
+                      style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 999px; background-color: rgba(37, 99, 235, 0.16); color: rgb(37, 99, 235); border: 1px solid rgb(37, 99, 235); font-size: 12px; font-weight: 600; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);"
+                    >
+                      Last seen 2 hours ago
+                    </span>
+                  </div>
+                </div>
+                <div
+                  style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;"
+                >
+                  <span
+                    style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 999px; background-color: rgba(220, 38, 38, 0.16); color: rgb(220, 38, 38); border: 1px solid rgb(220, 38, 38); font-size: 12px; font-weight: 600; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);"
+                  >
+                    <span
+                      aria-hidden="true"
+                      style="width: 8px; height: 8px; border-radius: 50%; background-color: rgb(220, 38, 38); box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.16);"
+                    />
+                    Offline
+                  </span>
+                  <span
+                    style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 999px; background-color: rgba(220, 38, 38, 0.16); color: rgb(220, 38, 38); border: 1px solid rgb(220, 38, 38); font-size: 12px; font-weight: 600; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);"
+                  >
+                    Offline
+                  </span>
+                </div>
+              </div>
+              <div
+                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px;"
+              >
+                <div
+                  style="padding: 8px 12px; border-radius: 12px; border: 1px solid rgb(211, 218, 227); background-color: rgb(249, 251, 253); display: flex; flex-direction: column; gap: 6px; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);"
+                >
+                  <span
+                    style="color: rgb(85, 85, 85); font-size: 12px;"
+                  >
+                    Tank degC
+                  </span>
+                  <strong
+                    style="font-size: 16px; font-weight: 600;"
+                  >
+                    N/A
+                  </strong>
+                </div>
+                <div
+                  style="padding: 8px 12px; border-radius: 12px; border: 1px solid rgb(211, 218, 227); background-color: rgb(249, 251, 253); display: flex; flex-direction: column; gap: 6px; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);"
+                >
+                  <span
+                    style="color: rgb(85, 85, 85); font-size: 12px;"
+                  >
+                    DHW degC
+                  </span>
+                  <strong
+                    style="font-size: 16px; font-weight: 600;"
+                  >
+                    N/A
+                  </strong>
+                </div>
+                <div
+                  style="padding: 8px 12px; border-radius: 12px; border: 1px solid rgb(211, 218, 227); background-color: rgb(249, 251, 253); display: flex; flex-direction: column; gap: 6px; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);"
+                >
+                  <span
+                    style="color: rgb(85, 85, 85); font-size: 12px;"
+                  >
+                    Ambient degC
+                  </span>
+                  <strong
+                    style="font-size: 16px; font-weight: 600;"
+                  >
+                    N/A
+                  </strong>
+                </div>
+                <div
+                  style="padding: 8px 12px; border-radius: 12px; border: 1px solid rgb(211, 218, 227); background-color: rgb(249, 251, 253); display: flex; flex-direction: column; gap: 6px; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);"
+                >
+                  <span
+                    style="color: rgb(85, 85, 85); font-size: 12px;"
+                  >
+                    Compressor A
+                  </span>
+                  <strong
+                    style="font-size: 16px; font-weight: 600;"
+                  >
+                    N/A
+                  </strong>
+                </div>
+                <div
+                  style="padding: 8px 12px; border-radius: 12px; border: 1px solid rgb(211, 218, 227); background-color: rgb(249, 251, 253); display: flex; flex-direction: column; gap: 6px; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);"
+                >
+                  <span
+                    style="color: rgb(85, 85, 85); font-size: 12px;"
+                  >
+                    EEV steps
+                  </span>
+                  <strong
+                    style="font-size: 16px; font-weight: 600;"
+                  >
+                    N/A
+                  </strong>
+                </div>
+                <div
+                  style="padding: 8px 12px; border-radius: 12px; border: 1px solid rgb(211, 218, 227); background-color: rgb(249, 251, 253); display: flex; flex-direction: column; gap: 6px; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);"
+                >
+                  <span
+                    style="color: rgb(85, 85, 85); font-size: 12px;"
+                  >
+                    Mode
+                  </span>
+                  <strong
+                    style="font-size: 16px; font-weight: 600;"
+                  >
+                    N/A
+                  </strong>
+                </div>
+                <div
+                  style="padding: 8px 12px; border-radius: 12px; border: 1px solid rgb(211, 218, 227); background-color: rgb(249, 251, 253); display: flex; flex-direction: column; gap: 6px; box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);"
+                >
+                  <span
+                    style="color: rgb(85, 85, 85); font-size: 12px;"
+                  >
+                    Defrost
+                  </span>
+                  <strong
+                    style="font-size: 16px; font-weight: 600;"
+                  >
+                    N/A
+                  </strong>
+                </div>
+              </div>
+              <span
+                style="color: rgb(85, 85, 85); font-size: 12px;"
+              >
+                Loading metrics...
+              </span>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</DocumentFragment>
+`;

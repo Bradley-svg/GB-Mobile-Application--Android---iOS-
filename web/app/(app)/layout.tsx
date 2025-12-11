@@ -23,6 +23,18 @@ const pathTitleMap: Record<string, string> = {
   "/app/profile": "Profile",
 };
 
+const pathSubtitleMap: Record<string, string> = {
+  "/app": "Devices, status, and history",
+  "/app/alerts": "Live rules, muted alerts, and triage",
+  "/app/work-orders": "Tasks, SLAs, and assignments",
+  "/app/maintenance": "Calendar and planned downtime",
+  "/app/documents": "Files, manuals, and compliance",
+  "/app/sharing": "Shared access and invites",
+  "/app/diagnostics": "System health and integrations",
+  "/app/admin": "Org roles and security",
+  "/app/profile": "Account and 2FA",
+};
+
 export default function AppLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -124,6 +136,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       : pathname.startsWith("/app/maintenance")
         ? "Maintenance"
         : "Dashboard");
+  const subtitle =
+    pathSubtitleMap[pathname] ??
+    (pathname.startsWith("/app/work-orders")
+      ? pathSubtitleMap["/app/work-orders"]
+      : pathname.startsWith("/app/maintenance")
+        ? pathSubtitleMap["/app/maintenance"]
+        : undefined);
 
   if (!isReady || !accessToken || !user) {
     return (
@@ -150,6 +169,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       hideChrome={embedMode}
       navItems={navItems.map((item) => ({ ...item, active: pathname === item.href || pathname.startsWith(`${item.href}/`) }))}
       pageTitle={title}
+      pageSubtitle={subtitle}
       topLeftSlot={
         embedMode
           ? null
@@ -205,23 +225,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           )
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: theme.spacing.md }}>
-        <div>
-          <h1
-            style={{
-              margin: 0,
-              fontSize: theme.typography.title2.fontSize,
-              fontWeight: theme.typography.title2.fontWeight,
-            }}
-          >
-            {title}
-          </h1>
-          <p style={{ margin: 0, color: theme.colors.textSecondary }}>
-            Quick navigation across fleet, devices, alerts, admin, and profile.
-          </p>
-        </div>
-        {children}
-      </div>
+      {children}
     </AppShell>
   );
 }

@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Badge, Button, Card } from "@/components/ui";
+import { Badge, Button, Card, StatusPill } from "@/components/ui";
+import type { StatusKind } from "@/components/ui/StatusPill";
 import { fetchHealthPlus } from "@/lib/api/healthPlus";
 import type { HealthPlusPayload } from "@/lib/types/healthPlus";
 import { useUserRole } from "@/lib/useUserRole";
@@ -24,6 +25,13 @@ const STATUS_META: Record<DerivedStatus, { label: string; tone: "success" | "war
   unconfigured: { label: "Unconfigured", tone: "warning" },
   failing: { label: "Failing", tone: "error" },
   unknown: { label: "Unknown", tone: "neutral" },
+};
+const STATUS_KIND_MAP: Record<DerivedStatus, StatusKind> = {
+  healthy: "healthy",
+  disabled: "unconfigured",
+  unconfigured: "unconfigured",
+  failing: "critical",
+  unknown: "info",
 };
 
 const formatTime = (iso?: string | null) => {
@@ -55,32 +63,9 @@ const statusFromFlags = ({
 };
 
 const StatusBadge = ({ status, testId }: { status: DerivedStatus; testId?: string }) => {
-  const { theme } = useTheme();
   const meta = STATUS_META[status];
-  const palette =
-    meta.tone === "success"
-      ? { bg: theme.colors.successSoft, fg: theme.colors.success }
-      : meta.tone === "warning"
-        ? { bg: theme.colors.warningSoft, fg: theme.colors.warning }
-        : meta.tone === "error"
-          ? { bg: theme.colors.errorSoft, fg: theme.colors.error }
-          : { bg: theme.colors.surfaceAlt, fg: theme.colors.textSecondary };
-
-  return (
-    <Badge tone={meta.tone === "neutral" ? "neutral" : meta.tone} data-testid={testId}>
-      <span
-        aria-hidden
-        style={{
-          width: 8,
-          height: 8,
-          borderRadius: "50%",
-          backgroundColor: palette.fg,
-          boxShadow: `0 0 0 4px ${palette.bg}`,
-        }}
-      />
-      {meta.label}
-    </Badge>
-  );
+  const mapped = STATUS_KIND_MAP[status];
+  return <StatusPill status={mapped} label={meta.label} subdued data-testid={testId} />;
 };
 
 const InfoRow = ({ label, value }: { label: string; value: string }) => {
@@ -330,14 +315,10 @@ export default function DiagnosticsPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: theme.spacing.lg }}>
-      <Card>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: theme.spacing.md, alignItems: "center" }}>
-          <div>
-            <h2 style={{ margin: 0 }}>Diagnostics</h2>
-            <p style={{ margin: 0, color: theme.colors.textSecondary }}>
-              Snapshot of /health-plus for support and operational visibility.
-            </p>
-          </div>
+      <Card
+        title="Diagnostics"
+        subtitle="Snapshot of /health-plus for support and operational visibility."
+        actions={
           <div style={{ display: "flex", gap: theme.spacing.sm, alignItems: "center" }}>
             {copyState === "copied" ? (
               <span style={{ color: theme.colors.success, fontSize: theme.typography.caption.fontSize }}>Copied</span>
@@ -346,8 +327,8 @@ export default function DiagnosticsPage() {
               Copy JSON
             </Button>
           </div>
-        </div>
-
+        }
+      >
         <div
           style={{
             marginTop: theme.spacing.md,

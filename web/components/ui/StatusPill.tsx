@@ -1,29 +1,59 @@
 "use client";
 
+import type { HTMLAttributes } from "react";
 import { useTheme } from "@/theme/ThemeProvider";
 
-type StatusKind = "online" | "offline" | "degraded" | "unknown";
+type BaseStatus = "healthy" | "offline" | "unconfigured" | "critical" | "warning" | "info" | "unknown";
+type StatusAlias = "online" | "degraded";
+export type StatusKind = BaseStatus | StatusAlias;
+
+type StatusVariant = {
+  label: string;
+  fg: string;
+  bg: string;
+  border: string;
+};
+
+export function resolveStatusVariant(status: StatusKind, themeColors: ReturnType<typeof useTheme>["theme"]["colors"]): StatusVariant {
+  const normalized: BaseStatus =
+    status === "online"
+      ? "healthy"
+      : status === "degraded"
+        ? "warning"
+        : (status as BaseStatus);
+
+  const palette: Record<BaseStatus, StatusVariant> = {
+    healthy: { label: "Healthy", fg: themeColors.statusOnline, bg: themeColors.successSoft, border: themeColors.success },
+    offline: { label: "Offline", fg: themeColors.statusOffline, bg: themeColors.errorSoft, border: themeColors.error },
+    unconfigured: {
+      label: "Unconfigured",
+      fg: themeColors.warning,
+      bg: themeColors.warningSoft,
+      border: themeColors.warningBorder ?? themeColors.warning,
+    },
+    critical: { label: "Critical", fg: themeColors.error, bg: themeColors.errorSoft, border: themeColors.errorBorder ?? themeColors.error },
+    warning: { label: "Warning", fg: themeColors.warning, bg: themeColors.warningSoft, border: themeColors.warningBorder ?? themeColors.warning },
+    info: { label: "Info", fg: themeColors.info, bg: themeColors.infoSoft, border: themeColors.infoBorder ?? themeColors.info },
+    unknown: {
+      label: "Unknown",
+      fg: themeColors.textSecondary,
+      bg: themeColors.surfaceAlt,
+      border: themeColors.borderSubtle,
+    },
+  };
+
+  return palette[normalized] ?? palette.unknown;
+}
 
 type StatusPillProps = {
   status: StatusKind;
   label?: string;
-};
+  subdued?: boolean;
+} & HTMLAttributes<HTMLSpanElement>;
 
-const STATUS_LABELS: Record<StatusKind, string> = {
-  online: "Online",
-  offline: "Offline",
-  degraded: "Degraded",
-  unknown: "Unknown",
-};
-
-export function StatusPill({ status, label }: StatusPillProps) {
+export function StatusPill({ status, label, subdued = false, ...rest }: StatusPillProps) {
   const { theme } = useTheme();
-  const palette = {
-    online: { fg: theme.colors.statusOnline, bg: theme.colors.successSoft, border: theme.colors.success },
-    offline: { fg: theme.colors.statusOffline, bg: theme.colors.errorSoft, border: theme.colors.error },
-    degraded: { fg: theme.colors.statusDegraded, bg: theme.colors.warningSoft, border: theme.colors.warning },
-    unknown: { fg: theme.colors.statusUnknown, bg: theme.colors.infoSoft, border: theme.colors.info },
-  }[status];
+  const palette = resolveStatusVariant(status, theme.colors);
 
   return (
     <span
@@ -33,12 +63,14 @@ export function StatusPill({ status, label }: StatusPillProps) {
         gap: theme.spacing.xs,
         padding: `${theme.spacing.xs}px ${theme.spacing.sm}px`,
         borderRadius: theme.radius.pill,
-        backgroundColor: palette.bg,
+        backgroundColor: subdued ? palette.bg : palette.bg,
         color: palette.fg,
         border: `1px solid ${palette.border}`,
         fontSize: theme.typography.caption.fontSize,
         fontWeight: theme.typography.label.fontWeight,
+        boxShadow: subdued ? "none" : `0 6px 16px ${theme.colors.shadow}`,
       }}
+      {...rest}
     >
       <span
         aria-hidden
@@ -50,7 +82,7 @@ export function StatusPill({ status, label }: StatusPillProps) {
           boxShadow: `0 0 0 4px ${palette.bg}`,
         }}
       />
-      {label ?? STATUS_LABELS[status]}
+      {label ?? palette.label}
     </span>
   );
 }

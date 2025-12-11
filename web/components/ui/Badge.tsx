@@ -14,7 +14,7 @@ export function Badge({ children, tone = "neutral", ...rest }: BadgeProps) {
   const { theme } = useTheme();
 
   const palette = {
-    brand: { fg: theme.colors.primaryMuted, bg: theme.colors.brandSoft, border: theme.colors.borderSubtle },
+    brand: { fg: theme.colors.primaryMuted, bg: theme.colors.brandSoft, border: theme.colors.primaryMuted },
     neutral: { fg: theme.colors.textSecondary, bg: theme.colors.surfaceAlt, border: theme.colors.borderSubtle },
     success: { fg: theme.colors.success, bg: theme.colors.successSoft, border: theme.colors.success },
     warning: { fg: theme.colors.warning, bg: theme.colors.warningSoft, border: theme.colors.warning },
@@ -35,6 +35,7 @@ export function Badge({ children, tone = "neutral", ...rest }: BadgeProps) {
         border: `1px solid ${palette.border}`,
         fontSize: theme.typography.caption.fontSize,
         fontWeight: theme.typography.label.fontWeight,
+        boxShadow: tone === "neutral" ? "none" : `0 6px 16px ${theme.colors.shadow}`,
       }}
       {...rest}
     >

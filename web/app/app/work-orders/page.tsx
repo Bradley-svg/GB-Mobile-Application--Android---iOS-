@@ -176,19 +176,15 @@ export default function WorkOrdersPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: theme.spacing.md }}>
-      <Card>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: theme.spacing.md, alignItems: "center", flexWrap: "wrap" }}>
-          <div>
-            <p style={{ margin: 0, color: theme.colors.textSecondary }}>Maintenance</p>
-            <h2 style={{ margin: 0 }}>Work orders</h2>
-            <p style={{ margin: 0, color: theme.colors.textSecondary }}>
-              Read-first dashboard for active and closed work orders. Click a row to drill in.
-            </p>
-          </div>
+      <Card
+        title="Work orders"
+        subtitle="Read-first dashboard for active and closed work orders. Click a row to drill in."
+        actions={
           <Button variant="secondary" size="sm" onClick={() => router.push("/app/maintenance")}>
             View maintenance calendar
           </Button>
-        </div>
+        }
+      >
         <div
           style={{
             marginTop: theme.spacing.md,

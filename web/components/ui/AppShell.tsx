@@ -16,6 +16,7 @@ type AppShellProps = {
   topLeftSlot?: ReactNode;
   topRightSlot?: ReactNode;
   pageTitle?: string;
+  pageSubtitle?: string;
   children: ReactNode;
   hideChrome?: boolean;
 };
@@ -25,6 +26,7 @@ export function AppShell({
   topLeftSlot,
   topRightSlot,
   pageTitle = "Dashboard",
+  pageSubtitle,
   children,
   hideChrome = false,
 }: AppShellProps) {
@@ -35,7 +37,7 @@ export function AppShell({
       <main
         style={{
           minHeight: "100vh",
-          backgroundColor: theme.colors.background,
+          background: `linear-gradient(180deg, ${theme.colors.backgroundAlt} 0%, ${theme.colors.background} 280px)`,
           color: theme.colors.textPrimary,
           padding: theme.spacing.lg,
         }}
@@ -46,65 +48,49 @@ export function AppShell({
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        minHeight: "100vh",
-        backgroundColor: theme.colors.background,
-        color: theme.colors.textPrimary,
-      }}
-    >
+    <div className="gb-shell" style={{ color: theme.colors.textPrimary }}>
       <aside
+        className="gb-shell__sidebar"
         style={{
-          width: 240,
           backgroundColor: theme.colors.surface,
           borderRight: `1px solid ${theme.colors.borderSubtle}`,
-          padding: theme.spacing.lg,
-          display: "flex",
-          flexDirection: "column",
-          gap: theme.spacing.md,
-          position: "sticky",
-          top: 0,
-          alignSelf: "flex-start",
-          height: "100vh",
+          boxShadow: `8px 0 28px ${theme.colors.shadow}`,
         }}
       >
-        <div
-          style={{
-            fontSize: theme.typography.title2.fontSize,
-            fontWeight: theme.typography.title2.fontWeight,
-            color: theme.colors.brandGreen,
-            display: "flex",
-            alignItems: "center",
-            gap: theme.spacing.sm,
-          }}
-        >
+        <div className="gb-shell__brand" style={{ gap: theme.spacing.sm }}>
           <div
+            className="gb-shell__logo"
             style={{
-              width: 32,
-              height: 32,
+              background: `linear-gradient(135deg, ${theme.gradients.brandPrimary.start}, ${theme.gradients.brandPrimary.end})`,
               borderRadius: theme.radius.md,
-              background: `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.primaryMuted})`,
+              boxShadow: `0 12px 28px ${theme.colors.shadow}`,
             }}
-          />
-          Greenbro
+          >
+            <span style={{ color: theme.colors.textInverse, fontWeight: 700, fontSize: 16 }}>GB</span>
+          </div>
+          <div className="gb-shell__brand-text">
+            <span className="gb-shell__brand-name" style={{ color: theme.colors.brandGreen }}>
+              Greenbro Monitoring
+            </span>
+            <span className="gb-shell__brand-sub" style={{ color: theme.colors.textSecondary }}>
+              Smart fleet controls
+            </span>
+          </div>
         </div>
-        <nav style={{ display: "flex", flexDirection: "column", gap: theme.spacing.xs }}>
+        <nav className="gb-shell__nav" style={{ gap: theme.spacing.xs }}>
           {navItems.map((item) => (
             <Link
               key={item.label}
               href={item.href}
+              className="gb-shell__nav-link"
               style={{
-                display: "flex",
-                alignItems: "center",
                 gap: theme.spacing.sm,
                 padding: `${theme.spacing.sm}px ${theme.spacing.md}px`,
-                backgroundColor: item.active ? theme.colors.brandSoft : "transparent",
-                border: `1px solid ${item.active ? theme.colors.borderStrong : "transparent"}`,
-                color: theme.colors.textPrimary,
                 borderRadius: theme.radius.md,
-                textDecoration: "none",
-                fontWeight: item.active ? 600 : 500,
+                border: `1px solid ${item.active ? theme.colors.borderStrong : theme.colors.borderSubtle}`,
+                backgroundColor: item.active ? theme.colors.brandSoft : theme.colors.surfaceAlt,
+                color: theme.colors.textPrimary,
+                boxShadow: item.active ? `0 10px 24px ${theme.colors.shadow}` : "none",
               }}
             >
               {item.icon}
@@ -114,58 +100,222 @@ export function AppShell({
         </nav>
       </aside>
 
-      <section style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      <section className="gb-shell__body">
         <header
+          className="gb-shell__topbar"
           style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: `${theme.spacing.md}px ${theme.spacing.lg}px`,
-            backgroundColor: theme.colors.surfaceAlt,
+            backgroundColor: theme.colors.surface,
             borderBottom: `1px solid ${theme.colors.borderSubtle}`,
-            gap: theme.spacing.md,
-            position: "sticky",
-            top: 0,
-            zIndex: 10,
+            boxShadow: `0 10px 24px ${theme.colors.shadow}`,
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: theme.spacing.xs }}>
-            <p
-              style={{
-                margin: 0,
-                color: theme.colors.textSecondary,
-                fontSize: theme.typography.caption.fontSize,
-                letterSpacing: 0.2,
-              }}
-            >
-              Greenbro
-            </p>
-            <h1
-              style={{
-                margin: 0,
-                fontSize: theme.typography.title2.fontSize,
-                fontWeight: theme.typography.title2.fontWeight,
-              }}
-            >
-              {pageTitle}
-            </h1>
+          <div className="gb-shell__title">
+            <span className="gb-shell__eyebrow" style={{ color: theme.colors.brandGreen }}>
+              Greenbro Monitoring
+            </span>
+            <div className="gb-shell__title-row">
+              <h1
+                style={{
+                  margin: 0,
+                  fontSize: theme.typography.title2.fontSize,
+                  fontWeight: theme.typography.title2.fontWeight,
+                  letterSpacing: 0.2,
+                }}
+              >
+                {pageTitle}
+              </h1>
+              {pageSubtitle ? (
+                <span
+                  style={{
+                    color: theme.colors.textSecondary,
+                    fontSize: theme.typography.caption.fontSize,
+                  }}
+                >
+                  {pageSubtitle}
+                </span>
+              ) : null}
+            </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: theme.spacing.md, flexWrap: "wrap" }}>
+          <div className="gb-shell__actions" style={{ gap: theme.spacing.md }}>
             {topLeftSlot}
             {topRightSlot}
           </div>
         </header>
         <main
+          className="gb-shell__content"
           style={{
-            flex: 1,
-            padding: `${theme.spacing.lg}px`,
-            backgroundColor: theme.colors.backgroundAlt,
-            minHeight: "calc(100vh - 80px)",
+            background: `linear-gradient(180deg, ${theme.colors.backgroundAlt} 0%, ${theme.colors.background} 320px)`,
           }}
         >
-          {children}
+          <div className="gb-shell__content-inner" style={{ gap: theme.spacing.lg }}>
+            {children}
+          </div>
         </main>
       </section>
+
+      <style>{`
+        .gb-shell {
+          display: grid;
+          grid-template-columns: 260px 1fr;
+          min-height: 100vh;
+          background: ${theme.colors.backgroundAlt};
+        }
+
+        .gb-shell__sidebar {
+          padding: ${theme.spacing.lg}px;
+          display: flex;
+          flex-direction: column;
+          gap: ${theme.spacing.lg}px;
+          position: sticky;
+          top: 0;
+          align-self: flex-start;
+          height: 100vh;
+        }
+
+        .gb-shell__brand {
+          display: flex;
+          align-items: center;
+        }
+
+        .gb-shell__logo {
+          width: 44px;
+          height: 44px;
+          display: grid;
+          place-items: center;
+        }
+
+        .gb-shell__brand-text {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        .gb-shell__brand-name {
+          font-weight: 700;
+          font-size: ${theme.typography.body.fontSize + 2}px;
+        }
+
+        .gb-shell__brand-sub {
+          font-size: ${theme.typography.caption.fontSize}px;
+          letter-spacing: 0.4px;
+        }
+
+        .gb-shell__nav {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .gb-shell__nav-link {
+          display: inline-flex;
+          align-items: center;
+          text-decoration: none;
+          font-weight: 600;
+          transition: transform 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+        }
+
+        .gb-shell__nav-link:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 10px 24px ${theme.colors.shadow};
+          background: ${theme.gradients.brandSoft.start};
+        }
+
+        .gb-shell__body {
+          display: flex;
+          flex-direction: column;
+          min-height: 100vh;
+        }
+
+        .gb-shell__topbar {
+          position: sticky;
+          top: 0;
+          z-index: 10;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: ${theme.spacing.md}px ${theme.spacing.xl}px;
+          gap: ${theme.spacing.md}px;
+        }
+
+        .gb-shell__actions {
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+
+        .gb-shell__title {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .gb-shell__eyebrow {
+          font-size: ${theme.typography.caption.fontSize}px;
+          letter-spacing: 1px;
+          text-transform: uppercase;
+        }
+
+        .gb-shell__title-row {
+          display: flex;
+          align-items: center;
+          gap: ${theme.spacing.sm}px;
+        }
+
+        .gb-shell__content {
+          flex: 1;
+          padding: ${theme.spacing.xl}px;
+        }
+
+        .gb-shell__content-inner {
+          max-width: 1400px;
+          margin: 0 auto;
+          display: flex;
+          flex-direction: column;
+        }
+
+        @media (max-width: 1200px) {
+          .gb-shell {
+            grid-template-columns: 240px 1fr;
+          }
+        }
+
+        @media (max-width: 960px) {
+          .gb-shell {
+            grid-template-columns: 1fr;
+          }
+          .gb-shell__sidebar {
+            position: relative;
+            height: auto;
+            flex-direction: row;
+            align-items: center;
+            gap: ${theme.spacing.md}px;
+          }
+          .gb-shell__nav {
+            flex-direction: row;
+            flex-wrap: wrap;
+            row-gap: ${theme.spacing.sm}px;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .gb-shell__sidebar {
+            padding: ${theme.spacing.md}px ${theme.spacing.lg}px;
+          }
+          .gb-shell__nav {
+            overflow-x: auto;
+          }
+          .gb-shell__topbar {
+            position: sticky;
+            top: 0;
+            padding: ${theme.spacing.md}px ${theme.spacing.lg}px;
+          }
+          .gb-shell__content {
+            padding: ${theme.spacing.lg}px;
+          }
+          .gb-shell__content-inner {
+            gap: ${theme.spacing.md}px;
+          }
+        }
+      `}</style>
     </div>
   );
 }
