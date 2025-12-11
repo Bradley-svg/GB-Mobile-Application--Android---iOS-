@@ -3,6 +3,7 @@
 Use this before staging/production releases to confirm services and clients are configured.
 
 ## Staging
+- [ ] Web build - staging: staging envs set (`NEXT_PUBLIC_API_URL=https://staging.api.greenbro.co.za`, `NEXT_PUBLIC_EMBEDDED=true`); `npm run web:build:prod` passes; Vercel staging project + secrets (`VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID_STAGING`) present.
 - [ ] Secrets populated with `NODE_ENV=production`, `APP_VERSION=0.8.0`, staging `DATABASE_URL`, `CORS_ALLOWED_ORIGINS`, strong `JWT_SECRET`, and 2FA settings (`AUTH_2FA_ENABLED=true`, `AUTH_2FA_ENFORCE_ROLES=owner,admin`).
 - [ ] Migrations applied to the staging database; bootstrap/seed run where appropriate (`npm run staging:bootstrap`).
 - [ ] `/health-plus` returns ok: db/storage writable, AV configured or explicitly disabled, push block reflects staging Expo token, MQTT/control/history blocks show configured vs disabled flags as intended.
@@ -15,6 +16,7 @@ Use this before staging/production releases to confirm services and clients are 
 - [ ] Alerts worker enabled with recent heartbeat; `DB_SLOW_QUERY_MS` tuned for staging.
 
 ## Production
+- [ ] Web build - production: envs ready (`NEXT_PUBLIC_API_URL=https://api.greenbro.co.za`, `NEXT_PUBLIC_EMBEDDED=true`), `app.greenbro.co.za` mapped in Vercel production project (`VERCEL_PROJECT_ID_PROD`), and CI `web-deploy` workflow ready for tag-triggered release.
 - [ ] Secrets set with production endpoints and unique secrets (`JWT_SECRET`, `FILE_SIGNING_SECRET`), `APP_VERSION=0.8.0`, and restricted `CORS_ALLOWED_ORIGINS`.
 - [ ] Migrations applied as part of deployment; no demo seed data pushed to production.
 - [ ] `/health-plus` green for db/storage/AV/push, MQTT/control/history configured with disable flags left `false`.
@@ -34,4 +36,4 @@ Use this before staging/production releases to confirm services and clients are 
 - [ ] Expo credentials available for the selected profile; staging/production builds reference the correct API URL.
 - [ ] Lint/type/tests clean; Detox targets the Pixel_7_API_34 emulator with Metro on 8081.
 - [ ] Push tested end-to-end against the target backend (registration + `/me/push/test` via Diagnostics).
-- [ ] Branded assets/theme validated (light/dark/system), navigation and error guards hold across dashboard → device flows and QR scanning.
+- [ ] Branded assets/theme validated (light/dark/system), navigation and error guards hold across dashboard and device flows plus QR scanning.

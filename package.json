@@ -22,7 +22,7 @@
     "web:dev": "cd web && next dev",
     "web:build": "cd web && next build",
     "web:start": "cd web && next start",
-    "web:build:prod": "cd web && NEXT_PUBLIC_API_URL=https://api.greenbro.co.za next build",
+    "web:build:prod": "cd web && NEXT_PUBLIC_API_URL=https://staging.api.greenbro.co.za NEXT_PUBLIC_EMBEDDED=true next build",
     "web:test": "cd web && npm test",
     "web:test:coverage": "cd web && npm run test:coverage",
     "web:e2e": "cd web && npm run e2e"

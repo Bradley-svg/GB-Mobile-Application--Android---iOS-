@@ -1,0 +1,103 @@
+name: Web Deploy
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Build, test, and deploy web
+    runs-on: ubuntu-latest
+    env:
+      NODE_VERSION: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select target environment
+        id: target
+        run: |
+          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
+            echo "environment=staging" >> "$GITHUB_OUTPUT"
+            echo "api_url=https://staging.api.greenbro.co.za" >> "$GITHUB_OUTPUT"
+            echo "embedded=true" >> "$GITHUB_OUTPUT"
+            echo "vercel_env=preview" >> "$GITHUB_OUTPUT"
+            echo "vercel_project_id=${{ secrets.VERCEL_PROJECT_ID_STAGING }}" >> "$GITHUB_OUTPUT"
+            echo "vercel_prod_flag=" >> "$GITHUB_OUTPUT"
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "environment=production" >> "$GITHUB_OUTPUT"
+            echo "api_url=https://api.greenbro.co.za" >> "$GITHUB_OUTPUT"
+            echo "embedded=true" >> "$GITHUB_OUTPUT"
+            echo "vercel_env=production" >> "$GITHUB_OUTPUT"
+            echo "vercel_project_id=${{ secrets.VERCEL_PROJECT_ID_PROD }}" >> "$GITHUB_OUTPUT"
+            echo "vercel_prod_flag=--prod" >> "$GITHUB_OUTPUT"
+          else
+            echo "Unsupported ref ${GITHUB_REF} for deployment."
+            exit 1
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --prefix web
+
+      - name: Run web tests
+        env:
+          NEXT_PUBLIC_API_URL: ${{ steps.target.outputs.api_url }}
+          NEXT_PUBLIC_EMBEDDED: ${{ steps.target.outputs.embedded }}
+        run: npm run web:test
+
+      - name: Run web coverage
+        env:
+          NEXT_PUBLIC_API_URL: ${{ steps.target.outputs.api_url }}
+          NEXT_PUBLIC_EMBEDDED: ${{ steps.target.outputs.embedded }}
+        run: npm run web:test:coverage
+
+      - name: Build (Next.js)
+        working-directory: web
+        env:
+          NEXT_PUBLIC_API_URL: ${{ steps.target.outputs.api_url }}
+          NEXT_PUBLIC_EMBEDDED: ${{ steps.target.outputs.embedded }}
+        run: next build
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel environment
+        working-directory: web
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ steps.target.outputs.vercel_project_id }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: vercel pull --yes --environment=${{ steps.target.outputs.vercel_env }}
+
+      - name: Build for deploy (Vercel)
+        working-directory: web
+        env:
+          NEXT_PUBLIC_API_URL: ${{ steps.target.outputs.api_url }}
+          NEXT_PUBLIC_EMBEDDED: ${{ steps.target.outputs.embedded }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ steps.target.outputs.vercel_project_id }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: vercel build --yes
+
+      - name: Deploy to Vercel
+        working-directory: web
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ steps.target.outputs.vercel_project_id }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: vercel deploy --prebuilt ${{ steps.target.outputs.vercel_prod_flag }} --yes
