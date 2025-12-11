@@ -11,6 +11,7 @@
 - Staging: `NEXT_PUBLIC_API_URL=https://staging.api.greenbro.co.za`, `NEXT_PUBLIC_EMBEDDED=true`.
 - Production: `NEXT_PUBLIC_API_URL=https://api.greenbro.co.za`, `NEXT_PUBLIC_EMBEDDED=true`.
 - Backend CORS: keep `WEB_ALLOWED_ORIGINS` aligned (local `http://localhost:3000`, staging host, production `https://app.greenbro.co.za,https://www.greenbro.co.za`).
+- Framing headers (new): with `NEXT_PUBLIC_EMBEDDED=true`, Next.js emits `Content-Security-Policy: frame-ancestors 'self' https://www.greenbro.co.za https://greenbro.co.za;` plus `X-Frame-Options: ALLOW-FROM https://www.greenbro.co.za`. Override the allowlist with `FRAME_ANCESTORS` (comma-separated) for staging if the marketing site lives elsewhere; when embeds are off the headers fall back to `SAMEORIGIN`.
 
 ## Deploy flow
 - Staging: push to `main` → workflow builds/tests with staging API + embeds enabled, deploys to the staging Vercel project.
@@ -21,6 +22,7 @@
 - Point `app.greenbro.co.za` to Vercel: CNAME to `cname.vercel-dns.com` (or A record `76.76.21.21` if the DNS host requires apex/ALIAS flattening).
 - If a `www` alias is used for embedding, CNAME `www.greenbro.co.za` to `cname.vercel-dns.com` as well.
 - TLS: Vercel issues managed certificates automatically once the domain is verified; enforce HTTPS redirect via the Vercel dashboard (on by default for custom domains).
+- Embed docs/snippet: see `docs/wp-embed.md` for the WordPress iframe markup (`https://app.greenbro.co.za/embed`) and template guidance; ensure the marketing host is present in both `FRAME_ANCESTORS` and backend `WEB_ALLOWED_ORIGINS`.
 
 ## Post-deploy smoke
 - Hit `https://app.greenbro.co.za/app` and confirm it renders and calls the correct API origin (Network tab shows `api.greenbro.co.za` or `staging.api.greenbro.co.za`).

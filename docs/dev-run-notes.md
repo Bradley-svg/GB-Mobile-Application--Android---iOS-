@@ -82,13 +82,13 @@ Requirements:
 - CI mirrors this (`npm test` plain for backend; `npm test -- --runInBand` for mobile). Detox configs remain intact; do not run Detox here.
 
 ## WordPress embedding (marketing site)
-- Use a full-width WordPress page and drop an iframe pointing to `https://app.greenbro.co.za?embed=true`.
+- Use a full-width WordPress page and drop an iframe pointing to `https://app.greenbro.co.za/embed` (forces `embed=true` + slim chrome).
 - Minimal snippet:
   ```html
-  <iframe src="https://app.greenbro.co.za?embed=true" style="width: 100%; height: 1200px; border: none;" allow="camera; microphone"></iframe>
+  <iframe src="https://app.greenbro.co.za/embed" style="width: 100%; height: 1000px; border: none;" loading="lazy" allow="camera; microphone"></iframe>
   ```
-- Set `NEXT_PUBLIC_EMBEDDED=true` on the web build to hide outer chrome; backend CORS must include `https://www.greenbro.co.za` and `https://app.greenbro.co.za`.
-- Recommended height: 1200px+ (scrollable). Allow `camera` for QR scanning; `microphone` only if needed by future features.
+- Set `NEXT_PUBLIC_EMBEDDED=true` on the web build; backend CORS must include `https://www.greenbro.co.za` and `https://app.greenbro.co.za` and the web CSP/frame headers allow those hosts.
+- Recommended height: 1000–1200px (scrollable). Allow `camera` for QR scanning; `microphone` only if needed by future features. See `docs/wp-embed.md` for the full checklist.
 
 ### E2E (Detox + backend bring-up)
 - CI workflow `.github/workflows/e2e-android.yml` now boots Postgres, runs `backend` migrate + `seed:e2e`, starts the API (waits on `/health-plus`), then runs Metro on 8081 and Detox (`npm run e2e:test:android`). Heat-pump history calls are disabled via `HEATPUMP_HISTORY_DISABLED=true` to avoid vendor dependency.

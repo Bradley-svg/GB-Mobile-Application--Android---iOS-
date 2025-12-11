@@ -31,6 +31,8 @@ export function AppShell({
   hideChrome = false,
 }: AppShellProps) {
   const { theme } = useTheme();
+  const fullWindowHref =
+    typeof window !== "undefined" ? `${window.location.origin}/app` : "https://app.greenbro.co.za/app";
 
   if (hideChrome) {
     return (
@@ -39,10 +41,55 @@ export function AppShell({
           minHeight: "100vh",
           background: `linear-gradient(180deg, ${theme.colors.backgroundAlt} 0%, ${theme.colors.background} 280px)`,
           color: theme.colors.textPrimary,
-          padding: theme.spacing.lg,
+          padding: theme.spacing.md,
+          display: "flex",
+          flexDirection: "column",
+          gap: theme.spacing.md,
         }}
       >
-        {children}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: theme.spacing.md,
+            backgroundColor: theme.colors.surface,
+            border: `1px solid ${theme.colors.borderSubtle}`,
+            borderRadius: theme.radius.lg,
+            padding: `${theme.spacing.sm}px ${theme.spacing.md}px`,
+            position: "sticky",
+            top: 0,
+            zIndex: 5,
+            boxShadow: `0 8px 20px ${theme.colors.shadow}`,
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <span style={{ fontSize: theme.typography.caption.fontSize, color: theme.colors.textSecondary }}>
+              Greenbro Dashboard
+            </span>
+            <strong style={{ fontWeight: theme.typography.subtitle.fontWeight, fontSize: theme.typography.body.fontSize }}>
+              Embedded view
+            </strong>
+          </div>
+          <a
+            href={fullWindowHref}
+            target="_blank"
+            rel="noreferrer noopener"
+            style={{
+              color: theme.colors.primary,
+              fontWeight: 600,
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            Open in full window
+          </a>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: theme.spacing.md }}>
+          {children}
+        </div>
       </main>
     );
   }

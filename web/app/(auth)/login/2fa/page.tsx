@@ -8,6 +8,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Badge, Button, Card } from "@/components/ui";
 import { useAuthStore } from "@/lib/authStore";
+import { useEmbed } from "@/lib/useEmbed";
 import { useTheme } from "@/theme/ThemeProvider";
 
 const schema = z.object({
@@ -21,6 +22,7 @@ export default function TwoFactorPage() {
   const router = useRouter();
   const { theme } = useTheme();
   const completeTwoFactor = useAuthStore((s) => s.completeTwoFactor);
+  const { appendEmbedParam } = useEmbed();
   const challengeToken = searchParams.get("challengeToken") || "";
   const email = searchParams.get("email");
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +44,7 @@ export default function TwoFactorPage() {
         return;
       }
       await completeTwoFactor(challengeToken, values.code.trim());
-      router.replace("/app");
+      router.replace(appendEmbedParam("/app"));
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const status = err.response?.status;
@@ -120,7 +122,10 @@ export default function TwoFactorPage() {
           </label>
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <a href="/login" style={{ color: theme.colors.primary, fontSize: theme.typography.caption.fontSize }}>
+            <a
+              href={appendEmbedParam("/login")}
+              style={{ color: theme.colors.primary, fontSize: theme.typography.caption.fontSize }}
+            >
               Start over
             </a>
             <Button type="submit" variant="primary" disabled={isSubmitting || !challengeToken}>

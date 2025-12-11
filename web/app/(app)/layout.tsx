@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { AppShell, Badge, Button } from "@/components/ui";
 import { me } from "@/lib/api/authApi";
 import { useAuthStore } from "@/lib/authStore";
-import { EMBED_ALLOWED } from "@/config/env";
 import { useOrgRoleAwareLoader, useOrgStore } from "@/lib/orgStore";
 import { useUserRole } from "@/lib/useUserRole";
+import { useEmbed } from "@/lib/useEmbed";
 import { useTheme } from "@/theme/ThemeProvider";
 
 const pathTitleMap: Record<string, string> = {
@@ -48,9 +48,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const { isAdmin, isOwner, isFacilities } = useUserRole();
   const orgStore = useOrgStore();
   const loadOrgs = useOrgRoleAwareLoader();
-  const searchParams = useSearchParams();
-  const embedParam = searchParams.get("embed") === "true";
-  const embedMode = EMBED_ALLOWED && embedParam;
+  const { embedActive: embedMode, appendEmbedParam, embedFromQuery } = useEmbed();
 
   useEffect(() => {
     let active = true;
@@ -58,7 +56,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       await loadFromStorage();
       const state = useAuthStore.getState();
       if (!state.accessToken) {
-        router.replace("/login");
+        router.replace(appendEmbedParam("/login"));
         return;
       }
       let orgId = state.user?.organisation_id ?? null;
@@ -71,7 +69,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           orgId = profile.organisation_id ?? null;
         } catch {
           logout();
-          router.replace("/login");
+          router.replace(appendEmbedParam("/login"));
           return;
         }
       }
@@ -85,7 +83,19 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [loadFromStorage, logout, router, setUser]);
+  }, [appendEmbedParam, loadFromStorage, loadOrgs, logout, router, setUser]);
+
+  useEffect(() => {
+    if (!embedMode || embedFromQuery) return;
+    const currentPath =
+      typeof window !== "undefined"
+        ? `${window.location.pathname}${window.location.search}${window.location.hash}`
+        : pathname;
+    const withEmbed = appendEmbedParam(currentPath);
+    if (withEmbed !== currentPath) {
+      router.replace(withEmbed);
+    }
+  }, [appendEmbedParam, embedFromQuery, embedMode, pathname, router]);
 
   const navBadge = (label: string) => (
     <span

@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { fetchOrgs, type OrgSummary } from "@/lib/api/orgs";
@@ -77,5 +78,8 @@ export const useOrgStore = create<OrgState>()(
 export function useOrgRoleAwareLoader() {
   const { role } = useUserRole();
   const loadOrgs = useOrgStore((s) => s.loadOrgs);
-  return async (fallbackOrgId?: string | null) => loadOrgs({ role, fallbackOrgId: fallbackOrgId ?? null });
+  return useCallback(
+    async (fallbackOrgId?: string | null) => loadOrgs({ role, fallbackOrgId: fallbackOrgId ?? null }),
+    [loadOrgs, role],
+  );
 }

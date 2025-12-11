@@ -8,6 +8,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button, Card } from "@/components/ui";
 import { resetPassword } from "@/lib/api/authApi";
+import { useEmbed } from "@/lib/useEmbed";
 import { useTheme } from "@/theme/ThemeProvider";
 
 const schema = z
@@ -26,6 +27,7 @@ export default function ResetPasswordPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { theme } = useTheme();
+  const { appendEmbedParam } = useEmbed();
   const token = searchParams.get("token");
   const [error, setError] = useState<string | null>(null);
 
@@ -47,7 +49,7 @@ export default function ResetPasswordPage() {
     try {
       setError(null);
       await resetPassword({ token, newPassword: values.password });
-      router.replace(`/login?success=${encodeURIComponent("Password updated. You can now login.")}`);
+      router.replace(appendEmbedParam(`/login?success=${encodeURIComponent("Password updated. You can now login.")}`));
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const message = (err.response?.data as { message?: string } | undefined)?.message;
@@ -74,7 +76,7 @@ export default function ResetPasswordPage() {
           <p style={{ margin: 0, color: theme.colors.textSecondary }}>
             Your reset link is missing or expired. Please request a new one.
           </p>
-          <Button variant="primary" onClick={() => router.replace("/forgot-password")}>
+          <Button variant="primary" onClick={() => router.replace(appendEmbedParam("/forgot-password"))}>
             Request new link
           </Button>
         </div>
@@ -158,7 +160,10 @@ export default function ResetPasswordPage() {
           </label>
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <a href="/login" style={{ color: theme.colors.primary, fontSize: theme.typography.caption.fontSize }}>
+            <a
+              href={appendEmbedParam("/login")}
+              style={{ color: theme.colors.primary, fontSize: theme.typography.caption.fontSize }}
+            >
               Back to login
             </a>
             <Button type="submit" variant="primary" disabled={isSubmitting}>

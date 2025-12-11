@@ -8,6 +8,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Badge, Button, Card } from "@/components/ui";
 import { useAuthStore } from "@/lib/authStore";
+import { useEmbed } from "@/lib/useEmbed";
 import { useTheme } from "@/theme/ThemeProvider";
 
 const schema = z.object({
@@ -43,6 +44,7 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const login = useAuthStore((s) => s.login);
   const { theme } = useTheme();
+  const { appendEmbedParam } = useEmbed();
   const successMessage = searchParams.get("success");
   const [error, setError] = useState<string | null>(null);
   const {
@@ -60,11 +62,13 @@ export default function LoginPage() {
       const result = await login(values.email.trim(), values.password);
       if (result.requires2fa && result.challengeToken) {
         router.replace(
-          `/login/2fa?challengeToken=${encodeURIComponent(result.challengeToken)}&email=${encodeURIComponent(values.email.trim())}`,
+          appendEmbedParam(
+            `/login/2fa?challengeToken=${encodeURIComponent(result.challengeToken)}&email=${encodeURIComponent(values.email.trim())}`,
+          ),
         );
         return;
       }
-      router.replace("/app");
+      router.replace(appendEmbedParam("/app"));
     } catch (err) {
       const lockout = parseLockout(err);
       if (lockout) {
@@ -169,7 +173,7 @@ export default function LoginPage() {
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <a
-              href="/forgot-password"
+              href={appendEmbedParam("/forgot-password")}
               style={{ color: theme.colors.primary, fontSize: theme.typography.caption.fontSize }}
             >
               Forgot password?

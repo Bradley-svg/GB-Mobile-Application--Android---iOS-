@@ -8,6 +8,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button, Card } from "@/components/ui";
 import { requestPasswordReset } from "@/lib/api/authApi";
+import { useEmbed } from "@/lib/useEmbed";
 import { useTheme } from "@/theme/ThemeProvider";
 
 const schema = z.object({
@@ -19,6 +20,7 @@ type FormValues = z.infer<typeof schema>;
 export default function ForgotPasswordPage() {
   const router = useRouter();
   const { theme } = useTheme();
+  const { appendEmbedParam } = useEmbed();
   const [error, setError] = useState<string | null>(null);
 
   const {
@@ -35,7 +37,9 @@ export default function ForgotPasswordPage() {
       setError(null);
       await requestPasswordReset(values.email.trim());
       router.replace(
-        `/login?success=${encodeURIComponent("Password reset link sent. Check your email to continue.")}`,
+        appendEmbedParam(
+          `/login?success=${encodeURIComponent("Password reset link sent. Check your email to continue.")}`,
+        ),
       );
     } catch (err) {
       if (axios.isAxiosError(err)) {
@@ -103,7 +107,10 @@ export default function ForgotPasswordPage() {
           </label>
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <a href="/login" style={{ color: theme.colors.primary, fontSize: theme.typography.caption.fontSize }}>
+            <a
+              href={appendEmbedParam("/login")}
+              style={{ color: theme.colors.primary, fontSize: theme.typography.caption.fontSize }}
+            >
               Back to login
             </a>
             <Button type="submit" variant="primary" disabled={isSubmitting}>
