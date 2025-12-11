@@ -1,6 +1,1 @@
-export const radius = {
-  sm: 8,
-  md: 12,
-  lg: 22,
-  pill: 999,
-};
+export { radius } from '@greenbro/ui-tokens';

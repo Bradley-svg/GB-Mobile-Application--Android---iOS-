@@ -1,24 +1,8 @@
-import { darkColors, darkGradients, lightColors, lightGradients } from './colors';
-import { radius } from './radius';
-import { spacing } from './spacing';
-import { typography } from './typography';
+import { darkThemeTokens, lightThemeTokens } from '@greenbro/ui-tokens';
 import type { AppTheme } from './types';
 
-export const lightTheme: AppTheme = {
-  colors: lightColors,
-  gradients: lightGradients,
-  spacing,
-  radius,
-  typography,
-};
-
-export const darkTheme: AppTheme = {
-  colors: darkColors,
-  gradients: darkGradients,
-  spacing,
-  radius,
-  typography,
-};
+export const lightTheme: AppTheme = lightThemeTokens;
+export const darkTheme: AppTheme = darkThemeTokens;
 
 export const themes = {
   light: lightTheme,

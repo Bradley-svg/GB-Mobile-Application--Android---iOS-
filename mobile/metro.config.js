@@ -1,11 +1,19 @@
 // metro.config.js
+const path = require('path');
 const { getDefaultConfig } = require('expo/metro-config');
 const exclusionList = require('metro-config/src/defaults/exclusionList');
 
 const config = getDefaultConfig(__dirname);
+const packagesPath = path.resolve(__dirname, '..', 'packages');
+
+config.watchFolders = [...(config.watchFolders || []), packagesPath];
 
 // Exclude the broken backup folder from Metro so it never scans it
 config.resolver.blockList = exclusionList([/node_modules_old\/.*/, /node_modules_old_unused\/.*/]);
+config.resolver.extraNodeModules = {
+  ...(config.resolver.extraNodeModules || {}),
+  '@greenbro/ui-tokens': path.join(packagesPath, 'ui-tokens', 'src'),
+};
 
 // Use Hermes parser so Flow syntax in react-native 0.76 transforms correctly
 config.transformer = config.transformer || {};

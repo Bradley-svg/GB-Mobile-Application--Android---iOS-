@@ -77,7 +77,9 @@
     "moduleNameMapper": {
       "^react-native$": "<rootDir>/jest/mocks/react-native.js",
       "^.*vendor/emitter/EventEmitter$": "<rootDir>/jest/mocks/EventEmitter.js",
-      "^.*NativeAnimatedHelper$": "<rootDir>/jest/mocks/NativeAnimatedHelper.js"
+      "^.*NativeAnimatedHelper$": "<rootDir>/jest/mocks/NativeAnimatedHelper.js",
+      "^@greenbro/ui-tokens$": "<rootDir>/../packages/ui-tokens/src",
+      "^@greenbro/ui-tokens/(.*)$": "<rootDir>/../packages/ui-tokens/src/$1"
     },
     "testPathIgnorePatterns": [
       "/node_modules/",

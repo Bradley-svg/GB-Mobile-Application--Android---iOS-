@@ -3,7 +3,11 @@
   "compilerOptions": {
     "strict": true,
     "baseUrl": "./",
-    "types": ["jest", "node"]
+    "types": ["jest", "node"],
+    "paths": {
+      "@greenbro/ui-tokens": ["../packages/ui-tokens/src"],
+      "@greenbro/ui-tokens/*": ["../packages/ui-tokens/src/*"]
+    }
   },
   "include": ["**/*.ts", "**/*.tsx", "jest.setup.ts"],
   "exclude": ["node_modules"]

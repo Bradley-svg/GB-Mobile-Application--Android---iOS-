@@ -19,7 +19,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@greenbro/ui-tokens": ["../packages/ui-tokens/src"],
+      "@greenbro/ui-tokens/*": ["../packages/ui-tokens/src/*"]
     }
   },
   "include": [
