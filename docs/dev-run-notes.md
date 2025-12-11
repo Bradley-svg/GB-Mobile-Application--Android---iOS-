@@ -75,6 +75,15 @@ Requirements:
 - Mobile: `cd mobile && npm run typecheck && npm run lint && npm test -- --runInBand`
 - CI mirrors this (`npm test` plain for backend; `npm test -- --runInBand` for mobile). Detox configs remain intact; do not run Detox here.
 
+## WordPress embedding (marketing site)
+- Use a full-width WordPress page and drop an iframe pointing to `https://app.greenbro.co.za?embed=true`.
+- Minimal snippet:
+  ```html
+  <iframe src="https://app.greenbro.co.za?embed=true" style="width: 100%; height: 1200px; border: none;" allow="camera; microphone"></iframe>
+  ```
+- Set `NEXT_PUBLIC_EMBEDDED=true` on the web build to hide outer chrome; backend CORS must include `https://www.greenbro.co.za` and `https://app.greenbro.co.za`.
+- Recommended height: 1200px+ (scrollable). Allow `camera` for QR scanning; `microphone` only if needed by future features.
+
 ### E2E (Detox + backend bring-up)
 - CI workflow `.github/workflows/e2e-android.yml` now boots Postgres, runs `backend` migrate + `seed:e2e`, starts the API (waits on `/health-plus`), then runs Metro on 8081 and Detox (`npm run e2e:test:android`). Heat-pump history calls are disabled via `HEATPUMP_HISTORY_DISABLED=true` to avoid vendor dependency.
 - Local run (manual): start backend with `npm run migrate:dev && npm run seed:e2e && npm run dev`, then in a new terminal `cd mobile && npx expo start --dev-client --localhost --port 8081 --clear`, and from repo root run `npm run e2e:android` (emulator `Pixel_7_API_34`).

@@ -3,7 +3,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { fetchOrgs, type OrgSummary } from "@/lib/api/orgs";
-import { useUserRole } from "@/lib/useUserRole";
 
 type OrgState = {
   currentOrgId: string | null;
@@ -13,6 +12,12 @@ type OrgState = {
   setOrg: (orgId: string) => void;
   setOrgs: (orgs: OrgSummary[]) => void;
   loadOrgs: (params: { role?: string | null; fallbackOrgId?: string | null }) => Promise<void>;
+};
+
+const memoryStorage = {
+  getItem: () => null,
+  setItem: () => {},
+  removeItem: () => {},
 };
 
 export const useOrgStore = create<OrgState>()(
@@ -62,7 +67,7 @@ export const useOrgStore = create<OrgState>()(
     }),
     {
       name: "gb-web-org",
-      storage: createJSONStorage(() => (typeof window === "undefined" ? localStorage : window.localStorage)),
+      storage: createJSONStorage(() => (typeof window === "undefined" ? memoryStorage : window.localStorage)),
       partialize: (state) => ({ currentOrgId: state.currentOrgId, orgs: state.orgs }),
     },
   ),

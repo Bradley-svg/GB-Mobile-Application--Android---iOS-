@@ -1,5 +1,5 @@
 function parseAllowedOrigins() {
-  const raw = process.env.CORS_ALLOWED_ORIGINS || '';
+  const raw = process.env.WEB_ALLOWED_ORIGINS || process.env.CORS_ALLOWED_ORIGINS || '';
   return raw
     .split(',')
     .map((entry) => entry.trim())

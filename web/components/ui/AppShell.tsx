@@ -17,6 +17,7 @@ type AppShellProps = {
   topRightSlot?: ReactNode;
   pageTitle?: string;
   children: ReactNode;
+  hideChrome?: boolean;
 };
 
 export function AppShell({
@@ -25,8 +26,24 @@ export function AppShell({
   topRightSlot,
   pageTitle = "Dashboard",
   children,
+  hideChrome = false,
 }: AppShellProps) {
   const { theme } = useTheme();
+
+  if (hideChrome) {
+    return (
+      <main
+        style={{
+          minHeight: "100vh",
+          backgroundColor: theme.colors.background,
+          color: theme.colors.textPrimary,
+          padding: theme.spacing.lg,
+        }}
+      >
+        {children}
+      </main>
+    );
+  }
 
   return (
     <div

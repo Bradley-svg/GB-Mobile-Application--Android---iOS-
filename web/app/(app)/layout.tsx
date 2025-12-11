@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AppShell, Badge, Button } from "@/components/ui";
 import { me } from "@/lib/api/authApi";
 import { useAuthStore } from "@/lib/authStore";
+import { EMBED_ALLOWED } from "@/config/env";
 import { useOrgRoleAwareLoader, useOrgStore } from "@/lib/orgStore";
 import { useUserRole } from "@/lib/useUserRole";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -31,6 +32,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const { isAdmin, isOwner, isFacilities } = useUserRole();
   const orgStore = useOrgStore();
   const loadOrgs = useOrgRoleAwareLoader();
+  const searchParams = useSearchParams();
+  const embedParam = searchParams.get("embed") === "true";
+  const embedMode = EMBED_ALLOWED && embedParam;
 
   useEffect(() => {
     let active = true;
@@ -41,12 +45,14 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         router.replace("/login");
         return;
       }
+      let orgId = state.user?.organisation_id ?? null;
       if (!state.user) {
         try {
           const profile = await me();
           if (active) {
             setUser(profile);
           }
+          orgId = profile.organisation_id ?? null;
         } catch {
           logout();
           router.replace("/login");
@@ -54,7 +60,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         }
       }
       if (active) {
-        await loadOrgs(state.user?.organisation_id ?? null);
+        await loadOrgs(orgId);
         setIsReady(true);
       }
     };
@@ -100,53 +106,62 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <AppShell
+      hideChrome={embedMode}
       navItems={navItems.map((item) => ({ ...item, active: pathname === item.href || pathname.startsWith(`${item.href}/`) }))}
       pageTitle={title}
       topLeftSlot={
-        isOwner || isAdmin || isFacilities ? (
-          <div style={{ display: "flex", gap: theme.spacing.sm, alignItems: "center" }}>
-            <span style={{ color: theme.colors.textSecondary, fontSize: theme.typography.caption.fontSize }}>Organisation</span>
-            <select
-              value={orgStore.currentOrgId ?? ""}
-              onChange={(e) => orgStore.setOrg(e.target.value)}
-              style={{
-                padding: `${theme.spacing.xs}px ${theme.spacing.sm}px`,
-                borderRadius: theme.radius.md,
-                border: `1px solid ${theme.colors.borderSubtle}`,
-                background: theme.colors.surface,
-                color: theme.colors.textPrimary,
-              }}
-            >
-              {orgStore.orgs.map((org) => (
-                <option key={org.id} value={org.id}>
-                  {org.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : null
+        embedMode
+          ? null
+          : isOwner || isAdmin || isFacilities
+            ? (
+              <div style={{ display: "flex", gap: theme.spacing.sm, alignItems: "center" }}>
+                <span style={{ color: theme.colors.textSecondary, fontSize: theme.typography.caption.fontSize }}>Organisation</span>
+                <select
+                  value={orgStore.currentOrgId ?? ""}
+                  onChange={(e) => orgStore.setOrg(e.target.value)}
+                  style={{
+                    padding: `${theme.spacing.xs}px ${theme.spacing.sm}px`,
+                    borderRadius: theme.radius.md,
+                    border: `1px solid ${theme.colors.borderSubtle}`,
+                    background: theme.colors.surface,
+                    color: theme.colors.textPrimary,
+                  }}
+                >
+                  {orgStore.orgs.map((org) => (
+                    <option key={org.id} value={org.id}>
+                      {org.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )
+            : null
       }
       topRightSlot={
-        <div style={{ display: "flex", alignItems: "center", gap: theme.spacing.sm }}>
-          <Badge tone="brand">{roleLabel}</Badge>
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: "50%",
-              backgroundColor: theme.colors.brandSoft,
-              color: theme.colors.brandGrey,
-              display: "grid",
-              placeItems: "center",
-              fontWeight: 700,
-            }}
-          >
-            {initials}
-          </div>
-          <Button variant="ghost" size="sm" onClick={() => logout()}>
-            Logout
-          </Button>
-        </div>
+        embedMode
+          ? null
+          : (
+            <div style={{ display: "flex", alignItems: "center", gap: theme.spacing.sm }}>
+              <Badge tone="brand">{roleLabel}</Badge>
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: "50%",
+                  backgroundColor: theme.colors.brandSoft,
+                  color: theme.colors.brandGrey,
+                  display: "grid",
+                  placeItems: "center",
+                  fontWeight: 700,
+                }}
+              >
+                {initials}
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => logout()}>
+                Logout
+              </Button>
+            </div>
+          )
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: theme.spacing.md }}>

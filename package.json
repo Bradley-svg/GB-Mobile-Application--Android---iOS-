@@ -21,6 +21,7 @@
     "release:tag": "node scripts/create-release-tag.js",
     "web:dev": "cd web && next dev",
     "web:build": "cd web && next build",
-    "web:start": "cd web && next start"
+    "web:start": "cd web && next start",
+    "web:build:prod": "cd web && NEXT_PUBLIC_API_URL=https://api.greenbro.co.za next build"
   }
 }
