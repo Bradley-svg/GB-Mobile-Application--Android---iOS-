@@ -32,7 +32,14 @@ export function AppShell({
 }: AppShellProps) {
   const { theme } = useTheme();
   const fullWindowHref =
-    typeof window !== "undefined" ? `${window.location.origin}/app` : "https://app.greenbro.co.za/app";
+    typeof window !== "undefined"
+      ? (() => {
+          const url = new URL(window.location.href);
+          url.searchParams.delete("embed");
+          const path = `${url.pathname}${url.search}${url.hash}`;
+          return `${window.location.origin}${path}`;
+        })()
+      : "https://app.greenbro.co.za/app";
 
   if (hideChrome) {
     return (

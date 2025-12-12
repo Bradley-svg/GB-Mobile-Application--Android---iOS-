@@ -2,12 +2,13 @@
 
 import axios from "axios";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Badge, Button, Card } from "@/components/ui";
 import { useAuthStore } from "@/lib/authStore";
+import { appendReturnToParam, sanitizeReturnTo, DEFAULT_RETURN_TO } from "@/lib/returnTo";
 import { useEmbed } from "@/lib/useEmbed";
 import { useTheme } from "@/theme/ThemeProvider";
 
@@ -47,6 +48,8 @@ export default function LoginPage() {
   const { appendEmbedParam } = useEmbed();
   const successMessage = searchParams.get("success");
   const expiredReason = searchParams.get("expired");
+  const rawReturnTo = searchParams.get("returnTo");
+  const returnTo = useMemo(() => sanitizeReturnTo(rawReturnTo, DEFAULT_RETURN_TO), [rawReturnTo]);
   const [error, setError] = useState<string | null>(null);
   const {
     register,
@@ -62,14 +65,15 @@ export default function LoginPage() {
       setError(null);
       const result = await login(values.email.trim(), values.password);
       if (result.requires2fa && result.challengeToken) {
-        router.replace(
-          appendEmbedParam(
-            `/login/2fa?challengeToken=${encodeURIComponent(result.challengeToken)}&email=${encodeURIComponent(values.email.trim())}`,
-          ),
-        );
+        const params = new URLSearchParams({
+          challengeToken: result.challengeToken,
+          email: values.email.trim(),
+        });
+        params.set("returnTo", returnTo);
+        router.replace(appendEmbedParam(`/login/2fa?${params.toString()}`));
         return;
       }
-      router.replace(appendEmbedParam("/app"));
+      router.replace(appendEmbedParam(returnTo || DEFAULT_RETURN_TO));
     } catch (err) {
       const lockout = parseLockout(err);
       if (lockout) {
@@ -176,7 +180,7 @@ export default function LoginPage() {
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <a
-              href={appendEmbedParam("/forgot-password")}
+              href={appendEmbedParam(appendReturnToParam("/forgot-password", returnTo))}
               style={{ color: theme.colors.primary, fontSize: theme.typography.caption.fontSize }}
             >
               Forgot password?

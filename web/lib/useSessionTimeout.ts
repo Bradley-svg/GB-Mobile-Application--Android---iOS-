@@ -3,8 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { SESSION_ABSOLUTE_TIMEOUT_MS, SESSION_IDLE_TIMEOUT_MS } from "@/config/session";
 import { useAuthStore } from "@/lib/authStore";
-
-export type SessionExpireReason = "idle" | "absolute";
+import type { SessionExpireReason } from "@/lib/types/session";
 
 export function useSessionTimeout(onExpire?: (reason: SessionExpireReason) => void) {
   const accessToken = useAuthStore((s) => s.accessToken);
@@ -66,3 +65,5 @@ export function useSessionTimeout(onExpire?: (reason: SessionExpireReason) => vo
 
   return expiredReason;
 }
+
+export type { SessionExpireReason };

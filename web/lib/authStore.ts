@@ -6,6 +6,7 @@ import * as authApi from "@/lib/api/authApi";
 import { registerTokenGetter, registerTokenSetter } from "@/lib/api/tokenStore";
 import type { AuthResponse, AuthTokens, AuthUser } from "@/lib/types/auth";
 import { AUTH_2FA_ENFORCE_ROLES, AUTH_COOKIE_MODE_ENABLED } from "@/config/env";
+import type { SessionExpireReason } from "@/lib/types/session";
 
 type AuthState = {
   accessToken?: string;
@@ -15,6 +16,7 @@ type AuthState = {
   lastActiveAt?: number | null;
   twoFactorSetupRequired?: boolean;
   hasHydrated: boolean;
+  forcedExpireReason?: SessionExpireReason | null;
   login: (email: string, password: string, twoFactorCode?: string) => Promise<AuthResponse>;
   completeTwoFactor: (challengeToken: string, code: string) => Promise<AuthResponse>;
   refresh: () => Promise<AuthTokens | null>;
@@ -24,6 +26,8 @@ type AuthState = {
   setUser: (user: AuthUser | null) => void;
   recordActivity: (timestamp?: number) => void;
   loadFromStorage: () => Promise<void>;
+  markSessionExpired: (reason: SessionExpireReason) => void;
+  clearForcedExpire: () => void;
 };
 
 type LogoutAllOptions = {
@@ -56,6 +60,9 @@ const useAuthStore = create<AuthState>()(
       lastActiveAt: undefined,
       twoFactorSetupRequired: false,
       hasHydrated: false,
+      forcedExpireReason: null,
+      markSessionExpired: (reason) => set({ forcedExpireReason: reason }),
+      clearForcedExpire: () => set({ forcedExpireReason: null }),
       setTokens: (tokens) =>
         set((state) => {
           const now = Date.now();
@@ -64,6 +71,7 @@ const useAuthStore = create<AuthState>()(
             refreshToken: tokens.refreshToken,
             sessionStartedAt: state.sessionStartedAt ?? now,
             lastActiveAt: now,
+            forcedExpireReason: null,
           };
         }),
       recordActivity: (timestamp) =>
@@ -89,6 +97,7 @@ const useAuthStore = create<AuthState>()(
           sessionStartedAt: undefined,
           lastActiveAt: undefined,
           twoFactorSetupRequired: false,
+          forcedExpireReason: null,
         })),
       logoutAll: (options) => {
         const redirectTo = options?.redirectTo;
@@ -135,6 +144,7 @@ const useAuthStore = create<AuthState>()(
             lastActiveAt: now,
             twoFactorSetupRequired: Boolean(res.twoFactorSetupRequired),
             hasHydrated: true,
+            forcedExpireReason: null,
           }));
         }
         return res;
@@ -151,6 +161,7 @@ const useAuthStore = create<AuthState>()(
             lastActiveAt: now,
             twoFactorSetupRequired: false,
             hasHydrated: true,
+            forcedExpireReason: null,
           }));
         }
         return res;
@@ -166,6 +177,7 @@ const useAuthStore = create<AuthState>()(
             refreshToken: res.refreshToken,
             sessionStartedAt: state.sessionStartedAt ?? now,
             lastActiveAt: now,
+            forcedExpireReason: null,
           }));
         }
         return res;
@@ -222,12 +234,18 @@ registerTokenGetter(() => {
   return { accessToken, refreshToken };
 });
 
-registerTokenSetter((tokens) => {
+registerTokenSetter((tokens, reason) => {
+  const state = useAuthStore.getState();
   if (!tokens) {
-    useAuthStore.getState().logoutAll?.();
+    if (reason === "refresh-error") {
+      state.markSessionExpired?.("refresh");
+      state.logoutAll?.({ hardReload: false });
+      return;
+    }
+    state.logoutAll?.();
     return;
   }
-  const state = useAuthStore.getState();
+  state.clearForcedExpire?.();
   state.setTokens(tokens);
   state.recordActivity();
 });

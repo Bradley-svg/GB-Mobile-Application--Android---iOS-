@@ -2,12 +2,13 @@
 
 import axios from "axios";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Badge, Button, Card } from "@/components/ui";
 import { useAuthStore } from "@/lib/authStore";
+import { sanitizeReturnTo, DEFAULT_RETURN_TO, appendReturnToParam } from "@/lib/returnTo";
 import { useEmbed } from "@/lib/useEmbed";
 import { useTheme } from "@/theme/ThemeProvider";
 
@@ -25,6 +26,8 @@ export default function TwoFactorPage() {
   const { appendEmbedParam } = useEmbed();
   const challengeToken = searchParams.get("challengeToken") || "";
   const email = searchParams.get("email");
+  const rawReturnTo = searchParams.get("returnTo");
+  const returnTo = useMemo(() => sanitizeReturnTo(rawReturnTo, DEFAULT_RETURN_TO), [rawReturnTo]);
   const [error, setError] = useState<string | null>(null);
 
   const {
@@ -44,7 +47,7 @@ export default function TwoFactorPage() {
         return;
       }
       await completeTwoFactor(challengeToken, values.code.trim());
-      router.replace(appendEmbedParam("/app"));
+      router.replace(appendEmbedParam(returnTo || DEFAULT_RETURN_TO));
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const status = err.response?.status;
@@ -123,7 +126,7 @@ export default function TwoFactorPage() {
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <a
-              href={appendEmbedParam("/login")}
+              href={appendEmbedParam(appendReturnToParam("/login", returnTo))}
               style={{ color: theme.colors.primary, fontSize: theme.typography.caption.fontSize }}
             >
               Start over

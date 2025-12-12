@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Button, Card } from "@/components/ui";
-import { useOrgStore } from "@/lib/orgStore";
+import { useOrgSwitcher } from "@/lib/useOrgSwitcher";
 import { useUserRole } from "@/lib/useUserRole";
 import { useTheme } from "@/theme/ThemeProvider";
 
@@ -10,7 +10,7 @@ export default function AdminPage() {
   const { theme } = useTheme();
   const router = useRouter();
   const { isOwner, isAdmin, isFacilities } = useUserRole();
-  const { orgs, currentOrgId, setOrg } = useOrgStore();
+  const { orgs, currentOrgId, switchOrg } = useOrgSwitcher();
 
   const allowed = isOwner || isAdmin || isFacilities;
 
@@ -56,7 +56,7 @@ export default function AdminPage() {
                     size="sm"
                     variant={currentOrgId === org.id ? "primary" : "secondary"}
                     onClick={() => {
-                      setOrg(org.id);
+                      switchOrg(org.id);
                       router.push("/app");
                     }}
                   >

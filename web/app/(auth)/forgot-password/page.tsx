@@ -1,13 +1,14 @@
 "use client";
 
 import axios from "axios";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button, Card } from "@/components/ui";
 import { requestPasswordReset } from "@/lib/api/authApi";
+import { appendReturnToParam, sanitizeReturnTo, DEFAULT_RETURN_TO } from "@/lib/returnTo";
 import { useEmbed } from "@/lib/useEmbed";
 import { useTheme } from "@/theme/ThemeProvider";
 
@@ -19,8 +20,11 @@ type FormValues = z.infer<typeof schema>;
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { theme } = useTheme();
   const { appendEmbedParam } = useEmbed();
+  const rawReturnTo = searchParams.get("returnTo");
+  const returnTo = useMemo(() => sanitizeReturnTo(rawReturnTo, DEFAULT_RETURN_TO), [rawReturnTo]);
   const [error, setError] = useState<string | null>(null);
 
   const {
@@ -36,11 +40,11 @@ export default function ForgotPasswordPage() {
     try {
       setError(null);
       await requestPasswordReset(values.email.trim());
-      router.replace(
-        appendEmbedParam(
-          `/login?success=${encodeURIComponent("Password reset link sent. Check your email to continue.")}`,
-        ),
-      );
+      const params = new URLSearchParams({
+        success: "Password reset link sent. Check your email to continue.",
+        returnTo,
+      });
+      router.replace(appendEmbedParam(`/login?${params.toString()}`));
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const message = (err.response?.data as { message?: string } | undefined)?.message;
@@ -108,7 +112,7 @@ export default function ForgotPasswordPage() {
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <a
-              href={appendEmbedParam("/login")}
+              href={appendEmbedParam(appendReturnToParam("/login", returnTo))}
               style={{ color: theme.colors.primary, fontSize: theme.typography.caption.fontSize }}
             >
               Back to login

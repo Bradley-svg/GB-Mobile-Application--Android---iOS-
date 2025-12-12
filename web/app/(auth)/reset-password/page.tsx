@@ -2,12 +2,13 @@
 
 import axios from "axios";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button, Card } from "@/components/ui";
 import { resetPassword } from "@/lib/api/authApi";
+import { appendReturnToParam, sanitizeReturnTo, DEFAULT_RETURN_TO } from "@/lib/returnTo";
 import { useEmbed } from "@/lib/useEmbed";
 import { useTheme } from "@/theme/ThemeProvider";
 
@@ -29,6 +30,8 @@ export default function ResetPasswordPage() {
   const { theme } = useTheme();
   const { appendEmbedParam } = useEmbed();
   const token = searchParams.get("token");
+  const rawReturnTo = searchParams.get("returnTo");
+  const returnTo = useMemo(() => sanitizeReturnTo(rawReturnTo, DEFAULT_RETURN_TO), [rawReturnTo]);
   const [error, setError] = useState<string | null>(null);
 
   const {
@@ -49,7 +52,11 @@ export default function ResetPasswordPage() {
     try {
       setError(null);
       await resetPassword({ token, newPassword: values.password });
-      router.replace(appendEmbedParam(`/login?success=${encodeURIComponent("Password updated. You can now login.")}`));
+      const params = new URLSearchParams({
+        success: "Password updated. You can now login.",
+        returnTo,
+      });
+      router.replace(appendEmbedParam(`/login?${params.toString()}`));
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const message = (err.response?.data as { message?: string } | undefined)?.message;
@@ -76,7 +83,10 @@ export default function ResetPasswordPage() {
           <p style={{ margin: 0, color: theme.colors.textSecondary }}>
             Your reset link is missing or expired. Please request a new one.
           </p>
-          <Button variant="primary" onClick={() => router.replace(appendEmbedParam("/forgot-password"))}>
+          <Button
+            variant="primary"
+            onClick={() => router.replace(appendEmbedParam(appendReturnToParam("/forgot-password", returnTo)))}
+          >
             Request new link
           </Button>
         </div>
@@ -161,7 +171,7 @@ export default function ResetPasswordPage() {
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <a
-              href={appendEmbedParam("/login")}
+              href={appendEmbedParam(appendReturnToParam("/login", returnTo))}
               style={{ color: theme.colors.primary, fontSize: theme.typography.caption.fontSize }}
             >
               Back to login

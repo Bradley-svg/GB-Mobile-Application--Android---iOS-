@@ -8,11 +8,13 @@ import { DemoModeBadge } from "@/components/DemoModeBadge";
 import { me } from "@/lib/api/authApi";
 import { useAuthStore } from "@/lib/authStore";
 import { useOrgRoleAwareLoader, useOrgStore } from "@/lib/orgStore";
+import { useOrgSwitcher } from "@/lib/useOrgSwitcher";
 import { useUserRole } from "@/lib/useUserRole";
 import { useEmbed } from "@/lib/useEmbed";
 import { useSessionTimeout, type SessionExpireReason } from "@/lib/useSessionTimeout";
 import { useTheme } from "@/theme/ThemeProvider";
 import { AUTH_2FA_ENFORCE_ROLES } from "@/config/env";
+import { sanitizeReturnTo, DEFAULT_RETURN_TO } from "@/lib/returnTo";
 
 const pathTitleMap: Record<string, string> = {
   "/app": "Fleet overview",
@@ -48,30 +50,57 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const twoFactorSetupRequired = useAuthStore((s) => s.twoFactorSetupRequired);
   const loadFromStorage = useAuthStore((s) => s.loadFromStorage);
   const setUser = useAuthStore((s) => s.setUser);
+  const forcedExpireReason = useAuthStore((s) => s.forcedExpireReason);
   const [isReady, setIsReady] = useState(false);
   const { theme } = useTheme();
   const { isAdmin, isOwner, isFacilities } = useUserRole();
-  const orgStore = useOrgStore();
+  const { currentOrgId, orgs, switchOrg, resetOrgQueries } = useOrgSwitcher();
   const loadOrgs = useOrgRoleAwareLoader();
   const { embedActive: embedMode, appendEmbedParam, embedFromQuery } = useEmbed();
+  const currentLocationPath = useCallback(
+    () =>
+      typeof window !== "undefined"
+        ? `${window.location.pathname}${window.location.search}${window.location.hash}`
+        : pathname,
+    [pathname],
+  );
+  const buildLoginPath = useCallback(
+    (reason?: SessionExpireReason | null) => {
+      const safeReturnTo = sanitizeReturnTo(currentLocationPath(), DEFAULT_RETURN_TO);
+      const params = new URLSearchParams({ returnTo: safeReturnTo });
+      if (reason) {
+        params.set("expired", reason);
+      }
+      return appendEmbedParam(`/login?${params.toString()}`);
+    },
+    [appendEmbedParam, currentLocationPath],
+  );
   const clearOrgState = useCallback(() => {
+    resetOrgQueries();
     try {
       useOrgStore.persist?.clearStorage?.();
     } catch {
       // ignore
     }
     useOrgStore.setState({ currentOrgId: null, orgs: [], loading: false, error: null });
-  }, []);
-  const sessionExpiredReason = useSessionTimeout(
+  }, [resetOrgQueries]);
+  const sessionTimeoutReason = useSessionTimeout(
     useCallback(
       (reason) => {
-        const loginPath = appendEmbedParam(`/login?expired=${reason}`);
+        const loginPath = buildLoginPath(reason);
         logoutAll({ redirectTo: loginPath, delayMs: 400, onCleared: () => clearOrgState() });
         setIsReady(false);
       },
-      [appendEmbedParam, clearOrgState, logoutAll],
+      [buildLoginPath, clearOrgState, logoutAll],
     ),
   );
+  const sessionExpiredReason = forcedExpireReason ?? sessionTimeoutReason;
+
+  useEffect(() => {
+    if (forcedExpireReason) {
+      clearOrgState();
+    }
+  }, [clearOrgState, forcedExpireReason]);
 
   useEffect(() => {
     if (accessToken) {
@@ -85,7 +114,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       await loadFromStorage();
       const state = useAuthStore.getState();
       if (!state.accessToken) {
-        router.replace(appendEmbedParam("/login"));
+        router.replace(buildLoginPath());
         return;
       }
       let orgId = state.user?.organisation_id ?? null;
@@ -97,8 +126,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           }
           orgId = profile.organisation_id ?? null;
         } catch {
-          logout();
-          router.replace(appendEmbedParam("/login"));
+          logoutAll({ redirectTo: buildLoginPath(), hardReload: false, onCleared: () => clearOrgState() });
           return;
         }
       }
@@ -112,19 +140,16 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [appendEmbedParam, loadFromStorage, loadOrgs, logout, router, setUser]);
+  }, [buildLoginPath, clearOrgState, loadFromStorage, loadOrgs, logoutAll, router, setUser]);
 
   useEffect(() => {
     if (!embedMode || embedFromQuery) return;
-    const currentPath =
-      typeof window !== "undefined"
-        ? `${window.location.pathname}${window.location.search}${window.location.hash}`
-        : pathname;
+    const currentPath = currentLocationPath();
     const withEmbed = appendEmbedParam(currentPath);
     if (withEmbed !== currentPath) {
       router.replace(withEmbed);
     }
-  }, [appendEmbedParam, embedFromQuery, embedMode, pathname, router]);
+  }, [appendEmbedParam, currentLocationPath, embedFromQuery, embedMode, router]);
 
   const navBadge = (label: string) => (
     <span
@@ -174,11 +199,25 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     const missingSetup = enforced && !user?.two_factor_enabled;
     return Boolean(twoFactorSetupRequired || missingSetup);
   }, [twoFactorSetupRequired, user?.role, user?.two_factor_enabled]);
+  const homeOrgId = user?.organisation_id ?? null;
+  const viewingOrgName = useMemo(
+    () => orgs.find((org) => org.id === currentOrgId)?.name ?? "Selected organisation",
+    [currentOrgId, orgs],
+  );
+  const homeOrgName = useMemo(
+    () => orgs.find((org) => org.id === homeOrgId)?.name ?? "my organisation",
+    [homeOrgId, orgs],
+  );
+  const viewingOtherOrg = Boolean(homeOrgId && currentOrgId && homeOrgId !== currentOrgId);
+  const returnToHomeOrg = useCallback(() => {
+    if (!homeOrgId) return;
+    switchOrg(homeOrgId);
+  }, [homeOrgId, switchOrg]);
 
   const handleLogout = useCallback(() => {
-    const loginPath = appendEmbedParam("/login");
+    const loginPath = buildLoginPath(null);
     logoutAll({ redirectTo: loginPath, onCleared: () => clearOrgState() });
-  }, [appendEmbedParam, clearOrgState, logoutAll]);
+  }, [buildLoginPath, clearOrgState, logoutAll]);
 
   const title =
     pathTitleMap[pathname] ??
@@ -194,7 +233,46 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       : pathname.startsWith("/app/maintenance")
         ? pathSubtitleMap["/app/maintenance"]
         : undefined);
+  const viewingAsBanner = viewingOtherOrg ? (
+    <div
+      style={{
+        marginBottom: theme.spacing.md,
+        padding: `${theme.spacing.sm}px ${theme.spacing.md}px`,
+        borderRadius: theme.radius.md,
+        border: `1px solid ${theme.colors.borderSubtle}`,
+        background: theme.colors.surface,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: theme.spacing.sm,
+        flexWrap: "wrap",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: theme.spacing.sm, flexWrap: "wrap" }}>
+        <Badge tone="info">Viewing as</Badge>
+        <strong>{viewingOrgName}</strong>
+        <span style={{ color: theme.colors.textSecondary, fontSize: theme.typography.caption.fontSize }}>
+          Your org: {homeOrgName}
+        </span>
+      </div>
+      {homeOrgId ? (
+        <Button size="sm" variant="secondary" onClick={returnToHomeOrg}>
+          Return to my org
+        </Button>
+      ) : null}
+    </div>
+  ) : null;
 
+  const sessionTitle =
+    sessionExpiredReason === "idle"
+      ? "Signed out for inactivity"
+      : sessionExpiredReason === "absolute"
+        ? "Session duration reached"
+        : "Session expired";
+  const sessionCopy =
+    sessionExpiredReason === "refresh"
+      ? "We couldn't refresh your session. Please log in again to continue."
+      : "Please log in again to continue. We cleared your credentials to keep the dashboard secure.";
   const sessionOverlay = sessionExpiredReason ? (
     <div
       style={{
@@ -223,14 +301,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <Badge tone="warning" style={{ justifySelf: "flex-start" }}>
           Session expired
         </Badge>
-        <h2 style={{ margin: 0 }}>
-          {sessionExpiredReason === "idle" ? "Signed out for inactivity" : "Session duration reached"}
-        </h2>
-        <p style={{ margin: 0, color: theme.colors.textSecondary }}>
-          Please log in again to continue. We cleared your credentials to keep the dashboard secure.
-        </p>
+        <h2 style={{ margin: 0 }}>{sessionTitle}</h2>
+        <p style={{ margin: 0, color: theme.colors.textSecondary }}>{sessionCopy}</p>
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <Button variant="primary" onClick={() => router.replace(appendEmbedParam("/login"))}>
+          <Button variant="primary" onClick={() => router.replace(buildLoginPath(sessionExpiredReason))}>
             Go to login
           </Button>
         </div>
@@ -289,8 +363,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               <div style={{ display: "flex", gap: theme.spacing.sm, alignItems: "center" }}>
                 <span style={{ color: theme.colors.textSecondary, fontSize: theme.typography.caption.fontSize }}>Organisation</span>
                 <select
-                  value={orgStore.currentOrgId ?? ""}
-                  onChange={(e) => orgStore.setOrg(e.target.value)}
+                  value={currentOrgId ?? ""}
+                  onChange={(e) => switchOrg(e.target.value)}
                   style={{
                     padding: `${theme.spacing.xs}px ${theme.spacing.sm}px`,
                     borderRadius: theme.radius.md,
@@ -299,7 +373,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                     color: theme.colors.textPrimary,
                   }}
                 >
-                  {orgStore.orgs.map((org) => (
+                  {orgs.map((org) => (
                     <option key={org.id} value={org.id}>
                       {org.name}
                     </option>
@@ -337,6 +411,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           )
       }
     >
+      {viewingAsBanner}
       {requiresTwoFactorSetup ? (
         <div
           style={{

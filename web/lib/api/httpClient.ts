@@ -59,7 +59,17 @@ api.interceptors.response.use(
             setTokensFromRefresh(tokens);
             return tokens;
           }
-          setTokensFromRefresh(null);
+          setTokensFromRefresh(null, "refresh-error");
+          return null;
+        })
+        .catch((err) => {
+          if (axios.isAxiosError(err)) {
+            const status = err.response?.status ?? 0;
+            if (status === 401 || status === 403) {
+              setTokensFromRefresh(null, "refresh-error");
+              return null;
+            }
+          }
           return null;
         })
         .finally(() => {

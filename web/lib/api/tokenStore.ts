@@ -6,7 +6,7 @@ type TokenSnapshot = {
 };
 
 type TokenGetter = () => TokenSnapshot;
-type TokenSetter = (tokens: AuthTokens | null) => void;
+type TokenSetter = (tokens: AuthTokens | null, reason?: "refresh-error") => void;
 
 let getter: TokenGetter = () => ({});
 let setter: TokenSetter | null = null;
@@ -21,6 +21,6 @@ export const registerTokenSetter = (fn: TokenSetter) => {
   setter = fn;
 };
 
-export const setTokensFromRefresh = (tokens: AuthTokens | null) => {
-  setter?.(tokens);
+export const setTokensFromRefresh = (tokens: AuthTokens | null, reason?: "refresh-error") => {
+  setter?.(tokens, reason);
 };

@@ -29,6 +29,7 @@ describe("authStore", () => {
       lastActiveAt: undefined,
       twoFactorSetupRequired: false,
       hasHydrated: true,
+      forcedExpireReason: null,
       setTokens: useAuthStore.getState().setTokens,
       setUser: useAuthStore.getState().setUser,
       logout: useAuthStore.getState().logout,
@@ -38,6 +39,8 @@ describe("authStore", () => {
       completeTwoFactor: useAuthStore.getState().completeTwoFactor,
       refresh: useAuthStore.getState().refresh,
       loadFromStorage: useAuthStore.getState().loadFromStorage,
+      markSessionExpired: useAuthStore.getState().markSessionExpired,
+      clearForcedExpire: useAuthStore.getState().clearForcedExpire,
     });
     localStorage.clear();
     vi.clearAllMocks();
