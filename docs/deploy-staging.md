@@ -32,6 +32,7 @@ npm run staging:bootstrap
 ```
   - Bash equivalent: `STAGING_DATABASE_URL=postgres://<host>:5432/greenbro_staging ./scripts/bootstrap-staging.sh`
   - The bootstrap command applies migrations and runs `npm run seed:demo -- --reset` against the staging database. If you prefer manual steps: `DATABASE_URL=$STAGING_DATABASE_URL npm run migrate:dev` then `DATABASE_URL=$STAGING_DATABASE_URL npm run seed:demo -- --reset`.
+  - Always run migrations before `npm run demo:seed` so new tables (for example `demo_tenants`) exist before seeding.
 4) Start the backend (production mode)
 ```
 npm run build

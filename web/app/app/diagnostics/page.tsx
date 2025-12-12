@@ -5,8 +5,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge, Button, Card, StatusPill } from "@/components/ui";
 import type { StatusKind } from "@/components/ui/StatusPill";
 import { fetchHealthPlus } from "@/lib/api/healthPlus";
+import type { VendorFlags } from "@/lib/types/demo";
 import type { HealthPlusPayload } from "@/lib/types/healthPlus";
 import { useUserRole } from "@/lib/useUserRole";
+import { useDemoStatus } from "@/lib/useDemoStatus";
 import { useTheme } from "@/theme/ThemeProvider";
 
 type DerivedStatus = "healthy" | "disabled" | "unconfigured" | "failing" | "unknown";
@@ -44,6 +46,20 @@ const formatLatency = (ms?: number | null) => {
   if (ms === null || ms === undefined) return "N/A";
   const rounded = Math.round(ms);
   return `${rounded} ms`;
+};
+
+const formatVendorFlags = (flags?: VendorFlags | null) => {
+  if (!flags) return "Not provided";
+  const disabled = (flags.disabled ?? []).length ? flags.disabled.join(", ") : "None";
+  const toggles = [
+    flags.controlDisabled ? "Control" : null,
+    flags.mqttDisabled ? "MQTT" : null,
+    flags.heatPumpHistoryDisabled ? "History" : null,
+    flags.pushNotificationsDisabled ? "Push" : null,
+  ].filter(Boolean);
+  return `${flags.prodLike ? "Prod-like" : "Non-prod"}; Disabled: ${disabled}${
+    toggles.length ? `; Toggles: ${toggles.join(", ")}` : ""
+  }`;
 };
 
 const statusFromFlags = ({
@@ -115,10 +131,13 @@ export default function DiagnosticsPage() {
     enabled: allowed,
   });
 
+  const demoStatusQuery = useDemoStatus({ enabled: allowed });
   const health = healthQuery.data;
+  const demoStatus = demoStatusQuery.data;
+  const vendorFlags = demoStatus?.vendorFlags ?? health?.vendorFlags;
   const vendorDisableSet = useMemo(
-    () => new Set((health?.vendorFlags?.disabled ?? []).map((flag) => flag.toUpperCase())),
-    [health?.vendorFlags?.disabled],
+    () => new Set((vendorFlags?.disabled ?? []).map((flag) => flag.toUpperCase())),
+    [vendorFlags?.disabled],
   );
 
   const subsystemCards: Subsystem[] = useMemo(() => {
@@ -129,10 +148,16 @@ export default function DiagnosticsPage() {
       return explicit || flags.some((f) => vendorDisableSet.has(f.toUpperCase()));
     };
 
-    const controlDisabled = vendorDisabled("CONTROL_API_DISABLED", health.vendorFlags?.controlDisabled || health.control.disabled);
-    const mqttDisabled = vendorDisabled("MQTT_DISABLED", health.vendorFlags?.mqttDisabled || health.mqtt.disabled);
-    const historyDisabled = vendorDisabled("HEATPUMP_HISTORY_DISABLED", health.vendorFlags?.heatPumpHistoryDisabled || health.heatPumpHistory.disabled);
-    const pushDisabled = vendorDisabled("PUSH_NOTIFICATIONS_DISABLED", health.vendorFlags?.pushNotificationsDisabled || health.push.disabled);
+    const controlDisabled = vendorDisabled("CONTROL_API_DISABLED", vendorFlags?.controlDisabled || health.control.disabled);
+    const mqttDisabled = vendorDisabled("MQTT_DISABLED", vendorFlags?.mqttDisabled || health.mqtt.disabled);
+    const historyDisabled = vendorDisabled(
+      "HEATPUMP_HISTORY_DISABLED",
+      vendorFlags?.heatPumpHistoryDisabled || health.heatPumpHistory.disabled,
+    );
+    const pushDisabled = vendorDisabled(
+      "PUSH_NOTIFICATIONS_DISABLED",
+      vendorFlags?.pushNotificationsDisabled || health.push.disabled,
+    );
 
     const antivirusHealthy =
       health.antivirus.enabled &&
@@ -248,7 +273,7 @@ export default function DiagnosticsPage() {
         ],
       },
     ];
-  }, [health, vendorDisableSet]);
+  }, [health, vendorDisableSet, vendorFlags]);
 
   const overall = useMemo(() => {
     const statuses = subsystemCards.map((s) => s.status);
@@ -262,6 +287,16 @@ export default function DiagnosticsPage() {
 
   const alertsEngine = health?.alertsEngine;
   const lastSample = healthQuery.dataUpdatedAt ? new Date(healthQuery.dataUpdatedAt).toLocaleString() : "Not sampled yet";
+  const demoOrgLabel = demoStatus ? (demoStatus.isDemoOrg ? "Demo org" : "Live org") : "Unknown";
+  const heroDeviceLabel = demoStatus?.heroDeviceMac || demoStatus?.heroDeviceId || "Unknown";
+  const seededAtLabel = formatTime(demoStatus?.seededAt);
+  const demoFlagsLabel =
+    demoStatusQuery.isLoading && !demoStatus
+      ? "Loading /demo/status..."
+      : demoStatusQuery.isError
+        ? "Error loading /demo/status"
+        : formatVendorFlags(demoStatus?.vendorFlags ?? null);
+  const healthFlagsLabel = formatVendorFlags(health?.vendorFlags ?? null);
 
   const handleCopy = async () => {
     if (!health) return;
@@ -379,6 +414,45 @@ export default function DiagnosticsPage() {
                 Active: {alertsEngine?.activeAlertsTotal ?? 0} (crit {alertsEngine?.activeCritical ?? 0} / warn{" "}
                 {alertsEngine?.activeWarning ?? 0} / info {alertsEngine?.activeInfo ?? 0})
               </span>
+            </div>
+          </div>
+          <div
+            data-testid="diagnostics-demo-flags"
+            style={{
+              padding: theme.spacing.md,
+              borderRadius: theme.radius.md,
+              border: `1px solid ${theme.colors.borderSubtle}`,
+              backgroundColor: theme.colors.surface,
+            }}
+          >
+            <span style={{ color: theme.colors.textSecondary, fontSize: theme.typography.caption.fontSize }}>
+              Demo status (/demo/status)
+            </span>
+            <div style={{ marginTop: theme.spacing.xs, display: "flex", flexDirection: "column", gap: theme.spacing.xs }}>
+              <InfoRow label="Org type" value={demoOrgLabel} />
+              <InfoRow label="Hero device" value={heroDeviceLabel} />
+              <InfoRow label="Seeded at" value={seededAtLabel} />
+              <InfoRow label="Vendor flags" value={demoFlagsLabel} />
+            </div>
+          </div>
+          <div
+            data-testid="diagnostics-health-flags"
+            style={{
+              padding: theme.spacing.md,
+              borderRadius: theme.radius.md,
+              border: `1px solid ${theme.colors.borderSubtle}`,
+              backgroundColor: theme.colors.surface,
+            }}
+          >
+            <span style={{ color: theme.colors.textSecondary, fontSize: theme.typography.caption.fontSize }}>
+              Vendor flags (/health-plus)
+            </span>
+            <div style={{ marginTop: theme.spacing.xs, display: "flex", flexDirection: "column", gap: theme.spacing.xs }}>
+              <InfoRow label="Flags" value={healthFlagsLabel} />
+              <InfoRow
+                label="Disabled list"
+                value={(health?.vendorFlags?.disabled ?? []).join(", ") || "None"}
+              />
             </div>
           </div>
           {health.perfHints ? (

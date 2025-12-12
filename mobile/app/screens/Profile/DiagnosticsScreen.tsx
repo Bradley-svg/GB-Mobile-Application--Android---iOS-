@@ -88,7 +88,10 @@ export const DiagnosticsScreen: React.FC = () => {
     [healthQuery.data, healthQuery.dataUpdatedAt]
   );
   const healthStatusLabel = healthQuery.data?.ok ? 'Healthy' : 'Issues detected';
-  const pushDisabled = healthQuery.data?.push?.disabled ?? false;
+  const vendorFlags = demoStatus?.vendorFlags ?? healthQuery.data?.vendorFlags;
+  const vendorDisabledLabel = (vendorFlags?.disabled ?? []).join(', ') || 'None';
+  const pushDisabled =
+    vendorFlags?.pushNotificationsDisabled ?? healthQuery.data?.push?.disabled ?? false;
   const pushDisabledLabel = pushDisabled
     ? isDemoOrg
       ? 'Push is disabled in demo env.'
@@ -179,7 +182,7 @@ export const DiagnosticsScreen: React.FC = () => {
         label: 'Control',
         status: subsystemStatus({
           healthy: healthQuery.data?.control?.healthy,
-          disabled: healthQuery.data?.control?.disabled,
+          disabled: vendorFlags?.controlDisabled ?? healthQuery.data?.control?.disabled,
           configured: healthQuery.data?.control?.configured,
         }),
         rows: [
@@ -192,7 +195,7 @@ export const DiagnosticsScreen: React.FC = () => {
         label: 'MQTT ingest',
         status: subsystemStatus({
           healthy: healthQuery.data?.mqtt?.healthy,
-          disabled: healthQuery.data?.mqtt?.disabled,
+          disabled: vendorFlags?.mqttDisabled ?? healthQuery.data?.mqtt?.disabled,
           configured: healthQuery.data?.mqtt?.configured,
         }),
         rows: [
@@ -205,7 +208,7 @@ export const DiagnosticsScreen: React.FC = () => {
         label: 'Heat pump history',
         status: subsystemStatus({
           healthy: healthQuery.data?.heatPumpHistory?.healthy,
-          disabled: healthQuery.data?.heatPumpHistory?.disabled,
+          disabled: vendorFlags?.heatPumpHistoryDisabled ?? healthQuery.data?.heatPumpHistory?.disabled,
           configured: healthQuery.data?.heatPumpHistory?.configured,
         }),
         rows: [
@@ -219,7 +222,7 @@ export const DiagnosticsScreen: React.FC = () => {
         label: 'Push',
         status: subsystemStatus({
           healthy: !healthQuery.data?.push?.lastError,
-          disabled: healthQuery.data?.push?.disabled,
+          disabled: vendorFlags?.pushNotificationsDisabled ?? healthQuery.data?.push?.disabled,
           configured: healthQuery.data?.push?.enabled,
         }),
         rows: [
@@ -239,7 +242,7 @@ export const DiagnosticsScreen: React.FC = () => {
         ],
       },
     ],
-    [healthQuery.data]
+    [healthQuery.data, vendorFlags]
   );
 
   if (healthQuery.isLoading) {

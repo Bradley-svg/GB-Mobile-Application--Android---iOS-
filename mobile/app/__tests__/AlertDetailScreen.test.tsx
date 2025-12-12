@@ -23,6 +23,7 @@ jest.mock('../api/hooks', () => ({
   useMuteAlert: jest.fn(),
   useCreateWorkOrderFromAlert: jest.fn(),
   useWorkOrdersList: jest.fn(),
+  useDemoStatus: jest.fn(() => ({ data: { isDemoOrg: false } })),
 }));
 
 jest.mock('../hooks/useNetworkBanner', () => ({

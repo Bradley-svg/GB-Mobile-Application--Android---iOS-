@@ -3,15 +3,20 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import DiagnosticsPage from "@/app/app/diagnostics/page";
 import { useAuthStore } from "@/lib/authStore";
+import type { DemoStatus } from "@/lib/types/demo";
 import type { HealthPlusPayload } from "@/lib/types/healthPlus";
 import { ThemeProvider } from "@/theme/ThemeProvider";
 
 const fetchHealthPlusMock = vi.fn();
+let demoStatusMock: DemoStatus;
 
 vi.mock("@/lib/api/healthPlus", () => ({
   fetchHealthPlus: (...args: unknown[]) => fetchHealthPlusMock(...args),
 }));
 
+vi.mock("@/lib/useDemoStatus", () => ({
+  useDemoStatus: () => ({ data: demoStatusMock, isLoading: false, isError: false }),
+}));
 const baseHealth: HealthPlusPayload = {
   ok: true,
   env: "test",
@@ -112,6 +117,13 @@ beforeEach(() => {
   vi.clearAllMocks();
   window.localStorage.clear();
   fetchHealthPlusMock.mockResolvedValue({ ...baseHealth });
+  demoStatusMock = {
+    isDemoOrg: true,
+    heroDeviceId: "33333333-3333-3333-3333-333333333333",
+    heroDeviceMac: "38:18:2B:60:A9:94",
+    seededAt: new Date().toISOString(),
+    vendorFlags: { ...baseHealth.vendorFlags! },
+  };
   useAuthStore.setState((state) => ({
     ...state,
     user: { id: "user-1", email: "admin@test.com", role: "owner" },
@@ -131,11 +143,45 @@ describe("DiagnosticsPage", () => {
       control: { ...baseHealth.control, healthy: false, lastError: "failure" },
     });
 
+    demoStatusMock = {
+      ...demoStatusMock,
+      vendorFlags: {
+        ...demoStatusMock.vendorFlags!,
+        disabled: ["MQTT_DISABLED"],
+        mqttDisabled: true,
+      },
+    };
+
     await renderDiagnostics();
 
     expect(await screen.findByTestId("diag-mqtt-status")).toHaveTextContent(/Disabled/i);
     expect(screen.getByTestId("diag-control-status")).toHaveTextContent(/Failing/i);
     expect(screen.getByTestId("diag-storage-status")).toHaveTextContent(/Healthy/i);
+  });
+
+  it("renders demo status and vendor flags from /demo/status", async () => {
+    demoStatusMock = {
+      ...demoStatusMock,
+      heroDeviceMac: "AA:BB:CC:DD",
+      vendorFlags: {
+        prodLike: true,
+        disabled: ["CONTROL_API_DISABLED"],
+        mqttDisabled: false,
+        controlDisabled: true,
+        heatPumpHistoryDisabled: false,
+        pushNotificationsDisabled: false,
+      },
+    };
+
+    await renderDiagnostics();
+
+    const demoFlags = await screen.findByTestId("diagnostics-demo-flags");
+    expect(demoFlags).toHaveTextContent(/Demo org/i);
+    expect(demoFlags).toHaveTextContent(/CONTROL_API_DISABLED/i);
+    expect(demoFlags).toHaveTextContent(/AA:BB:CC:DD/i);
+    const healthFlags = screen.getByTestId("diagnostics-health-flags");
+    expect(healthFlags).toHaveTextContent(/Vendor flags/);
+    expect(healthFlags).toHaveTextContent(/Non-prod/i);
   });
 
   it("copies the raw payload JSON", async () => {

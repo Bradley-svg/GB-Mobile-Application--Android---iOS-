@@ -34,6 +34,8 @@
     "web:test": "cd web && npm test",
     "web:test:coverage": "cd web && npm run test:coverage",
     "web:e2e": "cd web && npm run e2e",
+    "backend:migrate:dev": "cd backend && npm run migrate:dev",
+    "backend:migrate:test": "cd backend && npm run migrate:test",
     "demo:seed": "cd backend && npm run seed:demo",
     "demo:reset": "cd backend && npm run seed:demo -- --reset",
     "backend:health:staging": "cd backend && npm run health:staging",

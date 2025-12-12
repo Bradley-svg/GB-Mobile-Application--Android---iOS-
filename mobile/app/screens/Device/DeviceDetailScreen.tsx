@@ -31,6 +31,7 @@ import {
   useUpsertDeviceSchedule,
   useWorkOrdersList,
   useHealthPlus,
+  useDemoStatus,
 } from '../../api/hooks';
 import type {
   ApiDevice,
@@ -210,6 +211,9 @@ export const DeviceDetailScreen: React.FC = () => {
   const mac = deviceQuery.data?.mac ?? cachedDeviceDetail?.device.mac ?? null;
   const { isOffline } = useNetworkBanner();
   const healthPlusQuery = useHealthPlus({ enabled: !isOffline });
+  const { data: demoStatus } = useDemoStatus();
+  const vendorFlags = demoStatus?.vendorFlags ?? healthPlusQuery.data?.vendorFlags;
+  const isDemoOrg = demoStatus?.isDemoOrg ?? false;
   const userRole = useAuthStore((s) => s.user?.role);
   const contractorReadOnly = isContractor(userRole);
   const readOnlyCopy = 'Read-only access for your role.';
@@ -302,6 +306,7 @@ export const DeviceDetailScreen: React.FC = () => {
 
   const historyRequest: HeatPumpHistoryRequest | null = useMemo(() => {
     if (!deviceId || !mac) return null;
+    if (vendorFlags?.heatPumpHistoryDisabled) return null;
     return {
       deviceId,
       from: historyWindow.from,
@@ -310,7 +315,7 @@ export const DeviceDetailScreen: React.FC = () => {
       mode: 'live',
       fields: historyFields,
     };
-  }, [deviceId, historyFields, historyWindow.from, historyWindow.to, mac]);
+  }, [deviceId, historyFields, historyWindow.from, historyWindow.to, mac, vendorFlags?.heatPumpHistoryDisabled]);
 
   const historyMetricOptions = useMemo<HistoryMetricOption[]>(() => {
     const colorForMetric = (key: HeatPumpMetric) => {
@@ -527,8 +532,13 @@ export const DeviceDetailScreen: React.FC = () => {
   const compressorGaugeUpdatedAt = latestCompressorPoint?.timestamp ?? null;
   const vendorHistoryEnabled = useMemo(() => {
     const heatPumpHistoryConfig = healthPlusQuery.data?.heatPumpHistory;
-    return Boolean(heatPumpHistoryConfig?.configured && !heatPumpHistoryConfig?.disabled);
-  }, [healthPlusQuery.data]);
+    const disabledByVendor = vendorFlags?.heatPumpHistoryDisabled ?? heatPumpHistoryConfig?.disabled;
+    return Boolean(heatPumpHistoryConfig?.configured && !disabledByVendor);
+  }, [
+    healthPlusQuery.data?.heatPumpHistory?.configured,
+    healthPlusQuery.data?.heatPumpHistory?.disabled,
+    vendorFlags?.heatPumpHistoryDisabled,
+  ]);
 
   const historyErrorObj = heatPumpHistoryQuery.error;
   const historyStatus = useMemo<HistoryStatus>(() => {
@@ -1324,6 +1334,7 @@ export const DeviceDetailScreen: React.FC = () => {
           points={selectedHistoryPoints}
           errorMessage={historyErrorMessage}
           testID="compressor-current-card"
+          isDemoOrg={isDemoOrg}
           vendorCaption={
             vendorHistoryEnabled
               ? `Live vendor history: ${selectedHistoryOption?.label}${

@@ -30,6 +30,7 @@ type CompressorHistoryCardProps = {
   errorMessage: string;
   testID?: string;
   vendorCaption?: string;
+  isDemoOrg?: boolean;
 };
 
 const formatTick = (range: TimeRange) => (value: Date | number) => {
@@ -58,6 +59,7 @@ const CompressorHistoryCardComponent: React.FC<CompressorHistoryCardProps> = ({
   errorMessage,
   testID,
   vendorCaption,
+  isDemoOrg = false,
 }) => {
   const { theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -104,7 +106,7 @@ const CompressorHistoryCardComponent: React.FC<CompressorHistoryCardProps> = ({
         }`
       : '--';
   const emptyMessage =
-    range === '1h'
+    isDemoOrg && range === '1h'
       ? 'Waiting for live data... Try the last 6h range.'
       : 'No history for this metric in the selected range.';
 

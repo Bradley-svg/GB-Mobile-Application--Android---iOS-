@@ -34,6 +34,7 @@ jest.mock('../api/hooks', () => ({
   useHeatPumpHistory: jest.fn(),
   useWorkOrdersList: jest.fn(),
   useHealthPlus: jest.fn(),
+  useDemoStatus: jest.fn(() => ({ data: { isDemoOrg: false } })),
 }));
 
 jest.mock('../hooks/useNetworkBanner', () => ({
