@@ -47,3 +47,4 @@ export {
 } from './documents/hooks';
 export { useSignedFileUrl } from './files/hooks';
 export { useShareLinks, useCreateShareLink, useRevokeShareLink } from './shareLinks/hooks';
+export { useDemoStatus } from './demo/hooks';

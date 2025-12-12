@@ -109,6 +109,13 @@ describe('CompressorHistoryCard', () => {
     expect(screen.getByText(/No history for this metric in the selected range/i)).toBeTruthy();
   });
 
+  it('nudges to expand range when 1h is empty', () => {
+    renderWithTheme(<CompressorHistoryCard {...baseProps} status="noData" range="1h" />);
+
+    expect(screen.getByText(/Waiting for live data/i)).toBeTruthy();
+    expect(screen.getByText(/last 6h range/i)).toBeTruthy();
+  });
+
   it('renders error state for backend or offline failures', () => {
     renderWithTheme(
       <CompressorHistoryCard {...baseProps} status="offline" errorMessage="Offline error" />

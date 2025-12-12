@@ -9,6 +9,7 @@ import { useOrgStore } from "@/lib/orgStore";
 
 const fetchFleetMock = vi.fn();
 const fetchTelemetryMock = vi.fn();
+let demoStatus = { isDemoOrg: false, heroDeviceId: null as string | null, heroDeviceMac: null as string | null, seededAt: null as string | null };
 
 vi.mock("@/lib/api/fleet", () => ({
   fetchFleet: (...args: unknown[]) => fetchFleetMock(...args),
@@ -16,6 +17,10 @@ vi.mock("@/lib/api/fleet", () => ({
 
 vi.mock("@/lib/api/devices", () => ({
   fetchDeviceTelemetry: (...args: unknown[]) => fetchTelemetryMock(...args),
+}));
+
+vi.mock("@/lib/useDemoStatus", () => ({
+  useDemoStatus: () => ({ data: demoStatus, isLoading: false }),
 }));
 
 const renderWithProviders = (ui: ReactElement) => {
@@ -31,6 +36,7 @@ describe("FleetOverviewPage layout", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useOrgStore.setState({ currentOrgId: "org-1", orgs: [], loading: false });
+    demoStatus = { isDemoOrg: false, heroDeviceId: null, heroDeviceMac: null, seededAt: null };
 
     fetchFleetMock.mockResolvedValue({
       sites: [{ id: "site-1", name: "HQ" }],
@@ -101,5 +107,15 @@ describe("FleetOverviewPage layout", () => {
     await waitFor(() => expect(fetchFleetMock).toHaveBeenCalled());
     await screen.findByText("Heat Pump #0");
     expect(fetchTelemetryMock).toHaveBeenCalledTimes(largeFleet.length);
+  });
+
+  it("shows waiting copy when telemetry is empty in demo mode", async () => {
+    demoStatus = { isDemoOrg: true, heroDeviceId: null, heroDeviceMac: null, seededAt: null };
+    fetchTelemetryMock.mockResolvedValue({ range: "1h", metrics: {} });
+
+    renderWithProviders(<FleetOverviewPage />);
+
+    await waitFor(() => expect(fetchTelemetryMock).toHaveBeenCalled());
+    await screen.findByText(/Waiting for live data/i);
   });
 });

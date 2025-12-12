@@ -92,6 +92,7 @@ jest.mock('../api/hooks', () => {
     useMuteAlert: () => ({ mutateAsync: jest.fn(), isPending: false }),
     useModeCommand: () => ({ mutateAsync: jest.fn(), isPending: false }),
     useSetpointCommand: () => ({ mutateAsync: jest.fn(), isPending: false }),
+    useDemoStatus: () => ({ data: { isDemoOrg: false } }),
   };
 });
 

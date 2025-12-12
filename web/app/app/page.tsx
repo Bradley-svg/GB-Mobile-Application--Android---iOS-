@@ -1,4 +1,4 @@
-ï»¿"use client";
+"use client";
 
 import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
@@ -9,6 +9,7 @@ import { fetchFleet } from "@/lib/api/fleet";
 import { formatRelativeTime } from "@/lib/formatRelativeTime";
 import type { ApiDevice, FleetSearchResult, LastSeenSummary } from "@/lib/types/fleet";
 import type { DeviceTelemetry } from "@/lib/types/telemetry";
+import { useDemoStatus } from "@/lib/useDemoStatus";
 import { useTheme } from "@/theme/ThemeProvider";
 import { useOrgStore } from "@/lib/orgStore";
 import type { StatusKind } from "@/components/ui/StatusPill";
@@ -73,7 +74,7 @@ const deriveStatus = (device: ApiDevice, isOffline: boolean): StatusKind => {
   return "info";
 };
 
-function FleetDeviceCard({ device }: { device: ApiDevice }) {
+function FleetDeviceCard({ device, isDemoMode }: { device: ApiDevice; isDemoMode?: boolean }) {
   const { theme } = useTheme();
   const currentOrgId = useOrgStore((s) => s.currentOrgId);
   const status = (device.status || "").toLowerCase();
@@ -97,6 +98,8 @@ function FleetDeviceCard({ device }: { device: ApiDevice }) {
     mode: pickLatestMetric(telemetry, metricKeys.mode),
     defrost: pickLatestMetric(telemetry, metricKeys.defrost),
   };
+  const telemetryEmpty =
+    telemetry && Object.values(telemetry.metrics || {}).every((points) => (points?.length ?? 0) === 0);
 
   const renderMetric = (label: string, value: MetricValue, suffix = "") => (
     <div
@@ -185,6 +188,10 @@ function FleetDeviceCard({ device }: { device: ApiDevice }) {
           <span style={{ color: theme.colors.error, fontSize: theme.typography.caption.fontSize }}>
             Could not load metrics. Tap to view details.
           </span>
+        ) : telemetryEmpty && isDemoMode ? (
+          <span style={{ color: theme.colors.textSecondary, fontSize: theme.typography.caption.fontSize }}>
+            Waiting for live data...
+          </span>
         ) : null}
       </div>
     </Link>
@@ -232,6 +239,8 @@ export default function FleetOverviewPage() {
   const { theme } = useTheme();
   const currentOrgId = useOrgStore((s) => s.currentOrgId);
   const [selectedSiteId, setSelectedSiteId] = useState<string | "all">("all");
+  const demoStatus = useDemoStatus();
+  const isDemoOrg = demoStatus.data?.isDemoOrg ?? false;
 
   const fleetQuery = useQuery<FleetSearchResult>({
     queryKey: ["fleet", selectedSiteId, currentOrgId],
@@ -361,10 +370,10 @@ export default function FleetOverviewPage() {
           }}
         >
           <Section title="Online" count={onlineDevices.length} status="healthy">
-            <DeviceGrid devices={onlineDevices} />
+            <DeviceGrid devices={onlineDevices} isDemoMode={isDemoOrg} />
           </Section>
           <Section title="Offline" count={offlineDevices.length} status="offline">
-            <DeviceGrid devices={offlineDevices} />
+            <DeviceGrid devices={offlineDevices} isDemoMode={isDemoOrg} />
           </Section>
         </div>
       )}
@@ -372,7 +381,7 @@ export default function FleetOverviewPage() {
   );
 }
 
-function DeviceGrid({ devices }: { devices: ApiDevice[] }) {
+function DeviceGrid({ devices, isDemoMode }: { devices: ApiDevice[]; isDemoMode?: boolean }) {
   const { theme } = useTheme();
   if (devices.length === 0) {
     return (
@@ -390,7 +399,7 @@ function DeviceGrid({ devices }: { devices: ApiDevice[] }) {
       }}
     >
       {devices.map((device) => (
-        <FleetDeviceCard key={device.id} device={device} />
+        <FleetDeviceCard key={device.id} device={device} isDemoMode={isDemoMode} />
       ))}
     </div>
   );
@@ -409,3 +418,4 @@ function Section({ title, count, status, children }: { title: string; count: num
     </div>
   );
 }
+

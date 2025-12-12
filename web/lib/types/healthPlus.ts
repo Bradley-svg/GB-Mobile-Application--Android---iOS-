@@ -1,3 +1,5 @@
+import type { DemoStatus } from "./demo";
+
 export type HealthPlusPayload = {
   ok: boolean;
   env: string;
@@ -76,6 +78,7 @@ export type HealthPlusPayload = {
     writable: boolean;
     latencyMs: number | null;
   };
+  demo?: DemoStatus;
   alertsEngine: {
     lastRunAt: string | null;
     lastDurationMs: number | null;

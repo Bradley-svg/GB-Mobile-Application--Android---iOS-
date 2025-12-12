@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react-native';
 import { FlatList } from 'react-native';
 import { DashboardScreen } from '../screens/Dashboard/DashboardScreen';
-import { useAlerts, useSites } from '../api/hooks';
+import { useAlerts, useDemoStatus, useSites } from '../api/hooks';
 import { useNetworkBanner } from '../hooks/useNetworkBanner';
 import { loadJsonWithMetadata } from '../utils/storage';
 
@@ -22,6 +22,7 @@ describe('Dashboard large list rendering', () => {
     (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: false });
     (loadJsonWithMetadata as jest.Mock).mockResolvedValue(null);
     (useAlerts as jest.Mock).mockReturnValue({ data: [], isLoading: false, isError: false });
+    (useDemoStatus as jest.Mock).mockReturnValue({ data: { isDemoOrg: false } });
   });
 
   it('renders a large list of sites without mounting every item', () => {
@@ -110,5 +111,28 @@ describe('Dashboard large list rendering', () => {
 
     expect(screen.getAllByText(/Online/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Offline/i).length).toBeGreaterThan(0);
+  });
+
+  it('shows demo pill when viewing demo org', () => {
+    (useDemoStatus as jest.Mock).mockReturnValue({ data: { isDemoOrg: true } });
+    (useSites as jest.Mock).mockReturnValue({
+      data: [
+        {
+          id: 'site-demo',
+          name: 'Demo Site',
+          city: 'Demo City',
+          status: 'online',
+          last_seen_at: '2025-01-01T00:00:00.000Z',
+          health: 'healthy',
+        },
+      ],
+      isLoading: false,
+      isError: false,
+      refetch: jest.fn(),
+    });
+
+    render(<DashboardScreen />);
+
+    expect(screen.getByTestId('dashboard-demo-pill')).toBeTruthy();
   });
 });

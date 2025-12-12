@@ -17,6 +17,7 @@ jest.mock('../hooks/useNetworkBanner', () => ({
 jest.mock('../api/hooks', () => ({
   useSites: () => ({ data: [], isLoading: false, isFetching: false, isError: false, refetch: jest.fn() }),
   useAlerts: () => ({ data: [] }),
+  useDemoStatus: () => ({ data: { isDemoOrg: false } }),
 }));
 
 jest.mock('../navigation/RootNavigator', () => {

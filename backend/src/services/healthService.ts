@@ -10,6 +10,7 @@ import { getHeatPumpHistoryConfig } from '../integrations/heatPumpHistoryClient'
 import { runPushHealthCheck, type PushHealthStatus } from './pushService';
 import { type SystemStatus, getSystemStatus, getSystemStatusByKey } from './statusService';
 import { getVirusScannerStatus } from './virusScanner';
+import { type DemoStatus } from './demoService';
 
 const MQTT_INGEST_STALE_MS = 5 * 60 * 1000;
 const MQTT_ERROR_WINDOW_MS = 5 * 60 * 1000;
@@ -119,6 +120,12 @@ export type HealthPlusPayload = {
     avgWorkOrdersPerDevice: number;
     slowQueriesLastHour: number | null;
   };
+  demo?: {
+    isDemoOrg: boolean;
+    heroDeviceId: string | null;
+    heroDeviceMac: string | null;
+    seededAt: string | null;
+  };
   alertsEngine: {
     lastRunAt: string | null;
     lastDurationMs: number | null;
@@ -138,7 +145,14 @@ export type HealthPlusResult = {
   error?: unknown;
 };
 
-export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusResult> {
+export type HealthPlusOptions = {
+  demoStatus?: DemoStatus | null;
+};
+
+export async function getHealthPlus(
+  now: Date = new Date(),
+  options: HealthPlusOptions = {}
+): Promise<HealthPlusResult> {
   const env = process.env.NODE_ENV || 'development';
   const version = getAppVersion();
   const vendorDisableCandidates = [
@@ -165,6 +179,7 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
   const heatPumpConfig = getHeatPumpHistoryConfig();
   const heatPumpConfigured = heatPumpConfig.configured;
   heatPumpHistoryDisabled = heatPumpConfig.disabled ?? heatPumpHistoryDisabled;
+  const demoStatus = options.demoStatus;
   const antivirusCheckStarted = performance.now();
   const antivirusStatus = getVirusScannerStatus();
   const antivirusLatencyMs = antivirusStatus.enabled ? performance.now() - antivirusCheckStarted : null;
@@ -401,6 +416,15 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
       alertsEngine,
     };
 
+    if (demoStatus?.isDemoOrg) {
+      body.demo = {
+        isDemoOrg: true,
+        heroDeviceId: demoStatus.heroDeviceId,
+        heroDeviceMac: demoStatus.heroDeviceMac,
+        seededAt: toIso(demoStatus.seededAt),
+      };
+    }
+
     try {
       const perfRes = await query<{
         open_count: string;
@@ -545,6 +569,15 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
         triggered: null,
       },
     };
+
+    if (demoStatus?.isDemoOrg) {
+      fallback.demo = {
+        isDemoOrg: true,
+        heroDeviceId: demoStatus.heroDeviceId,
+        heroDeviceMac: demoStatus.heroDeviceMac,
+        seededAt: toIso(demoStatus.seededAt),
+      };
+    }
 
     return { status: 500, body: fallback, error };
   }

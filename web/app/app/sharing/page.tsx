@@ -7,6 +7,7 @@ import { createShareLink, listShareLinks, revokeShareLink } from "@/lib/api/shar
 import { fetchFleet } from "@/lib/api/fleet";
 import { api } from "@/lib/api/httpClient";
 import { WEB_API_BASE_URL } from "@/config/env";
+import { useDemoStatus } from "@/lib/useDemoStatus";
 import { useOrgStore } from "@/lib/orgStore";
 import { useUserRole } from "@/lib/useUserRole";
 import type { ShareLink, ShareLinkStatus } from "@/lib/types/shareLinks";
@@ -51,7 +52,10 @@ export default function SharingPage() {
   const [deviceId, setDeviceId] = useState<string>("");
   const [expiryDays, setExpiryDays] = useState<number>(7);
   const [banner, setBanner] = useState<{ tone: "info" | "warning" | "error"; message: string } | null>(null);
+  const demoStatus = useDemoStatus();
+  const isDemoOrg = demoStatus.data?.isDemoOrg ?? false;
   const canManage = isAdmin || isOwner || isFacilities;
+  const confirmDemoAction = (action: string) => !isDemoOrg || window.confirm(`Demo mode: ${action}`);
 
   const fleetQuery = useQuery({
     queryKey: ["fleet", currentOrgId, "sharing"],
@@ -123,6 +127,9 @@ export default function SharingPage() {
       setBanner({ tone: "warning", message: "Select a site or device to create a link." });
       return;
     }
+    if (!confirmDemoAction("Create this share link?")) {
+      return;
+    }
     createMutation.mutate();
   };
 
@@ -130,6 +137,9 @@ export default function SharingPage() {
     if (status !== "active") return;
     if (!canManage) {
       setBanner({ tone: "warning", message: "You do not have permission to revoke share links." });
+      return;
+    }
+    if (!confirmDemoAction("Revoke this share link?")) {
       return;
     }
     revokeMutation.mutate(id);

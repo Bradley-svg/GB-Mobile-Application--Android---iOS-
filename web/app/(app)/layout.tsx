@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AppShell, Badge, Button } from "@/components/ui";
+import { DemoModeBadge } from "@/components/DemoModeBadge";
 import { me } from "@/lib/api/authApi";
 import { useAuthStore } from "@/lib/authStore";
 import { useOrgRoleAwareLoader, useOrgStore } from "@/lib/orgStore";
@@ -313,6 +314,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           ? null
           : (
             <div style={{ display: "flex", alignItems: "center", gap: theme.spacing.sm }}>
+              <DemoModeBadge enabled={Boolean(accessToken && user)} />
               <Badge tone="brand">{roleLabel}</Badge>
               <div
                 style={{

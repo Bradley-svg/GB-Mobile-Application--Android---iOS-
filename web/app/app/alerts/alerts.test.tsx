@@ -10,6 +10,7 @@ const listAlertsMock = vi.fn();
 const getAlertMock = vi.fn();
 const listRulesForDeviceMock = vi.fn();
 const listRulesForSiteMock = vi.fn();
+let demoStatus = { isDemoOrg: false, heroDeviceId: null as string | null, heroDeviceMac: null as string | null, seededAt: null as string | null };
 
 vi.mock("@/lib/api/alerts", () => ({
   listAlerts: (...args: unknown[]) => listAlertsMock(...args),
@@ -31,6 +32,10 @@ let mockRole = {
 
 vi.mock("@/lib/useUserRole", () => ({
   useUserRole: () => mockRole,
+}));
+
+vi.mock("@/lib/useDemoStatus", () => ({
+  useDemoStatus: () => ({ data: demoStatus, isLoading: false }),
 }));
 
 const mockPush = vi.fn();
@@ -79,6 +84,7 @@ describe("Alerts pages", () => {
       isFacilities: false,
       isContractor: false,
     };
+    demoStatus = { isDemoOrg: false, heroDeviceId: null, heroDeviceMac: null, seededAt: null };
     listAlertsMock.mockReset();
     getAlertMock.mockReset();
     listRulesForDeviceMock.mockReset();

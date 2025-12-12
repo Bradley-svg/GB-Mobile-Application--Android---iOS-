@@ -7,12 +7,17 @@ import {
   useUpdateNotificationPreferencesMutation,
 } from '../api/preferences/hooks';
 import { getNotificationPermissionStatus } from '../hooks/usePushRegistration';
+import { useDemoStatus } from '../api/hooks';
 import { useAuthStore } from '../store/authStore';
 
 jest.mock('../api/preferences/hooks', () => ({
   DEFAULT_NOTIFICATION_PREFERENCES: { alertsEnabled: true },
   useNotificationPreferencesQuery: jest.fn(),
   useUpdateNotificationPreferencesMutation: jest.fn(),
+}));
+
+jest.mock('../api/hooks', () => ({
+  useDemoStatus: jest.fn(() => ({ data: { isDemoOrg: false } })),
 }));
 
 jest.mock('../hooks/usePushRegistration', () => ({
@@ -35,6 +40,7 @@ describe('ProfileScreen notifications', () => {
     jest.clearAllMocks();
     (useNavigation as jest.Mock).mockReturnValue({ navigate: navigateMock });
     navigateMock.mockReset();
+    (useDemoStatus as jest.Mock).mockReturnValue({ data: { isDemoOrg: false } });
     useAuthStore.setState({
       user: {
         id: 'user-1',

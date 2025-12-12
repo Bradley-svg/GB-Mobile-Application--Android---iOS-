@@ -131,9 +131,12 @@ async function seedBaseData(client: Client) {
 
   await client.query(
     `
-    insert into organisations (id, name)
-    values ($1, $2)
-    on conflict (id) do nothing
+    insert into organisations (id, name, is_demo, demo_seeded_at)
+    values ($1, $2, true, now())
+    on conflict (id) do update
+      set name = excluded.name,
+          is_demo = excluded.is_demo,
+          demo_seeded_at = coalesce(organisations.demo_seeded_at, excluded.demo_seeded_at)
   `,
     [DEFAULT_IDS.organisation, 'Greenbro Demo Org']
   );
@@ -167,8 +170,8 @@ async function seedBaseData(client: Client) {
 
   await client.query(
     `
-    insert into devices (id, site_id, name, type, external_id, mac, status, last_seen_at, controller)
-    values ($1, $2, $3, $4, $5, $6, $7, now(), $8)
+    insert into devices (id, site_id, name, type, external_id, mac, status, last_seen_at, controller, is_demo, is_demo_hero)
+    values ($1, $2, $3, $4, $5, $6, $7, now(), $8, true, true)
     on conflict (id) do nothing
   `,
     [

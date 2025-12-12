@@ -7,6 +7,7 @@ import { Badge, Button, Card } from "@/components/ui";
 import { requestSignedFileUrl } from "@/lib/api/files";
 import { getWorkOrder, updateWorkOrderStatus } from "@/lib/api/workOrders";
 import { formatRelativeTime } from "@/lib/formatRelativeTime";
+import { useDemoStatus } from "@/lib/useDemoStatus";
 import { useOrgStore } from "@/lib/orgStore";
 import { useUserRole } from "@/lib/useUserRole";
 import type { WorkOrderAttachment, WorkOrderDetail, WorkOrderStatus } from "@/lib/types/workOrders";
@@ -355,6 +356,8 @@ export default function WorkOrderDetailPage() {
   const { isContractor, isAdmin, isOwner, isFacilities } = useUserRole();
   const queryClient = useQueryClient();
   const [actionError, setActionError] = useState<string | null>(null);
+  const demoStatus = useDemoStatus();
+  const isDemoOrg = demoStatus.data?.isDemoOrg ?? false;
 
   const workOrderQuery = useQuery({
     queryKey: ["work-order", workOrderId, currentOrgId],
@@ -376,6 +379,11 @@ export default function WorkOrderDetailPage() {
     },
   });
 
+  const confirmDemoChange = (label: string) => {
+    if (!isDemoOrg) return true;
+    return window.confirm(`Demo mode: ${label}`);
+  };
+
   const canEdit = !isContractor;
   const canChangeStatus = canEdit && (isAdmin || isOwner || isFacilities);
   const canBypassScan = isAdmin || isOwner || isFacilities;
@@ -383,6 +391,9 @@ export default function WorkOrderDetailPage() {
   const handleStatusChange = async (status: WorkOrderStatus) => {
     if (!canChangeStatus) {
       setActionError("Status changes are limited to admin, facilities, or owner roles.");
+      return;
+    }
+    if (!confirmDemoChange("Update work order status?")) {
       return;
     }
     setActionError(null);
@@ -399,6 +410,9 @@ export default function WorkOrderDetailPage() {
       setActionError("Notes are read-only for contractors.");
       return;
     }
+    if (!confirmDemoChange("Save work order notes?")) {
+      return;
+    }
     setActionError(null);
     try {
       await updateMutation.mutateAsync({ description: notes });
@@ -411,6 +425,9 @@ export default function WorkOrderDetailPage() {
   const handleSaveSla = async (value: string | null) => {
     if (!canEdit) {
       setActionError("SLA fields are read-only for contractors.");
+      return;
+    }
+    if (!confirmDemoChange("Update the SLA target?")) {
       return;
     }
     setActionError(null);

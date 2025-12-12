@@ -19,6 +19,9 @@ const loggerChildSpy = vi.fn(() => ({
   error: loggerErrorSpy,
   child: loggerChildSpy,
 }));
+const verifyAccessTokenMock = vi.fn();
+const getUserContextMock = vi.fn();
+const getDemoStatusForOrgMock = vi.fn();
 
 vi.mock('../src/config/db', () => ({
   query: (...args: unknown[]) => queryMock(...(args as [string, unknown[]?])),
@@ -46,6 +49,19 @@ vi.mock('../src/services/statusService', () => ({
 }));
 vi.mock('../src/services/virusScanner', () => ({
   getVirusScannerStatus: (...args: unknown[]) => getVirusScannerStatusMock(...args),
+}));
+vi.mock('../src/services/authService', () => ({
+  verifyAccessToken: (...args: unknown[]) => verifyAccessTokenMock(...(args as [string])),
+}));
+vi.mock('../src/services/userService', () => ({
+  getUserContext: (...args: unknown[]) => getUserContextMock(...(args as [string])),
+  requireOrganisationId: (user: { organisation_id: string | null }) => {
+    if (!user.organisation_id) throw new Error('USER_ORG_MISSING');
+    return user.organisation_id;
+  },
+}));
+vi.mock('../src/services/demoService', () => ({
+  getDemoStatusForOrg: (...args: unknown[]) => getDemoStatusForOrgMock(...(args as [string])),
 }));
 
 let app: Express;
@@ -122,10 +138,17 @@ beforeEach(() => {
   getSystemStatusMock.mockReset();
   getSystemStatusByKeyMock.mockReset();
   getVirusScannerStatusMock.mockReset();
+  verifyAccessTokenMock.mockReset();
+  getUserContextMock.mockReset();
+  getDemoStatusForOrgMock.mockReset();
   delete process.env.HEATPUMP_HISTORY_URL;
   delete process.env.HEAT_PUMP_HISTORY_URL;
   delete process.env.HEATPUMP_HISTORY_API_KEY;
   delete process.env.HEAT_PUMP_HISTORY_API_KEY;
+  delete process.env.MQTT_DISABLED;
+  delete process.env.CONTROL_API_DISABLED;
+  delete process.env.HEATPUMP_HISTORY_DISABLED;
+  delete process.env.PUSH_NOTIFICATIONS_DISABLED;
 
   getControlStatusMock.mockReturnValue(defaultControl);
   getMqttHealthMock.mockReturnValue(defaultMqtt);
@@ -139,6 +162,16 @@ beforeEach(() => {
     lastRunAt: null,
     lastResult: null,
     lastError: null,
+  });
+  verifyAccessTokenMock.mockImplementation(() => {
+    throw new Error('NO_TOKEN');
+  });
+  getUserContextMock.mockResolvedValue(null);
+  getDemoStatusForOrgMock.mockResolvedValue({
+    isDemoOrg: false,
+    heroDeviceId: null,
+    heroDeviceMac: null,
+    seededAt: null,
   });
 });
 
@@ -454,5 +487,37 @@ describe('GET /health-plus antivirus status', () => {
       latencyMs: expect.any(Number),
     });
     expect(res.body.ok).toBe(false);
+  });
+});
+
+describe('GET /health-plus demo metadata', () => {
+  it('includes demo block when the caller belongs to a demo org', async () => {
+    verifyAccessTokenMock.mockReturnValue({ userId: 'user-demo', role: 'admin' });
+    getUserContextMock.mockResolvedValue({
+      id: 'user-demo',
+      email: 'demo@example.com',
+      name: 'Demo User',
+      organisation_id: 'org-demo',
+      role: 'admin',
+    });
+    getDemoStatusForOrgMock.mockResolvedValue({
+      isDemoOrg: true,
+      heroDeviceId: 'device-hero',
+      heroDeviceMac: 'AA:BB:CC:DD:EE:FF',
+      seededAt: new Date('2025-01-02T00:00:00.000Z'),
+    });
+
+    const res = await request(app)
+      .get('/health-plus')
+      .set('Authorization', 'Bearer demo-token')
+      .expect(200);
+
+    expect(getDemoStatusForOrgMock).toHaveBeenCalledWith('org-demo');
+    expect(res.body.demo).toEqual({
+      isDemoOrg: true,
+      heroDeviceId: 'device-hero',
+      heroDeviceMac: 'AA:BB:CC:DD:EE:FF',
+      seededAt: '2025-01-02T00:00:00.000Z',
+    });
   });
 });

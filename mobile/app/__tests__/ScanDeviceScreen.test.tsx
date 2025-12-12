@@ -18,6 +18,7 @@ jest.mock('../api/client', () => ({
 jest.mock('../api/hooks', () => ({
   useSites: jest.fn(),
   useAlerts: jest.fn(),
+  useDemoStatus: jest.fn(() => ({ data: { isDemoOrg: false } })),
 }));
 
 jest.mock('../hooks/useNetworkBanner', () => ({

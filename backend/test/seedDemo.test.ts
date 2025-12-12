@@ -59,5 +59,18 @@ describe('seed-demo script', () => {
       [DEMO_DEFAULTS.ids.org]
     );
     expect(workOrders.rows[0].count).toBeGreaterThanOrEqual(3);
+
+    const orgRow = await client.query(
+      'select is_demo, demo_seeded_at from organisations where id = $1',
+      [DEMO_DEFAULTS.ids.org]
+    );
+    expect(orgRow.rows[0]?.is_demo).toBe(true);
+    expect(orgRow.rows[0]?.demo_seeded_at).toBeTruthy();
+
+    const heroRow = await client.query(
+      'select is_demo, is_demo_hero from devices where id = $1',
+      [heroDeviceId]
+    );
+    expect(heroRow.rows[0]).toMatchObject({ is_demo: true, is_demo_hero: true });
   });
 });

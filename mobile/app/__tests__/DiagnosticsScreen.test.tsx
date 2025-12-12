@@ -2,10 +2,15 @@ import React from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react-native';
 import { DiagnosticsScreen } from '../screens/Profile/DiagnosticsScreen';
 import { useHealthPlus } from '../api/health/hooks';
+import { useDemoStatus } from '../api/hooks';
 import { useAuthStore } from '../store/authStore';
 
 jest.mock('../api/health/hooks', () => ({
   useHealthPlus: jest.fn(),
+}));
+
+jest.mock('../api/hooks', () => ({
+  useDemoStatus: jest.fn(() => ({ data: { isDemoOrg: false } })),
 }));
 
 jest.mock('expo-constants', () => ({
@@ -21,6 +26,7 @@ jest.mock('expo-device', () => ({
 
 describe('DiagnosticsScreen', () => {
   beforeEach(() => {
+    (useDemoStatus as jest.Mock).mockReturnValue({ data: { isDemoOrg: false } });
     useAuthStore.setState((state) => ({
       ...state,
       user: { id: 'user-1', email: 'u@example.com', name: 'User One', organisation_id: null },

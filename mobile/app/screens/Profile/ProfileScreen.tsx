@@ -16,6 +16,7 @@ import { Screen, Card, PrimaryButton, IconButton, StatusPill } from '../../compo
 import { getNotificationPermissionStatus } from '../../hooks/usePushRegistration';
 import { useNotificationPreferencesQuery, useUpdateNotificationPreferencesMutation } from '../../api/preferences/hooks';
 import { DEFAULT_NOTIFICATION_PREFERENCES } from '../../api/preferences/storage';
+import { useDemoStatus } from '../../api/hooks';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppTheme } from '../../theme/types';
@@ -87,6 +88,8 @@ export const ProfileScreen: React.FC = () => {
     mode === 'system'
       ? `System (${resolvedScheme})`
       : mode.charAt(0).toUpperCase() + mode.slice(1);
+  const { data: demoStatus } = useDemoStatus();
+  const isDemoOrg = demoStatus?.isDemoOrg ?? false;
 
   const onToggleNotifications = () => {
     if (!user?.id || toggleDisabled) return;
@@ -115,6 +118,14 @@ export const ProfileScreen: React.FC = () => {
           <Text style={[typography.body, styles.muted]} testID="profile-email">
             {user?.email ?? ''}
           </Text>
+          {isDemoOrg ? (
+            <StatusPill
+              label="Demo mode"
+              tone="muted"
+              testID="profile-demo-pill"
+              style={{ marginTop: spacing.xs, alignSelf: 'flex-start' }}
+            />
+          ) : null}
         </View>
         <IconButton icon={<Ionicons name="settings-outline" size={20} color={colors.brandGrey} />} />
       </Card>

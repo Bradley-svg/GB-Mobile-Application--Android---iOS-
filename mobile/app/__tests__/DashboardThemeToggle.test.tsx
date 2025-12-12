@@ -16,6 +16,7 @@ jest.mock('react-native', () => {
 jest.mock('../api/hooks', () => ({
   useSites: jest.fn(() => ({ data: [], isLoading: false, isError: false, refetch: jest.fn() })),
   useAlerts: jest.fn(() => ({ data: [], isLoading: false, isError: false })),
+  useDemoStatus: jest.fn(() => ({ data: { isDemoOrg: false } })),
 }));
 
 jest.mock('../hooks/useNetworkBanner', () => ({

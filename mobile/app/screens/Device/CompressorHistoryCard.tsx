@@ -103,6 +103,10 @@ const CompressorHistoryCardComponent: React.FC<CompressorHistoryCardProps> = ({
           selectedMetric.unit ? ` ${selectedMetric.unit}` : ''
         }`
       : '--';
+  const emptyMessage =
+    range === '1h'
+      ? 'Waiting for live data... Try the last 6h range.'
+      : 'No history for this metric in the selected range.';
 
   return (
     <Card style={styles.card} testID={testID ?? 'compressor-history-card'}>
@@ -153,7 +157,7 @@ const CompressorHistoryCardComponent: React.FC<CompressorHistoryCardProps> = ({
         />
       ) : isNoData ? (
         <EmptyState
-          message="No history for this metric in the selected range."
+          message={emptyMessage}
           variant="compact"
           testID="compressor-history-empty"
         />

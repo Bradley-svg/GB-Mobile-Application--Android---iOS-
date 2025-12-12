@@ -19,6 +19,7 @@ import { fetchDevice, fetchDeviceTelemetry } from "@/lib/api/devices";
 import { fetchHealthPlus } from "@/lib/api/healthPlus";
 import { fetchHeatPumpHistory } from "@/lib/api/heatPumpHistory";
 import { formatRelativeTime } from "@/lib/formatRelativeTime";
+import { useDemoStatus } from "@/lib/useDemoStatus";
 import type { ApiDevice, LastSeenSummary } from "@/lib/types/fleet";
 import type { HeatPumpHistoryResponse, HeatPumpMetric } from "@/lib/types/history";
 import type { DeviceTelemetry, TimeRange } from "@/lib/types/telemetry";
@@ -219,6 +220,8 @@ export default function DeviceDetailPage() {
   const [telemetryRange, setTelemetryRange] = useState<TimeRange>(initialRange);
   const [historyRange, setHistoryRange] = useState<TimeRange>(initialRange);
   const [historyMetric, setHistoryMetric] = useState<HeatPumpMetric>("compressor_current");
+  const demoStatus = useDemoStatus();
+  const isDemoOrg = demoStatus.data?.isDemoOrg ?? false;
 
   const deviceQuery = useQuery({
     queryKey: ["device", deviceId, currentOrgId],
@@ -265,6 +268,8 @@ export default function DeviceDetailPage() {
 
   const device: ApiDevice | undefined = deviceQuery.data;
   const telemetry = telemetryQuery.data;
+  const telemetryEmpty =
+    telemetry && Object.values(telemetry.metrics || {}).every((points) => (points?.length ?? 0) === 0);
 
   const isOffline =
     device?.health === "offline" || device?.last_seen?.isOffline || (device?.status || "").toLowerCase().includes("off");
@@ -370,7 +375,9 @@ export default function DeviceDetailPage() {
             </div>
           ) : chartData.length === 0 ? (
             <div style={chartShellStyle}>
-              <p style={{ color: theme.colors.textSecondary, margin: 0 }}>No telemetry data in this range.</p>
+              <p style={{ color: theme.colors.textSecondary, margin: 0 }}>
+                {isDemoOrg ? "Waiting for live data..." : "No telemetry data in this range."}
+              </p>
             </div>
           ) : (
             <div style={{ width: "100%", height: CHART_HEIGHT }}>
@@ -459,7 +466,9 @@ export default function DeviceDetailPage() {
             </div>
           ) : historyPoints.length === 0 ? (
             <div style={chartShellStyle}>
-              <p style={{ color: theme.colors.textSecondary, margin: 0 }}>No history points for this metric.</p>
+              <p style={{ color: theme.colors.textSecondary, margin: 0 }}>
+                {isDemoOrg ? "Waiting for live data... Try the last 6h range." : "No history points for this metric."}
+              </p>
             </div>
           ) : (
             <div style={{ width: "100%", height: CHART_HEIGHT }}>

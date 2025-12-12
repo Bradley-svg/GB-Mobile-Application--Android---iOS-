@@ -12,6 +12,7 @@ const fetchDeviceMock = vi.fn();
 const fetchTelemetryMock = vi.fn();
 const fetchHistoryMock = vi.fn();
 const fetchHealthMock = vi.fn();
+let demoStatus = { isDemoOrg: false, heroDeviceId: null as string | null, heroDeviceMac: null as string | null, seededAt: null as string | null };
 
 vi.mock("@/lib/api/devices", () => ({
   fetchDevice: (...args: unknown[]) => fetchDeviceMock(...args),
@@ -24,6 +25,10 @@ vi.mock("@/lib/api/heatPumpHistory", () => ({
 
 vi.mock("@/lib/api/healthPlus", () => ({
   fetchHealthPlus: (...args: unknown[]) => fetchHealthMock(...args),
+}));
+
+vi.mock("@/lib/useDemoStatus", () => ({
+  useDemoStatus: () => ({ data: demoStatus, isLoading: false }),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -61,6 +66,7 @@ describe("DeviceDetailPage large fixtures", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useOrgStore.setState({ currentOrgId: "org-1", orgs: [], loading: false });
+    demoStatus = { isDemoOrg: false, heroDeviceId: null, heroDeviceMac: null, seededAt: null };
 
     const device: ApiDevice = {
       id: "device-1",
@@ -157,5 +163,20 @@ describe("DeviceDetailPage large fixtures", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /history/i }));
     await waitFor(() => expect(fetchHistoryMock).toHaveBeenCalledTimes(1));
+  });
+
+  it("shows waiting copy when telemetry and history are empty in demo mode", async () => {
+    demoStatus = { isDemoOrg: true, heroDeviceId: null, heroDeviceMac: null, seededAt: null };
+    fetchTelemetryMock.mockResolvedValueOnce({ range: "1h", metrics: {} });
+    fetchHistoryMock.mockResolvedValueOnce({ series: [] });
+
+    renderWithProviders();
+
+    await screen.findByText("Heat Pump Large");
+    fireEvent.click(screen.getByRole("button", { name: /metrics/i }));
+    await screen.findByText(/Waiting for live data/i);
+
+    fireEvent.click(screen.getByRole("button", { name: /history/i }));
+    await screen.findByText(/Waiting for live data/i);
   });
 });

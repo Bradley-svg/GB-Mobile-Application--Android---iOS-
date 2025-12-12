@@ -720,6 +720,7 @@ export async function seedDemo(options: SeedDemoOptions = {}) {
   await client.connect();
 
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
+  const seededAt = new Date();
 
   try {
     await client.query('begin');
@@ -731,11 +732,14 @@ export async function seedDemo(options: SeedDemoOptions = {}) {
 
     await client.query(
       `
-        insert into organisations (id, name)
-        values ($1, $2)
-        on conflict (id) do update set name = excluded.name
+        insert into organisations (id, name, is_demo, demo_seeded_at)
+        values ($1, $2, true, $3)
+        on conflict (id) do update
+          set name = excluded.name,
+              is_demo = excluded.is_demo,
+              demo_seeded_at = excluded.demo_seeded_at
       `,
-      [DEFAULT_IDS.org, 'Demo Organisation']
+      [DEFAULT_IDS.org, 'Demo Organisation', seededAt]
     );
 
     const demoUsers = [
@@ -824,15 +828,17 @@ export async function seedDemo(options: SeedDemoOptions = {}) {
 
     await client.query(
       `
-        insert into devices (id, site_id, name, type, external_id, mac, status, last_seen_at, controller, firmware_version, connectivity_status)
-        values ($1, $2, $3, $4, $5, $6, $7, now(), $8, $9, $10)
+        insert into devices (id, site_id, name, type, external_id, mac, status, last_seen_at, controller, firmware_version, connectivity_status, is_demo, is_demo_hero)
+        values ($1, $2, $3, $4, $5, $6, $7, now(), $8, $9, $10, true, true)
         on conflict (id) do update
           set mac = excluded.mac,
               status = excluded.status,
               last_seen_at = excluded.last_seen_at,
               controller = excluded.controller,
               firmware_version = excluded.firmware_version,
-              connectivity_status = excluded.connectivity_status
+              connectivity_status = excluded.connectivity_status,
+              is_demo = excluded.is_demo,
+              is_demo_hero = excluded.is_demo_hero
       `,
       [
         DEFAULT_IDS.deviceHero,
@@ -850,15 +856,17 @@ export async function seedDemo(options: SeedDemoOptions = {}) {
 
     await client.query(
       `
-        insert into devices (id, site_id, name, type, external_id, mac, status, last_seen_at, controller, firmware_version, connectivity_status)
-        values ($1, $2, $3, $4, $5, $6, $7, now(), $8, $9, $10)
+        insert into devices (id, site_id, name, type, external_id, mac, status, last_seen_at, controller, firmware_version, connectivity_status, is_demo, is_demo_hero)
+        values ($1, $2, $3, $4, $5, $6, $7, now(), $8, $9, $10, true, false)
         on conflict (id) do update
           set mac = excluded.mac,
               status = excluded.status,
               last_seen_at = excluded.last_seen_at,
               controller = excluded.controller,
               firmware_version = excluded.firmware_version,
-              connectivity_status = excluded.connectivity_status
+              connectivity_status = excluded.connectivity_status,
+              is_demo = excluded.is_demo,
+              is_demo_hero = excluded.is_demo_hero
       `,
       [
         DEFAULT_IDS.deviceSecondary,

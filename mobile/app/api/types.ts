@@ -170,6 +170,13 @@ export type TwoFactorStatusResponse = {
   enabled: boolean;
 };
 
+export type DemoStatus = {
+  isDemoOrg: boolean;
+  heroDeviceId: string | null;
+  heroDeviceMac: string | null;
+  seededAt: string | null;
+};
+
 export type ControlFailureReason =
   | 'ABOVE_MAX'
   | 'BELOW_MIN'
@@ -256,6 +263,7 @@ export type HealthPlusPayload = {
     evaluated: number | null;
     triggered: number | null;
   };
+  demo?: DemoStatus;
 };
 
 export type NotificationPreferences = {

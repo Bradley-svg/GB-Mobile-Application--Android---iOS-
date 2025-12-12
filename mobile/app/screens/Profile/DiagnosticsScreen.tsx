@@ -7,6 +7,7 @@ import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen, Card, ErrorCard, GlobalErrorBanner, PrimaryButton, StatusPill } from '../../components';
 import { useHealthPlus } from '../../api/health/hooks';
+import { useDemoStatus } from '../../api/hooks';
 import { api } from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
 import { useAppTheme } from '../../theme/useAppTheme';
@@ -62,6 +63,7 @@ const formatTime = (iso?: string | null) => (iso ? new Date(iso).toLocaleString(
 
 export const DiagnosticsScreen: React.FC = () => {
   const healthQuery = useHealthPlus();
+  const { data: demoStatus } = useDemoStatus();
   const userId = useAuthStore((s) => s.user?.id);
   const { theme } = useAppTheme();
   const { colors, spacing } = theme;
@@ -70,6 +72,7 @@ export const DiagnosticsScreen: React.FC = () => {
   const [pushTestLoading, setPushTestLoading] = useState(false);
   const [pushTestMessage, setPushTestMessage] = useState<string | null>(null);
   const [pushTestError, setPushTestError] = useState<string | null>(null);
+  const isDemoOrg = demoStatus?.isDemoOrg ?? false;
 
   const version = Constants.expoConfig?.version ?? 'Unknown';
   const apiUrl =
@@ -85,6 +88,12 @@ export const DiagnosticsScreen: React.FC = () => {
     [healthQuery.data, healthQuery.dataUpdatedAt]
   );
   const healthStatusLabel = healthQuery.data?.ok ? 'Healthy' : 'Issues detected';
+  const pushDisabled = healthQuery.data?.push?.disabled ?? false;
+  const pushDisabledLabel = pushDisabled
+    ? isDemoOrg
+      ? 'Push is disabled in demo env.'
+      : 'Push is disabled in this environment.'
+    : null;
 
   const handleCopy = async () => {
     if (!healthQuery.data) return;
@@ -115,7 +124,7 @@ export const DiagnosticsScreen: React.FC = () => {
           'No device registered for push; open the app on your phone and ensure notifications are allowed.'
         );
       } else if (code === 'PUSH_DISABLED') {
-        setPushTestError('Push is disabled in this environment.');
+        setPushTestError(isDemoOrg ? 'Push is disabled in demo env.' : 'Push is disabled in this environment.');
       } else if (code === 'PUSH_NOT_CONFIGURED') {
         setPushTestError('Push is not configured for this environment.');
       } else {
@@ -374,15 +383,23 @@ export const DiagnosticsScreen: React.FC = () => {
             onRetry={handleSendTestPush}
           />
         ) : null}
+        {pushDisabledLabel ? (
+          <View style={styles.demoNotice} testID="diagnostics-push-demo-disabled">
+            <Ionicons name="warning-outline" size={16} color={colors.warning} style={{ marginRight: spacing.xs }} />
+            <Text style={[typography.caption, styles.warningText]}>{pushDisabledLabel}</Text>
+          </View>
+        ) : null}
         {pushTestMessage ? (
           <View style={styles.successNotice} testID="diagnostics-push-success">
             <Text style={[typography.caption, styles.successText]}>{pushTestMessage}</Text>
           </View>
         ) : null}
         <PrimaryButton
-          label={pushTestLoading ? 'Sending...' : 'Send test notification'}
+          label={
+            pushDisabled ? 'Push disabled' : pushTestLoading ? 'Sending...' : 'Send test notification'
+          }
           onPress={handleSendTestPush}
-          disabled={pushTestLoading}
+          disabled={pushTestLoading || pushDisabled}
           testID="diagnostics-push-button"
           style={styles.pushButton}
         />
@@ -479,8 +496,22 @@ const createStyles = (theme: AppTheme) =>
       marginTop: theme.spacing.sm,
       marginBottom: theme.spacing.md,
     },
+    demoNotice: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: theme.spacing.sm,
+      borderRadius: theme.radius.md,
+      backgroundColor: theme.colors.warningSoft,
+      borderWidth: 1,
+      borderColor: theme.colors.warning,
+      marginTop: theme.spacing.sm,
+      marginBottom: theme.spacing.sm,
+    },
     successText: {
       color: theme.colors.success,
+    },
+    warningText: {
+      color: theme.colors.warning,
     },
     pushButton: {
       marginTop: theme.spacing.sm,

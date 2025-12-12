@@ -2,10 +2,15 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { DiagnosticsScreen } from '../screens/Profile/DiagnosticsScreen';
 import { useHealthPlus } from '../api/health/hooks';
+import { useDemoStatus } from '../api/hooks';
 import { api } from '../api/client';
 
 jest.mock('../api/health/hooks', () => ({
   useHealthPlus: jest.fn(),
+}));
+
+jest.mock('../api/hooks', () => ({
+  useDemoStatus: jest.fn(() => ({ data: { isDemoOrg: false } })),
 }));
 
 describe('DiagnosticsScreen push test', () => {
@@ -55,6 +60,7 @@ describe('DiagnosticsScreen push test', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (useDemoStatus as jest.Mock).mockReturnValue({ data: { isDemoOrg: false } });
     (useHealthPlus as jest.Mock).mockReturnValue({
       data: baseHealth,
       isLoading: false,
@@ -107,6 +113,23 @@ describe('DiagnosticsScreen push test', () => {
     await waitFor(() => {
       expect(screen.getByText(/Push is disabled/i)).toBeTruthy();
     });
+  });
+
+  it('shows demo-specific push disabled banner and disables action when health flags it', () => {
+    (useDemoStatus as jest.Mock).mockReturnValue({ data: { isDemoOrg: true } });
+    (useHealthPlus as jest.Mock).mockReturnValue({
+      data: { ...baseHealth, push: { ...baseHealth.push, disabled: true } },
+      isLoading: false,
+      isError: false,
+      dataUpdatedAt: Date.now(),
+      refetch: jest.fn(),
+    });
+
+    render(<DiagnosticsScreen />);
+
+    expect(screen.getByTestId('diagnostics-push-demo-disabled')).toBeTruthy();
+    expect(screen.getByText(/Push is disabled in demo env/i)).toBeTruthy();
+    expect(screen.getByTestId('diagnostics-push-button')).toHaveProp('disabled', true);
   });
 
   it('shows a generic error banner on unexpected failure', async () => {

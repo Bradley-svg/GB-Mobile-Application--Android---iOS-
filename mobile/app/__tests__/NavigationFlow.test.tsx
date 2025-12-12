@@ -26,6 +26,7 @@ jest.mock('../api/hooks', () => {
       isLoading: false,
       isError: false,
     }),
+    useDemoStatus: () => ({ data: { isDemoOrg: false } }),
   };
 });
 jest.mock('../hooks/useNetworkBanner', () => ({

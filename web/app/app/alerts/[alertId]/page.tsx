@@ -14,6 +14,7 @@ import {
   snoozeAlert,
 } from "@/lib/api/alerts";
 import { formatRelativeTime } from "@/lib/formatRelativeTime";
+import { useDemoStatus } from "@/lib/useDemoStatus";
 import { useOrgStore } from "@/lib/orgStore";
 import type { Alert, AlertRule, AlertSeverity } from "@/lib/types/alerts";
 import { useUserRole } from "@/lib/useUserRole";
@@ -105,6 +106,8 @@ export default function AlertDetailPage() {
   const queryClient = useQueryClient();
   const [snoozeMinutes, setSnoozeMinutes] = useState<number>(60);
   const [actionError, setActionError] = useState<string | null>(null);
+  const demoStatus = useDemoStatus();
+  const isDemoOrg = demoStatus.data?.isDemoOrg ?? false;
 
   const alertQuery = useQuery({
     queryKey: ["alert-detail", alertId, currentOrgId],
@@ -137,6 +140,11 @@ export default function AlertDetailPage() {
       setSnoozeMinutes(Math.max(1, Math.round(matchingRule.snooze_default_sec / 60)));
     }
   }, [matchingRule]);
+
+  const confirmDemoAction = (label: string) => {
+    if (!isDemoOrg) return true;
+    return window.confirm(`Demo mode: ${label}`);
+  };
 
   const ackMutation = useMutation({
     mutationFn: () => ackAlert(alertId as string, currentOrgId),
@@ -174,18 +182,21 @@ export default function AlertDetailPage() {
 
   const onAcknowledge = () => {
     if (!alert || isContractor) return;
+    if (!confirmDemoAction("Acknowledge this alert?")) return;
     setActionError(null);
     ackMutation.mutate();
   };
 
   const onSnooze = () => {
     if (!alert || isContractor || isResolved) return;
+    if (!confirmDemoAction("Snooze this alert?")) return;
     setActionError(null);
     snoozeMutation.mutate(snoozeMinutes);
   };
 
   const onToggleMute = () => {
     if (!alert || isContractor || isResolved) return;
+    if (!confirmDemoAction(isMuted ? "Unmute this alert?" : "Mute this alert for 24h?")) return;
     setActionError(null);
     const minutes = isMuted ? 1 : 1440;
     muteMutation.mutate(minutes);

@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useAlerts, useSites } from '../../api/hooks';
+import { useAlerts, useDemoStatus, useSites } from '../../api/hooks';
 import type { ApiSite, HealthStatus } from '../../api/types';
 import { AppStackParamList } from '../../navigation/RootNavigator';
 import {
@@ -38,6 +38,7 @@ export const DashboardScreen: React.FC = () => {
   const navigation = useNavigation<Navigation>();
   const { data, isLoading, isFetching, isError, refetch } = useSites();
   const { data: alerts } = useAlerts({ status: 'active' });
+  const { data: demoStatus } = useDemoStatus();
   const { isOffline } = useNetworkBanner();
   const { theme, mode, setMode, resolvedScheme } = useAppTheme();
   const { colors, gradients, spacing } = theme;
@@ -46,6 +47,7 @@ export const DashboardScreen: React.FC = () => {
   const [cachedSitesSavedAt, setCachedSitesSavedAt] = useState<string | null>(null);
   const role = useAuthStore((s) => s.user?.role ?? null);
   const canScanDevices = role === 'owner' || role === 'admin' || role === 'facilities';
+  const isDemoOrg = demoStatus?.isDemoOrg ?? false;
 
   useEffect(() => {
     if (data) {
@@ -137,6 +139,20 @@ export const DashboardScreen: React.FC = () => {
         style={styles.heroCard}
       >
         <View>
+          {isDemoOrg ? (
+            <StatusPill
+              label="Demo mode"
+              tone="muted"
+              testID="dashboard-demo-pill"
+              style={{
+                alignSelf: 'flex-start',
+                backgroundColor: colors.background,
+                borderWidth: 1,
+                borderColor: colors.borderSubtle,
+                marginBottom: spacing.xs,
+              }}
+            />
+          ) : null}
           <Text style={[typography.caption, styles.heroMuted, { marginBottom: spacing.xs }]}>Portfolio</Text>
           <Text style={[typography.title1, styles.heroTitle]}>Greenbro</Text>
           <Text style={[typography.body, styles.heroMuted]}>Sites and devices at a glance</Text>

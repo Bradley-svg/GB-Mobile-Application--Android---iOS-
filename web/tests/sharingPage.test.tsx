@@ -9,6 +9,7 @@ const fetchFleetMock = vi.fn();
 const listShareLinksMock = vi.fn();
 const createShareLinkMock = vi.fn();
 const revokeShareLinkMock = vi.fn();
+let demoStatus = { isDemoOrg: false, heroDeviceId: null as string | null, heroDeviceMac: null as string | null, seededAt: null as string | null };
 
 let mockRole = {
   role: "admin",
@@ -32,6 +33,10 @@ vi.mock("@/lib/useUserRole", () => ({
   useUserRole: () => mockRole,
 }));
 
+vi.mock("@/lib/useDemoStatus", () => ({
+  useDemoStatus: () => ({ data: demoStatus, isLoading: false }),
+}));
+
 const renderWithProviders = (ui: React.ReactElement) => {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -53,6 +58,7 @@ describe("SharingPage RBAC", () => {
       isFacilities: false,
       isContractor: false,
     };
+    demoStatus = { isDemoOrg: false, heroDeviceId: null, heroDeviceMac: null, seededAt: null };
     fetchFleetMock.mockResolvedValue({
       sites: [{ id: "site-1", name: "HQ" }],
       devices: [{ id: "device-1", name: "Heat pump", site_id: "site-1" }],
