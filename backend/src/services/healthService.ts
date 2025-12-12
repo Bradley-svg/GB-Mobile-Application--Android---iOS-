@@ -11,6 +11,7 @@ import { runPushHealthCheck, type PushHealthStatus } from './pushService';
 import { type SystemStatus, getSystemStatus, getSystemStatusByKey } from './statusService';
 import { getVirusScannerStatus } from './virusScanner';
 import { type DemoStatus } from './demoService';
+import { getVendorFlagSummary } from '../config/vendorGuards';
 
 const MQTT_INGEST_STALE_MS = 5 * 60 * 1000;
 const MQTT_ERROR_WINDOW_MS = 5 * 60 * 1000;
@@ -155,17 +156,12 @@ export async function getHealthPlus(
 ): Promise<HealthPlusResult> {
   const env = process.env.NODE_ENV || 'development';
   const version = getAppVersion();
-  const vendorDisableCandidates = [
-    'HEATPUMP_HISTORY_DISABLED',
-    'CONTROL_API_DISABLED',
-    'MQTT_DISABLED',
-    'PUSH_NOTIFICATIONS_DISABLED',
-  ];
-  const disabledFlags = vendorDisableCandidates.filter((flag) => process.env[flag] === 'true');
-  const mqttDisabled = disabledFlags.includes('MQTT_DISABLED');
-  let controlDisabled = disabledFlags.includes('CONTROL_API_DISABLED');
-  const pushDisabled = disabledFlags.includes('PUSH_NOTIFICATIONS_DISABLED');
-  let heatPumpHistoryDisabled = disabledFlags.includes('HEATPUMP_HISTORY_DISABLED');
+  const vendorSummary = getVendorFlagSummary(env);
+  const disabledFlags = vendorSummary.disabled;
+  const mqttDisabled = vendorSummary.mqttDisabled;
+  let controlDisabled = vendorSummary.controlDisabled;
+  const pushDisabled = vendorSummary.pushNotificationsDisabled;
+  let heatPumpHistoryDisabled = vendorSummary.heatPumpHistoryDisabled;
   const mqttSnapshot = getMqttHealth();
   const controlSnapshot = getControlChannelStatus();
   controlDisabled = controlSnapshot.disabled ?? controlDisabled;
@@ -175,7 +171,7 @@ export async function getHealthPlus(
   const alertsWorkerEnabled =
     (process.env.ALERT_WORKER_ENABLED || 'true').toLowerCase() !== 'false';
   const alertsExpected = env === 'production' && alertsWorkerEnabled;
-  const prodLike = ['production', 'staging'].includes(env);
+  const prodLike = vendorSummary.prodLike;
   const heatPumpConfig = getHeatPumpHistoryConfig();
   const heatPumpConfigured = heatPumpConfig.configured;
   heatPumpHistoryDisabled = heatPumpConfig.disabled ?? heatPumpHistoryDisabled;

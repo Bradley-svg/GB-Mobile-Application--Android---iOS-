@@ -74,6 +74,15 @@ export type HeatPumpHistoryResponse = {
   series: HeatPumpHistorySeries[];
 };
 
+export type VendorFlags = {
+  prodLike: boolean;
+  disabled: string[];
+  mqttDisabled: boolean;
+  controlDisabled: boolean;
+  heatPumpHistoryDisabled: boolean;
+  pushNotificationsDisabled: boolean;
+};
+
 export type Alert = {
   id: string;
   site_id: string | null;
@@ -175,6 +184,7 @@ export type DemoStatus = {
   heroDeviceId: string | null;
   heroDeviceMac: string | null;
   seededAt: string | null;
+  vendorFlags?: VendorFlags;
 };
 
 export type ControlFailureReason =
@@ -190,14 +200,7 @@ export type HealthPlusPayload = {
   version: string | null;
   db?: 'ok' | 'error';
   dbLatencyMs?: number | null;
-  vendorFlags?: {
-    prodLike: boolean;
-    disabled: string[];
-    mqttDisabled: boolean;
-    controlDisabled: boolean;
-    heatPumpHistoryDisabled: boolean;
-    pushNotificationsDisabled: boolean;
-  };
+  vendorFlags?: VendorFlags;
   mqtt: {
     configured: boolean;
     disabled?: boolean;

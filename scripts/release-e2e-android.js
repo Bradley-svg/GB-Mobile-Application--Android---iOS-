@@ -1,29 +1,19 @@
+const fs = require("fs");
 const { spawnSync } = require("child_process");
 const net = require("net");
 const path = require("path");
+const { waitForEmulator, waitForAppReady } = require("./android-wait");
 
 const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
 const mobileDir = path.resolve(__dirname, "..", "mobile");
+const apkPath = path.resolve(mobileDir, "android", "app", "build", "outputs", "apk", "debug", "app-debug.apk");
+const APP_PACKAGE = "com.greenbro.mobile";
+const MAIN_ACTIVITY = "com.greenbro.mobile/.MainActivity";
+const READY_TEST_ID = "LoginScreen";
 
 function fail(message) {
   console.error(message);
   process.exit(1);
-}
-
-function ensureAdbDevice() {
-  const adbResult = spawnSync("adb", ["devices"], { encoding: "utf-8" });
-
-  if (adbResult.status !== 0 || adbResult.error) {
-    fail("adb is required for Detox. Make sure Android platform tools are installed and on your PATH.");
-  }
-
-  const hasDevice = adbResult.stdout
-    .split("\n")
-    .some((line) => line.trim() && /\tdevice\b/.test(line.trim()));
-
-  if (!hasDevice) {
-    fail("No Android emulator/device detected. Start an emulator (e.g. Pixel_API_34) and retry.");
-  }
 }
 
 function ensureMetro(port = 8081) {
@@ -43,17 +33,43 @@ function ensureMetro(port = 8081) {
   });
 }
 
+function ensureApkBuilt() {
+  if (fs.existsSync(apkPath)) {
+    return;
+  }
+
+  console.log("Detox APK missing; building android.debug...");
+  const buildResult = spawnSync(npmCmd, ["run", "e2e:build:android"], {
+    cwd: mobileDir,
+    stdio: "inherit",
+    env: { ...process.env },
+  });
+
+  if (buildResult.status !== 0) {
+    fail("Detox build failed");
+  }
+}
+
 async function main() {
-  console.log("Android Detox preflight: checking adb/emulator/Metro...");
-  ensureAdbDevice();
+  console.log("Android Detox preflight: checking emulator, Metro, and app readiness...");
+  ensureApkBuilt();
 
   const metroReady = await ensureMetro();
   if (!metroReady) {
     fail('Metro bundler not reachable on port 8081. Start it with "cd mobile && npm run start:devclient -- --port 8081".');
   }
 
+  const deviceId = await waitForEmulator({ packageName: APP_PACKAGE, apkPath });
+  await waitForAppReady({
+    packageName: APP_PACKAGE,
+    mainActivity: MAIN_ACTIVITY,
+    readyTestId: READY_TEST_ID,
+    artifactsDir: path.resolve(__dirname, "..", "logs", "detox-preflight"),
+    deviceId,
+  });
+
   console.log("Preflight OK. Running Detox tests...");
-  const result = spawnSync(npmCmd, ["run", "e2e:test:android"], {
+  const result = spawnSync(npmCmd, ["run", "e2e:test:android", "--", "--headless", "--reuse"], {
     cwd: mobileDir,
     stdio: "inherit",
     env: { ...process.env },

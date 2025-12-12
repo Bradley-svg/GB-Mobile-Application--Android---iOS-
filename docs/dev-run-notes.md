@@ -29,7 +29,7 @@ Requirements:
 - Backend: `cd backend && npm run lint && npm run typecheck && npm test`
 - Mobile: `cd mobile && npm run lint && npm run typecheck && npm test -- --runInBand` (same lint/type/test trio runs in CI, including `npm run typecheck`)
 - Optional: Detox E2E: `npm run e2e:android` (emulator + backend required)
-- Staging smoke (demo tenant): set `WEB_E2E_EMAIL`/`WEB_E2E_PASSWORD`, ensure staging is migrated/seeded, then run `npm run staging:smoke` (checks `https://staging.api.greenbro.co.za/health-plus` for `ok:true` + heatPumpHistory status ok, then runs Playwright smoke against `https://staging.app.greenbro.co.za`).
+- Staging smoke (demo tenant): copy `docs/staging-smoke.env.example` to `.env.staging-smoke`, fill staging URLs + demo creds, then run `npm run staging:smoke:local` (loads the env file, checks `https://staging.api.greenbro.co.za/health-plus` for `ok:true` + heatPumpHistory status ok, then runs Playwright smoke against `https://staging.app.greenbro.co.za`). CI keeps using `npm run staging:smoke` when env vars are exported.
 - Vendor disable flags are for CI/local only and must remain **false** in staging/prod (`HEATPUMP_HISTORY_DISABLED`, `CONTROL_API_DISABLED`, `MQTT_DISABLED`, `PUSH_NOTIFICATIONS_DISABLED`).
 - Theming snapshots and ErrorCard guard tests are part of the UI regression safety net; do not skip them when cutting builds.
 - Demo seed: `npm run demo:seed` resets the shared demo org/user/device (`demo@greenbro.com` / `GreenbroDemo#2025!`, MAC `38:18:2B:60:A9:94`) so web + mobile smoke paths line up.
@@ -112,6 +112,7 @@ Requirements:
 ### E2E (Detox + backend bring-up)
 - CI workflow `.github/workflows/e2e-android.yml` now boots Postgres, runs `backend` migrate + `seed:e2e`, starts the API (waits on `/health-plus`), then runs Metro on 8081 and Detox (`npm run e2e:test:android`). Heat-pump history calls are disabled via `HEATPUMP_HISTORY_DISABLED=true` to avoid vendor dependency.
 - Local run (manual): start backend with `npm run migrate:dev && npm run seed:e2e && npm run dev`, then in a new terminal `cd mobile && npx expo start --dev-client --localhost --port 8081 --clear`, and from repo root run `npm run e2e:android` (emulator `Pixel_7_API_34`).
+- Troubleshooting readiness timeouts: `node scripts/android-wait.js emulator --apk mobile/android/app/build/outputs/apk/debug/app-debug.apk --package com.greenbro.mobile` blocks until the emulator is online/unlocked and the app is installed; `node scripts/android-wait.js app --activity com.greenbro.mobile/.MainActivity --test-id LoginScreen --artifacts logs/detox-preflight` launches the app, waits for the Login screen, and captures logcat + screenshot + UI dump under `logs/detox-preflight` if it hangs. Quick probes: `adb logcat -d -t 200 | tail -n 50`, `adb shell pm path com.greenbro.mobile`, `adb exec-out screencap -p > logs/detox-ready.png`.
 - Vendor-disable flags (`HEATPUMP_HISTORY_DISABLED`, `CONTROL_API_DISABLED`, `MQTT_DISABLED`, `PUSH_NOTIFICATIONS_DISABLED`) are for CI/E2E/local only. They must be **false** in staging/production; prod-like boots log warnings if set.
 
 ### 2025-12-08: end-to-end local stack spin-up (Windows, Pixel_7_API_34 emulator)

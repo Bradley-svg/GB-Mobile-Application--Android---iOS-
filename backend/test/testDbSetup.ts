@@ -188,6 +188,20 @@ async function seedBaseData(client: Client) {
 
   await client.query(
     `
+    insert into demo_tenants (org_id, enabled, hero_device_id, hero_device_mac, seeded_at, created_at, updated_at)
+    values ($1, true, $2, $3, now(), now(), now())
+    on conflict (org_id) do update
+      set enabled = excluded.enabled,
+          hero_device_id = excluded.hero_device_id,
+          hero_device_mac = excluded.hero_device_mac,
+          seeded_at = excluded.seeded_at,
+          updated_at = now()
+  `,
+    [DEFAULT_IDS.organisation, DEFAULT_IDS.device, DEMO_HEATPUMP_MAC]
+  );
+
+  await client.query(
+    `
     insert into system_status (key, payload)
     values ('global', '{}'::jsonb)
     on conflict (key) do nothing
@@ -597,6 +611,7 @@ async function resetTables(client: Client) {
         devices,
         sites,
         users,
+        demo_tenants,
         organisations,
         system_status,
         worker_locks

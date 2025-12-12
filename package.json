@@ -38,6 +38,7 @@
     "demo:reset": "cd backend && npm run seed:demo -- --reset",
     "backend:health:staging": "cd backend && npm run health:staging",
     "web:e2e:staging": "cd web && npm run e2e",
+    "staging:smoke:local": "node scripts/staging-smoke-local.js",
     "staging:smoke": "node scripts/staging-smoke.js"
   }
 }

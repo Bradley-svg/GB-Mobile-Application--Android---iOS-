@@ -72,5 +72,16 @@ describe('seed-demo script', () => {
       [heroDeviceId]
     );
     expect(heroRow.rows[0]).toMatchObject({ is_demo: true, is_demo_hero: true });
+
+    const demoTenantRow = await client.query(
+      'select enabled, hero_device_id, hero_device_mac, seeded_at from demo_tenants where org_id = $1',
+      [DEMO_DEFAULTS.ids.org]
+    );
+    expect(demoTenantRow.rows[0]?.enabled).toBe(true);
+    expect(demoTenantRow.rows[0]?.hero_device_id).toBe(heroDeviceId);
+    expect(demoTenantRow.rows[0]?.hero_device_mac?.toUpperCase()).toBe(
+      DEMO_DEFAULTS.deviceMac.toUpperCase()
+    );
+    expect(demoTenantRow.rows[0]?.seeded_at).toBeTruthy();
   });
 });

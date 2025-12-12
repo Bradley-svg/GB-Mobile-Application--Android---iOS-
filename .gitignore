@@ -36,6 +36,7 @@ backend/storage/
 # Env / secrets
 .env
 .env.local
+.env.staging-smoke
 .env.*.local
 
 # Backups

@@ -9,7 +9,7 @@ export type DemoStatus = {
 
 export async function getDemoStatusForOrg(organisationId: string): Promise<DemoStatus> {
   const row = await getDemoMetadataForOrganisation(organisationId);
-  if (!row) {
+  if (!row || !row.enabled) {
     return {
       isDemoOrg: false,
       heroDeviceId: null,
@@ -19,9 +19,9 @@ export async function getDemoStatusForOrg(organisationId: string): Promise<DemoS
   }
 
   return {
-    isDemoOrg: Boolean(row.is_demo_org),
+    isDemoOrg: true,
     heroDeviceId: row.hero_device_id ?? null,
     heroDeviceMac: row.hero_device_mac ?? null,
-    seededAt: row.demo_seeded_at ?? null,
+    seededAt: row.seeded_at ?? null,
   };
 }

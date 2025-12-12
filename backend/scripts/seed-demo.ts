@@ -698,6 +698,7 @@ async function purgeDemoData(client: Client) {
   await client.query('delete from site_schedules where site_id = ANY($1::uuid[])', [siteIds]);
   await client.query('delete from devices where id = ANY($1::uuid[])', [deviceIds]);
   await client.query('delete from sites where id = ANY($1::uuid[])', [siteIds]);
+  await client.query('delete from demo_tenants where org_id = $1', [DEFAULT_IDS.org]);
   await client.query(
     'delete from users where organisation_id = $1 or email in ($2,$3,$4,$5)',
     [
@@ -880,6 +881,20 @@ export async function seedDemo(options: SeedDemoOptions = {}) {
         '1.1.0',
         'offline',
       ]
+    );
+
+    await client.query(
+      `
+        insert into demo_tenants (org_id, enabled, hero_device_id, hero_device_mac, seeded_at, created_at, updated_at)
+        values ($1, true, $2, $3, $4, now(), now())
+        on conflict (org_id) do update
+          set enabled = excluded.enabled,
+              hero_device_id = excluded.hero_device_id,
+              hero_device_mac = excluded.hero_device_mac,
+              seeded_at = excluded.seeded_at,
+              updated_at = now()
+      `,
+      [DEFAULT_IDS.org, DEFAULT_IDS.deviceHero, DEMO_DEVICE_MAC, seededAt]
     );
 
     await client.query(

@@ -73,5 +73,18 @@ jobs:
             cd mobile
             npm run e2e:build:android
             (npx expo start --dev-client --localhost --port 8081 --clear --non-interactive > /tmp/metro.log 2>&1 &)
-            sleep 20
-            npm run e2e:test:android -- --headless
+            sleep 15
+            node ../scripts/android-wait.js emulator --apk android/app/build/outputs/apk/debug/app-debug.apk --package com.greenbro.mobile --timeout 240000
+            node ../scripts/android-wait.js app --activity com.greenbro.mobile/.MainActivity --test-id LoginScreen --timeout 120000 --artifacts ../logs/detox-preflight
+            npm run e2e:test:android -- --headless --reuse
+
+      - name: Upload Detox artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: detox-android-artifacts
+          path: |
+            logs/detox-preflight/**
+            mobile/artifacts/**
+            /tmp/metro.log
+          if-no-files-found: ignore

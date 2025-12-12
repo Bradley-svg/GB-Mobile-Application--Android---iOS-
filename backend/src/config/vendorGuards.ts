@@ -8,17 +8,29 @@ const VENDOR_DISABLE_FLAGS = [
   'PUSH_NOTIFICATIONS_DISABLED',
 ];
 
-export function checkVendorDisableFlags(nodeEnv = process.env.NODE_ENV || 'development') {
+export function getVendorFlagSummary(nodeEnv = process.env.NODE_ENV || 'development') {
   const prodLike = PROD_LIKE_ENVS.includes(nodeEnv);
-  const disabledFlags = VENDOR_DISABLE_FLAGS.filter((flag) => process.env[flag] === 'true');
+  const disabled = VENDOR_DISABLE_FLAGS.filter((flag) => process.env[flag] === 'true');
+  return {
+    prodLike,
+    disabled,
+    mqttDisabled: disabled.includes('MQTT_DISABLED'),
+    controlDisabled: disabled.includes('CONTROL_API_DISABLED'),
+    heatPumpHistoryDisabled: disabled.includes('HEATPUMP_HISTORY_DISABLED'),
+    pushNotificationsDisabled: disabled.includes('PUSH_NOTIFICATIONS_DISABLED'),
+  };
+}
 
-  if (prodLike && disabledFlags.length > 0) {
+export function checkVendorDisableFlags(nodeEnv = process.env.NODE_ENV || 'development') {
+  const summary = getVendorFlagSummary(nodeEnv);
+
+  if (summary.prodLike && summary.disabled.length > 0) {
     logger.warn(
-      { disabledFlags, env: nodeEnv },
+      { disabledFlags: summary.disabled, env: nodeEnv },
       'vendor disable flags are set in a prod-like environment. These flags are intended for CI/E2E only.'
     );
     // TODO: escalate to a hard failure once rollout is stable.
   }
 
-  return { prodLike, disabledFlags };
+  return { prodLike: summary.prodLike, disabledFlags: summary.disabled };
 }

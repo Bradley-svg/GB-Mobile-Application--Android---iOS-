@@ -1,4 +1,4 @@
-import type { DemoStatus } from "./demo";
+import type { DemoStatus, VendorFlags } from "./demo";
 
 export type HealthPlusPayload = {
   ok: boolean;
@@ -6,14 +6,7 @@ export type HealthPlusPayload = {
   db: "ok" | "error";
   dbLatencyMs: number | null;
   version: string | null;
-  vendorFlags?: {
-    prodLike: boolean;
-    disabled: string[];
-    mqttDisabled: boolean;
-    controlDisabled: boolean;
-    heatPumpHistoryDisabled: boolean;
-    pushNotificationsDisabled: boolean;
-  };
+  vendorFlags?: VendorFlags;
   mqtt: {
     configured: boolean;
     disabled?: boolean;

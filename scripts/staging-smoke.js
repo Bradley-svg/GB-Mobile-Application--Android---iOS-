@@ -31,6 +31,7 @@ if (!password) missing.push("WEB_E2E_PASSWORD or DEMO_PASSWORD");
 
 if (missing.length > 0) {
   console.log(`staging:smoke skipped (missing env: ${missing.join(", ")})`);
+  console.log("Set these in .env.staging-smoke (see docs/staging-smoke.env.example) or export them before running.");
   process.exit(0);
 }
 

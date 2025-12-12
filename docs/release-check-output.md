@@ -7,7 +7,8 @@ Reference for the repo-level release commands and what to expect when they run l
 - `npm run release:check:fast`: lint + typecheck only, with notes about skipped suites.
 - `npm run release:check:ci`: same as `release:check` but labelled `ci` mode for logs.
 - `npm run staging:smoke`: runs backend health-plus (staging) and web Playwright smoke + embed when all staging envs are set; otherwise exits 0 with a skip message.
-- `npm run release:e2e:android`: preflight checks for adb/emulator/Metro, then runs `npm run e2e:test:android`.
+- `npm run staging:smoke:local`: loads `.env.staging-smoke` (copy from `docs/staging-smoke.env.example`) and runs the same staging smoke locally.
+- `npm run release:e2e:android`: builds the Detox APK if missing, waits for emulator boot + Metro + Login screen (captures logcat/screenshot/UI dump under `logs/detox-preflight` on failure), then runs `npm run e2e:test:android -- --headless --reuse`.
 
 ## Staging smoke envs
 All four are required; missing values cause an auto-skip with `staging:smoke skipped (missing env: ...)`:
@@ -15,6 +16,9 @@ All four are required; missing values cause an auto-skip with `staging:smoke ski
 - `WEB_E2E_BASE_URL` (staging app host)
 - `WEB_E2E_EMAIL` or `DEMO_EMAIL`
 - `WEB_E2E_PASSWORD` or `DEMO_PASSWORD`
+- Optional Playwright hint: `WEB_E2E_HERO_DEVICE` (defaults to `Heat Pump #1`)
+
+For local runs, create `.env.staging-smoke` from `docs/staging-smoke.env.example`, fill the values, then run `npm run staging:smoke:local`.
 
 ## Example happy path
 ```
