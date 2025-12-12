@@ -12,6 +12,10 @@ import { type SystemStatus, getSystemStatus, getSystemStatusByKey } from './stat
 import { getVirusScannerStatus } from './virusScanner';
 import { type DemoStatus } from './demoService';
 import { getVendorFlagSummary } from '../config/vendorGuards';
+import {
+  getLastHeatPumpHistorySummary,
+  type HeatPumpHistoryRequestSummary,
+} from './heatPumpHistoryTelemetry';
 
 const MQTT_INGEST_STALE_MS = 5 * 60 * 1000;
 const MQTT_ERROR_WINDOW_MS = 5 * 60 * 1000;
@@ -83,6 +87,7 @@ export type HealthPlusPayload = {
     lastError: string | null;
     lastCheckAt: string | null;
     healthy: boolean;
+    lastRequestSummary: HeatPumpHistoryRequestSummary | null;
   };
   alertsWorker: {
     lastHeartbeatAt: string | null;
@@ -175,6 +180,7 @@ export async function getHealthPlus(
   const heatPumpConfig = getHeatPumpHistoryConfig();
   const heatPumpConfigured = heatPumpConfig.configured;
   heatPumpHistoryDisabled = heatPumpConfig.disabled ?? heatPumpHistoryDisabled;
+  const lastHistoryRequest = getLastHeatPumpHistorySummary();
   const demoStatus = options.demoStatus;
   const antivirusCheckStarted = performance.now();
   const antivirusStatus = getVirusScannerStatus();
@@ -388,6 +394,7 @@ export async function getHealthPlus(
         lastError: heatPumpLastError,
         lastCheckAt: toIso(heatPumpLastCheckAt),
         healthy: heatPumpHealthy,
+        lastRequestSummary: lastHistoryRequest,
       },
       alertsWorker: {
         lastHeartbeatAt: toIso(alertsHeartbeat),
@@ -523,6 +530,7 @@ export async function getHealthPlus(
         lastError: null,
         lastCheckAt: null,
         healthy: heatPumpHistoryDisabled || !heatPumpConfigured,
+        lastRequestSummary: lastHistoryRequest,
       },
       alertsWorker: {
         lastHeartbeatAt: null,

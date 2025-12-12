@@ -123,6 +123,7 @@ describe("DeviceDetailPage large fixtures", () => {
         lastError: null,
         lastCheckAt: null,
         healthy: true,
+        lastRequestSummary: null,
       },
       alertsWorker: { lastHeartbeatAt: null, healthy: true },
       push: { enabled: false, disabled: false, lastSampleAt: null, lastError: null },

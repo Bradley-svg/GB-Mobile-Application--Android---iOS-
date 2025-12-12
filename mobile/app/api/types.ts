@@ -74,6 +74,19 @@ export type HeatPumpHistoryResponse = {
   series: HeatPumpHistorySeries[];
 };
 
+export type HeatPumpHistoryRequestSummary = {
+  mac: string;
+  from: string;
+  to: string;
+  fieldsCount: number;
+  pointsCount: number;
+  nonZeroCount: number;
+  firstTimestamp?: string | null;
+  lastTimestamp?: string | null;
+  min?: number | null;
+  max?: number | null;
+};
+
 export type VendorFlags = {
   prodLike: boolean;
   disabled: string[];
@@ -226,6 +239,7 @@ export type HealthPlusPayload = {
     lastErrorAt: string | null;
     lastError: string | null;
     lastCheckAt: string | null;
+    lastRequestSummary?: HeatPumpHistoryRequestSummary | null;
   };
   alertsWorker: {
     healthy: boolean;

@@ -57,6 +57,7 @@ const baseHealth: HealthPlusPayload = {
     lastError: null,
     lastCheckAt: new Date().toISOString(),
     healthy: true,
+    lastRequestSummary: null,
   },
   alertsWorker: {
     healthy: true,
@@ -182,6 +183,25 @@ describe("DiagnosticsPage", () => {
     const healthFlags = screen.getByTestId("diagnostics-health-flags");
     expect(healthFlags).toHaveTextContent(/Vendor flags/);
     expect(healthFlags).toHaveTextContent(/Non-prod/i);
+  });
+
+  it("warns when demo flags disable history but backend enables it", async () => {
+    demoStatusMock = {
+      ...demoStatusMock,
+      vendorFlags: {
+        ...demoStatusMock.vendorFlags!,
+        disabled: ["HEATPUMP_HISTORY_DISABLED"],
+        heatPumpHistoryDisabled: true,
+      },
+    };
+    fetchHealthPlusMock.mockResolvedValue({
+      ...baseHealth,
+      heatPumpHistory: { ...baseHealth.heatPumpHistory, configured: true, disabled: false },
+    });
+
+    await renderDiagnostics();
+
+    expect(screen.getByTestId("diagnostics-demo-flags")).toHaveTextContent(/disables history/i);
   });
 
   it("copies the raw payload JSON", async () => {

@@ -40,6 +40,7 @@ const basePayload: HealthPlusPayload = {
     lastError: null,
     lastCheckAt: null,
     healthy: true,
+    lastRequestSummary: null,
   },
   alertsWorker: {
     healthy: true,

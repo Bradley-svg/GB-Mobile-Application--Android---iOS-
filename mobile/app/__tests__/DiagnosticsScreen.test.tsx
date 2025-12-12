@@ -67,6 +67,7 @@ describe('DiagnosticsScreen', () => {
           lastError: null,
           lastCheckAt: null,
           disabled: false,
+          lastRequestSummary: null,
         },
         alertsWorker: { healthy: true, lastHeartbeatAt: '2025-01-01T01:00:00.000Z' },
         alertsEngine: {
@@ -110,6 +111,88 @@ describe('DiagnosticsScreen', () => {
     expect(screen.getByTestId('diagnostics-push')).toBeTruthy();
     expect(screen.getByTestId('diagnostics-storage')).toBeTruthy();
     expect(screen.getByTestId('diagnostics-antivirus')).toBeTruthy();
+  });
+
+  it('warns when demo flags disable history but backend enables it', () => {
+    (useDemoStatus as jest.Mock).mockReturnValue({
+      data: {
+        isDemoOrg: true,
+        vendorFlags: {
+          prodLike: false,
+          disabled: ['HEATPUMP_HISTORY_DISABLED'],
+          mqttDisabled: false,
+          controlDisabled: false,
+          heatPumpHistoryDisabled: true,
+          pushNotificationsDisabled: false,
+        },
+      },
+    });
+    (useHealthPlus as jest.Mock).mockReturnValue({
+      data: {
+        ok: true,
+        env: 'development',
+        version: '1.2.3',
+        db: 'ok',
+        dbLatencyMs: 32,
+        storage: { root: '/tmp/storage', writable: true, latencyMs: 10 },
+        antivirus: {
+          configured: true,
+          enabled: true,
+          target: 'command',
+          lastRunAt: '2025-01-01T00:00:00.000Z',
+          lastResult: 'clean',
+          lastError: null,
+          latencyMs: 5,
+        },
+        control: {
+          configured: true,
+          healthy: true,
+          lastCommandAt: null,
+          lastErrorAt: null,
+          lastError: null,
+          disabled: false,
+        },
+        heatPumpHistory: {
+          configured: true,
+          healthy: true,
+          lastSuccessAt: null,
+          lastErrorAt: null,
+          lastError: null,
+          lastCheckAt: null,
+          disabled: false,
+          lastRequestSummary: null,
+        },
+        alertsWorker: { healthy: true, lastHeartbeatAt: '2025-01-01T01:00:00.000Z' },
+        alertsEngine: {
+          lastRunAt: '2025-01-01T00:00:00.000Z',
+          lastDurationMs: 120,
+          rulesLoaded: 2,
+          activeAlertsTotal: 3,
+          activeWarning: 2,
+          activeCritical: 1,
+          activeInfo: 0,
+          evaluated: 5,
+          triggered: 2,
+        },
+        push: { enabled: true, disabled: false, lastSampleAt: null, lastError: null },
+        mqtt: {
+          configured: true,
+          healthy: true,
+          lastIngestAt: null,
+          lastErrorAt: null,
+          lastError: null,
+          disabled: false,
+        },
+      },
+      isLoading: false,
+      isError: false,
+      dataUpdatedAt: Date.now(),
+      refetch: jest.fn(),
+    });
+
+    render(<DiagnosticsScreen />);
+
+    expect(screen.getByTestId('diagnostics-history-mismatch')).toBeTruthy();
   });
 
   it('shows an error card when diagnostics fail', () => {

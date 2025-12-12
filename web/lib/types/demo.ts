@@ -4,6 +4,7 @@ export type VendorFlags = {
   mqttDisabled: boolean;
   controlDisabled: boolean;
   heatPumpHistoryDisabled: boolean;
+  pushDisabled?: boolean;
   pushNotificationsDisabled: boolean;
 };
 

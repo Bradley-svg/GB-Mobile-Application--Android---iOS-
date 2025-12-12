@@ -3,6 +3,7 @@ import { View, Text, ScrollView } from 'react-native';
 import { VictoryArea, VictoryAxis, VictoryChart, VictoryLine } from 'victory-native';
 import type { HeatPumpMetric, TimeRange } from '../../api/types';
 import { Card, EmptyState, ErrorCard, PillTabGroup, SkeletonPlaceholder } from '../../components';
+import { PrimaryButton } from '../../components/PrimaryButton';
 import { useAppTheme } from '../../theme/useAppTheme';
 import { createThemedStyles } from '../../theme/createThemedStyles';
 import type { AppTheme } from '../../theme/types';
@@ -15,6 +16,12 @@ export type HistoryMetricOption = {
   unit?: string;
   decimals?: number;
   color: string;
+};
+
+type HistoryEmptyState = {
+  message: string;
+  actionLabel?: string;
+  onAction?: () => void;
 };
 
 type CompressorHistoryCardProps = {
@@ -31,6 +38,7 @@ type CompressorHistoryCardProps = {
   testID?: string;
   vendorCaption?: string;
   isDemoOrg?: boolean;
+  emptyState?: HistoryEmptyState;
 };
 
 const formatTick = (range: TimeRange) => (value: Date | number) => {
@@ -60,6 +68,7 @@ const CompressorHistoryCardComponent: React.FC<CompressorHistoryCardProps> = ({
   testID,
   vendorCaption,
   isDemoOrg = false,
+  emptyState,
 }) => {
   const { theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -158,11 +167,22 @@ const CompressorHistoryCardComponent: React.FC<CompressorHistoryCardProps> = ({
           testID="compressor-history-error"
         />
       ) : isNoData ? (
-        <EmptyState
-          message={emptyMessage}
-          variant="compact"
-          testID="compressor-history-empty"
-        />
+        <View>
+          <EmptyState
+            message={emptyState?.message ?? emptyMessage}
+            variant="compact"
+            testID="compressor-history-empty"
+          />
+          {emptyState?.actionLabel && emptyState?.onAction ? (
+            <PrimaryButton
+              label={emptyState.actionLabel}
+              onPress={emptyState.onAction}
+              variant="outline"
+              style={styles.emptyAction}
+              testID="compressor-history-empty-action"
+            />
+          ) : null}
+        </View>
       ) : (
         <View testID="heatPumpHistoryChart" style={styles.chartWrapper}>
           <VictoryChart scale={{ x: 'time' }}>
@@ -242,6 +262,9 @@ const createStyles = (theme: AppTheme) =>
     },
     legendText: {
       color: theme.colors.textPrimary,
+    },
+    emptyAction: {
+      marginTop: theme.spacing.sm,
     },
   });
 

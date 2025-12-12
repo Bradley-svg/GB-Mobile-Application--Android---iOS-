@@ -233,6 +233,7 @@ describe('GET /health-plus (baseline)', () => {
         lastError: null,
         lastCheckAt: null,
         healthy: true,
+        lastRequestSummary: null,
       },
       alertsWorker: {
         lastHeartbeatAt: null,
@@ -332,6 +333,7 @@ describe('GET /health-plus (baseline)', () => {
         lastError: null,
         lastCheckAt: null,
         healthy: true,
+        lastRequestSummary: null,
       },
       alertsWorker: {
         lastHeartbeatAt: null,
@@ -406,6 +408,7 @@ describe('GET /health-plus heat pump history', () => {
     expect(res.body.heatPumpHistory.disabled).toBe(false);
     expect(res.body.heatPumpHistory.lastSuccessAt).toBe(recentSuccess.toISOString());
     expect(res.body.heatPumpHistory.lastCheckAt).toBe(recentSuccess.toISOString());
+    expect(res.body.heatPumpHistory.lastRequestSummary).toBeNull();
     expect(res.body.heatPumpHistory.healthy).toBe(true);
     expect(res.body.ok).toBe(true);
   });
@@ -429,6 +432,7 @@ describe('GET /health-plus heat pump history', () => {
     expect(res.body.heatPumpHistory.disabled).toBe(false);
     expect(res.body.heatPumpHistory.lastErrorAt).toBe(recentError.toISOString());
     expect(res.body.heatPumpHistory.lastCheckAt).toBe(recentError.toISOString());
+    expect(res.body.heatPumpHistory.lastRequestSummary).toBeNull();
     expect(res.body.heatPumpHistory.healthy).toBe(false);
     expect(res.body.ok).toBe(false);
   });

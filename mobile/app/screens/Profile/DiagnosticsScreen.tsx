@@ -98,7 +98,7 @@ export const DiagnosticsScreen: React.FC = () => {
     [healthQuery.data, healthQuery.dataUpdatedAt]
   );
   const healthStatusLabel = healthQuery.data?.ok ? 'Healthy' : 'Issues detected';
-  const vendorFlags = demoStatus?.vendorFlags ?? healthQuery.data?.vendorFlags;
+  const vendorFlags = healthQuery.data?.vendorFlags ?? demoStatus?.vendorFlags;
   const vendorDisabled = formatVendorDisabledSummary(vendorFlags, {
     mqtt: healthQuery.data?.mqtt?.disabled,
     control: healthQuery.data?.control?.disabled,
@@ -118,6 +118,14 @@ export const DiagnosticsScreen: React.FC = () => {
       ? 'Demo environment: Push disabled.'
       : 'Push disabled for this environment.'
     : null;
+  const demoHistoryDisabled =
+    (demoStatus?.vendorFlags?.disabled ?? []).some((flag) =>
+      flag.toLowerCase().includes('history')
+    ) || demoStatus?.vendorFlags?.heatPumpHistoryDisabled;
+  const backendHistoryEnabled =
+    Boolean(healthQuery.data?.heatPumpHistory?.configured) &&
+    healthQuery.data?.heatPumpHistory?.disabled === false;
+  const historyFlagMismatch = Boolean(demoHistoryDisabled && backendHistoryEnabled);
 
   const handleCopy = async () => {
     if (!healthQuery.data) return;
@@ -324,6 +332,19 @@ export const DiagnosticsScreen: React.FC = () => {
         }}
         style={{ marginBottom: spacing.sm }}
       />
+      {historyFlagMismatch ? (
+        <View style={styles.demoNotice} testID="diagnostics-history-mismatch">
+          <Ionicons
+            name="warning-outline"
+            size={16}
+            color={colors.warning}
+            style={{ marginRight: spacing.xs }}
+          />
+          <Text style={[typography.caption, styles.warningText]}>
+            Demo status disables history, but backend env enables it — check demo_tenants config.
+          </Text>
+        </View>
+      ) : null}
 
       {copyNotice ? (
         <View style={styles.copyNotice}>

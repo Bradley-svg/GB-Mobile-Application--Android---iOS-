@@ -6,9 +6,15 @@ import {
   type HeatPumpHistoryResult,
   type HeatPumpHistorySeries,
 } from '../integrations/heatPumpHistoryClient';
+import {
+  recordHeatPumpHistorySummary,
+  summarizeHeatPumpSeries,
+} from './heatPumpHistoryTelemetry';
 import { getDeviceById } from '../repositories/devicesRepository';
 import { logger } from '../config/logger';
 import { ERR_RANGE_TOO_LARGE } from '../config/limits';
+import { getRequestContext } from '../config/requestContext';
+import { performance } from 'node:perf_hooks';
 
 const isoString = z
   .string()
@@ -44,15 +50,35 @@ const DEFAULT_PAGE_RANGE_HOURS = 6;
 const warnedInvalidEnvKeys = new Set<string>();
 const log = logger.child({ module: 'heatPumpHistoryService' });
 
+type VendorCallMeta = {
+  pointsCount?: number;
+  nonZeroCount?: number;
+  min?: number | null;
+  max?: number | null;
+  elapsedMs?: number;
+  fieldsCount?: number;
+};
+
 function logDevVendorCall(params: {
   deviceId: string;
   mac: string;
   from: string;
   to: string;
   seriesLength: number;
+  meta?: VendorCallMeta;
 }) {
   if ((process.env.NODE_ENV || 'development') !== 'development') return;
-  log.info(params, 'heat pump history vendor call');
+  const { requestId } = getRequestContext() ?? {};
+  const payload = { ...params, requestId };
+  if (params.meta) {
+    payload.pointsCount = params.meta.pointsCount;
+    payload.nonZeroCount = params.meta.nonZeroCount;
+    payload.min = params.meta.min;
+    payload.max = params.meta.max;
+    payload.elapsedMs = params.meta.elapsedMs;
+    payload.fieldsCount = params.meta.fieldsCount;
+  }
+  log.info(payload, 'heat pump history vendor call');
 }
 
 function countPoints(series: HeatPumpHistorySeries[]) {
@@ -139,21 +165,59 @@ export async function getHistoryForRequest(
 
   const { deviceId, ...historyRequest } = parsed.data;
   const maxPageHours = resolvePageHours(maxRangeHours);
+  const requestContext = { mac, from: parsed.data.from, to: parsed.data.to };
   if (rangeMs <= maxPageHours * 60 * 60 * 1000) {
+    const startedAt = performance.now();
     const result = await fetchHeatPumpHistory({ ...historyRequest, mac });
+    const elapsedMs = performance.now() - startedAt;
     if (result.ok) {
+      const stats = summarizeHeatPumpSeries(result.series);
       logDevVendorCall({
         deviceId,
         mac,
         from: parsed.data.from,
         to: parsed.data.to,
         seriesLength: countPoints(result.series),
+        meta: { ...stats, elapsedMs, fieldsCount: historyRequest.fields.length },
+      });
+      recordHeatPumpHistorySummary({
+        mac,
+        from: parsed.data.from,
+        to: parsed.data.to,
+        fieldsCount: historyRequest.fields.length,
+        pointsCount: stats.pointsCount,
+        nonZeroCount: stats.nonZeroCount,
+        firstTimestamp: stats.firstTimestamp,
+        lastTimestamp: stats.lastTimestamp,
+        min: stats.min,
+        max: stats.max,
       });
     }
     return result;
   }
 
-  return fetchPagedHistory({ ...historyRequest, mac }, fromDate, toDate, maxPageHours, deviceId);
+  const paged = await fetchPagedHistory(
+    { ...historyRequest, mac },
+    fromDate,
+    toDate,
+    maxPageHours,
+    deviceId,
+    historyRequest.fields.length
+  );
+  if (paged.ok) {
+    const stats = summarizeHeatPumpSeries(paged.series);
+    recordHeatPumpHistorySummary({
+      ...requestContext,
+      fieldsCount: historyRequest.fields.length,
+      pointsCount: stats.pointsCount,
+      nonZeroCount: stats.nonZeroCount,
+      firstTimestamp: stats.firstTimestamp,
+      lastTimestamp: stats.lastTimestamp,
+      min: stats.min,
+      max: stats.max,
+    });
+  }
+  return paged;
 }
 
 function resolveHoursEnv(key: string, fallback: number) {
@@ -230,22 +294,27 @@ async function fetchPagedHistory(
   from: Date,
   to: Date,
   maxPageHours: number,
-  deviceId: string
+  deviceId: string,
+  fieldsCount: number
 ): Promise<HeatPumpHistoryResult> {
   const segments = chunkRange(from, to, maxPageHours);
   if (segments.length <= 1) {
+    const startedAt = performance.now();
     const result = await fetchHeatPumpHistory({
       ...request,
       from: from.toISOString(),
       to: to.toISOString(),
     });
+    const elapsedMs = performance.now() - startedAt;
     if (result.ok) {
+      const stats = summarizeHeatPumpSeries(result.series);
       logDevVendorCall({
         deviceId,
         mac: request.mac,
         from: from.toISOString(),
         to: to.toISOString(),
         seriesLength: countPoints(result.series),
+        meta: { ...stats, elapsedMs, fieldsCount },
       });
     }
     return result;
@@ -254,22 +323,26 @@ async function fetchPagedHistory(
   const combined = new Map<string, HeatPumpHistoryPoint[]>();
 
   for (const segment of segments) {
+    const startedAt = performance.now();
     const result = await fetchHeatPumpHistory({
       ...request,
       from: segment.from.toISOString(),
       to: segment.to.toISOString(),
     });
+    const elapsedMs = performance.now() - startedAt;
 
     if (!result.ok) {
       return result;
     }
 
+    const stats = summarizeHeatPumpSeries(result.series);
     logDevVendorCall({
       deviceId,
       mac: request.mac,
       from: segment.from.toISOString(),
       to: segment.to.toISOString(),
       seriesLength: countPoints(result.series),
+      meta: { ...stats, elapsedMs, fieldsCount },
     });
 
     mergeSeries(combined, result.series);

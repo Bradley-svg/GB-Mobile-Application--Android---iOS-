@@ -1,5 +1,18 @@
 import type { DemoStatus, VendorFlags } from "./demo";
 
+export type HeatPumpHistoryRequestSummary = {
+  mac: string;
+  from: string;
+  to: string;
+  fieldsCount: number;
+  pointsCount: number;
+  nonZeroCount: number;
+  firstTimestamp?: string | null;
+  lastTimestamp?: string | null;
+  min?: number | null;
+  max?: number | null;
+};
+
 export type HealthPlusPayload = {
   ok: boolean;
   env: string;
@@ -33,6 +46,7 @@ export type HealthPlusPayload = {
     lastError: string | null;
     lastCheckAt: string | null;
     healthy: boolean;
+    lastRequestSummary: HeatPumpHistoryRequestSummary | null;
   };
   alertsWorker: {
     lastHeartbeatAt: string | null;

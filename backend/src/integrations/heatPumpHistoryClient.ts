@@ -247,7 +247,7 @@ function normalizeSeriesEntry(entry: unknown): HeatPumpHistorySeries | null {
   return { field: String(field), points };
 }
 
-function normalizeHeatPumpHistoryResponse(raw: unknown): HeatPumpHistoryResponse {
+export function normalizeHeatPumpHistoryResponse(raw: unknown): HeatPumpHistoryResponse {
   if (raw && typeof raw === 'object' && Array.isArray((raw as { series?: unknown }).series)) {
     const series = ((raw as { series?: unknown }).series as unknown[]).map(normalizeSeriesEntry);
     return { series: series.filter(Boolean) as HeatPumpHistorySeries[] };

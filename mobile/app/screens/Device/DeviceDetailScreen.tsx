@@ -214,7 +214,9 @@ export const DeviceDetailScreen: React.FC = () => {
   const { isOffline } = useNetworkBanner();
   const healthPlusQuery = useHealthPlus({ enabled: !isOffline });
   const { data: demoStatus } = useDemoStatus();
-  const vendorFlags = demoStatus?.vendorFlags ?? healthPlusQuery.data?.vendorFlags;
+  const vendorFlagsFromHealth = healthPlusQuery.data?.vendorFlags;
+  const vendorFlagsFromDemo = demoStatus?.vendorFlags;
+  const vendorFlags = vendorFlagsFromHealth ?? vendorFlagsFromDemo;
   const isDemoOrg = demoStatus?.isDemoOrg ?? false;
   const vendorDisabled = formatVendorDisabledSummary(vendorFlags, {
     mqtt: healthPlusQuery.data?.mqtt?.disabled,
@@ -223,9 +225,9 @@ export const DeviceDetailScreen: React.FC = () => {
     push: healthPlusQuery.data?.push?.disabled,
   });
   const vendorHistoryDisabled = Boolean(
-    vendorDisabled?.features.includes('history') ||
-      vendorFlags?.heatPumpHistoryDisabled ||
-      healthPlusQuery.data?.heatPumpHistory?.disabled
+    healthPlusQuery.data?.heatPumpHistory?.disabled ||
+      vendorDisabled?.features.includes('history') ||
+      vendorFlags?.heatPumpHistoryDisabled
   );
   const controlDisabledByVendor = Boolean(
     vendorDisabled?.features.includes('control') ||
@@ -560,6 +562,12 @@ export const DeviceDetailScreen: React.FC = () => {
   ]);
 
   const historyErrorObj = heatPumpHistoryQuery.error;
+  const noHistoryPoints = useMemo(
+    () =>
+      selectedHistoryPoints.length === 0 ||
+      selectedHistoryPoints.every((point) => (point.y ?? 0) === 0),
+    [selectedHistoryPoints]
+  );
   const historyStatus = useMemo<HistoryStatus>(() => {
     if (vendorHistoryDisabled) return 'vendorDisabled';
     if (isOffline) return 'offline';
@@ -567,18 +575,44 @@ export const DeviceDetailScreen: React.FC = () => {
     if (heatPumpHistoryQuery.isError) {
       return deriveHistoryStatus(historyErrorObj as HeatPumpHistoryError | undefined);
     }
-    if (!heatPumpHistoryQuery.isLoading && selectedHistoryPoints.length === 0) {
+    if (!heatPumpHistoryQuery.isLoading && noHistoryPoints) {
       return 'noData';
     }
     return 'ok';
   }, [
     heatPumpHistoryQuery.isError,
     heatPumpHistoryQuery.isLoading,
-    selectedHistoryPoints.length,
+    noHistoryPoints,
     historyErrorObj,
     historyRequest,
     isOffline,
     vendorHistoryDisabled,
+  ]);
+  const historyEmptyState = useMemo(() => {
+    if (heatPumpHistoryQuery.isLoading) return null;
+    if (historyStatus !== 'noData' && !noHistoryPoints) return null;
+    if (noHistoryPoints && historyRange === '1h') {
+      return {
+        message: isDemoOrg
+          ? 'Waiting for live data... Try the last 6h range.'
+          : 'No history for this metric in the selected range.',
+        actionLabel: 'Switch to 6h',
+        onAction: () => setHistoryRange('6h'),
+      };
+    }
+    if (noHistoryPoints && historyRange === '6h' && vendorHistoryEnabled) {
+      return {
+        message: 'Vendor history returned no data for the last 6h.',
+      };
+    }
+    return null;
+  }, [
+    heatPumpHistoryQuery.isLoading,
+    historyStatus,
+    historyRange,
+    noHistoryPoints,
+    vendorHistoryEnabled,
+    isDemoOrg,
   ]);
   const commandRows = useMemo(
     () =>
@@ -1372,6 +1406,7 @@ export const DeviceDetailScreen: React.FC = () => {
           errorMessage={historyErrorMessage}
           testID="compressor-current-card"
           isDemoOrg={isDemoOrg}
+          emptyState={historyEmptyState || undefined}
           vendorCaption={
             vendorHistoryEnabled
               ? `Live vendor history: ${selectedHistoryOption?.label}${

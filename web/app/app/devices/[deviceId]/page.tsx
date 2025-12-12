@@ -312,6 +312,23 @@ export default function DeviceDetailPage() {
       .sort((a, b) => a.timestamp - b.timestamp);
   }, [historyQuery.data]);
 
+  const historyHasNonZeroPoints = historyPoints.some((p) => (p.value ?? 0) !== 0);
+  const historyConfigured =
+    healthPlusQuery.data?.heatPumpHistory?.configured && !healthPlusQuery.data?.heatPumpHistory?.disabled;
+  const historyEmptyState =
+    historyPoints.length === 0 || !historyHasNonZeroPoints
+      ? historyRange === "1h"
+        ? {
+            message: isDemoOrg
+              ? "Waiting for live data... Try the last 6h range."
+              : "No history points for this metric.",
+            action: () => setHistoryRange("6h"),
+          }
+        : historyRange === "6h" && historyConfigured
+        ? { message: "Vendor history returned no data for the last 6h." }
+        : { message: "No history points for this metric." }
+      : null;
+
   const vendorCaption =
     healthPlusQuery.data?.heatPumpHistory?.configured && !healthPlusQuery.data?.heatPumpHistory?.disabled
       ? "Live vendor history via /heat-pump-history"
@@ -464,11 +481,19 @@ export default function DeviceDetailPage() {
                 {(historyQuery.error as { message?: string })?.message ?? "Could not load heat pump history."}
               </p>
             </div>
-          ) : historyPoints.length === 0 ? (
+          ) : historyEmptyState ? (
             <div style={chartShellStyle}>
-              <p style={{ color: theme.colors.textSecondary, margin: 0 }}>
-                {isDemoOrg ? "Waiting for live data... Try the last 6h range." : "No history points for this metric."}
-              </p>
+              <p style={{ color: theme.colors.textSecondary, margin: 0 }}>{historyEmptyState.message}</p>
+              {historyEmptyState.action ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={historyEmptyState.action}
+                  style={{ marginTop: theme.spacing.sm }}
+                >
+                  Switch to 6h
+                </Button>
+              ) : null}
             </div>
           ) : (
             <div style={{ width: "100%", height: CHART_HEIGHT }}>

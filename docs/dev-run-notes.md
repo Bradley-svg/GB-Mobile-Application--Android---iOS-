@@ -50,6 +50,13 @@ Requirements:
 - `/health-plus` `control.configured=true` once `CONTROL_API_URL`/`CONTROL_API_KEY` are present and the disable flag is false; `lastCommandAt`/`lastError` echo status from the shared system_status table.
 - From the mobile Device screen, send a test setpoint/mode command: backend should log the command, persist it to history, and the vendor sandbox should reflect the change where possible.
 
+## Vendor heat pump history check
+- Direct vendor check (recent window): `cd backend && npm run history:vendor:check:6h` (uses `HEATPUMP_HISTORY_URL`/`HEATPUMP_HISTORY_API_KEY` from `.env`).
+  - Expect status 200; pointsCount > 0 (ideally); nonZeroCount > 0 if live current exists.
+- Backend proxy check: `curl http://localhost:4000/health-plus`
+  - Confirm `heatPumpHistory` configured=true, disabled=false, lastSuccessAt set (and lastRequestSummary after a successful call).
+- Demo runbook: app → device → history defaults to 6h; chart renders and caption says live vendor history.
+
 ## Mobile / Metro (Android dev client)
 - API base: `EXPO_PUBLIC_API_URL` if set; otherwise falls back to `http://10.0.2.2:4000` (Android emulator -> host loopback). Icons/splash/header use `mobile/assets/greenbro/greenbro-icon-1024.png`, `greenbro-splash.png`, and `greenbro-logo-horizontal.png`.
 - Commands:

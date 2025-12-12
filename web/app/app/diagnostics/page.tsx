@@ -55,6 +55,7 @@ const formatVendorFlags = (flags?: VendorFlags | null) => {
     flags.controlDisabled ? "Control" : null,
     flags.mqttDisabled ? "MQTT" : null,
     flags.heatPumpHistoryDisabled ? "History" : null,
+    flags.pushDisabled ? "Push" : null,
     flags.pushNotificationsDisabled ? "Push" : null,
   ].filter(Boolean);
   return `${flags.prodLike ? "Prod-like" : "Non-prod"}; Disabled: ${disabled}${
@@ -134,11 +135,17 @@ export default function DiagnosticsPage() {
   const demoStatusQuery = useDemoStatus({ enabled: allowed });
   const health = healthQuery.data;
   const demoStatus = demoStatusQuery.data;
-  const vendorFlags = demoStatus?.vendorFlags ?? health?.vendorFlags;
+  const vendorFlags = health?.vendorFlags ?? demoStatus?.vendorFlags;
   const vendorDisableSet = useMemo(
     () => new Set((vendorFlags?.disabled ?? []).map((flag) => flag.toUpperCase())),
     [vendorFlags?.disabled],
   );
+  const demoHistoryDisabled =
+    (demoStatus?.vendorFlags?.disabled ?? []).some((flag) => flag.toLowerCase().includes("history")) ||
+    demoStatus?.vendorFlags?.heatPumpHistoryDisabled;
+  const backendHistoryEnabled =
+    Boolean(health?.heatPumpHistory?.configured) && health?.heatPumpHistory?.disabled === false;
+  const historyFlagMismatch = Boolean(demoHistoryDisabled && backendHistoryEnabled);
 
   const subsystemCards: Subsystem[] = useMemo(() => {
     if (!health) return [];
@@ -434,6 +441,11 @@ export default function DiagnosticsPage() {
               <InfoRow label="Seeded at" value={seededAtLabel} />
               <InfoRow label="Vendor flags" value={demoFlagsLabel} />
             </div>
+            {historyFlagMismatch ? (
+              <span style={{ color: theme.colors.warning, fontSize: theme.typography.caption.fontSize }}>
+                Demo status disables history, but backend env enables it — check demo_tenants config.
+              </span>
+            ) : null}
           </div>
           <div
             data-testid="diagnostics-health-flags"

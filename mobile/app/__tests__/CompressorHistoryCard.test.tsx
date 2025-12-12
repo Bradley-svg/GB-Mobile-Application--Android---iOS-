@@ -110,20 +110,46 @@ describe('CompressorHistoryCard', () => {
   });
 
   it('nudges to expand range when 1h is empty', () => {
+    const onAction = jest.fn();
     renderWithTheme(
-      <CompressorHistoryCard {...baseProps} status="noData" range="1h" isDemoOrg />
+      <CompressorHistoryCard
+        {...baseProps}
+        status="noData"
+        range="1h"
+        isDemoOrg
+        emptyState={{
+          message: 'Waiting for live data... Try the last 6h range.',
+          actionLabel: 'Switch to 6h',
+          onAction,
+        }}
+      />
     );
 
     expect(screen.getByText(/Waiting for live data/i)).toBeTruthy();
     expect(screen.getByText(/last 6h range/i)).toBeTruthy();
+    fireEvent.press(screen.getByTestId('compressor-history-empty-action'));
+    expect(onAction).toHaveBeenCalled();
   });
 
   it('shows the generic empty message for non-demo 1h ranges', () => {
-    renderWithTheme(<CompressorHistoryCard {...baseProps} status="noData" range="1h" />);
+    const onAction = jest.fn();
+    renderWithTheme(
+      <CompressorHistoryCard
+        {...baseProps}
+        status="noData"
+        range="1h"
+        emptyState={{
+          message: 'No history for this metric in the selected range.',
+          actionLabel: 'Switch to 6h',
+          onAction,
+        }}
+      />
+    );
 
     expect(
       screen.getByText(/No history for this metric in the selected range/i)
     ).toBeTruthy();
+    expect(screen.getByTestId('compressor-history-empty-action')).toBeTruthy();
   });
 
   it('renders error state for backend or offline failures', () => {
