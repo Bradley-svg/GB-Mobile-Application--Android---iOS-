@@ -21,6 +21,8 @@ import {
   GlobalErrorBanner,
   ListSkeleton,
   SkeletonPlaceholder,
+  DemoModePill,
+  VendorDisabledBanner,
 } from '../../components';
 import { useNetworkBanner } from '../../hooks/useNetworkBanner';
 import { loadJsonWithMetadata, saveJson, isCacheOlderThan } from '../../utils/storage';
@@ -48,6 +50,7 @@ export const DashboardScreen: React.FC = () => {
   const role = useAuthStore((s) => s.user?.role ?? null);
   const canScanDevices = role === 'owner' || role === 'admin' || role === 'facilities';
   const isDemoOrg = demoStatus?.isDemoOrg ?? false;
+  const vendorFlags = demoStatus?.vendorFlags;
 
   useEffect(() => {
     if (data) {
@@ -139,20 +142,7 @@ export const DashboardScreen: React.FC = () => {
         style={styles.heroCard}
       >
         <View>
-          {isDemoOrg ? (
-            <StatusPill
-              label="Demo mode"
-              tone="muted"
-              testID="dashboard-demo-pill"
-              style={{
-                alignSelf: 'flex-start',
-                backgroundColor: colors.background,
-                borderWidth: 1,
-                borderColor: colors.borderSubtle,
-                marginBottom: spacing.xs,
-              }}
-            />
-          ) : null}
+          {isDemoOrg ? <DemoModePill style={{ marginBottom: spacing.xs }} /> : null}
           <Text style={[typography.caption, styles.heroMuted, { marginBottom: spacing.xs }]}>Portfolio</Text>
           <Text style={[typography.title1, styles.heroTitle]}>Greenbro</Text>
           <Text style={[typography.body, styles.heroMuted]}>Sites and devices at a glance</Text>
@@ -268,6 +258,7 @@ export const DashboardScreen: React.FC = () => {
           tone="warning"
         />
       ) : null}
+      <VendorDisabledBanner vendorFlags={vendorFlags} isDemoOrg={isDemoOrg} />
       {shouldShowError ? (
         <GlobalErrorBanner
           title="Couldn't load sites"

@@ -55,6 +55,7 @@ import {
   RoleRestrictedHint,
   connectivityDisplay,
   healthDisplay,
+  VendorDisabledBanner,
 } from '../../components';
 import { DeviceGaugesSection } from './DeviceGaugesSection';
 import { CompressorHistoryCard, HistoryMetricOption } from './CompressorHistoryCard';
@@ -67,6 +68,7 @@ import type { AppTheme } from '../../theme/types';
 import { createThemedStyles } from '../../theme/createThemedStyles';
 import { isContractor, useAuthStore } from '../../store/authStore';
 import { AppStackParamList } from '../../navigation/RootNavigator';
+import { formatVendorDisabledSummary } from '../../components/VendorDisabledBanner';
 
 type Route = RouteProp<AppStackParamList, 'DeviceDetail'>;
 type Navigation = NativeStackNavigationProp<AppStackParamList>;
@@ -152,7 +154,7 @@ type CachedDeviceDetail = {
   cachedAt: string;
 };
 
-type CommandDisabledReason = 'offline' | 'deviceOffline' | 'unconfigured' | 'readOnly' | null;
+type CommandDisabledReason = 'offline' | 'deviceOffline' | 'unconfigured' | 'readOnly' | 'vendor' | null;
 
 export const DeviceDetailScreen: React.FC = () => {
   const route = useRoute<Route>();
@@ -214,6 +216,22 @@ export const DeviceDetailScreen: React.FC = () => {
   const { data: demoStatus } = useDemoStatus();
   const vendorFlags = demoStatus?.vendorFlags ?? healthPlusQuery.data?.vendorFlags;
   const isDemoOrg = demoStatus?.isDemoOrg ?? false;
+  const vendorDisabled = formatVendorDisabledSummary(vendorFlags, {
+    mqtt: healthPlusQuery.data?.mqtt?.disabled,
+    control: healthPlusQuery.data?.control?.disabled,
+    history: healthPlusQuery.data?.heatPumpHistory?.disabled,
+    push: healthPlusQuery.data?.push?.disabled,
+  });
+  const vendorHistoryDisabled = Boolean(
+    vendorDisabled?.features.includes('history') ||
+      vendorFlags?.heatPumpHistoryDisabled ||
+      healthPlusQuery.data?.heatPumpHistory?.disabled
+  );
+  const controlDisabledByVendor = Boolean(
+    vendorDisabled?.features.includes('control') ||
+      vendorFlags?.controlDisabled ||
+      healthPlusQuery.data?.control?.disabled
+  );
   const userRole = useAuthStore((s) => s.user?.role);
   const contractorReadOnly = isContractor(userRole);
   const readOnlyCopy = 'Read-only access for your role.';
@@ -306,7 +324,7 @@ export const DeviceDetailScreen: React.FC = () => {
 
   const historyRequest: HeatPumpHistoryRequest | null = useMemo(() => {
     if (!deviceId || !mac) return null;
-    if (vendorFlags?.heatPumpHistoryDisabled) return null;
+    if (vendorHistoryDisabled) return null;
     return {
       deviceId,
       from: historyWindow.from,
@@ -315,7 +333,7 @@ export const DeviceDetailScreen: React.FC = () => {
       mode: 'live',
       fields: historyFields,
     };
-  }, [deviceId, historyFields, historyWindow.from, historyWindow.to, mac, vendorFlags?.heatPumpHistoryDisabled]);
+  }, [deviceId, historyFields, historyWindow.from, historyWindow.to, mac, vendorHistoryDisabled]);
 
   const historyMetricOptions = useMemo<HistoryMetricOption[]>(() => {
     const colorForMetric = (key: HeatPumpMetric) => {
@@ -362,7 +380,7 @@ export const DeviceDetailScreen: React.FC = () => {
       fields: [],
     },
     {
-      enabled: !!historyRequest && !isOffline,
+      enabled: !!historyRequest && !isOffline && !vendorHistoryDisabled,
     }
   );
   const refetchHistory = heatPumpHistoryQuery.refetch ?? (() => {});
@@ -436,6 +454,8 @@ export const DeviceDetailScreen: React.FC = () => {
     ? 'offline'
     : isDeviceOffline
     ? 'deviceOffline'
+    : controlDisabledByVendor
+    ? 'vendor'
     : !isControlConfigured
     ? 'unconfigured'
     : null;
@@ -532,16 +552,16 @@ export const DeviceDetailScreen: React.FC = () => {
   const compressorGaugeUpdatedAt = latestCompressorPoint?.timestamp ?? null;
   const vendorHistoryEnabled = useMemo(() => {
     const heatPumpHistoryConfig = healthPlusQuery.data?.heatPumpHistory;
-    const disabledByVendor = vendorFlags?.heatPumpHistoryDisabled ?? heatPumpHistoryConfig?.disabled;
+    const disabledByVendor = vendorHistoryDisabled ?? heatPumpHistoryConfig?.disabled;
     return Boolean(heatPumpHistoryConfig?.configured && !disabledByVendor);
   }, [
-    healthPlusQuery.data?.heatPumpHistory?.configured,
-    healthPlusQuery.data?.heatPumpHistory?.disabled,
-    vendorFlags?.heatPumpHistoryDisabled,
+    healthPlusQuery.data?.heatPumpHistory,
+    vendorHistoryDisabled,
   ]);
 
   const historyErrorObj = heatPumpHistoryQuery.error;
   const historyStatus = useMemo<HistoryStatus>(() => {
+    if (vendorHistoryDisabled) return 'vendorDisabled';
     if (isOffline) return 'offline';
     if (!historyRequest) return 'disabled';
     if (heatPumpHistoryQuery.isError) {
@@ -558,6 +578,7 @@ export const DeviceDetailScreen: React.FC = () => {
     historyErrorObj,
     historyRequest,
     isOffline,
+    vendorHistoryDisabled,
   ]);
   const commandRows = useMemo(
     () =>
@@ -634,7 +655,11 @@ export const DeviceDetailScreen: React.FC = () => {
   const telemetryErrorObj = telemetryQuery.error;
   const telemetryOfflineEmpty = isOffline && !telemetryData && !telemetryLoading;
   const historyErrorMessage =
-    mapHistoryError(historyStatus) ||
+    (historyStatus === 'vendorDisabled'
+      ? isDemoOrg
+        ? 'History disabled for this demo environment.'
+        : 'History disabled in this environment.'
+      : mapHistoryError(historyStatus)) ||
     `Failed to load ${selectedHistoryMetricDef?.label ?? 'history'}. Try again or contact support.`;
   const isOfflineWithCache = isOffline && !!cachedDeviceDetail;
   const showUnknownLastUpdated = !lastUpdatedAt && (hasAnyTelemetryPoints || hasAnyHistoryPoints);
@@ -807,7 +832,7 @@ export const DeviceDetailScreen: React.FC = () => {
     setSetpointError(null);
     setCommandError(null);
     if (commandsDisabledReason) {
-      setCommandError(mapControlDisabledMessage(commandsDisabledReason));
+      setCommandError(mapControlDisabledMessage(commandsDisabledReason, isDemoOrg));
       return;
     }
     const previousValue = lastSetpoint;
@@ -834,7 +859,7 @@ export const DeviceDetailScreen: React.FC = () => {
 
   const onModeChange = async (mode: 'OFF' | 'HEATING' | 'COOLING' | 'AUTO') => {
     if (commandsDisabledReason) {
-      setCommandError(mapControlDisabledMessage(commandsDisabledReason));
+      setCommandError(mapControlDisabledMessage(commandsDisabledReason, isDemoOrg));
       return;
     }
     const previousMode = selectedMode;
@@ -1169,6 +1194,18 @@ export const DeviceDetailScreen: React.FC = () => {
           tone="warning"
         />
       ) : null}
+      <VendorDisabledBanner
+        vendorFlags={vendorFlags}
+        isDemoOrg={isDemoOrg}
+        forceShow={!isDemoOrg && !!vendorDisabled}
+        extraDisabled={{
+          mqtt: healthPlusQuery.data?.mqtt?.disabled,
+          control: controlDisabledByVendor,
+          history: vendorHistoryDisabled,
+          push: healthPlusQuery.data?.push?.disabled,
+        }}
+        style={{ marginBottom: spacing.sm }}
+      />
 
       <View style={styles.historyToggle} testID="history-toggle">
         <PillTabGroup
@@ -1434,7 +1471,7 @@ export const DeviceDetailScreen: React.FC = () => {
         ) : null}
         {commandsDisabledReason ? (
           <Text testID="setpoint-readonly" style={[typography.caption, styles.muted, styles.pendingText]}>
-            {mapControlDisabledMessage(commandsDisabledReason)}
+            {mapControlDisabledMessage(commandsDisabledReason, isDemoOrg)}
           </Text>
         ) : null}
       </Card>
@@ -1480,7 +1517,7 @@ export const DeviceDetailScreen: React.FC = () => {
         ) : null}
         {commandsDisabledReason ? (
           <Text testID="mode-readonly" style={[typography.caption, styles.muted, styles.pendingText]}>
-            {mapControlDisabledMessage(commandsDisabledReason)}
+            {mapControlDisabledMessage(commandsDisabledReason, isDemoOrg)}
           </Text>
         ) : null}
       </Card>
@@ -1685,7 +1722,7 @@ function mapTelemetryError(error: unknown) {
   return 'Failed to load telemetry. Please try again.';
 }
 
-function mapControlDisabledMessage(reason: CommandDisabledReason) {
+function mapControlDisabledMessage(reason: CommandDisabledReason, isDemoOrg?: boolean) {
   switch (reason) {
     case 'readOnly':
       return 'Read-only access for your role.';
@@ -1693,6 +1730,10 @@ function mapControlDisabledMessage(reason: CommandDisabledReason) {
       return 'Commands are unavailable while offline.';
     case 'deviceOffline':
       return 'Device is offline; commands are disabled.';
+    case 'vendor':
+      return isDemoOrg
+        ? 'Control disabled for this demo environment.'
+        : 'Control disabled in this environment.';
     case 'unconfigured':
       return 'Control channel is not configured for this device in this environment.';
     default:

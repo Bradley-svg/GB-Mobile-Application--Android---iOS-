@@ -12,7 +12,15 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuthStore } from '../../store/authStore';
 import { isAdminOrOwner, isContractor, isFacilities } from '../../store/authStore';
-import { Screen, Card, PrimaryButton, IconButton, StatusPill } from '../../components';
+import {
+  Screen,
+  Card,
+  PrimaryButton,
+  IconButton,
+  StatusPill,
+  DemoModePill,
+  VendorDisabledBanner,
+} from '../../components';
 import { getNotificationPermissionStatus } from '../../hooks/usePushRegistration';
 import { useNotificationPreferencesQuery, useUpdateNotificationPreferencesMutation } from '../../api/preferences/hooks';
 import { DEFAULT_NOTIFICATION_PREFERENCES } from '../../api/preferences/storage';
@@ -21,6 +29,7 @@ import { AppStackParamList } from '../../navigation/RootNavigator';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppTheme } from '../../theme/types';
 import { createThemedStyles } from '../../theme/createThemedStyles';
+import { formatVendorDisabledSummary } from '../../components/VendorDisabledBanner';
 
 type Navigation = NativeStackNavigationProp<AppStackParamList>;
 
@@ -90,6 +99,8 @@ export const ProfileScreen: React.FC = () => {
       : mode.charAt(0).toUpperCase() + mode.slice(1);
   const { data: demoStatus } = useDemoStatus();
   const isDemoOrg = demoStatus?.isDemoOrg ?? false;
+  const vendorFlags = demoStatus?.vendorFlags;
+  const vendorDisabledSummary = formatVendorDisabledSummary(vendorFlags)?.summary;
 
   const onToggleNotifications = () => {
     if (!user?.id || toggleDisabled) return;
@@ -118,17 +129,14 @@ export const ProfileScreen: React.FC = () => {
           <Text style={[typography.body, styles.muted]} testID="profile-email">
             {user?.email ?? ''}
           </Text>
-          {isDemoOrg ? (
-            <StatusPill
-              label="Demo mode"
-              tone="muted"
-              testID="profile-demo-pill"
-              style={{ marginTop: spacing.xs, alignSelf: 'flex-start' }}
-            />
-          ) : null}
+          {isDemoOrg ? <DemoModePill style={{ marginTop: spacing.xs }} /> : null}
         </View>
         <IconButton icon={<Ionicons name="settings-outline" size={20} color={colors.brandGrey} />} />
       </Card>
+
+      {isDemoOrg ? (
+        <VendorDisabledBanner vendorFlags={vendorFlags} isDemoOrg style={{ marginBottom: spacing.sm }} />
+      ) : null}
 
       <Card style={styles.listCard}>
         <View style={styles.listRow}>
@@ -147,6 +155,23 @@ export const ProfileScreen: React.FC = () => {
           <StatusPill label={roleLabel} tone="muted" />
         </View>
         <View style={styles.separator} />
+        {isDemoOrg ? (
+          <>
+            <View style={styles.listRow} testID="demo-environment-row">
+              <View style={styles.rowLeft}>
+                <Ionicons name="sparkles-outline" size={18} color={colors.brandGreen} />
+                <View style={{ marginLeft: spacing.sm }}>
+                  <Text style={[typography.body, styles.title]}>Demo environment</Text>
+              <Text style={[typography.caption, styles.muted]}>
+                {vendorDisabledSummary ?? 'Sample data with limited controls for safety.'}
+              </Text>
+            </View>
+          </View>
+          <DemoModePill testID="demo-mode-pill-row" />
+        </View>
+        <View style={styles.separator} />
+      </>
+    ) : null}
         <View style={styles.listRow}>
           <View style={styles.rowLeft}>
             <Ionicons name="notifications-outline" size={18} color={colors.brandGreen} />

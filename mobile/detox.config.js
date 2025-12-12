@@ -44,5 +44,11 @@ module.exports = {
   },
   artifacts: {
     retainOnFail: true,
+    plugins: {
+      log: { enabled: true },
+      screenshot: { shouldTakeAutomaticSnapshots: true, keepOnlyFailedTestsArtifacts: true },
+      uiHierarchy: { enabled: true, keepOnlyFailedTestsArtifacts: true },
+      video: { enabled: false },
+    },
   },
 };

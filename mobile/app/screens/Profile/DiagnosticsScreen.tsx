@@ -5,7 +5,16 @@ import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
-import { Screen, Card, ErrorCard, GlobalErrorBanner, PrimaryButton, StatusPill } from '../../components';
+import {
+  Screen,
+  Card,
+  ErrorCard,
+  GlobalErrorBanner,
+  PrimaryButton,
+  StatusPill,
+  DemoModePill,
+  VendorDisabledBanner,
+} from '../../components';
 import { useHealthPlus } from '../../api/health/hooks';
 import { useDemoStatus } from '../../api/hooks';
 import { api } from '../../api/client';
@@ -15,6 +24,7 @@ import type { AppTheme } from '../../theme/types';
 import { typography } from '../../theme/typography';
 import type { HealthPlusPayload } from '../../api/types';
 import { createThemedStyles } from '../../theme/createThemedStyles';
+import { formatVendorDisabledSummary } from '../../components/VendorDisabledBanner';
 
 type SubsystemStatus = { label: string; tone: 'success' | 'warning' | 'error' | 'muted' };
 
@@ -89,13 +99,24 @@ export const DiagnosticsScreen: React.FC = () => {
   );
   const healthStatusLabel = healthQuery.data?.ok ? 'Healthy' : 'Issues detected';
   const vendorFlags = demoStatus?.vendorFlags ?? healthQuery.data?.vendorFlags;
-  const vendorDisabledLabel = (vendorFlags?.disabled ?? []).join(', ') || 'None';
-  const pushDisabled =
-    vendorFlags?.pushNotificationsDisabled ?? healthQuery.data?.push?.disabled ?? false;
+  const vendorDisabled = formatVendorDisabledSummary(vendorFlags, {
+    mqtt: healthQuery.data?.mqtt?.disabled,
+    control: healthQuery.data?.control?.disabled,
+    history: healthQuery.data?.heatPumpHistory?.disabled,
+    push: healthQuery.data?.push?.disabled,
+  });
+  const vendorDisabledLabel =
+    vendorDisabled?.summary || (vendorFlags?.disabled ?? []).join(', ') || 'None';
+  const pushDisabled = Boolean(
+    vendorDisabled?.features.includes('push') ||
+      vendorFlags?.pushDisabled ||
+      vendorFlags?.pushNotificationsDisabled ||
+      healthQuery.data?.push?.disabled
+  );
   const pushDisabledLabel = pushDisabled
     ? isDemoOrg
-      ? 'Push is disabled in demo env.'
-      : 'Push is disabled in this environment.'
+      ? 'Demo environment: Push disabled.'
+      : 'Push disabled for this environment.'
     : null;
 
   const handleCopy = async () => {
@@ -127,7 +148,9 @@ export const DiagnosticsScreen: React.FC = () => {
           'No device registered for push; open the app on your phone and ensure notifications are allowed.'
         );
       } else if (code === 'PUSH_DISABLED') {
-        setPushTestError(isDemoOrg ? 'Push is disabled in demo env.' : 'Push is disabled in this environment.');
+        setPushTestError(
+          isDemoOrg ? 'Demo environment: Push disabled.' : 'Push disabled in this environment.'
+        );
       } else if (code === 'PUSH_NOT_CONFIGURED') {
         setPushTestError('Push is not configured for this environment.');
       } else {
@@ -222,7 +245,10 @@ export const DiagnosticsScreen: React.FC = () => {
         label: 'Push',
         status: subsystemStatus({
           healthy: !healthQuery.data?.push?.lastError,
-          disabled: vendorFlags?.pushNotificationsDisabled ?? healthQuery.data?.push?.disabled,
+          disabled:
+            vendorFlags?.pushDisabled ??
+            vendorFlags?.pushNotificationsDisabled ??
+            healthQuery.data?.push?.disabled,
           configured: healthQuery.data?.push?.enabled,
         }),
         rows: [
@@ -285,6 +311,20 @@ export const DiagnosticsScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
+      {isDemoOrg ? <DemoModePill style={{ marginBottom: spacing.xs }} /> : null}
+      <VendorDisabledBanner
+        vendorFlags={vendorFlags}
+        isDemoOrg={isDemoOrg}
+        forceShow={!isDemoOrg && !!vendorDisabled}
+        extraDisabled={{
+          mqtt: healthQuery.data?.mqtt?.disabled,
+          control: healthQuery.data?.control?.disabled,
+          history: healthQuery.data?.heatPumpHistory?.disabled,
+          push: healthQuery.data?.push?.disabled,
+        }}
+        style={{ marginBottom: spacing.sm }}
+      />
+
       {copyNotice ? (
         <View style={styles.copyNotice}>
           <Text style={[typography.caption, { color: colors.success }]}>{copyNotice}</Text>
@@ -312,7 +352,7 @@ export const DiagnosticsScreen: React.FC = () => {
         <View style={styles.row}>
           <Text style={[typography.caption, styles.muted]}>Vendor flags</Text>
           <Text style={[typography.caption, styles.muted]} numberOfLines={2}>
-            {(healthQuery.data?.vendorFlags?.disabled || []).join(', ') || 'None'}
+            {vendorDisabledLabel}
           </Text>
         </View>
       </Card>

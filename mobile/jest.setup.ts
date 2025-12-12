@@ -305,3 +305,27 @@ jest.mock('expo-camera', () => {
     },
   };
 });
+
+jest.mock('./app/api/demo/hooks', () => {
+  const actual = jest.requireActual('./app/api/demo/hooks');
+  const defaultStatus = {
+    isDemoOrg: false,
+    heroDeviceId: null,
+    heroDeviceMac: null,
+    seededAt: null,
+    vendorFlags: {
+      disabled: [],
+      prodLike: false,
+      mqttDisabled: false,
+      controlDisabled: false,
+      heatPumpHistoryDisabled: false,
+      pushDisabled: false,
+      pushNotificationsDisabled: false,
+    },
+  };
+  return {
+    ...actual,
+    useDemoStatus: jest.fn(() => ({ data: defaultStatus })),
+    DEMO_STATUS_QUERY_KEY: actual.DEMO_STATUS_QUERY_KEY,
+  };
+});

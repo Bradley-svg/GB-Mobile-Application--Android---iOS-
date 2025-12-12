@@ -76,7 +76,7 @@ jobs:
             sleep 15
             node ../scripts/android-wait.js emulator --apk android/app/build/outputs/apk/debug/app-debug.apk --package com.greenbro.mobile --timeout 240000
             node ../scripts/android-wait.js app --activity com.greenbro.mobile/.MainActivity --test-id LoginScreen --timeout 120000 --artifacts ../logs/detox-preflight
-            npm run e2e:test:android -- --headless --reuse
+            npm run e2e:test:android -- --headless --reuse --specs "e2e/**/*.e2e.ts"
 
       - name: Upload Detox artifacts
         if: failure()

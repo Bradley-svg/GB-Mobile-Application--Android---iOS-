@@ -77,10 +77,11 @@ export type HeatPumpHistoryResponse = {
 export type VendorFlags = {
   prodLike: boolean;
   disabled: string[];
-  mqttDisabled: boolean;
-  controlDisabled: boolean;
-  heatPumpHistoryDisabled: boolean;
-  pushNotificationsDisabled: boolean;
+  mqttDisabled?: boolean;
+  controlDisabled?: boolean;
+  heatPumpHistoryDisabled?: boolean;
+  pushDisabled?: boolean;
+  pushNotificationsDisabled?: boolean;
 };
 
 export type Alert = {
@@ -181,9 +182,9 @@ export type TwoFactorStatusResponse = {
 
 export type DemoStatus = {
   isDemoOrg: boolean;
-  heroDeviceId: string | null;
-  heroDeviceMac: string | null;
-  seededAt: string | null;
+  heroDeviceId?: string | null;
+  heroDeviceMac?: string | null;
+  seededAt?: string | null;
   vendorFlags?: VendorFlags;
 };
 

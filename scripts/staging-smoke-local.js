@@ -59,5 +59,6 @@ function loadEnvFile(filePath) {
 }
 
 loadEnvFile(envFile);
+process.env.__STAGING_SMOKE_ENV_LOADED = 'true';
 
 require("./staging-smoke");

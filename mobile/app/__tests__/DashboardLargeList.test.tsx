@@ -54,6 +54,28 @@ describe('Dashboard large list rendering', () => {
     expect(renderedCards.length).toBeGreaterThan(0);
   });
 
+  it('does not render demo pill for non-demo tenants', () => {
+    (useSites as jest.Mock).mockReturnValue({
+      data: [
+        {
+          id: 'site-1',
+          name: 'Primary',
+          city: 'Cape Town',
+          status: 'online',
+          last_seen_at: '2025-01-01T00:00:00.000Z',
+          health: 'healthy',
+        },
+      ],
+      isLoading: false,
+      isError: false,
+      refetch: jest.fn(),
+    });
+
+    render(<DashboardScreen />);
+
+    expect(screen.queryByTestId('demo-mode-pill')).toBeNull();
+  });
+
   it('shows cached sites with an offline banner', async () => {
     (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: true });
     (useSites as jest.Mock).mockReturnValue({
@@ -133,6 +155,6 @@ describe('Dashboard large list rendering', () => {
 
     render(<DashboardScreen />);
 
-    expect(screen.getByTestId('dashboard-demo-pill')).toBeTruthy();
+    expect(screen.getByTestId('demo-mode-pill')).toBeTruthy();
   });
 });

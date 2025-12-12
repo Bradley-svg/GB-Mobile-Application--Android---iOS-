@@ -5,4 +5,5 @@ export type HistoryStatus =
   | 'upstreamError'
   | 'otherError'
   | 'offline'
-  | 'disabled';
+  | 'disabled'
+  | 'vendorDisabled';

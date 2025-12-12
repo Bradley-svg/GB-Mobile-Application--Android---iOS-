@@ -16,3 +16,14 @@ export interface ThemeContextValue {
   setMode: (mode: ThemeMode) => void;
   isReady: boolean;
 }
+
+export type {
+  ThemeColors,
+  ThemeGradients,
+  RadiusScale,
+  SpacingScale,
+  TypographyScale,
+  AppTheme,
+  ThemeMode,
+  ResolvedTheme,
+};

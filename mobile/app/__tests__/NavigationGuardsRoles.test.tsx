@@ -47,6 +47,7 @@ jest.mock('../api/hooks', () => ({
   useUploadWorkOrderAttachment: jest.fn(),
   useSignedFileUrl: jest.fn(),
   useHealthPlus: jest.fn(),
+  useDemoStatus: jest.fn(() => ({ data: { isDemoOrg: false } })),
 }));
 
 jest.mock('../api/shareLinks/hooks', () => ({

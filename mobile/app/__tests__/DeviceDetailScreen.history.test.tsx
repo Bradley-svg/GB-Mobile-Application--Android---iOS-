@@ -14,6 +14,7 @@ import {
   useHeatPumpHistory,
   useWorkOrdersList,
   useHealthPlus,
+  useDemoStatus,
 } from '../api/hooks';
 import * as navigation from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
@@ -59,7 +60,6 @@ describe('DeviceDetailScreen heat pump history', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-
     (useNetworkBanner as jest.Mock).mockReturnValue({ isOffline: false });
 
     const route: RouteProp<AppStackParamList, 'DeviceDetail'> = {
@@ -68,7 +68,7 @@ describe('DeviceDetailScreen heat pump history', () => {
       params: { deviceId: baseDevice.id },
     };
 
-    jest.spyOn(navigation, 'useRoute').mockReturnValue(route);
+    (navigation.useRoute as jest.Mock).mockReturnValue(route);
 
     (useDevice as jest.Mock).mockReturnValue({
       data: baseDevice,
@@ -202,6 +202,21 @@ describe('DeviceDetailScreen heat pump history', () => {
       data: [],
       isLoading: false,
       isError: false,
+    });
+
+    (useDemoStatus as jest.Mock).mockReturnValue({
+      data: {
+        isDemoOrg: false,
+        vendorFlags: {
+          disabled: [],
+          prodLike: false,
+          mqttDisabled: false,
+          controlDisabled: false,
+          heatPumpHistoryDisabled: false,
+          pushNotificationsDisabled: false,
+          pushDisabled: false,
+        },
+      },
     });
   });
 
@@ -348,17 +363,45 @@ describe('DeviceDetailScreen heat pump history', () => {
     expect(screen.getByText(/History unavailable for this device/i)).toBeTruthy();
   });
 
+  it('surfaces a vendor-disabled message for demo orgs', async () => {
+    (useDemoStatus as jest.Mock).mockReturnValue({
+      data: {
+        isDemoOrg: true,
+        vendorFlags: {
+          disabled: [],
+          prodLike: false,
+          mqttDisabled: false,
+          controlDisabled: false,
+          heatPumpHistoryDisabled: true,
+          pushNotificationsDisabled: false,
+        },
+      },
+    });
+
+    await renderDeviceDetail();
+    fireEvent.press(screen.getByTestId('pill-compressor'));
+
+    expect(screen.getByText(/History disabled for this demo environment/i)).toBeTruthy();
+    expect(screen.getByTestId('compressor-history-error')).toBeTruthy();
+  });
+
   it('switches metrics and requests the selected metric fields', async () => {
     await renderDeviceDetail();
     fireEvent.press(screen.getByTestId('pill-compressor'));
 
     fireEvent.press(screen.getByTestId('pill-cop'));
 
+    const historyRequests = (useHeatPumpHistory as jest.Mock).mock.calls
+      .map(([req]) => req as HeatPumpHistoryRequest)
+      .filter((req) => (req.fields ?? []).length > 0);
     const lastCall =
-      (useHeatPumpHistory as jest.Mock).mock.calls[
-        (useHeatPumpHistory as jest.Mock).mock.calls.length - 1
-      ][0] as HeatPumpHistoryRequest;
-    const fieldNames = lastCall.fields.map((f) => f.field);
+      historyRequests[historyRequests.length - 1] ||
+      ((useHeatPumpHistory as jest.Mock).mock.calls.slice(-1)[0]?.[0] as
+        | HeatPumpHistoryRequest
+        | undefined);
+
+    expect(lastCall).toBeDefined();
+    const fieldNames = (lastCall?.fields ?? []).map((f) => f.field);
     expect(fieldNames).toContain('metric_cop');
     expect(fieldNames).toContain('metric_compCurrentA');
   });

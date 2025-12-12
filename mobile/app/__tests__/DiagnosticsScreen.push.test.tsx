@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
 import { DiagnosticsScreen } from '../screens/Profile/DiagnosticsScreen';
 import { useHealthPlus } from '../api/health/hooks';
 import { useDemoStatus } from '../api/hooks';
@@ -111,7 +111,7 @@ describe('DiagnosticsScreen push test', () => {
     fireEvent.press(screen.getByTestId('diagnostics-push-button'));
 
     await waitFor(() => {
-      expect(screen.getByText(/Push is disabled/i)).toBeTruthy();
+      expect(screen.getByText(/Push disabled in this environment/i)).toBeTruthy();
     });
   });
 
@@ -128,7 +128,11 @@ describe('DiagnosticsScreen push test', () => {
     render(<DiagnosticsScreen />);
 
     expect(screen.getByTestId('diagnostics-push-demo-disabled')).toBeTruthy();
-    expect(screen.getByText(/Push is disabled in demo env/i)).toBeTruthy();
+    expect(
+      within(screen.getByTestId('diagnostics-push-demo-disabled')).getByText(
+        /Demo environment: Push disabled/i
+      )
+    ).toBeTruthy();
     expect(screen.getByTestId('diagnostics-push-button')).toHaveProp('disabled', true);
   });
 

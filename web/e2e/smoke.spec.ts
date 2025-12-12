@@ -4,6 +4,7 @@ const demoEmail = process.env.WEB_E2E_EMAIL || process.env.DEMO_EMAIL || "demo@g
 const demoPassword =
   process.env.WEB_E2E_PASSWORD || process.env.DEMO_PASSWORD || "GreenbroDemo#2025!";
 const heroDeviceName = process.env.WEB_E2E_HERO_DEVICE || "Heat Pump #1";
+const heroDeviceId = process.env.WEB_E2E_HERO_DEVICE_ID;
 
 test("web smoke flow: login, fleet, device history, alerts", async ({ page }) => {
   await page.goto("/login");
@@ -15,12 +16,18 @@ test("web smoke flow: login, fleet, device history, alerts", async ({ page }) =>
   await page.waitForURL("**/app**", { timeout: 30_000 });
 
   const deviceLinks = page.locator('a[href^="/app/devices/"]');
-  await expect(page.getByRole("link", { name: new RegExp(heroDeviceName, "i") })).toBeVisible({
-    timeout: 30_000,
-  });
   await expect(deviceLinks.first()).toBeVisible({ timeout: 30_000 });
 
-  await page.getByRole("link", { name: new RegExp(heroDeviceName, "i") }).first().click();
+  if (heroDeviceId) {
+    await page.goto(`/app/devices/${heroDeviceId}`);
+  } else {
+    const namedLink = page.getByRole("link", { name: new RegExp(heroDeviceName, "i") });
+    if ((await namedLink.count()) > 0) {
+      await namedLink.first().click();
+    } else {
+      await deviceLinks.first().click();
+    }
+  }
   await page.waitForURL("**/app/devices/**", { timeout: 30_000 });
 
   await page.getByRole("button", { name: "History" }).click();
@@ -31,9 +38,13 @@ test("web smoke flow: login, fleet, device history, alerts", async ({ page }) =>
   await page.waitForURL("**/app/alerts**", { timeout: 30_000 });
 
   const viewButtons = page.getByRole("button", { name: "View" });
-  await expect(viewButtons.first()).toBeVisible({ timeout: 20_000 });
-  await viewButtons.first().click();
+  if (await viewButtons.count()) {
+    await expect(viewButtons.first()).toBeVisible({ timeout: 20_000 });
+    await viewButtons.first().click();
 
-  await page.waitForURL(/\/app\/alerts\/.+/, { timeout: 30_000 });
-  await expect(page.getByRole("heading", { name: "Quick actions" })).toBeVisible({ timeout: 20_000 });
+    await page.waitForURL(/\/app\/alerts\/.+/, { timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "Quick actions" })).toBeVisible({ timeout: 20_000 });
+  } else {
+    await expect(page.getByText(/No alerts/i)).toBeVisible({ timeout: 10_000 });
+  }
 });

@@ -9,6 +9,8 @@ export { ErrorCard } from './ErrorCard';
 export { EmptyState } from './EmptyState';
 export { GlobalErrorBanner } from './GlobalErrorBanner';
 export { OfflineBanner } from './OfflineBanner';
+export { DemoModePill } from './DemoModePill';
+export { VendorDisabledBanner } from './VendorDisabledBanner';
 export { RoleRestrictedHint } from './RoleRestrictedHint';
 export { SkeletonPlaceholder } from './SkeletonPlaceholder';
 export { ListSkeleton } from './ListSkeleton';
