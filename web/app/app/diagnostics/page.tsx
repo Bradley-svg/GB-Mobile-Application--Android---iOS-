@@ -381,6 +381,37 @@ export default function DiagnosticsPage() {
               </span>
             </div>
           </div>
+          {health.perfHints ? (
+            <div
+              style={{
+                padding: theme.spacing.md,
+                borderRadius: theme.radius.md,
+                border: `1px solid ${theme.colors.borderSubtle}`,
+                backgroundColor: theme.colors.surface,
+              }}
+            >
+              <span style={{ color: theme.colors.textSecondary, fontSize: theme.typography.caption.fontSize }}>
+                Fleet size & load
+              </span>
+              <div style={{ marginTop: theme.spacing.xs, display: "flex", flexDirection: "column", gap: 4 }}>
+                <span>Devices: {health.perfHints.deviceCount.toLocaleString()}</span>
+                <span>
+                  Alerts/device: {health.perfHints.avgAlertsPerDevice.toFixed(2)} (total{" "}
+                  {health.perfHints.alertCount.toLocaleString()})
+                </span>
+                <span>
+                  Work orders/device: {health.perfHints.avgWorkOrdersPerDevice.toFixed(2)} (total{" "}
+                  {health.perfHints.workOrderCount.toLocaleString()})
+                </span>
+                <span>
+                  Slow queries (last hour):{" "}
+                  {health.perfHints.slowQueriesLastHour == null
+                    ? "Not tracked"
+                    : health.perfHints.slowQueriesLastHour.toLocaleString()}
+                </span>
+              </div>
+            </div>
+          ) : null}
         </div>
       </Card>
 

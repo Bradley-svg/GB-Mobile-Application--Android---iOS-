@@ -353,7 +353,11 @@ describe('POST /heat-pump-history', () => {
       })
       .expect(400);
 
-    expect(res.body).toEqual({ message: 'Requested range exceeds maximum of 1 hours' });
+    expect(res.body).toEqual({
+      message: 'Requested range exceeds maximum of 1 hours',
+      code: 'ERR_RANGE_TOO_LARGE',
+      maxHours: 1,
+    });
     expect(fetchHeatPumpHistoryMock).not.toHaveBeenCalled();
   });
 

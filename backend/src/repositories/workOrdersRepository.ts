@@ -1,4 +1,5 @@
 import { query } from '../config/db';
+import { MAX_WORK_ORDERS_PAGE_SIZE } from '../config/limits';
 import type { FileStatus } from '../types/files';
 import type { AlertSeverity } from './alertsRepository';
 
@@ -272,7 +273,7 @@ export async function findWorkOrdersForOrg(
     idx += 1;
   }
 
-  const limit = filters.limit ?? 50;
+  const limit = Math.min(filters.limit ?? 50, MAX_WORK_ORDERS_PAGE_SIZE);
   const res = await query<WorkOrderWithRefs>(
     `
     select wo.*,

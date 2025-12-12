@@ -31,6 +31,7 @@ import {
 import { canManageWorkOrders } from '../services/rbacService';
 import { scanFile } from '../services/virusScanner';
 import { recordAuditEvent } from '../modules/audit/auditService';
+import { ERR_PAGE_TOO_LARGE, MAX_WORK_ORDERS_PAGE_SIZE } from '../config/limits';
 
 const workOrderIdParamSchema = z.object({ id: z.string().uuid() });
 const deviceIdParamSchema = z.object({ id: z.string().uuid() });
@@ -63,6 +64,7 @@ const listQuerySchema = z.object({
   deviceId: z.string().uuid().optional(),
   alertId: z.string().uuid().optional(),
   q: z.string().min(1).max(200).optional(),
+  limit: z.coerce.number().int().positive().optional(),
 });
 
 const createWorkOrderSchema = z.object({
@@ -121,6 +123,14 @@ export async function listWorkOrdersHandler(req: Request, res: Response, next: N
     return res.status(400).json({ message: 'Invalid query' });
   }
 
+  if (parsed.data.limit && parsed.data.limit > MAX_WORK_ORDERS_PAGE_SIZE) {
+    return res.status(400).json({
+      message: `Requested page size too large (max ${MAX_WORK_ORDERS_PAGE_SIZE})`,
+      code: ERR_PAGE_TOO_LARGE,
+      max: MAX_WORK_ORDERS_PAGE_SIZE,
+    });
+  }
+
   try {
     const organisationId = await resolveOrganisationId(req.user!.id, res);
     if (!organisationId) return;
@@ -131,6 +141,7 @@ export async function listWorkOrdersHandler(req: Request, res: Response, next: N
       alertId: parsed.data.alertId,
       status: parsed.data.status,
       search: parsed.data.q,
+      limit: parsed.data.limit,
     });
 
     res.json(orders);

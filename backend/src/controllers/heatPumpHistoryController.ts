@@ -33,7 +33,9 @@ export async function postHeatPumpHistory(req: Request, res: Response, next: Nex
       .json({ error: 'upstream_history_error', message: result.message });
   } catch (err) {
     if (err instanceof HeatPumpHistoryValidationError) {
-      return res.status(400).json({ message: err.message });
+      return res
+        .status(400)
+        .json({ message: err.message, code: err.code, maxHours: err.maxHours });
     }
 
     if (err instanceof HeatPumpHistoryFeatureDisabledError) {

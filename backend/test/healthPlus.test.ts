@@ -83,6 +83,24 @@ const defaultMqtt = {
   lastError: null,
 };
 const defaultPushHealth = { configured: false, tokensPresent: false, lastSample: null };
+const defaultPerfRow = {
+  open_count: '0',
+  overdue_count: '0',
+  device_count: '0',
+  alert_count: '0',
+  work_order_count: '0',
+  slow_query_count: null,
+};
+const defaultQueryResponse = async (sql: string) => {
+  const normalized = sql.toLowerCase();
+  if (normalized.includes('select 1 as ok')) {
+    return { rows: [{ ok: 1 }], rowCount: 1 };
+  }
+  if (normalized.includes('open_count') || normalized.includes('work_order_count')) {
+    return { rows: [defaultPerfRow], rowCount: 1 };
+  }
+  return { rows: [], rowCount: 0 };
+};
 
 beforeAll(async () => {
   process.env.NODE_ENV = 'test';
@@ -93,6 +111,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   queryMock.mockReset();
+  queryMock.mockImplementation(defaultQueryResponse);
   loggerInfoSpy.mockClear();
   loggerWarnSpy.mockClear();
   loggerErrorSpy.mockClear();
@@ -127,7 +146,19 @@ describe('GET /health-plus (baseline)', () => {
   it('returns ok with version and db ok when query succeeds', async () => {
     queryMock
       .mockResolvedValueOnce({ rows: [{ ok: 1 }], rowCount: 1 })
-      .mockResolvedValueOnce({ rows: [{ open_count: '5', overdue_count: '2' }], rowCount: 1 });
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            open_count: '5',
+            overdue_count: '2',
+            device_count: '10',
+            alert_count: '30',
+            work_order_count: '6',
+            slow_query_count: '1',
+          },
+        ],
+        rowCount: 1,
+      });
 
     const res = await request(app).get('/health-plus').expect(200);
 
@@ -199,6 +230,14 @@ describe('GET /health-plus (baseline)', () => {
         overdueCount: 2,
         lastCalcAt: expect.any(String),
       },
+      perfHints: {
+        deviceCount: 10,
+        alertCount: 30,
+        workOrderCount: 6,
+        avgAlertsPerDevice: 3,
+        avgWorkOrdersPerDevice: 0.6,
+        slowQueriesLastHour: 1,
+      },
       alertsEngine: {
         lastRunAt: null,
         lastDurationMs: null,
@@ -226,7 +265,7 @@ describe('GET /health-plus (baseline)', () => {
       ok: false,
       env: process.env.NODE_ENV,
       db: 'error',
-       dbLatencyMs: expect.any(Number),
+      dbLatencyMs: expect.any(Number),
       version: 'test-version',
       vendorFlags: {
         prodLike: false,
@@ -364,9 +403,7 @@ describe('GET /health-plus heat pump history', () => {
 
 describe('GET /health-plus antivirus status', () => {
   it('includes antivirus block when configured and recently successful', async () => {
-    queryMock
-      .mockResolvedValueOnce({ rows: [{ ok: 1 }], rowCount: 1 })
-      .mockResolvedValueOnce({ rows: [{ open_count: '0', overdue_count: '0' }], rowCount: 1 });
+    queryMock.mockResolvedValueOnce({ rows: [{ ok: 1 }], rowCount: 1 });
 
     const lastRunAt = new Date().toISOString();
     getVirusScannerStatusMock.mockReturnValue({
@@ -393,9 +430,7 @@ describe('GET /health-plus antivirus status', () => {
   });
 
   it('marks ok false when antivirus is configured but failing', async () => {
-    queryMock
-      .mockResolvedValueOnce({ rows: [{ ok: 1 }], rowCount: 1 })
-      .mockResolvedValueOnce({ rows: [{ open_count: '0', overdue_count: '0' }], rowCount: 1 });
+    queryMock.mockResolvedValueOnce({ rows: [{ ok: 1 }], rowCount: 1 });
 
     const lastRunAt = new Date().toISOString();
     getVirusScannerStatusMock.mockReturnValue({

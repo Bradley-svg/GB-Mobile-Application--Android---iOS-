@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { searchFleet } from '../services/fleetService';
 import { resolveOrganisationId } from './organisation';
 import type { HealthStatus } from '../services/healthScoreService';
+import { ERR_PAGE_TOO_LARGE, MAX_FLEET_PAGE_SIZE } from '../config/limits';
 
 const fleetQuerySchema = z.object({
   q: z.string().trim().optional(),
@@ -14,7 +15,7 @@ const fleetQuerySchema = z.object({
       return Array.isArray(value) ? value : [value];
     }),
   tag: z.string().trim().optional(),
-  limit: z.coerce.number().int().positive().max(200).optional(),
+  limit: z.coerce.number().int().positive().optional(),
   offset: z.coerce.number().int().nonnegative().optional(),
 });
 
@@ -29,6 +30,14 @@ export async function listFleet(req: Request, res: Response, next: NextFunction)
   const healthFilters = (parsed.data.health || [])
     .map((h) => h.toLowerCase() as HealthStatus)
     .filter((h) => allowedHealth.has(h));
+
+  if (parsed.data.limit && parsed.data.limit > MAX_FLEET_PAGE_SIZE) {
+    return res.status(400).json({
+      message: `Requested page size too large (max ${MAX_FLEET_PAGE_SIZE})`,
+      code: ERR_PAGE_TOO_LARGE,
+      max: MAX_FLEET_PAGE_SIZE,
+    });
+  }
 
   try {
     const organisationId = await resolveOrganisationId(req.user!.id, res);

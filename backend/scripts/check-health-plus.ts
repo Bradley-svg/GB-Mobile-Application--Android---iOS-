@@ -20,6 +20,7 @@ type HealthPlusSummary = {
     antivirus?: number | null;
   };
   vendorFlags?: HealthPlusPayload['vendorFlags'];
+  perfHints?: HealthPlusPayload['perfHints'];
   subsystems: Record<string, SubsystemSummary>;
 };
 
@@ -74,6 +75,7 @@ export function summarizeHealthPlus(body: HealthPlusPayload, target: string): He
       antivirus: body.antivirus?.latencyMs,
     },
     vendorFlags: body.vendorFlags,
+    perfHints: body.perfHints,
     subsystems,
   };
 }

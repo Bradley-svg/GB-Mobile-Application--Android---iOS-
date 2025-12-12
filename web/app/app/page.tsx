@@ -1,4 +1,4 @@
-﻿"use client";
+ï»¿"use client";
 
 import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
@@ -14,6 +14,9 @@ import { useOrgStore } from "@/lib/orgStore";
 import type { StatusKind } from "@/components/ui/StatusPill";
 
 type MetricValue = string | number | null | undefined;
+const DASHBOARD_STALE_TIME = 30_000;
+const DASHBOARD_CACHE_TIME = 5 * 60 * 1000;
+const DEGREE = "\u00b0C";
 
 const metricKeys = {
   tank: ["tank_temp", "tank_temp_c", "supply_temp"],
@@ -80,7 +83,8 @@ function FleetDeviceCard({ device }: { device: ApiDevice }) {
   const telemetryQuery = useQuery({
     queryKey: ["device-telemetry", device.id, currentOrgId],
     queryFn: () => fetchDeviceTelemetry(device.id, "1h", currentOrgId),
-    staleTime: 60_000,
+    staleTime: DASHBOARD_STALE_TIME,
+    gcTime: DASHBOARD_CACHE_TIME,
   });
 
   const telemetry = telemetryQuery.data;
@@ -164,9 +168,9 @@ function FleetDeviceCard({ device }: { device: ApiDevice }) {
             gap: theme.spacing.sm,
           }}
         >
-          {renderMetric("Tank degC", metrics.tank, typeof metrics.tank === "number" ? "°C" : "")}
-          {renderMetric("DHW degC", metrics.dhw, typeof metrics.dhw === "number" ? "°C" : "")}
-          {renderMetric("Ambient degC", metrics.ambient, typeof metrics.ambient === "number" ? "°C" : "")}
+          {renderMetric("Tank degC", metrics.tank, typeof metrics.tank === "number" ? DEGREE : "")}
+          {renderMetric("DHW degC", metrics.dhw, typeof metrics.dhw === "number" ? DEGREE : "")}
+          {renderMetric("Ambient degC", metrics.ambient, typeof metrics.ambient === "number" ? DEGREE : "")}
           {renderMetric("Compressor A", metrics.compressor)}
           {renderMetric("EEV steps", metrics.eev)}
           {renderMetric("Mode", metrics.mode)}
@@ -205,7 +209,7 @@ const ListSkeleton = () => {
             borderRadius: theme.radius.lg,
             backgroundColor: theme.colors.card,
             padding: theme.spacing.xl,
-            minHeight: 220,
+            minHeight: 260,
             display: "flex",
             flexDirection: "column",
             gap: theme.spacing.sm,
@@ -232,7 +236,8 @@ export default function FleetOverviewPage() {
   const fleetQuery = useQuery<FleetSearchResult>({
     queryKey: ["fleet", selectedSiteId, currentOrgId],
     queryFn: () => fetchFleet({ orgId: currentOrgId ?? undefined }),
-    staleTime: 30_000,
+    staleTime: DASHBOARD_STALE_TIME,
+    gcTime: DASHBOARD_CACHE_TIME,
   });
 
   const sites = fleetQuery.data?.sites ?? [];
@@ -404,4 +409,3 @@ function Section({ title, count, status, children }: { title: string; count: num
     </div>
   );
 }
-

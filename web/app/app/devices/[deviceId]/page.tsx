@@ -63,6 +63,9 @@ const RANGE_TO_WINDOW_MS: Record<TimeRange, number> = {
   "24h": 24 * 60 * 60 * 1000,
   "7d": 7 * 24 * 60 * 60 * 1000,
 };
+const DETAIL_CACHE_TIME = 5 * 60 * 1000;
+const DETAIL_STALE_TIME = 30_000;
+const CHART_HEIGHT = 340;
 
 const combineSeries = (
   telemetry: DeviceTelemetry | null | undefined,
@@ -221,13 +224,16 @@ export default function DeviceDetailPage() {
     queryKey: ["device", deviceId, currentOrgId],
     enabled: !!deviceId,
     queryFn: () => fetchDevice(deviceId as string, currentOrgId),
+    staleTime: DETAIL_STALE_TIME,
+    gcTime: DETAIL_CACHE_TIME,
   });
 
   const telemetryQuery = useQuery({
     queryKey: ["device-telemetry", deviceId, telemetryRange, currentOrgId],
     enabled: !!deviceId,
     queryFn: () => fetchDeviceTelemetry(deviceId as string, telemetryRange, currentOrgId),
-    staleTime: 60_000,
+    staleTime: DETAIL_STALE_TIME,
+    gcTime: DETAIL_CACHE_TIME,
   });
 
   const historyDefinition = HISTORY_METRICS.find((m) => m.key === historyMetric) ?? HISTORY_METRICS[0];
@@ -245,13 +251,16 @@ export default function DeviceDetailPage() {
         fields: [{ field: historyDefinition.field }],
         orgId: currentOrgId ?? undefined,
       }),
-    staleTime: 60_000,
+    staleTime: DETAIL_STALE_TIME,
+    gcTime: DETAIL_CACHE_TIME,
+    refetchOnWindowFocus: false,
   });
 
   const healthPlusQuery = useQuery({
     queryKey: ["health-plus"],
     queryFn: fetchHealthPlus,
     staleTime: 5 * 60 * 1000,
+    gcTime: DETAIL_CACHE_TIME,
   });
 
   const device: ApiDevice | undefined = deviceQuery.data;
@@ -302,6 +311,13 @@ export default function DeviceDetailPage() {
     healthPlusQuery.data?.heatPumpHistory?.configured && !healthPlusQuery.data?.heatPumpHistory?.disabled
       ? "Live vendor history via /heat-pump-history"
       : undefined;
+  const chartShellStyle = {
+    width: "100%",
+    height: CHART_HEIGHT,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  };
 
   if (deviceQuery.isLoading) {
     return (
@@ -345,13 +361,19 @@ export default function DeviceDetailPage() {
           </div>
 
           {telemetryQuery.isLoading ? (
-            <p style={{ color: theme.colors.textSecondary }}>Loading telemetry...</p>
+            <div style={chartShellStyle}>
+              <p style={{ color: theme.colors.textSecondary, margin: 0 }}>Loading telemetry...</p>
+            </div>
           ) : telemetryQuery.isError ? (
-            <p style={{ color: theme.colors.error }}>Could not load telemetry.</p>
+            <div style={chartShellStyle}>
+              <p style={{ color: theme.colors.error, margin: 0 }}>Could not load telemetry.</p>
+            </div>
           ) : chartData.length === 0 ? (
-            <p style={{ color: theme.colors.textSecondary }}>No telemetry data in this range.</p>
+            <div style={chartShellStyle}>
+              <p style={{ color: theme.colors.textSecondary, margin: 0 }}>No telemetry data in this range.</p>
+            </div>
           ) : (
-            <div style={{ width: "100%", height: 340 }}>
+            <div style={{ width: "100%", height: CHART_HEIGHT }}>
               <ResponsiveContainer>
                 <LineChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 12 }}>
                   <CartesianGrid strokeDasharray="4 4" stroke={theme.colors.borderSubtle} />
@@ -426,15 +448,21 @@ export default function DeviceDetailPage() {
           </div>
 
           {historyQuery.isLoading ? (
-            <p style={{ color: theme.colors.textSecondary }}>Loading history...</p>
+            <div style={chartShellStyle}>
+              <p style={{ color: theme.colors.textSecondary, margin: 0 }}>Loading history...</p>
+            </div>
           ) : historyQuery.isError ? (
-            <p style={{ color: theme.colors.error }}>
-              {(historyQuery.error as { message?: string })?.message ?? "Could not load heat pump history."}
-            </p>
+            <div style={chartShellStyle}>
+              <p style={{ color: theme.colors.error, margin: 0 }}>
+                {(historyQuery.error as { message?: string })?.message ?? "Could not load heat pump history."}
+              </p>
+            </div>
           ) : historyPoints.length === 0 ? (
-            <p style={{ color: theme.colors.textSecondary }}>No history points for this metric.</p>
+            <div style={chartShellStyle}>
+              <p style={{ color: theme.colors.textSecondary, margin: 0 }}>No history points for this metric.</p>
+            </div>
           ) : (
-            <div style={{ width: "100%", height: 340 }}>
+            <div style={{ width: "100%", height: CHART_HEIGHT }}>
               <ResponsiveContainer>
                 <LineChart data={historyPoints} margin={{ top: 8, right: 16, left: 0, bottom: 12 }}>
                   <CartesianGrid strokeDasharray="4 4" stroke={theme.colors.borderSubtle} />

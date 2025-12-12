@@ -63,6 +63,14 @@ export type HealthPlusPayload = {
     overdueCount: number;
     lastCalcAt: string | null;
   };
+  perfHints?: {
+    deviceCount: number;
+    alertCount: number;
+    workOrderCount: number;
+    avgAlertsPerDevice: number;
+    avgWorkOrdersPerDevice: number;
+    slowQueriesLastHour: number | null;
+  };
   storage?: {
     root: string;
     writable: boolean;

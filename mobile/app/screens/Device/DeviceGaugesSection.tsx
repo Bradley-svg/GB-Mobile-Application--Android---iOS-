@@ -57,7 +57,7 @@ const formatUpdatedAt = (timestamp?: string | null) => {
   return `Updated ${date.toLocaleString()}`;
 };
 
-export const DeviceGaugesSection: React.FC<DeviceGaugesSectionProps> = ({
+const DeviceGaugesSectionComponent: React.FC<DeviceGaugesSectionProps> = ({
   telemetry,
   isOffline,
   lastUpdatedAt,
@@ -324,3 +324,5 @@ const createStyles = (theme: AppTheme) =>
       marginTop: theme.spacing.sm,
     },
   });
+
+export const DeviceGaugesSection = React.memo(DeviceGaugesSectionComponent);

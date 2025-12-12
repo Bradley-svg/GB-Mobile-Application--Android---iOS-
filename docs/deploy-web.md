@@ -8,7 +8,7 @@
 
 ## Environment matrix (enforced in `next.config.mjs`)
 - Local dev: `NEXT_PUBLIC_API_URL=http://localhost:4000`, `NEXT_PUBLIC_EMBEDDED=false`.
-- Staging: `NEXT_PUBLIC_API_URL=https://staging.api.greenbro.co.za`, `NEXT_PUBLIC_EMBEDDED=true`.
+- Staging: `NEXT_PUBLIC_API_URL=https://staging.api.greenbro.co.za`, `NEXT_PUBLIC_EMBEDDED=true`, `NEXT_PUBLIC_AUTH_2FA_ENABLED=true`, `NEXT_PUBLIC_AUTH_2FA_ENFORCE_ROLES=owner,admin`, `NEXT_PUBLIC_SESSION_IDLE_MINUTES=30`, `NEXT_PUBLIC_SESSION_ABSOLUTE_HOURS=8`; set `FRAME_ANCESTORS` to include the staging web host and the WordPress staging domain.
 - Production: `NEXT_PUBLIC_API_URL=https://api.greenbro.co.za`, `NEXT_PUBLIC_EMBEDDED=true`.
 - Backend CORS: keep `WEB_ALLOWED_ORIGINS` aligned (local `http://localhost:3000`, staging host, production `https://app.greenbro.co.za,https://www.greenbro.co.za`).
 - Framing headers (new): with `NEXT_PUBLIC_EMBEDDED=true`, Next.js emits `Content-Security-Policy: frame-ancestors 'self' https://www.greenbro.co.za https://greenbro.co.za;` plus `X-Frame-Options: ALLOW-FROM https://www.greenbro.co.za`. Override the allowlist with `FRAME_ANCESTORS` (comma-separated) for staging if the marketing site lives elsewhere; when embeds are off the headers fall back to `SAMEORIGIN`.

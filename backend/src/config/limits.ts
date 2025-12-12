@@ -1,0 +1,7 @@
+export const ERR_PAGE_TOO_LARGE = 'ERR_PAGE_TOO_LARGE';
+export const ERR_RANGE_TOO_LARGE = 'ERR_RANGE_TOO_LARGE';
+
+export const MAX_FLEET_PAGE_SIZE = 200;
+export const MAX_ALERTS_PAGE_SIZE = 200;
+export const MAX_WORK_ORDERS_PAGE_SIZE = 200;
+export const MAX_TELEMETRY_POINTS = 500;

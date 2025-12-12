@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
 import { acknowledgeAlert, getAlerts, getAlertsForDevice, muteAlert } from '../services/alertService';
 import { resolveOrganisationId } from './organisation';
+import { ERR_PAGE_TOO_LARGE, MAX_ALERTS_PAGE_SIZE } from '../config/limits';
 
 const alertIdSchema = z.object({ id: z.string().uuid() });
 const deviceIdSchema = z.object({ id: z.string().uuid() });
@@ -9,7 +10,7 @@ const alertsQuerySchema = z.object({
   siteId: z.string().uuid().optional(),
   severity: z.enum(['info', 'warning', 'critical']).optional(),
   status: z.enum(['active', 'cleared']).optional(),
-  limit: z.coerce.number().int().positive().max(500).optional(),
+  limit: z.coerce.number().int().positive().optional(),
 });
 
 export async function listAlerts(req: Request, res: Response, next: NextFunction) {
@@ -19,6 +20,14 @@ export async function listAlerts(req: Request, res: Response, next: NextFunction
   }
 
   const { siteId, severity, status, limit } = parsedQuery.data;
+
+  if (limit && limit > MAX_ALERTS_PAGE_SIZE) {
+    return res.status(400).json({
+      message: `Requested page size too large (max ${MAX_ALERTS_PAGE_SIZE})`,
+      code: ERR_PAGE_TOO_LARGE,
+      max: MAX_ALERTS_PAGE_SIZE,
+    });
+  }
 
   try {
     const organisationId = await resolveOrganisationId(req.user!.id, res);

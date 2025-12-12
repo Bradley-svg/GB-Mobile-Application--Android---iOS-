@@ -111,6 +111,14 @@ export type HealthPlusPayload = {
     writable: boolean;
     latencyMs: number | null;
   };
+  perfHints?: {
+    deviceCount: number;
+    alertCount: number;
+    workOrderCount: number;
+    avgAlertsPerDevice: number;
+    avgWorkOrdersPerDevice: number;
+    slowQueriesLastHour: number | null;
+  };
   alertsEngine: {
     lastRunAt: string | null;
     lastDurationMs: number | null;
@@ -394,24 +402,60 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
     };
 
     try {
-      const maintenanceRes = await query<{ open_count: string; overdue_count: string }>(
+      const perfRes = await query<{
+        open_count: string;
+        overdue_count: string;
+        device_count: string;
+        alert_count: string;
+        work_order_count: string;
+        slow_query_count: string | null;
+      }>(
         `
         select
-          count(*) filter (where status in ('open', 'in_progress')) as open_count,
-          count(*) filter (
+          (select count(*) filter (where status in ('open', 'in_progress')) from work_orders) as open_count,
+          (select count(*) filter (
             where status in ('open', 'in_progress')
               and sla_due_at is not null
               and sla_due_at < $1
-          ) as overdue_count
-        from work_orders
+          ) from work_orders) as overdue_count,
+          (select count(*) from devices) as device_count,
+          (select count(*) from alerts) as alert_count,
+          (select count(*) from work_orders) as work_order_count,
+          null::bigint as slow_query_count
       `,
         [now]
       );
-      const maintenanceRow = maintenanceRes.rows[0] ?? { open_count: '0', overdue_count: '0' };
+      const perfRow =
+        perfRes.rows[0] ?? {
+          open_count: '0',
+          overdue_count: '0',
+          device_count: '0',
+          alert_count: '0',
+          work_order_count: '0',
+          slow_query_count: null,
+        };
+
+      const deviceCount = Number(perfRow.device_count ?? 0);
+      const alertCount = Number(perfRow.alert_count ?? 0);
+      const workOrderCount = Number(perfRow.work_order_count ?? 0);
+      const slowQueries =
+        perfRow.slow_query_count === null || perfRow.slow_query_count === undefined
+          ? null
+          : Number(perfRow.slow_query_count);
+
       body.maintenance = {
-        openCount: Number(maintenanceRow.open_count ?? 0),
-        overdueCount: Number(maintenanceRow.overdue_count ?? 0),
+        openCount: Number(perfRow.open_count ?? 0),
+        overdueCount: Number(perfRow.overdue_count ?? 0),
         lastCalcAt: now.toISOString(),
+      };
+
+      body.perfHints = {
+        deviceCount,
+        alertCount,
+        workOrderCount,
+        avgAlertsPerDevice: deviceCount > 0 ? Number((alertCount / deviceCount).toFixed(2)) : 0,
+        avgWorkOrdersPerDevice: deviceCount > 0 ? Number((workOrderCount / deviceCount).toFixed(2)) : 0,
+        slowQueriesLastHour: slowQueries,
       };
     } catch (maintenanceErr) {
       log.warn({ err: maintenanceErr }, 'maintenance snapshot failed');
@@ -420,11 +464,12 @@ export async function getHealthPlus(now: Date = new Date()): Promise<HealthPlusR
         overdueCount: 0,
         lastCalcAt: now.toISOString(),
       };
+      body.perfHints = undefined;
     }
 
     return { status: 200, body };
   } catch (error) {
-    log.error({ err: error }, 'health-plus failed');
+    log.error({ err: error }, 'health-plus error');
     const fallback: HealthPlusPayload = {
       ok: false,
       env,

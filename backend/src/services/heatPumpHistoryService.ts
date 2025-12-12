@@ -8,6 +8,7 @@ import {
 } from '../integrations/heatPumpHistoryClient';
 import { getDeviceById } from '../repositories/devicesRepository';
 import { logger } from '../config/logger';
+import { ERR_RANGE_TOO_LARGE } from '../config/limits';
 
 const isoString = z
   .string()
@@ -59,7 +60,7 @@ function countPoints(series: HeatPumpHistorySeries[]) {
 }
 
 export class HeatPumpHistoryValidationError extends Error {
-  constructor(message = 'Invalid body') {
+  constructor(message = 'Invalid body', public code?: string, public maxHours?: number) {
     super(message);
     this.name = 'HeatPumpHistoryValidationError';
   }
@@ -120,7 +121,9 @@ export async function getHistoryForRequest(
 
   if (rangeMs > maxRangeMs) {
     throw new HeatPumpHistoryValidationError(
-      `Requested range exceeds maximum of ${maxRangeHours} hours`
+      `Requested range exceeds maximum of ${maxRangeHours} hours`,
+      ERR_RANGE_TOO_LARGE,
+      maxRangeHours
     );
   }
 

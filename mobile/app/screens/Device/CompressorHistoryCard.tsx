@@ -45,7 +45,7 @@ const formatTick = (range: TimeRange) => (value: Date | number) => {
   return `${hours}:${minutes}`;
 };
 
-export const CompressorHistoryCard: React.FC<CompressorHistoryCardProps> = ({
+const CompressorHistoryCardComponent: React.FC<CompressorHistoryCardProps> = ({
   metric,
   metricOptions,
   status,
@@ -238,3 +238,5 @@ const createStyles = (theme: AppTheme) =>
       color: theme.colors.textPrimary,
     },
   });
+
+export const CompressorHistoryCard = React.memo(CompressorHistoryCardComponent);

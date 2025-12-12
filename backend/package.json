@@ -25,7 +25,8 @@
     "staging:bootstrap": "ts-node scripts/bootstrap-staging.ts",
     "staging:bootstrap:raw": "cross-env DATABASE_URL=$STAGING_DATABASE_URL npm run migrate:dev && cross-env DATABASE_URL=$STAGING_DATABASE_URL ts-node --transpile-only scripts/seed-demo.ts --reset",
     "health:check": "ts-node scripts/check-health.ts",
-    "health:check-plus": "ts-node scripts/check-health-plus.ts"
+    "health:check-plus": "ts-node scripts/check-health-plus.ts",
+    "health:staging": "ts-node scripts/check-health-plus-staging.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

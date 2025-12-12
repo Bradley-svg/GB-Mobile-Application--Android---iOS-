@@ -6,7 +6,7 @@
 - [ ] Demo tenant path: `npm run demo:seed` (or backend `npm run seed:demo -- --reset`), login as `demo@greenbro.com` / `GreenbroDemo#2025!`, confirm hero tile "Heat Pump #1" on `/app`, device History 6h shows data, Alerts warning+critical open/ack, Work orders open/in-progress/done with clean attachments, Documents include blocked incident report, Sharing shows active/expired/revoked links, Diagnostics healthy.
 
 ## Backend (staging)
-- [ ] `curl https://staging-api.greenbro.co.za/health-plus` returns ok with db/storage/AV results, push block configured (or intentionally disabled), and `version` showing `0.8.0`.
+- [ ] `curl https://staging.api.greenbro.co.za/health-plus` returns ok with db/storage/AV results, push block configured (or intentionally disabled), and `version` showing `0.8.0`.
 - [ ] `POST /auth/login` works for owner/admin test users.
 - [ ] `POST /auth/request-password-reset` + `POST /auth/reset-password` succeed for a test account.
 - [ ] 2FA flows: `/auth/2fa/setup`, `/auth/2fa/confirm`, and `/auth/login/2fa` succeed end-to-end.
@@ -27,3 +27,9 @@
 - [ ] Contractor cannot modify work orders.
 - [ ] Contractor cannot manage share links.
 - [ ] Contractor cannot access restricted QR routes (server enforcement holds).
+
+## Staging demo ready
+- [ ] Backend staging env migrated and seeded (`npm run demo:seed` or `npm run staging:bootstrap` against staging DB).
+- [ ] Web staging deployed with embeds working on the staging WordPress domain (iframe `/embed` loads).
+- [ ] `npm run staging:smoke` green (health-plus ok + staging Playwright smoke on `https://staging.app.greenbro.co.za`).
+- [ ] Staging mobile client built (EAS staging profile) and tested against the demo user for gauges, history, alerts, and work orders.

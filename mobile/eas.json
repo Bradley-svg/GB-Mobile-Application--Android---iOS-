@@ -13,7 +13,8 @@
     "staging": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://staging-api.greenbro.co.za"
+        "EXPO_PUBLIC_API_URL": "https://staging.api.greenbro.co.za",
+        "EXPO_PUBLIC_USE_SIGNED_FILE_URLS": "true"
       }
     },
     "production": {

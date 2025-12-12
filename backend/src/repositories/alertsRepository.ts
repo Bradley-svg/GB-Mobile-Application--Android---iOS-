@@ -1,4 +1,5 @@
 import { query } from '../config/db';
+import { MAX_ALERTS_PAGE_SIZE } from '../config/limits';
 
 export type AlertSeverity = 'info' | 'warning' | 'critical';
 type AlertStatus = 'active' | 'cleared';
@@ -184,7 +185,7 @@ export async function fetchAlerts(filters: {
   }
 
   const whereClause = `where ${where.join(' and ')}`;
-  const limit = filters.limit ?? 100;
+  const limit = Math.min(filters.limit ?? 100, MAX_ALERTS_PAGE_SIZE);
 
   const result = await query<AlertRow>(
     `

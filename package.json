@@ -27,6 +27,9 @@
     "web:test:coverage": "cd web && npm run test:coverage",
     "web:e2e": "cd web && npm run e2e",
     "demo:seed": "cd backend && npm run seed:demo",
-    "demo:reset": "cd backend && npm run seed:demo -- --reset"
+    "demo:reset": "cd backend && npm run seed:demo -- --reset",
+    "backend:health:staging": "cd backend && npm run health:staging",
+    "web:e2e:staging": "cd web && WEB_E2E_BASE_URL=https://staging.app.greenbro.co.za npm run e2e",
+    "staging:smoke": "npm run backend:health:staging && npm run web:e2e:staging"
   }
 }

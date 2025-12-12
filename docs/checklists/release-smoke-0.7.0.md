@@ -4,7 +4,7 @@
 - [ ] Demo tenant path: `npm run demo:seed` (or backend `npm run seed:demo -- --reset`), login as `demo@greenbro.com` / `GreenbroDemo#2025!`, confirm hero tile "Heat Pump #1" on `/app`, device History 6h shows data, Alerts warning+critical open/ack, Work orders open/in-progress/done with clean attachments, Documents include blocked incident report, Sharing shows active/expired/revoked links, Diagnostics healthy.
 
 ## Backend (staging)
-- [ ] `curl https://staging-api.greenbro.co.za/health-plus` returns ok with db/storage/AV results and push block configured (or intentionally disabled).
+- [ ] `curl https://staging.api.greenbro.co.za/health-plus` returns ok with db/storage/AV results and push block configured (or intentionally disabled).
 - [ ] `POST /auth/login` works for owner/admin test users.
 - [ ] `POST /auth/request-password-reset` + `POST /auth/reset-password` succeed for a test account.
 - [ ] 2FA flows: `/auth/2fa/setup`, `/auth/2fa/confirm`, and `/auth/login/2fa` succeed end-to-end.

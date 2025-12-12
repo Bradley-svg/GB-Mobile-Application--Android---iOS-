@@ -20,10 +20,16 @@ Requirements:
 - Bring up the API first via `npm run dev:all` (or `npm run dev:backend` if you only need the backend) so `http://localhost:4000` is live with seed data.
 - In a second terminal run `npm run web:dev` (Next dev server on `http://localhost:3000`, respects `NEXT_PUBLIC_API_URL` in `web/.env.local`). This can run alongside the mobile dev client.
 
+## Web performance checklist
+- Chrome DevTools: record a Performance trace on `/app` and `/app/devices/:id` (navigation back/forth) and look for main-thread slices under ~200ms after initial load; watch for large layout shifts when cards hydrate.
+- Lighthouse (DevTools > Lighthouse, desktop mode): run against `/app` (and `/embed` when framing); aim for >80 Performance and >90 Best Practices/Accessibility/SEO, and keep LCP under ~2.5s locally.
+- Network sanity: with React Query caches warm, navigating Fleet -> Device -> back should avoid repeat API calls; spinners/skeletons should be brief and heights stable (no jumps when data arrives).
+
 ## Pre-release checklist
 - Backend: `cd backend && npm run lint && npm run typecheck && npm test`
 - Mobile: `cd mobile && npm run lint && npm run typecheck && npm test -- --runInBand` (same lint/type/test trio runs in CI, including `npm run typecheck`)
 - Optional: Detox E2E: `npm run e2e:android` (emulator + backend required)
+- Staging smoke (demo tenant): set `WEB_E2E_EMAIL`/`WEB_E2E_PASSWORD`, ensure staging is migrated/seeded, then run `npm run staging:smoke` (checks `https://staging.api.greenbro.co.za/health-plus` for `ok:true` + heatPumpHistory status ok, then runs Playwright smoke against `https://staging.app.greenbro.co.za`).
 - Vendor disable flags are for CI/local only and must remain **false** in staging/prod (`HEATPUMP_HISTORY_DISABLED`, `CONTROL_API_DISABLED`, `MQTT_DISABLED`, `PUSH_NOTIFICATIONS_DISABLED`).
 - Theming snapshots and ErrorCard guard tests are part of the UI regression safety net; do not skip them when cutting builds.
 - Demo seed: `npm run demo:seed` resets the shared demo org/user/device (`demo@greenbro.com` / `GreenbroDemo#2025!`, MAC `38:18:2B:60:A9:94`) so web + mobile smoke paths line up.
@@ -58,7 +64,15 @@ Requirements:
 ## Near-prod Android build (qaRelease)
 - Preconditions: backend running on port 4000 with vendor history/MQTT/control envs set; keep the safety flags on for local demos (`PUSH_NOTIFICATIONS_DISABLED=true`, `MQTT_DISABLED=true`, `CONTROL_API_DISABLED=true`, `HEATPUMP_HISTORY_DISABLED=false` if you want live history).
 - Commands: `npm run stop:all`; `npm run dev:all` (or bring up backend + Metro separately); `cd mobile && npm run android:qa` to build/install the debuggable release-like `qaRelease` variant (bundles JS via `bundleQaReleaseJsAndAssets`, default API `http://10.0.2.2:4000`).
-- Expect: Pixel_7_API_34 boots the app without the Metro “Loading from 10.0.2.2:8081” screen; device detail/history/gauges load against the local backend; Diagnostics shows heatPumpHistory as HEALTHY and MQTT/control as UNCONFIGURED or HEALTHY depending on flags; no “Unable to load script /index.android.bundle” error.
+- Expect: Pixel_7_API_34 boots the app without the Metro "Loading from 10.0.2.2:8081" screen; device detail/history/gauges load against the local backend; Diagnostics shows heatPumpHistory as HEALTHY and MQTT/control as UNCONFIGURED or HEALTHY depending on flags; no "Unable to load script /index.android.bundle" error.
+
+## Staging mobile build (demo client)
+- Build the staging client with baked-in staging API + signed URLs: `cd mobile && npx eas build --platform android --profile staging` (or `--platform ios` on macOS).
+- Install on a device/emulator, log in with the staging demo user (`demo@greenbro.com` / staging password), and load gauges + history for the hero device; confirm Alerts and Work Orders lists render without duplicate fetches.
+- Keep `HEATPUMP_HISTORY_DISABLED=false` and signed URLs enabled on the backend so history + documents mirror production while remaining demo-safe.
+
+## Mobile performance profiling
+- Use the React Native Profiler/Flipper performance plugin (and React Query devtools) to watch list/graph re-renders and query counts when moving Dashboard -> Device -> Alerts/Work Orders; focus on avoiding redundant fetches before optimising components.
 
 ## Smoke walkthrough (Android emulator)
 - Login: white background, horizontal GREENBR(gear)O logo, brand gradient button. Use `demo@greenbro.com` / `GreenbroDemo#2025!`.
@@ -110,6 +124,3 @@ Requirements:
 ## Branding quick-check
 - Canonical assets only: `docs/branding/official/greenbro-logo-horizontal-gearO.{svg,png}`, `mobile/assets/greenbro/greenbro-logo-horizontal.png`, `greenbro-splash.png`, `greenbro-icon-1024.png`.
 - Quick grep sanity: run the two `rg` checks referenced in `docs/branding/README.md`; expected hits are limited to that warning, and app assets already point to the official PNG.
-
-
-

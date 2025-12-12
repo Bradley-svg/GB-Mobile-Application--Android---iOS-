@@ -79,4 +79,27 @@ describe("FleetOverviewPage layout", () => {
 
     expect(asFragment()).toMatchSnapshot();
   });
+
+  it("renders large fleet fixtures without refetch churn", async () => {
+    const largeFleet = Array.from({ length: 24 }).map((_, idx) => ({
+      id: `dev-${idx}`,
+      site_id: "site-1",
+      name: `Heat Pump #${idx}`,
+      mac: `AA:BB:CC:${idx.toString().padStart(2, "0")}`,
+      site_name: "HQ",
+      health: idx % 3 === 0 ? "offline" : "healthy",
+      last_seen: { at: "2024-01-01T00:00:00Z", ageMinutes: idx, isStale: false, isOffline: idx % 3 === 0 },
+    }));
+
+    fetchFleetMock.mockResolvedValueOnce({
+      sites: [{ id: "site-1", name: "HQ" }],
+      devices: largeFleet,
+    });
+
+    renderWithProviders(<FleetOverviewPage />);
+
+    await waitFor(() => expect(fetchFleetMock).toHaveBeenCalled());
+    await screen.findByText("Heat Pump #0");
+    expect(fetchTelemetryMock).toHaveBeenCalledTimes(largeFleet.length);
+  });
 });

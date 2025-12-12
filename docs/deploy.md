@@ -1,7 +1,7 @@
 # Deploying Greenbro (staging & production)
 
 ## Infra TODO (staging readiness)
-- Create DNS record for staging-api.greenbro.co.za pointing at the staging backend load balancer / host.
+- Create DNS record for staging.api.greenbro.co.za pointing at the staging backend load balancer / host.
 - Provision Postgres DB greenbro_staging (or equivalent).
 - Store STAGING_DATABASE_URL in your secret store.
 
@@ -37,7 +37,7 @@
 ## Staging 0.1.0 promotion checklist
 
 Prereqs (outside this repo)
-- DNS: `staging-api.greenbro.co.za` points at your staging backend host.
+- DNS: `staging.api.greenbro.co.za` points at your staging backend host.
 - DB: managed Postgres with a database named `greenbro_staging`.
 
 One-time staging bootstrap
@@ -50,7 +50,7 @@ npm run staging:bootstrap
 
 Check health
 ```
-HEALTH_BASE_URL=https://staging-api.greenbro.co.za npm run health:check-plus
+HEALTH_BASE_URL=https://staging.api.greenbro.co.za npm run health:check-plus
 ```
 
 Expect:
@@ -83,12 +83,12 @@ Install the artifact on a device and follow the smoke path in `docs/mobile-ux-no
 2) Deploy the backend (`npm ci && npm run migrate:dev && npm run build && npm start` via your supervisor).
 3) Health check:
 ```
-curl https://staging-api.greenbro.co.za/health-plus
+curl https://staging.api.greenbro.co.za/health-plus
 ```
    Expect `ok:true`, `db:"ok"`, storage `writable:true`, antivirus block `configured:true` + `healthy:true` once a scan has run, mqtt/control configured flags reflecting your env, and heatPumpHistory aligned to configured URLs/keys.
 4) Signed URL smoke test (with a valid JWT):
 ```
-curl -X POST https://staging-api.greenbro.co.za/files/<file-id>/signed-url \
+curl -X POST https://staging.api.greenbro.co.za/files/<file-id>/signed-url \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"ttlSeconds": 3600}'

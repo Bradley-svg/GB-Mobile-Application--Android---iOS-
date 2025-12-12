@@ -6,7 +6,8 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: false,
-      ...(isTestEnv ? { gcTime: 0 } : {}),
+      staleTime: isTestEnv ? 0 : 30_000,
+      gcTime: isTestEnv ? 0 : 5 * 60 * 1000,
     },
     mutations: {
       ...(isTestEnv ? { gcTime: 0 } : {}),

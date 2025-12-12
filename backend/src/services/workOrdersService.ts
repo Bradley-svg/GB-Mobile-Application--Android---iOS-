@@ -155,6 +155,7 @@ type ListFilters = {
   alertId?: string;
   status?: WorkOrderStatus;
   search?: string;
+  limit?: number;
 };
 
 type CreateWorkOrderOptions = Omit<CreateWorkOrderInput, 'organisationId'> & {

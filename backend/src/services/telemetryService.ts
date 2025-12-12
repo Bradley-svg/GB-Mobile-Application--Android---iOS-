@@ -1,6 +1,7 @@
 import { getTelemetryForDevice } from '../repositories/telemetryRepository';
+import { MAX_TELEMETRY_POINTS } from '../config/limits';
 
-const DEFAULT_MAX_POINTS_PER_SERIES = 500;
+const DEFAULT_MAX_POINTS_PER_SERIES = MAX_TELEMETRY_POINTS;
 
 export type TelemetryPoint = {
   ts: string;

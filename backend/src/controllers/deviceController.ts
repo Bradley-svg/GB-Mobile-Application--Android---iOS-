@@ -18,6 +18,7 @@ import {
 import { ExportError, exportDeviceTelemetryCsv } from '../services/exportService';
 import { canControlDevice, canEditSchedules, canExportData } from '../services/rbacService';
 import { lookupDeviceByCode, DeviceQrLookupError } from '../modules/devices/qrLookupService';
+import { ERR_PAGE_TOO_LARGE, MAX_TELEMETRY_POINTS } from '../config/limits';
 
 const deviceIdSchema = z.object({ id: z.string().uuid() });
 const telemetryQuerySchema = z.object({
@@ -78,6 +79,14 @@ export async function getDeviceTelemetryHandler(req: Request, res: Response, nex
   const parsedQuery = telemetryQuerySchema.safeParse(req.query);
   if (!parsedQuery.success) {
     return res.status(400).json({ message: 'Invalid query' });
+  }
+
+  if (parsedQuery.data.maxPoints && parsedQuery.data.maxPoints > MAX_TELEMETRY_POINTS) {
+    return res.status(400).json({
+      message: `maxPoints cannot exceed ${MAX_TELEMETRY_POINTS}`,
+      code: ERR_PAGE_TOO_LARGE,
+      max: MAX_TELEMETRY_POINTS,
+    });
   }
 
   try {
