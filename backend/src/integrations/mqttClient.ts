@@ -41,13 +41,18 @@ async function safeMarkMqttError(now: Date, err: unknown) {
 }
 
 function createMockClient(): MqttClient {
-  const emitter = new EventEmitter() as MqttClient & { connected?: boolean };
+  const emitter = new EventEmitter() as unknown as MqttClient & { connected?: boolean };
   emitter.connected = false;
-  emitter.subscribe = ((topic: string, cb?: (err?: Error) => void) => {
+  emitter.subscribe = ((_topic: string, cb?: (err?: Error) => void) => {
     cb?.();
     return emitter;
   }) as unknown as MqttClient['subscribe'];
-  emitter.publish = ((topic: string, message: string, _opts: unknown, cb?: (err?: Error) => void) => {
+  emitter.publish = ((
+    _topic: string,
+    _message: string,
+    _opts: unknown,
+    cb?: (err?: Error) => void
+  ) => {
     cb?.();
     return true;
   }) as unknown as MqttClient['publish'];
@@ -146,7 +151,8 @@ function initConnection(isRetry: boolean) {
 
   client.on('connect', () => {
     resetBackoff();
-    (client as EventEmitter & { connected?: boolean }).connected = true;
+    const mutable = client as unknown as (EventEmitter & { connected?: boolean }) | null;
+    if (mutable) mutable.connected = true;
     log.info({ broker: formatBroker(config.url), retry: isRetry }, 'connected to broker');
     lastConnectAt = new Date();
     lastError = null;
@@ -186,7 +192,8 @@ function initConnection(isRetry: boolean) {
   });
 
   client.on('error', (err) => {
-    (client as EventEmitter & { connected?: boolean }).connected = false;
+    const mutable = client as unknown as (EventEmitter & { connected?: boolean }) | null;
+    if (mutable) mutable.connected = false;
     log.error({ err }, 'client error');
     lastError = err?.message || 'MQTT error';
     void safeMarkMqttError(new Date(), err);
@@ -194,7 +201,8 @@ function initConnection(isRetry: boolean) {
   });
 
   client.on('close', () => {
-    (client as EventEmitter & { connected?: boolean }).connected = false;
+    const mutable = client as unknown as (EventEmitter & { connected?: boolean }) | null;
+    if (mutable) mutable.connected = false;
     log.warn('connection closed');
     lastDisconnectAt = new Date();
     scheduleReconnect('close');

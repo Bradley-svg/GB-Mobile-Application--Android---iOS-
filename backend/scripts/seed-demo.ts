@@ -696,9 +696,9 @@ async function purgeDemoData(client: Client) {
   ]);
   await client.query('delete from device_schedules where device_id = ANY($1::uuid[])', [deviceIds]);
   await client.query('delete from site_schedules where site_id = ANY($1::uuid[])', [siteIds]);
+  await client.query('delete from demo_tenants where org_id = $1', [DEFAULT_IDS.org]);
   await client.query('delete from devices where id = ANY($1::uuid[])', [deviceIds]);
   await client.query('delete from sites where id = ANY($1::uuid[])', [siteIds]);
-  await client.query('delete from demo_tenants where org_id = $1', [DEFAULT_IDS.org]);
   await client.query(
     'delete from users where organisation_id = $1 or email in ($2,$3,$4,$5)',
     [

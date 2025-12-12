@@ -69,7 +69,7 @@ function logDevVendorCall(params: {
 }) {
   if ((process.env.NODE_ENV || 'development') !== 'development') return;
   const { requestId } = getRequestContext() ?? {};
-  const payload = { ...params, requestId };
+  const payload: Record<string, unknown> = { ...params, requestId };
   if (params.meta) {
     payload.pointsCount = params.meta.pointsCount;
     payload.nonZeroCount = params.meta.nonZeroCount;

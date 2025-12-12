@@ -15,6 +15,10 @@ let token: string;
 beforeAll(async () => {
   process.env.NODE_ENV = 'test';
   process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
+  delete process.env.MQTT_DISABLED;
+  delete process.env.CONTROL_API_DISABLED;
+  delete process.env.HEATPUMP_HISTORY_DISABLED;
+  delete process.env.PUSH_NOTIFICATIONS_DISABLED;
   const mod = await import('../src/index');
   app = mod.default;
   token = jwt.sign({ sub: USER_ID, type: 'access' }, process.env.JWT_SECRET);
@@ -51,6 +55,10 @@ async function flagDemo(isDemo: boolean) {
 }
 
 beforeEach(async () => {
+  delete process.env.MQTT_DISABLED;
+  delete process.env.CONTROL_API_DISABLED;
+  delete process.env.HEATPUMP_HISTORY_DISABLED;
+  delete process.env.PUSH_NOTIFICATIONS_DISABLED;
   await flagDemo(true);
 });
 
