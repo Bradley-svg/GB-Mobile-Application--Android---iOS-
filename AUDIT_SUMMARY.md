@@ -1,5 +1,7 @@
 # Audit Summary
 
+Latest state-of-build: see `docs/state-of-build.md` (2025-12-12). Deltas since last audit: web lint/typecheck now failing with hook purity/type errors; web vitest coverage fails in diagnostics/device detail tests; mobile history Jest test failing (qaRelease pipeline would block). Backend coverage remains green.
+
 ## What was checked
 - Backend scripts/build (tsc, eslint, vitest), tsconfig strictness, env templates, and vitest coverage config.
 - Mobile scripts (Expo dev client, Jest, Detox), tsconfig/lint/theme guardrails, env template, and E2E configs.
