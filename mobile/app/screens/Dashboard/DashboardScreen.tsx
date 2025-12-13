@@ -53,6 +53,7 @@ export const DashboardScreen: React.FC = () => {
   const isDemoOrg = demoStatus?.isDemoOrg ?? false;
   const vendorFlags = demoStatus?.vendorFlags;
   const insets = useSafeAreaInsets();
+  const tabBarSafetyPadding = spacing.xxl * 4 + insets.bottom; // ensure cards clear the tab bar
 
   useEffect(() => {
     if (data) {
@@ -313,9 +314,9 @@ export const DashboardScreen: React.FC = () => {
                 testID="dashboard-empty"
               />
             }
-            contentContainerStyle={{ paddingBottom: spacing.xxl * 2 + insets.bottom + spacing.lg }}
+            contentContainerStyle={{ paddingBottom: tabBarSafetyPadding }}
             scrollIndicatorInsets={{ bottom: spacing.xxl + insets.bottom }}
-            ListFooterComponent={<View style={{ height: spacing.xl + insets.bottom }} />}
+            ListFooterComponent={<View style={{ height: tabBarSafetyPadding }} />}
             testID="dashboard-site-list"
             renderItem={({ item }) => {
               const healthPill = healthDisplay((item.health as HealthStatus) || item.status);
