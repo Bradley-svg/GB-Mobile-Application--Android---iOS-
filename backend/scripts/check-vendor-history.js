@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* eslint-disable no-console */
+/* eslint-disable no-console, @typescript-eslint/no-require-imports */
 /**
  * Quick smoke test for the vendor heat pump history endpoint and the backend proxy.
  *
@@ -31,6 +31,14 @@ const DEFAULT_URL =
   'https://za-iot-dev-api.azurewebsites.net/api/HeatPumpHistory/historyHeatPump';
 const DEFAULT_MAC = '38:18:2B:60:A9:94';
 const DEFAULT_FIELD = 'metric_compCurrentA';
+const DEFAULT_FIELD_META = {
+  metric_compCurrentA: {
+    unit: 'A',
+    decimals: 1,
+    displayName: 'Current',
+    propertyName: '',
+  },
+};
 const DEFAULT_TIMEOUT_MS = 10_000;
 const DEFAULT_MAX_RANGE_HOURS = 24;
 const DEFAULT_PAGE_HOURS = 6;
@@ -63,6 +71,12 @@ function parseNumber(raw, fallback) {
   if (!raw) return fallback;
   const parsed = Number(raw);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function parseNonNegativeNumber(raw, fallback) {
+  if (raw === undefined || raw === null) return fallback;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
 async function fetchWithTimeout(url, options, timeoutMs) {
@@ -193,6 +207,15 @@ function formatSummary(label, payload) {
   console.log(lines.join('\n'));
 }
 
+function resolveFieldMeta(field, args) {
+  const defaults = DEFAULT_FIELD_META[field] || {};
+  const unit = args.unit ?? defaults.unit ?? 'A';
+  const decimals = parseNonNegativeNumber(args.decimals, defaults.decimals);
+  const displayName = args.displayName ?? defaults.displayName ?? field;
+  const propertyName = args.propertyName ?? defaults.propertyName ?? '';
+  return { unit, decimals, displayName, propertyName };
+}
+
 async function callVendor({
   url,
   apiKey,
@@ -265,6 +288,7 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   const mac = (args.mac || process.env.DEMO_DEVICE_MAC || DEFAULT_MAC).trim();
   const field = (args.field || DEFAULT_FIELD).trim();
+  const fieldMeta = resolveFieldMeta(field, args);
   const hours = parseNumber(args.hours, 6);
   const timeoutMs = parseNumber(process.env.HEATPUMP_HISTORY_TIMEOUT_MS, DEFAULT_TIMEOUT_MS);
   const maxRangeHours = parseNumber(
@@ -296,6 +320,7 @@ async function main() {
         pageHours,
         mac,
         field,
+        fieldMeta,
         window,
       },
       null,
@@ -308,7 +333,7 @@ async function main() {
     mode: 'live',
     from: window.from,
     to: window.to,
-    fields: [{ field }],
+    fields: [{ field, ...fieldMeta }],
     mac,
   };
 
@@ -317,7 +342,7 @@ async function main() {
 
   let exitCode = vendor.status === 200 ? 0 : 1;
   if (vendor.status !== 200) {
-    console.error(`Vendor call failed (status ${vendor.status})`);
+    console.error(`Vendor call failed (status ${vendor.status})`, vendor.raw);
   }
 
   const proxyDeviceId = args.deviceId || process.env.DEMO_DEVICE_ID;
