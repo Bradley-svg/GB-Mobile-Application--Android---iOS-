@@ -18,7 +18,10 @@
  * Args:
  *  --mac <mac>            (default DEMO_DEVICE_MAC or 38:18:2B:60:A9:94)
  *  --field <field>        (default metric_compCurrentA)
- *  --hours <n>            (default 6)
+ *  --probe                (enables curated multi-field probing)
+ *  --window 15m|1h|6h|24h (default 6h; --hours kept for legacy)
+ *  --hours <n>            (legacy window hours)
+ *  --short-window-sanity  (also run a 15m window before the requested one)
  *  --from <iso>           (optional)
  *  --to <iso>             (optional)
  *  --deviceId <id>        (optional; enables proxy check)
@@ -26,18 +29,87 @@
  *  --token <bearer>       (override bearer token for proxy)
  */
 const { setTimeout: delay } = require('timers/promises');
+const {
+  summarizeSeriesCollection,
+  findFirstNonZeroField,
+} = require('./vendorHistorySummaries');
 
 const DEFAULT_URL =
   'https://za-iot-dev-api.azurewebsites.net/api/HeatPumpHistory/historyHeatPump';
 const DEFAULT_MAC = '38:18:2B:60:A9:94';
 const DEFAULT_FIELD = 'metric_compCurrentA';
-const DEFAULT_FIELD_META = {
+const FIELD_META = {
   metric_compCurrentA: {
     unit: 'A',
     decimals: 1,
-    displayName: 'Current',
+    displayName: 'Compressor current',
     propertyName: '',
   },
+  metric_compFreqHz: {
+    unit: 'Hz',
+    decimals: 1,
+    displayName: 'Compressor freq',
+    propertyName: '',
+  },
+  metric_powerW: {
+    unit: 'W',
+    decimals: 0,
+    displayName: 'Power',
+    propertyName: '',
+  },
+  metric_flowLpm: {
+    unit: 'L/min',
+    decimals: 1,
+    displayName: 'Flow',
+    propertyName: '',
+  },
+  metric_tankTempC: {
+    unit: 'C',
+    decimals: 1,
+    displayName: 'Tank temp',
+    propertyName: '',
+  },
+  metric_dhwTempC: {
+    unit: 'C',
+    decimals: 1,
+    displayName: 'DHW temp',
+    propertyName: '',
+  },
+  metric_ambientTempC: {
+    unit: 'C',
+    decimals: 1,
+    displayName: 'Ambient temp',
+    propertyName: '',
+  },
+  metric_supplyTempC: {
+    unit: 'C',
+    decimals: 1,
+    displayName: 'Supply temp',
+    propertyName: '',
+  },
+  metric_returnTempC: {
+    unit: 'C',
+    decimals: 1,
+    displayName: 'Return temp',
+    propertyName: '',
+  },
+};
+const PROBE_FIELD_ORDER = [
+  'metric_compCurrentA',
+  'metric_compFreqHz',
+  'metric_powerW',
+  'metric_flowLpm',
+  'metric_tankTempC',
+  'metric_dhwTempC',
+  'metric_ambientTempC',
+  'metric_supplyTempC',
+  'metric_returnTempC',
+];
+const WINDOW_PRESETS = {
+  '15m': 0.25,
+  '1h': 1,
+  '6h': 6,
+  '24h': 24,
 };
 const DEFAULT_TIMEOUT_MS = 10_000;
 const DEFAULT_MAX_RANGE_HOURS = 24;
@@ -79,6 +151,48 @@ function parseNonNegativeNumber(raw, fallback) {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
+function parseWindowArg(windowArg, hoursArg) {
+  if (windowArg) {
+    const normalized = String(windowArg).toLowerCase();
+    if (WINDOW_PRESETS[normalized]) {
+      return { label: normalized, hours: WINDOW_PRESETS[normalized] };
+    }
+    const match = normalized.match(/^(\d+(?:\.\d+)?)h$/);
+    if (match) {
+      const hours = Number(match[1]);
+      if (Number.isFinite(hours) && hours > 0) return { label: `${hours}h`, hours };
+    }
+    const directHours = Number(normalized);
+    if (Number.isFinite(directHours) && directHours > 0) {
+      return { label: `${directHours}h`, hours: directHours };
+    }
+  }
+  const hours = parseNumber(hoursArg, 6);
+  return { label: `${hours}h`, hours };
+}
+
+function buildWindowSpecs({ args, maxRangeHours }) {
+  if (args.from && args.to) {
+    return [{ label: 'custom', hours: null, fromArg: args.from, toArg: args.to }];
+  }
+  const base = parseWindowArg(args.window, args.hours);
+  const windows = [base];
+  if (args['short-window-sanity']) {
+    const short = { label: '15m', hours: WINDOW_PRESETS['15m'] };
+    if (!windows.some((w) => w.label === short.label)) {
+      windows.unshift(short);
+    }
+  }
+  return windows.map((spec) => {
+    const hours = spec.hours === null ? null : Math.min(spec.hours, maxRangeHours);
+    const clampedLabel =
+      spec.hours !== null && spec.hours > maxRangeHours
+        ? `${spec.label} (clamped to ${hours}h)`
+        : spec.label;
+    return { ...spec, hours, label: clampedLabel };
+  });
+}
+
 async function fetchWithTimeout(url, options, timeoutMs) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -117,7 +231,7 @@ function normalizePoint(rawPoint) {
   if (value === null || value === undefined) {
     numericValue = null;
   } else if (typeof value === 'number') {
-    numericValue = value;
+    numericValue = Number.isFinite(value) ? value : null;
   } else {
     const parsed = Number(value);
     numericValue = Number.isFinite(parsed) ? parsed : null;
@@ -131,7 +245,13 @@ function normalizeEntry(entry) {
   const obj = entry;
   const field = obj.field ?? obj.metric ?? obj.name;
   const rawPoints =
-    obj.points ?? obj.values ?? obj.data ?? obj.items ?? obj.readings ?? obj.samples;
+    obj.points ??
+    obj.values ??
+    obj.data ??
+    obj.items ??
+    obj.readings ??
+    obj.samples ??
+    obj.series;
 
   if (!field) return null;
 
@@ -143,13 +263,33 @@ function normalizeEntry(entry) {
 }
 
 function normalizeResponse(raw) {
-  if (raw && typeof raw === 'object' && Array.isArray(raw.series)) {
-    const series = raw.series.map(normalizeEntry).filter(Boolean);
-    return { series };
+  const normalizeArray = (arr) => arr.map(normalizeEntry).filter(Boolean);
+
+  if (raw && typeof raw === 'object') {
+    const obj = raw;
+    if (Array.isArray(obj.series)) {
+      return { series: normalizeArray(obj.series) };
+    }
+    if (Array.isArray(obj.data)) {
+      return { series: normalizeArray(obj.data) };
+    }
+    if (obj.data && typeof obj.data === 'object') {
+      const dataObj = obj.data;
+      if (Array.isArray(dataObj.series)) {
+        return { series: normalizeArray(dataObj.series) };
+      }
+      if (Array.isArray(dataObj.data)) {
+        return { series: normalizeArray(dataObj.data) };
+      }
+      const entries = Object.entries(dataObj).map(([field, points]) =>
+        normalizeEntry({ field, points })
+      );
+      return { series: entries.filter(Boolean) };
+    }
   }
 
   if (Array.isArray(raw)) {
-    return { series: raw.map(normalizeEntry).filter(Boolean) };
+    return { series: normalizeArray(raw) };
   }
 
   if (raw && typeof raw === 'object') {
@@ -162,76 +302,82 @@ function normalizeResponse(raw) {
   return { series: [] };
 }
 
-function summarizeSeries(series) {
-  let pointsCount = 0;
-  let nonZeroCount = 0;
-  let min = null;
-  let max = null;
-  let firstTimestamp = null;
-  let lastTimestamp = null;
-
-  series.forEach((entry) => {
-    entry.points.forEach((point) => {
-      pointsCount += 1;
-      const ts = new Date(point.timestamp);
-      if (!Number.isNaN(ts.getTime())) {
-        if (!firstTimestamp || ts < new Date(firstTimestamp)) {
-          firstTimestamp = ts.toISOString();
-        }
-        if (!lastTimestamp || ts > new Date(lastTimestamp)) {
-          lastTimestamp = ts.toISOString();
-        }
-      }
-      if (point.value !== null && point.value !== undefined) {
-        if (point.value !== 0) nonZeroCount += 1;
-        if (min === null || point.value < min) min = point.value;
-        if (max === null || point.value > max) max = point.value;
-      }
-    });
-  });
-
-  return { pointsCount, nonZeroCount, min, max, firstTimestamp, lastTimestamp };
-}
-
-function formatSummary(label, payload) {
-  const lines = [];
-  lines.push(`${label}:`);
-  lines.push(
-    `  status=${payload.status} points=${payload.stats.pointsCount} nonZero=${payload.stats.nonZeroCount}`
-  );
-  lines.push(`  elapsedMs=${payload.elapsedMs ?? 'n/a'}`);
-  lines.push(
-    `  first=${payload.stats.firstTimestamp || 'n/a'} last=${payload.stats.lastTimestamp || 'n/a'}`
-  );
-  lines.push(`  min=${payload.stats.min ?? 'n/a'} max=${payload.stats.max ?? 'n/a'}`);
-  console.log(lines.join('\n'));
-}
-
 function resolveFieldMeta(field, args) {
-  const defaults = DEFAULT_FIELD_META[field] || {};
-  const unit = args.unit ?? defaults.unit ?? 'A';
-  const decimals = parseNonNegativeNumber(args.decimals, defaults.decimals);
+  const defaults = FIELD_META[field] || {};
+  const unit = args.unit ?? defaults.unit ?? '';
+  const decimals = parseNonNegativeNumber(
+    args.decimals,
+    defaults.decimals !== undefined ? defaults.decimals : 1
+  );
   const displayName = args.displayName ?? defaults.displayName ?? field;
   const propertyName = args.propertyName ?? defaults.propertyName ?? '';
   return { unit, decimals, displayName, propertyName };
 }
 
-async function callVendor({
-  url,
-  apiKey,
-  payload,
-  timeoutMs,
-}) {
+function resolveFields(args) {
+  const baseField = (args.field || DEFAULT_FIELD).trim();
+  const probe = Boolean(args.probe);
+  const order = probe ? [baseField, ...PROBE_FIELD_ORDER] : [baseField];
+  const seen = new Set();
+  const fields = order.filter((f) => {
+    const normalized = f.trim();
+    if (!normalized) return false;
+    if (seen.has(normalized)) return false;
+    seen.add(normalized);
+    return true;
+  });
+  return fields.map((field) => ({ field, ...resolveFieldMeta(field, args) }));
+}
+
+function resolveWindow({ fromArg, toArg, hours }) {
+  if (fromArg && toArg) return { from: fromArg, to: toArg };
+  const to = new Date();
+  const from = new Date(to.getTime() - hours * 60 * 60 * 1000);
+  return { from: from.toISOString(), to: to.toISOString() };
+}
+
+function formatSample(summary) {
+  if (!summary.sample.length) return 'sample=[]';
+  const pairs = summary.sample
+    .slice(0, 3)
+    .map((point) => `${point.timestamp}:${point.value ?? 'null'}`)
+    .join(' | ');
+  return `sample=[${pairs}]`;
+}
+
+function formatSummary(label, payload, windowLabel) {
+  const lines = [];
+  const agg = payload.summary.aggregate;
+  lines.push(
+    `${label} [${windowLabel}] status=${payload.status} points=${agg.pointsCount} nonZero=${agg.nonZeroCount} min=${agg.min ?? 'n/a'} max=${agg.max ?? 'n/a'} first=${agg.firstTimestamp || 'n/a'} last=${agg.lastTimestamp || 'n/a'} elapsedMs=${payload.elapsedMs ?? 'n/a'}`
+  );
+  if (payload.summary.byField.length > 0) {
+    const fieldSummaries = payload.summary.byField
+      .map(
+        (entry) =>
+          `${entry.field}{points=${entry.pointsCount},nonZero=${entry.nonZeroCount},min=${entry.min ?? 'n/a'},max=${entry.max ?? 'n/a'},first=${entry.firstTimestamp || 'n/a'},last=${entry.lastTimestamp || 'n/a'},${formatSample(entry)}}`
+      )
+      .join('; ');
+    lines.push(`  fields ${fieldSummaries}`);
+  }
+  console.log(lines.join('\n'));
+}
+
+async function callVendor({ url, apiKey, payload, timeoutMs }) {
   const started = Date.now();
-  const res = await fetchWithTimeout(url, {
-    method: 'POST',
-    headers: {
-      accept: 'text/plain',
-      'content-type': 'application/json-patch+json',
-      ...(apiKey ? { 'x-api-key': apiKey } : {}),
+  const res = await fetchWithTimeout(
+    url,
+    {
+      method: 'POST',
+      headers: {
+        accept: 'text/plain',
+        'content-type': 'application/json-patch+json',
+        ...(apiKey ? { 'x-api-key': apiKey } : {}),
+      },
+      body: JSON.stringify(payload),
     },
-    body: JSON.stringify(payload),
-  }, timeoutMs);
+    timeoutMs
+  );
   const elapsedMs = Date.now() - started;
   const text = await res.text();
   let parsed = {};
@@ -241,16 +387,11 @@ async function callVendor({
     parsed = text || {};
   }
   const normalized = normalizeResponse(parsed);
-  const stats = summarizeSeries(normalized.series);
-  return { status: res.status, elapsedMs, stats, series: normalized.series, raw: parsed };
+  const summary = summarizeSeriesCollection(normalized.series);
+  return { status: res.status, elapsedMs, summary, series: normalized.series, raw: parsed };
 }
 
-async function callProxy({
-  url,
-  token,
-  body,
-  timeoutMs,
-}) {
+async function callProxy({ url, token, body, timeoutMs }) {
   const started = Date.now();
   const res = await fetchWithTimeout(
     url,
@@ -273,23 +414,199 @@ async function callProxy({
     parsed = {};
   }
   const normalized = normalizeResponse(parsed);
-  const stats = summarizeSeries(normalized.series);
-  return { status: res.status, elapsedMs, stats, series: normalized.series, raw: parsed };
+  const summary = summarizeSeriesCollection(normalized.series);
+  return { status: res.status, elapsedMs, summary, series: normalized.series, raw: parsed };
 }
 
-function resolveWindow({ fromArg, toArg, hours }) {
-  if (fromArg && toArg) return { from: fromArg, to: toArg };
-  const to = new Date();
-  const from = new Date(to.getTime() - hours * 60 * 60 * 1000);
-  return { from: from.toISOString(), to: to.toISOString() };
+function isRecentWindow(windowRange) {
+  const toTs = new Date(windowRange.to).getTime();
+  const now = Date.now();
+  const durationHours =
+    (new Date(windowRange.to).getTime() - new Date(windowRange.from).getTime()) / 3600000;
+  return Math.abs(now - toTs) < 12 * 60 * 60 * 1000 && durationHours <= 6.5;
+}
+
+function determineOutcome({ vendor, proxy, fieldsOrder, windowLabel }) {
+  const vendorHit =
+    vendor.status === 200 ? findFirstNonZeroField(vendor.summary.byField, fieldsOrder) : null;
+  const proxyHit =
+    proxy && proxy.status === 200 ? findFirstNonZeroField(proxy.summary.byField, fieldsOrder) : null;
+
+  if (vendorHit || proxyHit) {
+    const winner = vendorHit || proxyHit;
+    const source = vendorHit ? 'vendor' : 'proxy';
+    return {
+      verdict: 'non-zero',
+      field: winner.field,
+      source,
+      windowLabel,
+    };
+  }
+
+  const vendorPoints = vendor.summary.aggregate.pointsCount;
+  const proxyPoints = proxy?.summary.aggregate.pointsCount ?? 0;
+  const missingFields = fieldsOrder.filter(
+    (field) => !vendor.summary.byField.some((entry) => entry.field === field)
+  );
+
+  if (vendorPoints === 0 && (!proxy || proxyPoints === 0)) {
+    return {
+      verdict: 'mismatch',
+      reason: `0 points for fields [${fieldsOrder.join(', ')}]${
+        missingFields.length ? `; missing fields: ${missingFields.join(', ')}` : ''
+      }`,
+      windowLabel,
+    };
+  }
+
+  return {
+    verdict: 'none',
+    reason: `Tried fields [${fieldsOrder.join(', ')}]; all numeric values were zero across ${vendorPoints} vendor points${
+      proxy ? ` and ${proxyPoints} proxy points` : ''
+    }`,
+    windowLabel,
+  };
+}
+
+function buildOutcomeLine(outcome) {
+  if (outcome.verdict === 'non-zero') {
+    return `✅ NON-ZERO CONFIRMED via ${outcome.source} field ${outcome.field} (${outcome.windowLabel})`;
+  }
+  if (outcome.verdict === 'mismatch') {
+    return `⚠️ FIELD/MAC MISMATCH SUSPECTED (${outcome.windowLabel}): ${outcome.reason}`;
+  }
+  return `❌ NO NON-ZERO DATA FOUND (${outcome.windowLabel}): ${outcome.reason}`;
+}
+
+function reportShortWindowMismatch(results) {
+  const short = results.find((r) => r.windowLabel.startsWith('15m'));
+  const long = results.find((r) => !r.windowLabel.startsWith('15m'));
+  if (short && long && short.outcome.verdict === 'non-zero' && long.outcome.verdict !== 'non-zero') {
+    console.log(
+      `⚠️ Short window sanity: 15m was non-zero on ${short.outcome.field} via ${short.outcome.source}, but ${long.windowLabel} remained zero-only`
+    );
+  }
+}
+
+function formatSanitizedPayload({ url, apiKey, payload, proxyUrl, proxyToken, fields }) {
+  console.log(
+    JSON.stringify(
+      {
+        vendorUrl: url,
+        hasApiKey: Boolean(apiKey),
+        proxyUrl,
+        hasProxyToken: Boolean(proxyToken),
+        mac: payload.mac,
+        window: { from: payload.from, to: payload.to },
+        fields,
+        aggregation: payload.aggregation,
+        mode: payload.mode,
+      },
+      null,
+      2
+    )
+  );
+}
+
+async function runForWindow({
+  windowSpec,
+  args,
+  url,
+  apiKey,
+  timeoutMs,
+  proxyUrl,
+  proxyToken,
+  proxyDeviceId,
+}) {
+  const fields = resolveFields(args);
+  const windowRange =
+    windowSpec.fromArg && windowSpec.toArg
+      ? { from: windowSpec.fromArg, to: windowSpec.toArg }
+      : resolveWindow({
+          fromArg: args.from,
+          toArg: args.to,
+          hours: windowSpec.hours ?? parseNumber(args.hours, 6),
+        });
+
+  const vendorPayload = {
+    aggregation: 'raw',
+    mode: 'live',
+    from: windowRange.from,
+    to: windowRange.to,
+    fields,
+    mac: (args.mac || process.env.DEMO_DEVICE_MAC || DEFAULT_MAC).trim(),
+  };
+
+  formatSanitizedPayload({
+    url,
+    apiKey,
+    payload: vendorPayload,
+    proxyUrl,
+    proxyToken,
+    fields: vendorPayload.fields,
+  });
+
+  const vendor = await callVendor({ url, apiKey, payload: vendorPayload, timeoutMs });
+  formatSummary('Vendor', vendor, windowSpec.label);
+
+  let exitCode = vendor.status === 200 ? 0 : 1;
+  if (vendor.status !== 200) {
+    console.error(`Vendor call failed (status ${vendor.status})`, vendor.raw);
+  }
+
+  let proxy = null;
+  if (proxyDeviceId) {
+    proxy = await callProxy({
+      url: proxyUrl,
+      token: proxyToken,
+      body: { ...vendorPayload, deviceId: proxyDeviceId },
+      timeoutMs,
+    });
+    formatSummary('Backend proxy', proxy, windowSpec.label);
+
+    if (proxy.status !== 200) {
+      exitCode = 1;
+      console.error(`Proxy call failed (status ${proxy.status})`);
+    }
+  } else {
+    console.warn('Skipping backend proxy call (no deviceId provided and DEMO_DEVICE_ID missing).');
+  }
+
+  if (proxy && vendor.status === 200) {
+    const vendorPoints = vendor.summary.aggregate.pointsCount;
+    const proxyPoints = proxy.summary.aggregate.pointsCount;
+    const tolerance = Math.max(3, Math.ceil(vendorPoints * 0.1));
+    const diff = Math.abs(vendorPoints - proxyPoints);
+    if (diff > tolerance) {
+      exitCode = 1;
+      console.error(
+        `Proxy points (${proxyPoints}) differ from vendor (${vendorPoints}) by more than tolerance (${tolerance}).`
+      );
+    }
+  }
+
+  if (proxy && vendor.status === 200 && vendor.summary.aggregate.pointsCount > 0) {
+    if (isRecentWindow(windowRange) && proxy.summary.aggregate.pointsCount === 0) {
+      exitCode = 1;
+      console.error(
+        'Proxy returned no points for a recent window while vendor returned data.'
+      );
+    }
+  }
+
+  const outcome = determineOutcome({
+    vendor,
+    proxy,
+    fieldsOrder: fields.map((f) => f.field),
+    windowLabel: windowSpec.label,
+  });
+  console.log(buildOutcomeLine(outcome));
+
+  return { outcome, vendor, proxy, exitCode, windowRange, fieldsOrder: fields.map((f) => f.field) };
 }
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const mac = (args.mac || process.env.DEMO_DEVICE_MAC || DEFAULT_MAC).trim();
-  const field = (args.field || DEFAULT_FIELD).trim();
-  const fieldMeta = resolveFieldMeta(field, args);
-  const hours = parseNumber(args.hours, 6);
   const timeoutMs = parseNumber(process.env.HEATPUMP_HISTORY_TIMEOUT_MS, DEFAULT_TIMEOUT_MS);
   const maxRangeHours = parseNumber(
     process.env.HEATPUMP_HISTORY_MAX_RANGE_HOURS,
@@ -301,13 +618,13 @@ async function main() {
     normalizeEnvValue('HEATPUMP_HISTORY_URL', 'HEAT_PUMP_HISTORY_URL') || DEFAULT_URL;
   const apiKey = normalizeEnvValue('HEATPUMP_HISTORY_API_KEY', 'HEAT_PUMP_HISTORY_API_KEY');
   const configured = !disabled && Boolean(url && apiKey);
-  const windowHours = Math.min(hours, maxRangeHours);
-  if (hours > maxRangeHours) {
-    console.warn(
-      `Requested window ${hours}h exceeds max ${maxRangeHours}h; clamped to ${windowHours}h`
-    );
-  }
-  const window = resolveWindow({ fromArg: args.from, toArg: args.to, hours: windowHours });
+
+  const proxyDeviceId = args.deviceId || process.env.DEMO_DEVICE_ID;
+  const proxyUrl =
+    args['proxy-url'] ||
+    process.env.HEATPUMP_HISTORY_PROXY_URL ||
+    'http://localhost:4000/heat-pump-history';
+  const proxyToken = args.token || process.env.HEATPUMP_HISTORY_BEARER_TOKEN;
 
   console.log(
     JSON.stringify(
@@ -318,93 +635,59 @@ async function main() {
         timeoutMs,
         maxRangeHours,
         pageHours,
-        mac,
-        field,
-        fieldMeta,
-        window,
+        mac: (args.mac || process.env.DEMO_DEVICE_MAC || DEFAULT_MAC).trim(),
+        field: (args.field || DEFAULT_FIELD).trim(),
+        probe: Boolean(args.probe),
+        window: args.window || `${parseNumber(args.hours, 6)}h`,
       },
       null,
       2
     )
   );
 
-  const vendorPayload = {
-    aggregation: 'raw',
-    mode: 'live',
-    from: window.from,
-    to: window.to,
-    fields: [{ field, ...fieldMeta }],
-    mac,
-  };
+  const windows = buildWindowSpecs({ args, maxRangeHours });
+  const results = [];
+  let exitCode = 0;
 
-  const vendor = await callVendor({ url, apiKey, payload: vendorPayload, timeoutMs });
-  formatSummary('Vendor', vendor);
-
-  let exitCode = vendor.status === 200 ? 0 : 1;
-  if (vendor.status !== 200) {
-    console.error(`Vendor call failed (status ${vendor.status})`, vendor.raw);
-  }
-
-  const proxyDeviceId = args.deviceId || process.env.DEMO_DEVICE_ID;
-  const proxyUrl =
-    args['proxy-url'] ||
-    process.env.HEATPUMP_HISTORY_PROXY_URL ||
-    'http://localhost:4000/heat-pump-history';
-  const proxyToken = args.token || process.env.HEATPUMP_HISTORY_BEARER_TOKEN;
-
-  let proxy = null;
-  if (proxyDeviceId) {
-    proxy = await callProxy({
-      url: proxyUrl,
-      token: proxyToken,
-      body: { ...vendorPayload, deviceId: proxyDeviceId },
+  for (const windowSpec of windows) {
+    const result = await runForWindow({
+      windowSpec,
+      args,
+      url,
+      apiKey,
       timeoutMs,
+      proxyUrl,
+      proxyToken,
+      proxyDeviceId,
     });
-    formatSummary('Backend proxy', proxy);
-
-    if (proxy.status !== 200) {
-      exitCode = 1;
-      console.error(`Proxy call failed (status ${proxy.status})`);
-    }
-  } else {
-    console.warn('Skipping backend proxy call (no deviceId provided and DEMO_DEVICE_ID missing).');
-  }
-
-  const isRecentWindow = (() => {
-    const toTs = new Date(window.to).getTime();
-    const now = Date.now();
-    const durationHours = (new Date(window.to).getTime() - new Date(window.from).getTime()) / 3600000;
-    return Math.abs(now - toTs) < 12 * 60 * 60 * 1000 && durationHours <= 6.5;
-  })();
-
-  if (configured && isRecentWindow && vendor.stats.pointsCount > 0 && proxy) {
-    if (proxy.stats.pointsCount === 0) {
-      exitCode = 1;
-      console.error(
-        'Proxy returned no points for a recent window while vendor returned data.'
-      );
+    results.push(result);
+    if (result.exitCode !== 0) {
+      exitCode = result.exitCode;
     }
   }
 
-  if (proxy && vendor.stats.pointsCount >= 0) {
-    const tolerance = Math.max(3, Math.ceil(vendor.stats.pointsCount * 0.1));
-    const diff = Math.abs(vendor.stats.pointsCount - proxy.stats.pointsCount);
-    if (diff > tolerance) {
-      exitCode = 1;
-      console.error(
-        `Proxy points (${proxy.stats.pointsCount}) differ from vendor (${vendor.stats.pointsCount}) by more than tolerance (${tolerance}).`
-      );
-    }
+  if (args['short-window-sanity']) {
+    reportShortWindowMismatch(results);
   }
 
-  // Allow time for logs to flush before exiting in CI.
-  if (exitCode !== 0) {
+  if (configured && exitCode !== 0) {
     await delay(50);
   }
+
   process.exit(exitCode);
 }
 
-main().catch((err) => {
-  console.error('Vendor history check failed', err);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((err) => {
+    console.error('Vendor history check failed', err);
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  buildWindowSpecs,
+  determineOutcome,
+  normalizeResponse,
+  resolveFieldMeta,
+  resolveFields,
+};

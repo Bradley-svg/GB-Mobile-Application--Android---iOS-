@@ -51,6 +51,10 @@ Requirements:
 - From the mobile Device screen, send a test setpoint/mode command: backend should log the command, persist it to history, and the vendor sandbox should reflect the change where possible.
 
 ## Vendor heat pump history check
+- Proving non-zero live telemetry (vendor + proxy):
+  - `cd backend && npm run history:vendor:check:6h -- --mac <MAC> --field metric_compCurrentA` (single-field baseline, prints sanitized payload + stats + NON-ZERO/NO-DATA verdict).
+  - `cd backend && npm run history:vendor:check:6h -- --mac <MAC> --probe` (curated multi-field probe, stops on first non-zero field and reports which one).
+  - `cd backend && npm run history:vendor:check:15m -- --mac <MAC> --probe --short-window-sanity` (runs 15m + 6h; if 15m is non-zero but 6h is not, it prints that mismatch explicitly).
 - Direct vendor check (recent window): `cd backend && npm run history:vendor:check:6h` (uses `HEATPUMP_HISTORY_URL`/`HEATPUMP_HISTORY_API_KEY` from `.env`).
   - Expect status 200; pointsCount > 0 (ideally); nonZeroCount > 0 if live current exists.
 - Backend proxy check: `curl http://localhost:4000/health-plus`

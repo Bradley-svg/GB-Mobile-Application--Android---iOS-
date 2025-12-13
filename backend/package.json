@@ -28,7 +28,8 @@
     "health:check-plus": "ts-node scripts/check-health-plus.ts",
     "health:staging": "ts-node scripts/check-health-plus-staging.ts",
     "history:vendor:check": "node scripts/check-vendor-history.js",
-    "history:vendor:check:6h": "node scripts/check-vendor-history.js --hours 6 --field metric_compCurrentA"
+    "history:vendor:check:6h": "node scripts/check-vendor-history.js --hours 6 --field metric_compCurrentA",
+    "history:vendor:check:15m": "node scripts/check-vendor-history.js --window 15m --field metric_compCurrentA"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

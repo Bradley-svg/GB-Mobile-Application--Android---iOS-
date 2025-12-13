@@ -57,6 +57,13 @@ type VendorCallMeta = {
   max?: number | null;
   elapsedMs?: number;
   fieldsCount?: number;
+  fieldSummaries?: Array<{
+    field: string;
+    pointsCount: number;
+    nonZeroCount: number;
+    min: number | null;
+    max: number | null;
+  }>;
 };
 
 function logDevVendorCall(params: {
@@ -77,12 +84,37 @@ function logDevVendorCall(params: {
     payload.max = params.meta.max;
     payload.elapsedMs = params.meta.elapsedMs;
     payload.fieldsCount = params.meta.fieldsCount;
+    if (params.meta.fieldSummaries) {
+      payload.fieldSummaries = params.meta.fieldSummaries;
+    }
   }
   log.info(payload, 'heat pump history vendor call');
 }
 
 function countPoints(series: HeatPumpHistorySeries[]) {
   return series.reduce((total, entry) => total + entry.points.length, 0);
+}
+
+function summarizeFields(series: HeatPumpHistorySeries[]) {
+  return series.map((entry) => {
+    let nonZeroCount = 0;
+    let min: number | null = null;
+    let max: number | null = null;
+    entry.points.forEach((point) => {
+      if (typeof point.value !== 'number' || Number.isNaN(point.value)) return;
+      if (point.value !== 0) nonZeroCount += 1;
+      if (min === null || point.value < min) min = point.value;
+      if (max === null || point.value > max) max = point.value;
+    });
+
+    return {
+      field: entry.field,
+      pointsCount: entry.points.length,
+      nonZeroCount,
+      min,
+      max,
+    };
+  });
 }
 
 export class HeatPumpHistoryValidationError extends Error {
@@ -172,13 +204,19 @@ export async function getHistoryForRequest(
     const elapsedMs = performance.now() - startedAt;
     if (result.ok) {
       const stats = summarizeHeatPumpSeries(result.series);
+      const fieldSummaries = summarizeFields(result.series);
       logDevVendorCall({
         deviceId,
         mac,
         from: parsed.data.from,
         to: parsed.data.to,
         seriesLength: countPoints(result.series),
-        meta: { ...stats, elapsedMs, fieldsCount: historyRequest.fields.length },
+        meta: {
+          ...stats,
+          elapsedMs,
+          fieldsCount: historyRequest.fields.length,
+          fieldSummaries,
+        },
       });
       recordHeatPumpHistorySummary({
         mac,
@@ -308,13 +346,14 @@ async function fetchPagedHistory(
     const elapsedMs = performance.now() - startedAt;
     if (result.ok) {
       const stats = summarizeHeatPumpSeries(result.series);
+      const fieldSummaries = summarizeFields(result.series);
       logDevVendorCall({
         deviceId,
         mac: request.mac,
         from: from.toISOString(),
         to: to.toISOString(),
         seriesLength: countPoints(result.series),
-        meta: { ...stats, elapsedMs, fieldsCount },
+        meta: { ...stats, elapsedMs, fieldsCount, fieldSummaries },
       });
     }
     return result;
@@ -336,13 +375,14 @@ async function fetchPagedHistory(
     }
 
     const stats = summarizeHeatPumpSeries(result.series);
+    const fieldSummaries = summarizeFields(result.series);
     logDevVendorCall({
       deviceId,
       mac: request.mac,
       from: segment.from.toISOString(),
       to: segment.to.toISOString(),
       seriesLength: countPoints(result.series),
-      meta: { ...stats, elapsedMs, fieldsCount },
+      meta: { ...stats, elapsedMs, fieldsCount, fieldSummaries },
     });
 
     mergeSeries(combined, result.series);
