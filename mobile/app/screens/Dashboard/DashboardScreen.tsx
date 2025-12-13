@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAlerts, useDemoStatus, useSites } from '../../api/hooks';
 import type { ApiSite, HealthStatus } from '../../api/types';
 import { AppStackParamList } from '../../navigation/RootNavigator';
@@ -51,6 +52,7 @@ export const DashboardScreen: React.FC = () => {
   const canScanDevices = role === 'owner' || role === 'admin' || role === 'facilities';
   const isDemoOrg = demoStatus?.isDemoOrg ?? false;
   const vendorFlags = demoStatus?.vendorFlags;
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (data) {
@@ -311,8 +313,9 @@ export const DashboardScreen: React.FC = () => {
                 testID="dashboard-empty"
               />
             }
-            contentContainerStyle={{ paddingBottom: spacing.xxl * 3 }}
-            scrollIndicatorInsets={{ bottom: spacing.xxl * 2 }}
+            contentContainerStyle={{ paddingBottom: spacing.xxl * 2 + insets.bottom + spacing.lg }}
+            scrollIndicatorInsets={{ bottom: spacing.xxl + insets.bottom }}
+            ListFooterComponent={<View style={{ height: spacing.xl + insets.bottom }} />}
             testID="dashboard-site-list"
             renderItem={({ item }) => {
               const healthPill = healthDisplay((item.health as HealthStatus) || item.status);

@@ -216,6 +216,17 @@ jest.mock('expo-navigation-bar', () => ({
   setButtonStyleAsync: jest.fn(),
 }));
 
+jest.mock('react-native-safe-area-context', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    SafeAreaProvider: ({ children }: { children?: React.ReactNode }) =>
+      React.createElement(View, {}, children),
+    SafeAreaView: ({ children }: { children?: React.ReactNode }) => React.createElement(View, {}, children),
+    useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+  };
+});
+
 jest.mock('react-native', () => {
   const actual = jest.requireActual('react-native');
   return {
