@@ -279,7 +279,7 @@ describe('DeviceDetailScreen heat pump history', () => {
     fireEvent.press(screen.getByTestId('pill-compressor'));
 
     expect(screen.getByTestId('pill-compressor_current')).toBeTruthy();
-    expect(screen.getByText('No history for this metric in the selected range.')).toBeTruthy();
+    expect(screen.getByText(/Vendor history returned no data for the last 6h/i)).toBeTruthy();
   });
 
   it('shows an inline error when the history request fails', async () => {

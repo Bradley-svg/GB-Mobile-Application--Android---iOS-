@@ -589,16 +589,18 @@ export const DeviceDetailScreen: React.FC = () => {
     vendorHistoryDisabled,
   ]);
   const historyEmptyState = useMemo(() => {
+    const waitingMessage = 'Waiting for live data... Try the last 6h range.';
     if (heatPumpHistoryQuery.isLoading) return null;
     if (historyStatus !== 'noData' && !noHistoryPoints) return null;
     if (noHistoryPoints && historyRange === '1h') {
       return {
-        message: isDemoOrg
-          ? 'Waiting for live data... Try the last 6h range.'
-          : 'No history for this metric in the selected range.',
+        message: isDemoOrg ? waitingMessage : 'No history for this metric in the selected range.',
         actionLabel: 'Switch to 6h',
         onAction: () => setHistoryRange('6h'),
       };
+    }
+    if (noHistoryPoints && historyRange === '6h' && isDemoOrg) {
+      return { message: waitingMessage };
     }
     if (noHistoryPoints && historyRange === '6h' && vendorHistoryEnabled) {
       return {

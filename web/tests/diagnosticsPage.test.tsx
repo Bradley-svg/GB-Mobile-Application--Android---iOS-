@@ -201,7 +201,8 @@ describe("DiagnosticsPage", () => {
 
     await renderDiagnostics();
 
-    expect(screen.getByTestId("diagnostics-demo-flags")).toHaveTextContent(/disables history/i);
+    const demoFlags = await screen.findByTestId("diagnostics-demo-flags");
+    expect(demoFlags).toHaveTextContent(/disables history/i);
   });
 
   it("copies the raw payload JSON", async () => {

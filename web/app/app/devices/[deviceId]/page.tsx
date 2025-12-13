@@ -318,19 +318,17 @@ export default function DeviceDetailPage() {
   const historyHasNonZeroPoints = historyPoints.some((p) => (p.value ?? 0) !== 0);
   const historyConfigured =
     healthPlusQuery.data?.heatPumpHistory?.configured && !healthPlusQuery.data?.heatPumpHistory?.disabled;
-  const historyEmptyState =
-    historyPoints.length === 0 || !historyHasNonZeroPoints
-      ? historyRange === "1h"
-        ? {
-            message: isDemoOrg
-              ? "Waiting for live data... Try the last 6h range."
-              : "No history points for this metric.",
-            action: () => setHistoryRange("6h"),
-          }
-        : historyRange === "6h" && historyConfigured
-        ? { message: "Vendor history returned no data for the last 6h." }
-        : { message: "No history points for this metric." }
-      : null;
+  const isHistoryEmpty = historyPoints.length === 0 || !historyHasNonZeroPoints;
+  const waitingMessage = "Waiting for live data... Try the last 6h range.";
+  const historyEmptyState = isHistoryEmpty
+    ? historyRange === "1h"
+      ? { message: waitingMessage, action: () => setHistoryRange("6h") }
+      : isDemoOrg
+      ? { message: waitingMessage }
+      : historyRange === "6h" && historyConfigured
+      ? { message: "Vendor history returned no data for the last 6h." }
+      : { message: "No history points for this metric." }
+    : null;
 
   const vendorCaption =
     healthPlusQuery.data?.heatPumpHistory?.configured && !healthPlusQuery.data?.heatPumpHistory?.disabled

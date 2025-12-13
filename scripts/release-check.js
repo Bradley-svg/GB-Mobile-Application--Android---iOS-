@@ -13,11 +13,21 @@ function runStep(label, commandArgs, options = {}) {
     cwd: repoRoot,
     stdio: "inherit",
     env: { ...process.env, ...options.env },
+    shell: process.platform === "win32",
   });
 
-  if (result.status !== 0) {
-    console.error(`Step failed: ${label}`);
-    process.exit(result.status ?? 1);
+  const exitCode = typeof result.status === "number" ? result.status : result.error ? 1 : 0;
+  console.log(`step ${label} → exit ${exitCode}`);
+
+  if (exitCode !== 0) {
+    if (result.error) {
+      console.error(`Step failed: ${label} (${result.error.message})`);
+    } else if (result.signal) {
+      console.error(`Step failed: ${label} (terminated by signal ${result.signal})`);
+    } else {
+      console.error(`Step failed: ${label}`);
+    }
+    process.exit(exitCode);
   }
 }
 

@@ -1,5 +1,20 @@
 import '@testing-library/jest-native/extend-expect';
 
+const realSetTimeout = global.setTimeout;
+global.setTimeout = ((handler: TimerHandler, timeout?: number, ...args: unknown[]) => {
+  const timer = realSetTimeout(handler, timeout, ...(args as []));
+  // Allow long-running timers (e.g., React Query gc) to avoid holding the event loop open.
+  (timer as any)?.unref?.();
+  return timer;
+}) as typeof setTimeout;
+
+const realSetInterval = global.setInterval;
+global.setInterval = ((handler: TimerHandler, timeout?: number, ...args: unknown[]) => {
+  const timer = realSetInterval(handler, timeout, ...(args as []));
+  (timer as any)?.unref?.();
+  return timer;
+}) as typeof setInterval;
+
 const listeners: { received: Array<(notification: any) => void>; response: Array<(response: any) => void> } = {
   received: [],
   response: [],

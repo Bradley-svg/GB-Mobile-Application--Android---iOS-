@@ -122,8 +122,12 @@ const SubsystemCard = ({ subsystem }: { subsystem: Subsystem }) => {
 export default function DiagnosticsPage() {
   const { theme } = useTheme();
   const { isOwner, isAdmin, isFacilities } = useUserRole();
-  const allowed = isOwner || isAdmin || isFacilities;
   const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
+
+  const demoStatusQuery = useDemoStatus();
+  const demoStatus = demoStatusQuery.data;
+  const isDemoOrg = demoStatus?.isDemoOrg ?? false;
+  const allowed = isOwner || isAdmin || isFacilities || isDemoOrg;
 
   const healthQuery = useQuery<HealthPlusPayload>({
     queryKey: ["health-plus"],
@@ -132,9 +136,7 @@ export default function DiagnosticsPage() {
     enabled: allowed,
   });
 
-  const demoStatusQuery = useDemoStatus({ enabled: allowed });
   const health = healthQuery.data;
-  const demoStatus = demoStatusQuery.data;
   const vendorFlags = health?.vendorFlags ?? demoStatus?.vendorFlags;
   const vendorDisableSet = useMemo(
     () => new Set((vendorFlags?.disabled ?? []).map((flag) => flag.toUpperCase())),
@@ -304,6 +306,7 @@ export default function DiagnosticsPage() {
         ? "Error loading /demo/status"
         : formatVendorFlags(demoStatus?.vendorFlags ?? null);
   const healthFlagsLabel = formatVendorFlags(health?.vendorFlags ?? null);
+  const demoDisabledList = (demoStatus?.vendorFlags?.disabled ?? []).join(", ") || "None";
 
   const handleCopy = async () => {
     if (!health) return;
@@ -336,25 +339,6 @@ export default function DiagnosticsPage() {
     );
   }
 
-  if (healthQuery.isLoading) {
-    return (
-      <Card title="Diagnostics">
-        <p style={{ margin: 0, color: theme.colors.textSecondary }}>Loading /health-plus snapshot...</p>
-      </Card>
-    );
-  }
-
-  if (healthQuery.isError || !health) {
-    return (
-      <Card title="Diagnostics">
-        <p style={{ margin: 0, color: theme.colors.error }}>Could not load /health-plus. Please retry.</p>
-        <Button size="sm" variant="secondary" onClick={() => healthQuery.refetch()} style={{ marginTop: theme.spacing.sm }}>
-          Retry
-        </Button>
-      </Card>
-    );
-  }
-
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: theme.spacing.lg }}>
       <Card
@@ -371,6 +355,17 @@ export default function DiagnosticsPage() {
           </div>
         }
       >
+        {healthQuery.isLoading ? (
+          <p style={{ margin: 0, color: theme.colors.textSecondary }}>Loading /health-plus snapshot...</p>
+        ) : null}
+        {healthQuery.isError ? (
+          <div style={{ display: "flex", gap: theme.spacing.sm, alignItems: "center", marginTop: healthQuery.isLoading ? theme.spacing.xs : 0 }}>
+            <p style={{ margin: 0, color: theme.colors.error }}>Could not load /health-plus. Please retry.</p>
+            <Button size="sm" variant="secondary" onClick={() => healthQuery.refetch()}>
+              Retry
+            </Button>
+          </div>
+        ) : null}
         <div
           style={{
             marginTop: theme.spacing.md,
@@ -440,6 +435,7 @@ export default function DiagnosticsPage() {
               <InfoRow label="Hero device" value={heroDeviceLabel} />
               <InfoRow label="Seeded at" value={seededAtLabel} />
               <InfoRow label="Vendor flags" value={demoFlagsLabel} />
+              <InfoRow label="Disabled list" value={demoDisabledList} />
             </div>
             {historyFlagMismatch ? (
               <span style={{ color: theme.colors.warning, fontSize: theme.typography.caption.fontSize }}>
@@ -467,7 +463,7 @@ export default function DiagnosticsPage() {
               />
             </div>
           </div>
-          {health.perfHints ? (
+          {health?.perfHints ? (
             <div
               style={{
                 padding: theme.spacing.md,
