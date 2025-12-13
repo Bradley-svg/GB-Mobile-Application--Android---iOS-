@@ -311,7 +311,8 @@ export const DashboardScreen: React.FC = () => {
                 testID="dashboard-empty"
               />
             }
-            contentContainerStyle={{ paddingBottom: spacing.xl }}
+            contentContainerStyle={{ paddingBottom: spacing.xxl * 3 }}
+            scrollIndicatorInsets={{ bottom: spacing.xxl * 2 }}
             testID="dashboard-site-list"
             renderItem={({ item }) => {
               const healthPill = healthDisplay((item.health as HealthStatus) || item.status);
