@@ -86,7 +86,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   }, [resetOrgQueries]);
   const sessionTimeoutReason = useSessionTimeout(
     useCallback(
-      (reason) => {
+      (reason: SessionExpireReason | null) => {
         const loginPath = buildLoginPath(reason);
         logoutAll({ redirectTo: loginPath, delayMs: 400, onCleared: () => clearOrgState() });
         setIsReady(false);
@@ -151,28 +151,28 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     }
   }, [appendEmbedParam, currentLocationPath, embedFromQuery, embedMode, router]);
 
-  const navBadge = (label: string) => (
-    <span
-      aria-hidden
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: 26,
-        height: 26,
-        borderRadius: theme.radius.md,
-        backgroundColor: theme.colors.backgroundAlt,
-        border: `1px solid ${theme.colors.borderSubtle}`,
-        fontSize: theme.typography.caption.fontSize,
-        fontWeight: theme.typography.subtitle.fontWeight,
-        color: theme.colors.textSecondary,
-      }}
-    >
-      {label}
-    </span>
-  );
-
   const navItems = useMemo(() => {
+    const navBadge = (label: string) => (
+      <span
+        aria-hidden
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 26,
+          height: 26,
+          borderRadius: theme.radius.md,
+          backgroundColor: theme.colors.backgroundAlt,
+          border: `1px solid ${theme.colors.borderSubtle}`,
+          fontSize: theme.typography.caption.fontSize,
+          fontWeight: theme.typography.subtitle.fontWeight,
+          color: theme.colors.textSecondary,
+        }}
+      >
+        {label}
+      </span>
+    );
+
     const items = [
       { label: "Dashboard", href: "/app", icon: navBadge("DB") },
       { label: "Sites / Devices", href: "/app/devices", icon: navBadge("DV") },
@@ -191,7 +191,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       { label: "Profile", href: "/app/profile", icon: navBadge("PR") },
     ];
     return items.filter((item) => !item.hidden);
-  }, [isAdmin, isFacilities, isOwner, navBadge]);
+  }, [isAdmin, isFacilities, isOwner, theme]);
 
   const requiresTwoFactorSetup = useMemo(() => {
     const role = user?.role?.toLowerCase() ?? "";

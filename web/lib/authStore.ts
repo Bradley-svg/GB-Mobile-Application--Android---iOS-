@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
+import { createJSONStorage, persist, type StateStorage, type PersistStorage } from "zustand/middleware";
 import * as authApi from "@/lib/api/authApi";
 import { registerTokenGetter, registerTokenSetter } from "@/lib/api/tokenStore";
 import type { AuthResponse, AuthTokens, AuthUser } from "@/lib/types/auth";
@@ -46,12 +46,18 @@ const memoryStorage: StateStorage = {
 const roleRequiresTwoFactor = (role?: string | null) =>
   AUTH_2FA_ENFORCE_ROLES.includes((role ?? "").toLowerCase());
 
-const persistedStorage = AUTH_COOKIE_MODE_ENABLED
-  ? memoryStorage
-  : createJSONStorage(() => (typeof window === "undefined" ? memoryStorage : window.localStorage));
+const buildStorage = <StoredState>(storage: StateStorage): PersistStorage<StoredState> =>
+  createJSONStorage<StoredState>(() => storage)!;
+
+const storageProvider = (): StateStorage =>
+  typeof window === "undefined" ? memoryStorage : window.localStorage;
+
+const persistedStorage = buildStorage<Partial<AuthState>>(
+  AUTH_COOKIE_MODE_ENABLED ? memoryStorage : storageProvider(),
+);
 
 const useAuthStore = create<AuthState>()(
-  persist(
+  persist<AuthState, [], [], Partial<AuthState>>(
     (set, get) => ({
       accessToken: undefined,
       refreshToken: undefined,
@@ -104,15 +110,18 @@ const useAuthStore = create<AuthState>()(
         const hardReload = options?.hardReload ?? true;
         const delayMs = options?.delayMs ?? 0;
         useAuthStore.persist?.clearStorage?.();
-        set(() => ({
-          accessToken: undefined,
-          refreshToken: undefined,
-          user: null,
-          sessionStartedAt: undefined,
-          lastActiveAt: undefined,
-          twoFactorSetupRequired: false,
-          hasHydrated: true,
-        }));
+        set(
+          () =>
+            ({
+              accessToken: undefined,
+              refreshToken: undefined,
+              user: null,
+              sessionStartedAt: undefined,
+              lastActiveAt: undefined,
+              twoFactorSetupRequired: false,
+              hasHydrated: true,
+            }) satisfies Partial<AuthState>,
+        );
         options?.onCleared?.();
         if (hardReload && typeof window !== "undefined") {
           const perform = () => {

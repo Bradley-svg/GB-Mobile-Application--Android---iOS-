@@ -1,11 +1,14 @@
-import axios from "axios";
+import axios, {
+  AxiosHeaders,
+  type AxiosRequestHeaders,
+  type InternalAxiosRequestConfig,
+} from "axios";
 import { WEB_API_BASE_URL } from "@/config/env";
 import { getTokens, setTokensFromRefresh } from "./tokenStore";
 import type { AuthTokens } from "@/lib/types/auth";
 
-type RefreshableRequestConfig = {
+type RefreshableRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean;
-  headers?: Record<string, string>;
 };
 
 const baseURL = process.env.NEXT_PUBLIC_API_URL || WEB_API_BASE_URL;
@@ -21,12 +24,16 @@ const refreshClient = axios.create({
 let isRefreshing = false;
 let refreshPromise: Promise<AuthTokens | null> | null = null;
 
-const attachToken = (token?: string) => (token ? { Authorization: `Bearer ${token}` } : {});
+const attachToken = (token?: string): Partial<AxiosRequestHeaders> => (token ? { Authorization: `Bearer ${token}` } : {});
 
 api.interceptors.request.use((config) => {
   const { accessToken } = getTokens();
-  if (accessToken && config.headers) {
-    config.headers = { ...config.headers, ...attachToken(accessToken) };
+  if (accessToken) {
+    const mergedHeaders = AxiosHeaders.from({
+      ...(config.headers || {}),
+      ...attachToken(accessToken),
+    });
+    config.headers = mergedHeaders;
   }
   return config;
 });
@@ -44,7 +51,7 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const { response, config } = error;
-    const originalRequest = config as typeof config & RefreshableRequestConfig;
+    const originalRequest = config as RefreshableRequestConfig;
     if (!response || response.status !== 401 || !originalRequest || originalRequest._retry) {
       return Promise.reject(error);
     }
@@ -80,7 +87,10 @@ api.interceptors.response.use(
     try {
       const tokens = await refreshPromise;
       if (tokens?.accessToken) {
-        originalRequest.headers = { ...(originalRequest.headers || {}), ...attachToken(tokens.accessToken) };
+        originalRequest.headers = AxiosHeaders.from({
+          ...(originalRequest.headers || {}),
+          ...attachToken(tokens.accessToken),
+        }) as AxiosRequestHeaders;
         return api(originalRequest);
       }
     } catch (err) {

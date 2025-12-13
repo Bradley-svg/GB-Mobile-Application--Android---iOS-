@@ -13,11 +13,14 @@ export function useSessionTimeout(onExpire?: (reason: SessionExpireReason) => vo
   const recordActivity = useAuthStore((s) => s.recordActivity);
   const [expiredReason, setExpiredReason] = useState<SessionExpireReason | null>(null);
   const expiredRef = useRef(false);
+  const sessionKey = `${accessToken ?? "none"}:${sessionStartedAt ?? "none"}`;
 
   useEffect(() => {
+    // Reset expiry markers when the session changes.
     expiredRef.current = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setExpiredReason(null);
-  }, [sessionStartedAt, accessToken]);
+  }, [sessionKey]);
 
   useEffect(() => {
     if (!accessToken || !hasHydrated) return undefined;

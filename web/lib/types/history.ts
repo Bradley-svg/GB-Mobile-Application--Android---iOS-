@@ -1,5 +1,3 @@
-import type { TimeRange } from "./telemetry";
-
 export type HeatPumpMetric =
   | "compressor_current"
   | "cop"

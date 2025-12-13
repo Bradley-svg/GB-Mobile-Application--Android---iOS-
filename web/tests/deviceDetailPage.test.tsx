@@ -7,6 +7,7 @@ import type { ApiDevice } from "@/lib/types/fleet";
 import type { DeviceTelemetry } from "@/lib/types/telemetry";
 import type { HeatPumpHistoryResponse } from "@/lib/types/history";
 import { useOrgStore } from "@/lib/orgStore";
+import type { HealthPlusPayload } from "@/lib/types/healthPlus";
 
 const fetchDeviceMock = vi.fn();
 const fetchTelemetryMock = vi.fn();
@@ -106,7 +107,7 @@ describe("DeviceDetailPage large fixtures", () => {
     fetchDeviceMock.mockResolvedValue(device);
     fetchTelemetryMock.mockResolvedValue(telemetry);
     fetchHistoryMock.mockResolvedValue(history);
-    fetchHealthMock.mockResolvedValue({
+    const healthPayload: HealthPlusPayload = {
       ok: true,
       env: "test",
       db: "ok",
@@ -149,7 +150,8 @@ describe("DeviceDetailPage large fixtures", () => {
         evaluated: null,
         triggered: null,
       },
-    } as any);
+    };
+    fetchHealthMock.mockResolvedValue(healthPayload);
   });
 
   it("renders large telemetry and history datasets without duplicate fetches", async () => {

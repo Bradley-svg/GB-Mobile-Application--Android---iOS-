@@ -1,7 +1,6 @@
 ﻿"use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -239,18 +238,25 @@ export default function DeviceDetailPage() {
     gcTime: DETAIL_CACHE_TIME,
   });
 
+  const device: ApiDevice | undefined = deviceQuery.data;
   const historyDefinition = HISTORY_METRICS.find((m) => m.key === historyMetric) ?? HISTORY_METRICS[0];
-  const now = Date.now();
-  const historyFrom = new Date(now - RANGE_TO_WINDOW_MS[historyRange]).toISOString();
-  const historyTo = new Date(now).toISOString();
+  const referenceTimeMs = (() => {
+    const lastSeen =
+      device?.last_seen_at ??
+      (device?.last_seen?.at ? new Date(device.last_seen.at).toISOString() : null);
+    return lastSeen ? new Date(lastSeen).getTime() : 0;
+  })();
+  const historyFrom =
+    referenceTimeMs > 0 ? new Date(referenceTimeMs - RANGE_TO_WINDOW_MS[historyRange]).toISOString() : null;
+  const historyTo = referenceTimeMs > 0 ? new Date(referenceTimeMs).toISOString() : null;
   const historyQuery = useQuery<HeatPumpHistoryResponse>({
-    queryKey: ["heat-pump-history", deviceId, historyMetric, historyRange, currentOrgId],
-    enabled: !!deviceId,
+    queryKey: ["heat-pump-history", deviceId, historyMetric, historyRange, currentOrgId, historyFrom, historyTo],
+    enabled: Boolean(deviceId && historyFrom && historyTo),
     queryFn: () =>
       fetchHeatPumpHistory({
         deviceId: deviceId as string,
-        from: historyFrom,
-        to: historyTo,
+        from: historyFrom as string,
+        to: historyTo as string,
         fields: [{ field: historyDefinition.field }],
         orgId: currentOrgId ?? undefined,
       }),
@@ -266,10 +272,7 @@ export default function DeviceDetailPage() {
     gcTime: DETAIL_CACHE_TIME,
   });
 
-  const device: ApiDevice | undefined = deviceQuery.data;
   const telemetry = telemetryQuery.data;
-  const telemetryEmpty =
-    telemetry && Object.values(telemetry.metrics || {}).every((points) => (points?.length ?? 0) === 0);
 
   const isOffline =
     device?.health === "offline" || device?.last_seen?.isOffline || (device?.status || "").toLowerCase().includes("off");
@@ -518,10 +521,12 @@ export default function DeviceDetailPage() {
                   />
                   <Tooltip
                     labelFormatter={(ts) => new Date(ts as number).toLocaleString()}
-                    formatter={(value: number | null) => [
-                      value == null ? "N/A" : value.toFixed(historyDefinition.decimals ?? 1),
-                      historyDefinition.label,
-                    ]}
+                    formatter={(value) => {
+                      const numeric = typeof value === "number" ? value : Number(value);
+                      const display =
+                        value === null || Number.isNaN(numeric) ? "N/A" : numeric.toFixed(historyDefinition.decimals ?? 1);
+                      return [display, historyDefinition.label];
+                    }}
                     contentStyle={{
                       backgroundColor: theme.colors.surface,
                       borderColor: theme.colors.borderSubtle,

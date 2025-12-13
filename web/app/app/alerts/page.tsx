@@ -155,6 +155,7 @@ export default function AlertsPage() {
   const isLoading = alertsQuery.isLoading;
   const isError = alertsQuery.isError;
   const isEmpty = !isLoading && alerts.length === 0;
+  const referenceTimeMs = alertsQuery.dataUpdatedAt || 0;
 
   const renderRow = (alert: Alert) => {
     const statusLabel = alert.status === "cleared" ? "Resolved" : "Open";
@@ -162,10 +163,11 @@ export default function AlertsPage() {
     const alertTitle = alert.rule_name || alert.message || "Alert";
     const deviceLabel = alert.device_name || alert.device_id || "Device unknown";
     const siteLabel = alert.site_name || alert.site_id || "Site unknown";
-    const mutedUntil = alert.muted_until ? formatTimestamp(alert.muted_until) : null;
+    const mutedUntilValue = alert.muted_until ? formatTimestamp(alert.muted_until) : null;
+    const mutedUntilMs = alert.muted_until ? new Date(alert.muted_until).getTime() : null;
     const mutedBadge =
-      mutedUntil && new Date(alert.muted_until).getTime() > Date.now()
-        ? `Muted until ${mutedUntil}`
+      mutedUntilMs && referenceTimeMs && mutedUntilMs > referenceTimeMs && mutedUntilValue
+        ? `Muted until ${mutedUntilValue}`
         : null;
 
     return (

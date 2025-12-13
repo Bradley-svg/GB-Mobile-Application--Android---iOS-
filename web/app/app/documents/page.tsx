@@ -97,8 +97,8 @@ export default function DocumentsPage() {
     queryFn: () => fetchFleet({ orgId: currentOrgId ?? undefined }),
   });
 
-  const sites = fleetQuery.data?.sites ?? [];
-  const devices = fleetQuery.data?.devices ?? [];
+  const sites = useMemo(() => fleetQuery.data?.sites ?? [], [fleetQuery.data]);
+  const devices = useMemo(() => fleetQuery.data?.devices ?? [], [fleetQuery.data]);
 
   const siteMap = useMemo(() => new Map((sites as ApiSite[]).map((site) => [site.id, site])), [sites]);
   const deviceMap = useMemo(() => new Map((devices as ApiDevice[]).map((device) => [device.id, device])), [devices]);
@@ -164,7 +164,7 @@ export default function DocumentsPage() {
     },
   });
 
-  const documents = documentsQuery.data ?? [];
+  const documents = useMemo(() => documentsQuery.data ?? [], [documentsQuery.data]);
   const categoryOptions = useMemo(() => {
     const categories = new Set<string>();
     documents.forEach((doc) => {

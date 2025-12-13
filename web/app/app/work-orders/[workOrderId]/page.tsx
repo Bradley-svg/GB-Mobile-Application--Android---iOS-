@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge, Button, Card } from "@/components/ui";
@@ -118,13 +118,8 @@ export function WorkOrderDetailView({
   readOnlyReason,
 }: WorkOrderDetailViewProps) {
   const { theme } = useTheme();
-  const [notes, setNotes] = useState(workOrder.description ?? "");
-  const [slaInput, setSlaInput] = useState(toInputValue(workOrder.slaDueAt ?? workOrder.sla_due_at ?? null));
-
-  useEffect(() => {
-    setNotes(workOrder.description ?? "");
-    setSlaInput(toInputValue(workOrder.slaDueAt ?? workOrder.sla_due_at ?? null));
-  }, [workOrder.description, workOrder.id, workOrder.slaDueAt, workOrder.sla_due_at]);
+  const [notes, setNotes] = useState(() => workOrder.description ?? "");
+  const [slaInput, setSlaInput] = useState(() => toInputValue(workOrder.slaDueAt ?? workOrder.sla_due_at ?? null));
 
   const sla = useMemo(() => slaDisplay(workOrder), [workOrder]);
   const status = useMemo(() => statusDisplay(workOrder.status), [workOrder.status]);
@@ -475,6 +470,7 @@ export default function WorkOrderDetailPage() {
 
   return (
     <WorkOrderDetailView
+      key={workOrderQuery.data.id}
       workOrder={workOrderQuery.data}
       canEdit={canEdit}
       canChangeStatus={canChangeStatus}

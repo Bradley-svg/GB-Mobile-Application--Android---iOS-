@@ -13,7 +13,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/lib/authStore", () => ({
-  useAuthStore: (selector: any) =>
+  useAuthStore: (selector: (state: { login: typeof mockLogin }) => unknown) =>
     selector({
       login: mockLogin,
     }),

@@ -58,7 +58,7 @@ export function TwoFactorSection({ user, onUserUpdate }: TwoFactorSectionProps) 
       };
     }
     QRCode.toDataURL(otpauthUrl, { width: 220, margin: 1 })
-      .then((url) => {
+      .then((url: string) => {
         if (active) setQrDataUrl(url);
       })
       .catch(() => {
@@ -247,6 +247,7 @@ export function TwoFactorSection({ user, onUserUpdate }: TwoFactorSectionProps) 
                     }}
                   >
                     {qrDataUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img src={qrDataUrl} alt="Authenticator QR code" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
                     ) : (
                       <span style={{ color: theme.colors.textSecondary, textAlign: "center", padding: theme.spacing.sm }}>
@@ -350,7 +351,7 @@ function SessionsPanel({ currentUserEmail }: SessionsPanelProps) {
           setSessions(data);
           setNotice(null);
         }
-      } catch (err) {
+      } catch {
         if (active) {
           setNotice("Session list is coming soon. Showing placeholder entries.");
         }

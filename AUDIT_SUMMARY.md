@@ -1,12 +1,12 @@
 # Audit Summary
 
-Latest state-of-build: see `docs/state-of-build.md` (2025-12-12). Deltas since last audit: web lint/typecheck now failing with hook purity/type errors; web vitest coverage fails in diagnostics/device detail tests; mobile history Jest test failing (qaRelease pipeline would block). Backend coverage remains green.
+Latest state-of-build: see `docs/state-of-build.md` (2025-12-13). Deltas since last audit: web hook-purity/typing fixes landed (lint/typecheck now green with `@types/qrcode`, authStore/httpClient typing tightened); web vitest still fails diagnostics/device detail tests; mobile history Jest still fails; `npm run release:check` exits at the first lint step on Windows even though lint is green; backend coverage remains green.
 
 ## What was checked
 - Backend scripts/build (tsc, eslint, vitest), tsconfig strictness, env templates, and vitest coverage config.
 - Mobile scripts (Expo dev client, Jest, Detox), tsconfig/lint/theme guardrails, env template, and E2E configs.
 - CI workflow in `.github/workflows/ci.yml` plus root scripts; docs for envs/runbooks/checklists.
-- Ran: `npm run typecheck` + `npm run lint` in `backend/` and `mobile/` (no tests executed locally).
+- Ran: `npm run lint` / `npm run typecheck` (all packages), `npm run test` (backend), `cd web && npm run test:coverage` (fails 2 tests), `cd mobile && npm test -- --runInBand --forceExit` (fails 1 test), and `npm run release:check` (stops at lint step).
 
 ## Fixes made
 - Removed/typed all lingering `any` usages in backend controllers/repositories/services and elevated `@typescript-eslint/no-explicit-any` to `error`.

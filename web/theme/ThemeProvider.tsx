@@ -47,7 +47,6 @@ export function ThemeProvider({
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const handler = (event: MediaQueryListEvent) => setSystemMode(event.matches ? "dark" : "light");
 
-    setSystemMode(media.matches ? "dark" : "light");
     media.addEventListener("change", handler);
     return () => media.removeEventListener("change", handler);
   }, []);

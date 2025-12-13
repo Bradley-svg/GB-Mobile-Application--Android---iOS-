@@ -1,29 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { EMBED_ALLOWED } from "@/config/env";
 
 export function useEmbed() {
   const searchParams = useSearchParams();
-  const [isFramed, setIsFramed] = useState(() => {
+  const isFramed = useMemo(() => {
     if (typeof window === "undefined") return false;
     try {
       return window.self !== window.top;
     } catch {
       return false;
     }
-  });
-
-  const embedParam = searchParams.get("embed") === "true";
-
-  useEffect(() => {
-    try {
-      setIsFramed(window.self !== window.top);
-    } catch {
-      setIsFramed(false);
-    }
   }, []);
+  const embedParam = searchParams.get("embed") === "true";
 
   const embedActive = EMBED_ALLOWED && (embedParam || isFramed);
 

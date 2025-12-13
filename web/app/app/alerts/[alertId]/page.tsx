@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -16,7 +16,7 @@ import {
 import { formatRelativeTime } from "@/lib/formatRelativeTime";
 import { useDemoStatus } from "@/lib/useDemoStatus";
 import { useOrgStore } from "@/lib/orgStore";
-import type { Alert, AlertRule, AlertSeverity } from "@/lib/types/alerts";
+import type { AlertRule, AlertSeverity } from "@/lib/types/alerts";
 import { useUserRole } from "@/lib/useUserRole";
 import { useTheme } from "@/theme/ThemeProvider";
 
@@ -118,7 +118,9 @@ export default function AlertDetailPage() {
   const alert = alertQuery.data;
   const isResolved = alert?.status === "cleared";
   const mutedUntilDate = alert?.muted_until ? new Date(alert.muted_until) : null;
-  const isMuted = mutedUntilDate ? mutedUntilDate.getTime() > Date.now() : false;
+  const mutedUntilMs = mutedUntilDate ? mutedUntilDate.getTime() : null;
+  const referenceTimeMs = alertQuery.dataUpdatedAt || 0;
+  const isMuted = Boolean(mutedUntilMs && referenceTimeMs && mutedUntilMs > referenceTimeMs);
 
   const rulesQuery = useQuery<AlertRule[]>({
     queryKey: ["alert-rules", alert?.device_id, alert?.site_id, currentOrgId],
@@ -134,12 +136,6 @@ export default function AlertDetailPage() {
     () => rulesQuery.data?.find((rule) => rule.id === alert?.rule_id) ?? null,
     [rulesQuery.data, alert?.rule_id],
   );
-
-  useEffect(() => {
-    if (matchingRule?.snooze_default_sec) {
-      setSnoozeMinutes(Math.max(1, Math.round(matchingRule.snooze_default_sec / 60)));
-    }
-  }, [matchingRule]);
 
   const confirmDemoAction = (label: string) => {
     if (!isDemoOrg) return true;

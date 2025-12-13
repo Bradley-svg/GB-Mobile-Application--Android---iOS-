@@ -3,7 +3,14 @@ import { render, screen } from "@testing-library/react";
 import { DemoModeBadge } from "@/components/DemoModeBadge";
 import { ThemeProvider } from "@/theme/ThemeProvider";
 
-let demoStatus = { isDemoOrg: true, heroDeviceId: "dev-1", heroDeviceMac: "AA:BB", seededAt: "2025-01-01T00:00:00Z" };
+type DemoStatusShape = {
+  isDemoOrg: boolean;
+  heroDeviceId: string | null;
+  heroDeviceMac: string | null;
+  seededAt: string | null;
+};
+
+let demoStatus: DemoStatusShape = { isDemoOrg: true, heroDeviceId: "dev-1", heroDeviceMac: "AA:BB", seededAt: "2025-01-01T00:00:00Z" };
 
 vi.mock("@/lib/useDemoStatus", () => ({
   useDemoStatus: () => ({ data: demoStatus, isLoading: false }),

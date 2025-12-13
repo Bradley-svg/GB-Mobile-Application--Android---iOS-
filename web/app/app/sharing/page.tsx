@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge, Button, Card } from "@/components/ui";
 import { createShareLink, listShareLinks, revokeShareLink } from "@/lib/api/shareLinks";
@@ -46,7 +46,7 @@ export default function SharingPage() {
   const { theme } = useTheme();
   const queryClient = useQueryClient();
   const currentOrgId = useOrgStore((s) => s.currentOrgId);
-  const { isContractor, isAdmin, isOwner, isFacilities } = useUserRole();
+  const { isAdmin, isOwner, isFacilities } = useUserRole();
   const [scope, setScope] = useState<Scope>("site");
   const [siteId, setSiteId] = useState<string>("");
   const [deviceId, setDeviceId] = useState<string>("");
@@ -62,34 +62,26 @@ export default function SharingPage() {
     queryFn: () => fetchFleet({ orgId: currentOrgId ?? undefined }),
   });
 
-  const sites = fleetQuery.data?.sites ?? [];
-  const devices = fleetQuery.data?.devices ?? [];
-
-  useEffect(() => {
-    if (!siteId && sites.length > 0) {
-      setSiteId(sites[0].id);
-    }
-  }, [siteId, sites]);
+  const sites = useMemo(() => fleetQuery.data?.sites ?? [], [fleetQuery.data]);
+  const devices = useMemo(() => fleetQuery.data?.devices ?? [], [fleetQuery.data]);
+  const resolvedSiteId = siteId || sites[0]?.id || "";
 
   const filteredDevices = useMemo(() => {
-    if (scope === "device" && siteId) {
-      return devices.filter((device) => device.site_id === siteId);
-    }
-    if (siteId) {
-      return devices.filter((device) => device.site_id === siteId);
+    const targetSiteId = resolvedSiteId;
+    if (targetSiteId) {
+      return devices.filter((device) => device.site_id === targetSiteId);
     }
     return devices;
-  }, [devices, scope, siteId]);
+  }, [devices, resolvedSiteId]);
 
-  useEffect(() => {
-    if (scope !== "device") return;
-    const fallback = filteredDevices[0]?.id ?? "";
-    if (!deviceId || !filteredDevices.find((device) => device.id === deviceId)) {
-      setDeviceId(fallback);
-    }
-  }, [deviceId, filteredDevices, scope]);
+  const resolvedDeviceId =
+    scope === "device"
+      ? deviceId && filteredDevices.some((device) => device.id === deviceId)
+        ? deviceId
+        : filteredDevices[0]?.id ?? ""
+      : "";
 
-  const activeScopeId = scope === "site" ? siteId : deviceId;
+  const activeScopeId = scope === "site" ? resolvedSiteId : resolvedDeviceId;
   const linksQuery = useQuery({
     queryKey: ["share-links", scope, activeScopeId, currentOrgId],
     enabled: !!activeScopeId,
@@ -212,7 +204,7 @@ export default function SharingPage() {
           <label style={{ color: theme.colors.textSecondary, fontSize: theme.typography.caption.fontSize, display: "flex", flexDirection: "column", gap: 6 }}>
             Site
             <select
-              value={siteId}
+              value={resolvedSiteId}
               onChange={(evt) => setSiteId(evt.target.value)}
               style={{
                 padding: `${theme.spacing.xs}px ${theme.spacing.sm}px`,
@@ -236,7 +228,7 @@ export default function SharingPage() {
           <label style={{ color: theme.colors.textSecondary, fontSize: theme.typography.caption.fontSize, display: "flex", flexDirection: "column", gap: 6 }}>
             Device (optional)
             <select
-              value={deviceId}
+              value={resolvedDeviceId}
               onChange={(evt) => setDeviceId(evt.target.value)}
               disabled={scope === "site"}
               style={{
