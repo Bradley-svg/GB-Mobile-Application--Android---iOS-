@@ -3,13 +3,25 @@ name: Web Deploy
 on:
   push:
     branches:
-      - main
+      - "**"
     tags:
       - "v*"
+  pull_request:
+    paths:
+      - "web/**"
+      - "docs/deploy-web.md"
+      - "docs/wp-embed.md"
+      - ".github/workflows/web-deploy.yml"
+      - "package.json"
+      - "scripts/web-print-preview-help.js"
 
 permissions:
   contents: read
   id-token: write
+
+concurrency:
+  group: web-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   deploy:
@@ -17,6 +29,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NODE_VERSION: 20
+      PREVIEW_API_URL: https://staging.api.greenbro.co.za
+      PREVIEW_EMBEDDED: true
+      FRAME_ANCESTORS_DEFAULT: https://www.greenbro.co.za,https://greenbro.co.za
 
     steps:
       - name: Checkout
@@ -24,25 +39,48 @@ jobs:
 
       - name: Select target environment
         id: target
+        env:
+          REF_NAME: ${{ github.head_ref || github.ref_name }}
+          VERCEL_PROJECT_ID_STAGING: ${{ secrets.VERCEL_PROJECT_ID_STAGING }}
+          VERCEL_PROJECT_ID_PROD: ${{ secrets.VERCEL_PROJECT_ID_PROD }}
+          VERCEL_PROJECT_ID_PREVIEW: ${{ secrets.VERCEL_PROJECT_ID_PREVIEW }}
         run: |
+          set -euo pipefail
+
+          environment="preview"
+          api_url="${PREVIEW_API_URL}"
+          embedded="${PREVIEW_EMBEDDED}"
+          vercel_env="preview"
+          vercel_project_id="${VERCEL_PROJECT_ID_PREVIEW:-}"
+          vercel_prod_flag=""
+
           if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
-            echo "environment=staging" >> "$GITHUB_OUTPUT"
-            echo "api_url=https://staging.api.greenbro.co.za" >> "$GITHUB_OUTPUT"
-            echo "embedded=true" >> "$GITHUB_OUTPUT"
-            echo "vercel_env=preview" >> "$GITHUB_OUTPUT"
-            echo "vercel_project_id=${{ secrets.VERCEL_PROJECT_ID_STAGING }}" >> "$GITHUB_OUTPUT"
-            echo "vercel_prod_flag=" >> "$GITHUB_OUTPUT"
+            environment="staging"
+            vercel_project_id="${VERCEL_PROJECT_ID_STAGING:-${vercel_project_id}}"
           elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            echo "environment=production" >> "$GITHUB_OUTPUT"
-            echo "api_url=https://api.greenbro.co.za" >> "$GITHUB_OUTPUT"
-            echo "embedded=true" >> "$GITHUB_OUTPUT"
-            echo "vercel_env=production" >> "$GITHUB_OUTPUT"
-            echo "vercel_project_id=${{ secrets.VERCEL_PROJECT_ID_PROD }}" >> "$GITHUB_OUTPUT"
-            echo "vercel_prod_flag=--prod" >> "$GITHUB_OUTPUT"
-          else
-            echo "Unsupported ref ${GITHUB_REF} for deployment."
+            environment="production"
+            api_url="https://api.greenbro.co.za"
+            vercel_env="production"
+            vercel_project_id="${VERCEL_PROJECT_ID_PROD:-}"
+            vercel_prod_flag="--prod"
+          fi
+
+          if [[ -z "${vercel_project_id}" && "${environment}" != "production" ]]; then
+            vercel_project_id="${VERCEL_PROJECT_ID_STAGING:-}"
+          fi
+
+          if [[ -z "${vercel_project_id}" ]]; then
+            echo "Vercel project id is required for ${environment} deployments."
             exit 1
           fi
+
+          echo "environment=${environment}" >> "$GITHUB_OUTPUT"
+          echo "api_url=${api_url}" >> "$GITHUB_OUTPUT"
+          echo "embedded=${embedded}" >> "$GITHUB_OUTPUT"
+          echo "vercel_env=${vercel_env}" >> "$GITHUB_OUTPUT"
+          echo "vercel_project_id=${vercel_project_id}" >> "$GITHUB_OUTPUT"
+          echo "vercel_prod_flag=${vercel_prod_flag}" >> "$GITHUB_OUTPUT"
+          echo "ref_name=${REF_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -54,16 +92,11 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefix web
 
-      - name: Run web tests
-        env:
-          NEXT_PUBLIC_API_URL: ${{ steps.target.outputs.api_url }}
-          NEXT_PUBLIC_EMBEDDED: ${{ steps.target.outputs.embedded }}
-        run: npm run web:test
-
       - name: Run web coverage
         env:
           NEXT_PUBLIC_API_URL: ${{ steps.target.outputs.api_url }}
           NEXT_PUBLIC_EMBEDDED: ${{ steps.target.outputs.embedded }}
+          FRAME_ANCESTORS: ${{ env.FRAME_ANCESTORS_DEFAULT }}
         run: npm run web:test:coverage
 
       - name: Build (Next.js)
@@ -71,6 +104,7 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: ${{ steps.target.outputs.api_url }}
           NEXT_PUBLIC_EMBEDDED: ${{ steps.target.outputs.embedded }}
+          FRAME_ANCESTORS: ${{ env.FRAME_ANCESTORS_DEFAULT }}
         run: next build
 
       - name: Install Vercel CLI
@@ -89,15 +123,55 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: ${{ steps.target.outputs.api_url }}
           NEXT_PUBLIC_EMBEDDED: ${{ steps.target.outputs.embedded }}
+          FRAME_ANCESTORS: ${{ env.FRAME_ANCESTORS_DEFAULT }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ steps.target.outputs.vercel_project_id }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: vercel build --yes
+          BUILD_FLAG: ${{ steps.target.outputs.vercel_prod_flag }}
+        run: |
+          set -euo pipefail
+
+          build_cmd=(vercel build --yes)
+          if [[ -n "${BUILD_FLAG}" ]]; then
+            build_cmd+=("${BUILD_FLAG}")
+          fi
+
+          "${build_cmd[@]}"
 
       - name: Deploy to Vercel
+        id: deploy
         working-directory: web
         env:
+          DEPLOY_FLAG: ${{ steps.target.outputs.vercel_prod_flag }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ steps.target.outputs.vercel_project_id }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: vercel deploy --prebuilt ${{ steps.target.outputs.vercel_prod_flag }} --yes
+        run: |
+          set -euo pipefail
+
+          deploy_cmd=(vercel deploy --prebuilt --yes)
+          if [[ -n "${DEPLOY_FLAG}" ]]; then
+            deploy_cmd+=("${DEPLOY_FLAG}")
+          fi
+
+          deploy_output="$("${deploy_cmd[@]}")"
+          echo "${deploy_output}"
+
+          deploy_url=$(echo "${deploy_output}" | grep -oE "https://[a-zA-Z0-9.-]+\.vercel\.app" | tail -n 1)
+          if [[ -z "${deploy_url}" ]]; then
+            echo "Unable to parse deployment URL from Vercel output."
+            exit 1
+          fi
+
+          echo "url=${deploy_url}" >> "$GITHUB_OUTPUT"
+          echo "Deployment URL: ${deploy_url}"
+
+      - name: Deployment summary
+        if: steps.deploy.outputs.url != ''
+        run: |
+          {
+            echo "## Vercel deployment"
+            echo "- Environment: ${{ steps.target.outputs.environment }}"
+            echo "- Ref: ${{ steps.target.outputs.ref_name }}"
+            echo "- URL: ${{ steps.deploy.outputs.url }}"
+          } >> "$GITHUB_STEP_SUMMARY"

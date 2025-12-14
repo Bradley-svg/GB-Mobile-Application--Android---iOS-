@@ -1,10 +1,29 @@
 # Web dashboard deploy (app.greenbro.co.za)
 
+## Option 2 - Vercel Preview URL (Best Overall)
+- Push any branch (e.g. `web-preview`) or open a PR touching `web/**` to trigger `.github/workflows/web-deploy.yml`; it builds/tests against the staging API and deploys a Vercel Preview even if Git integration is off.
+- Preview URL surfaces in the workflow summary under "Vercel deployment" and in Vercel > Deployments (named by branch). Run `npm run web:print-preview-help` for a quick reminder.
+- URLs: full app `https://<preview>.vercel.app/app`, embed shell `https://<preview>.vercel.app/embed`.
+- Required preview env (in the Vercel project): `NEXT_PUBLIC_API_URL=https://staging.api.greenbro.co.za`, `NEXT_PUBLIC_EMBEDDED=true`, `FRAME_ANCESTORS=https://www.greenbro.co.za,https://greenbro.co.za` (add the staging WP host if framing from a different domain).
+- Use this for client demos, stakeholder review, and QA signoff so you get HTTPS + real staging behavior without local setup. Main still deploys staging; tags `v*` ship production with `--prod`.
+- If Vercel Git Integration is enabled, you will get native preview links as well; the workflow path stays authoritative so tests/envs stay aligned even without the integration.
+- Troubleshooting: `401/403` -> staging CORS/WEB_ALLOWED_ORIGINS/JWT; white screen -> missing `NEXT_PUBLIC_API_URL`; embed blocked -> CSP frame-ancestors mismatch; app loads but no data -> staging demo seed/migrations missing; QA embeds still failing -> align backend WEB_ALLOWED_ORIGINS with the WordPress host.
+
 ## Hosting + pipeline
-- Hosting: Vercel (staging = preview deploy on `main`, production = `--prod` deploy on tags `v*`).
-- CI/CD: `.github/workflows/web-deploy.yml` runs `npm ci --prefix web`, `npm run web:test`, `npm run web:test:coverage`, `cd web && next build`, then `vercel build` + `vercel deploy --prebuilt`.
-- Secrets required (repo/org level): `VERCEL_TOKEN` (deploy token), `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID_STAGING`, `VERCEL_PROJECT_ID_PROD`.
+- Hosting: Vercel (branch-based previews + `main` staging preview, production = `--prod` deploy on tags `v*`).
+- CI/CD: `.github/workflows/web-deploy.yml` runs `npm ci --prefix web`, `npm run web:test:coverage`, `cd web && next build`, then `vercel build` + `vercel deploy --prebuilt` (preview for branches/main, `--prod` for `v*` tags). Concurrency is keyed per ref so stale deploys cancel per branch.
+- Secrets required (repo/org level): `VERCEL_TOKEN` (deploy token), `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID_STAGING`, `VERCEL_PROJECT_ID_PROD`, optional `VERCEL_PROJECT_ID_PREVIEW` if you want a dedicated preview project.
 - Sanity build (staging API + embedded mode): `npm run web:build:prod`.
+
+### Vercel envs (Option A - recommended)
+- Preview/Development: `NEXT_PUBLIC_API_URL=https://staging.api.greenbro.co.za`, `NEXT_PUBLIC_EMBEDDED=true`, `FRAME_ANCESTORS=https://www.greenbro.co.za,https://greenbro.co.za` (plus the staging WP host if different).
+- Production: `NEXT_PUBLIC_API_URL=https://api.greenbro.co.za`, `NEXT_PUBLIC_EMBEDDED=true`, `FRAME_ANCESTORS=https://www.greenbro.co.za,https://greenbro.co.za`.
+- `vercel pull --environment=<preview|production>` in CI reads these so embed headers stay aligned (`frame-ancestors` + `X-Frame-Options`). Keep secrets out of the repo.
+- Backend must allow the same hosts via `WEB_ALLOWED_ORIGINS` so API calls succeed when framed.
+
+### CI/CLI path (Option B - fallback)
+- Workflow injects preview/staging envs for tests and builds and deploys via Vercel CLI using `VERCEL_TOKEN` + `VERCEL_PROJECT_ID_*`. `VERCEL_PROJECT_ID_PREVIEW` falls back to `VERCEL_PROJECT_ID_STAGING` when unset.
+- Preview deploys never add `--prod`; tags `v*` set `--prod` for production.
 
 ## Environment matrix (enforced in `next.config.mjs`)
 - Local dev: `NEXT_PUBLIC_API_URL=http://localhost:4000`, `NEXT_PUBLIC_EMBEDDED=false`.
@@ -20,8 +39,9 @@
 - Extending CSP: when adding new vendors (analytics, fonts, embeds), update the source lists in `next.config.mjs` and note the change in this doc; staging overrides should stay narrow. Keep API origin in `connect-src` and ensure any new frame hosts are also added to backend `WEB_ALLOWED_ORIGINS`.
 
 ## Deploy flow
-- Staging: push to `main` → workflow builds/tests with staging API + embeds enabled, deploys to the staging Vercel project.
-- Production: create a tag `vX.Y.Z` → workflow builds/tests with production API + embeds enabled, deploys to the production Vercel project using `--prod`.
+- Preview: push any branch or open a PR touching `web/**` to get a Preview deployment URL in the workflow summary.
+- Staging: push to `main` to build/test with the staging API + embeds enabled and deploy a Preview to the staging/preview Vercel project (or a dedicated preview project if configured).
+- Production: create a tag `vX.Y.Z` to build/test with the production API + embeds enabled, then deploy to the production Vercel project using `--prod`.
 - Manual retry: rerun the `Web Deploy` workflow with the same ref; no secrets are baked into the repo.
 
 ## DNS + HTTPS

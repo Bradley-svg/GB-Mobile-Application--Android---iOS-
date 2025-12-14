@@ -30,6 +30,7 @@
     "web:dev": "node scripts/web-dev.js",
     "web:build": "cd web && next build",
     "web:start": "cd web && next start",
+    "web:print-preview-help": "node scripts/web-print-preview-help.js",
     "web:build:prod": "cd web && NEXT_PUBLIC_API_URL=https://staging.api.greenbro.co.za NEXT_PUBLIC_EMBEDDED=true next build",
     "web:test": "cd web && npm test",
     "web:test:coverage": "cd web && npm run test:coverage",
