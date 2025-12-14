@@ -22,20 +22,33 @@ const shouldRetry = (failureCount: number, error: unknown) => {
 
 const retryDelay = (attempt: number) => attempt * 1000;
 
+type UseHeatPumpHistoryOptions = {
+  enabled?: boolean;
+  staleTime?: number;
+  refetchInterval?: number | false;
+};
+
 export function useHeatPumpHistory(
   params: HeatPumpHistoryRequest,
-  options?: { enabled?: boolean; staleTime?: number }
+  options?: UseHeatPumpHistoryOptions
 ) {
+  const aggregation = params.aggregation ?? 'raw';
+  const mode = params.mode ?? 'live';
+  const normalizedParams: HeatPumpHistoryRequest = { ...params, aggregation, mode };
+  const isLive = mode === 'live';
+  const resolvedStaleTime = options?.staleTime ?? (isLive ? 15_000 : 60_000);
+  const resolvedRefetchInterval =
+    options?.refetchInterval ?? (isLive ? 15_000 : false);
+
   return useQuery({
-    queryKey: [...HEAT_PUMP_HISTORY_QUERY_KEY, params],
+    queryKey: [...HEAT_PUMP_HISTORY_QUERY_KEY, normalizedParams],
     enabled: options?.enabled ?? true,
-    staleTime: options?.staleTime ?? 60 * 1000,
+    staleTime: resolvedStaleTime,
+    refetchInterval: resolvedRefetchInterval,
     queryFn: async (): Promise<HeatPumpHistoryResponse> => {
       try {
         const response = await api.post<HeatPumpHistoryResponse>('/heat-pump-history', {
-          ...params,
-          aggregation: params.aggregation ?? 'raw',
-          mode: params.mode ?? 'live',
+          ...normalizedParams,
         });
         return response.data;
       } catch (err) {

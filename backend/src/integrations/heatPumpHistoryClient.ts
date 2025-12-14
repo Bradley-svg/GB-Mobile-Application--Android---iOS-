@@ -27,6 +27,14 @@ function recordFailure(now: Date = new Date()) {
   consecutiveFailures += 1;
   if (consecutiveFailures >= MAX_FAILURES && !circuitOpenedAt) {
     circuitOpenedAt = now;
+    log.warn(
+      {
+        consecutiveFailures,
+        circuitOpenedAt: circuitOpenedAt.toISOString(),
+        openWindowMs: OPEN_WINDOW_MS,
+      },
+      'heat pump history circuit opened'
+    );
   }
 }
 
@@ -270,10 +278,21 @@ export function normalizeHeatPumpHistoryResponse(raw: unknown): HeatPumpHistoryR
 
 export async function fetchHeatPumpHistory(req: HeatPumpHistoryRequest): Promise<HeatPumpHistoryResult> {
   if (isCircuitOpen()) {
+    const message =
+      'Heat pump history is temporarily unavailable. Please try again shortly.';
+    log.warn(
+      {
+        consecutiveFailures,
+        circuitOpenedAt: circuitOpenedAt?.toISOString() ?? null,
+        openWindowMs: OPEN_WINDOW_MS,
+      },
+      'heat pump history circuit open'
+    );
+    await markHeatPumpHistoryError(new Date(), message);
     return {
       ok: false,
       kind: 'CIRCUIT_OPEN',
-      message: 'Heat pump history is temporarily unavailable. Please try again shortly.',
+      message,
     };
   }
 

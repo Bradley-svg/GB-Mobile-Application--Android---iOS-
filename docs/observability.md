@@ -19,10 +19,11 @@
   - `vendorFlags`: prod-like marker plus vendor disable flags (MQTT/control/history/push)
   - Overall `ok` flag reflects the above; `version` mirrors `APP_VERSION`
 - Monitoring guidance:
-  - Treat any `ok=false`, `db !== 'ok'`, or `storage.writable=false` as hard failures.
-  - Alert on rising `latencyMs` for DB/storage/AV, or repeated `heatPumpHistory.lastErrorAt` without recent `lastSuccessAt`.
-  - Watch `alertsWorker.healthy`, `alertsEngine.lastRunAt`, and `alertsEngine.activeAlertsTotal` for drift.
-  - Auth lockouts/rate limits surface via API responses; correlate with auth rate-limit logs + requestId for investigation.
+- Treat any `ok=false`, `db !== 'ok'`, or `storage.writable=false` as hard failures.
+- Alert on rising `latencyMs` for DB/storage/AV, or repeated `heatPumpHistory.lastErrorAt` without recent `lastSuccessAt`.
+- Heat pump history circuit breaker is logged as `module:heatPumpHistory` with message `heat pump history circuit open`/`heat pump history circuit opened`; it also updates `heat_pump_history_last_error_at`. Page when this repeats or when upstream 5xx responses occur (503 circuit-open, 502 upstream error).
+- Watch `alertsWorker.healthy`, `alertsEngine.lastRunAt`, and `alertsEngine.activeAlertsTotal` for drift.
+- Auth lockouts/rate limits surface via API responses; correlate with auth rate-limit logs + requestId for investigation.
 
 ## Vendor disable flags
 - Vendor toggles are exposed as env vars and surfaced under `vendorFlags.disabled`:
