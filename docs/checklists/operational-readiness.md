@@ -11,8 +11,9 @@ Use this before staging/production releases to confirm services and clients are 
 - [ ] File storage root writable, `FILE_STORAGE_BASE_URL` points at the staging API/CDN origin, and `FILE_SIGNING_SECRET` set; signed URLs tested if enabled for mobile.
 - [ ] AV scanner reachable when `AV_SCANNER_ENABLED=true`; failures investigated before release.
 - [ ] Push: `EXPO_ACCESS_TOKEN` set, `PUSH_NOTIFICATIONS_ENABLED_ROLES` correct; `/me/push/test` succeeds from a staging client.
-- [ ] Heat-pump history configured with staging vendor keys or explicitly disabled via `HEATPUMP_HISTORY_DISABLED=true`; range caps (`HEATPUMP_HISTORY_MAX_RANGE_HOURS`, `HEATPUMP_HISTORY_PAGE_HOURS`) aligned.
-- [ ] Disable flags (`MQTT_DISABLED`, `CONTROL_API_DISABLED`, `HEATPUMP_HISTORY_DISABLED`, `PUSH_NOTIFICATIONS_DISABLED`) match the intended staging posture (CI/offline vs fully integrated).
+- [ ] Heat-pump history enabled: `HEATPUMP_HISTORY_URL`/`HEATPUMP_HISTORY_API_KEY` set, `HEATPUMP_HISTORY_DISABLED=false`, range caps aligned (`HEATPUMP_HISTORY_MAX_RANGE_HOURS`, `HEATPUMP_HISTORY_PAGE_HOURS`), `/health-plus.heatPumpHistory.configured=true` with recent `lastSuccessAt`.
+- [ ] Audit MAC coverage before launch: `cd backend && npm run devices:missing-macs` (uses `DATABASE_URL`); fix any listed devices so history works per-device.
+- [ ] Disable flags (`MQTT_DISABLED`, `CONTROL_API_DISABLED`, `HEATPUMP_HISTORY_DISABLED`, `PUSH_NOTIFICATIONS_DISABLED`) match the intended staging posture (CI/offline vs fully integrated); keep them false for prod-like staging.
 - [ ] Alerts worker enabled with recent heartbeat; `DB_SLOW_QUERY_MS` tuned for staging.
 
 ## Production
@@ -23,7 +24,8 @@ Use this before staging/production releases to confirm services and clients are 
 - [ ] MQTT/control endpoints reachable with correct topic templates/keys; `/health-plus` shows `mqttIngest.connected` with recent `lastMessageAt` and control status includes `lastCommandAt`/`lastError` as expected.
 - [ ] File storage durable and writable; AV scanner enabled and reachable; signed URLs issued with a production-only signing secret.
 - [ ] Push configured with production `EXPO_ACCESS_TOKEN`; sample push checks pass when enabled.
-- [ ] MQTT/control/history endpoints reachable; vendor disable flags stay false unless deliberately offline (document if toggled).
+- [ ] MQTT/control/history endpoints reachable; vendor disable flags stay false unless deliberately offline (document if toggled). `HEATPUMP_HISTORY_URL`/`HEATPUMP_HISTORY_API_KEY` set with `HEATPUMP_HISTORY_DISABLED=false`; `/health-plus.heatPumpHistory` shows configured + recent success.
+- [ ] Audit MAC coverage before launch: `cd backend && npm run devices:missing-macs` (uses `DATABASE_URL`); remediate missing MACs so history is available in clients.
 - [ ] RBAC verified for owner/admin/facilities/contractor across control, work orders, documents, sharing, and QR/device lookup.
 
 ## Web

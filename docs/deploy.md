@@ -21,6 +21,7 @@
 - Backend must have `HEATPUMP_HISTORY_URL` and `HEATPUMP_HISTORY_API_KEY` set; leave `HEATPUMP_HISTORY_DISABLED` unset/`false` in staging/production (only flip it on in CI/offline dev).
 - Devices need MAC addresses populated or `/heat-pump-history` will return 400 and UI history will stay disabled.
 - Keep vendor disable flags off in prod-like/demo environments (`HEATPUMP_HISTORY_DISABLED`, `MQTT_DISABLED`, `CONTROL_API_DISABLED`, `PUSH_NOTIFICATIONS_DISABLED`).
+- Audit MAC coverage before enabling history: `cd backend && npm run devices:missing-macs` (uses `DATABASE_URL`); fix any listed devices.
 - Smoke test the upstream: `cd backend && node scripts/check-vendor-history.js --hours 6 --deviceId <DEVICE_ID> --token <Bearer JWT>` with the deploy env vars loaded; `/health-plus` should show `heatPumpHistory.configured:true` and recent `lastSuccessAt`.
 
 ## Deploy steps

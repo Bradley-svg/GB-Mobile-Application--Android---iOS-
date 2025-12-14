@@ -25,6 +25,12 @@
 - Watch `alertsWorker.healthy`, `alertsEngine.lastRunAt`, and `alertsEngine.activeAlertsTotal` for drift.
 - Auth lockouts/rate limits surface via API responses; correlate with auth rate-limit logs + requestId for investigation.
 
+### Heat pump history monitors
+- `/health-plus.heatPumpHistory`: alert if `configured:true` but `lastSuccessAt` is stale (e.g., >30m) or `lastErrorAt` advances without a new success; warn (not page) when `disabled:true` is set intentionally for CI/offline.
+- Logs: `module:heatPumpHistory` with messages `heat pump history circuit open` or `heat pump history upstream error` should trigger alerts when they spike; include `status` and `bodyPreview` in log-derived dashboards.
+- DB status row: fields `heat_pump_history_last_success_at` and `heat_pump_history_last_error_at` (see `status` table) back stop the monitor; alert when `last_error_at` updates more than N times in a window.
+- Disable flags: surface `vendorFlags.disabled` from `/health-plus` to suppress paging when `HEATPUMP_HISTORY_DISABLED=true` is intentionally set.
+
 ## Vendor disable flags
 - Vendor toggles are exposed as env vars and surfaced under `vendorFlags.disabled`:
   - `MQTT_DISABLED`
