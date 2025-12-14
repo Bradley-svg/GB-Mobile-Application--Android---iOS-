@@ -98,6 +98,7 @@ export const DiagnosticsScreen: React.FC = () => {
     [healthQuery.data, healthQuery.dataUpdatedAt]
   );
   const healthStatusLabel = healthQuery.data?.ok ? 'Healthy' : 'Issues detected';
+  const healthTone: 'success' | 'warning' = healthQuery.data?.ok ? 'success' : 'warning';
   const vendorFlags = healthQuery.data?.vendorFlags ?? demoStatus?.vendorFlags;
   const vendorDisabled = formatVendorDisabledSummary(vendorFlags, {
     mqtt: healthQuery.data?.mqtt?.disabled,
@@ -341,7 +342,7 @@ export const DiagnosticsScreen: React.FC = () => {
             style={{ marginRight: spacing.xs }}
           />
           <Text style={[typography.caption, styles.warningText]}>
-            Demo status disables history, but backend env enables it — check demo_tenants config.
+            Demo status disables history, but backend env enables it - check demo_tenants config.
           </Text>
         </View>
       ) : null}
@@ -378,14 +379,16 @@ export const DiagnosticsScreen: React.FC = () => {
         </View>
       </Card>
 
-      <Card style={styles.block}>
+      <Card
+        style={[
+          styles.block,
+          styles.healthCard,
+          healthTone === 'success' ? styles.healthCardSuccess : styles.healthCardWarning,
+        ]}
+      >
         <View style={styles.row}>
           <Text style={[typography.subtitle, styles.title]}>Health</Text>
-          <StatusPill
-            label={healthStatusLabel}
-            tone={healthQuery.data?.ok ? 'success' : 'warning'}
-            testID="diagnostics-health-status"
-          />
+          <StatusPill label={healthStatusLabel} tone={healthTone} testID="diagnostics-health-status" />
         </View>
         <View style={styles.row}>
           <Text style={[typography.caption, styles.muted]}>Last /health-plus</Text>
@@ -418,19 +421,26 @@ export const DiagnosticsScreen: React.FC = () => {
 
       <Card style={styles.block}>
         <Text style={[typography.subtitle, styles.title, styles.blockTitle]}>Subsystems</Text>
-        {subsystems.map((subsystem) => (
-          <View key={subsystem.key} style={styles.subsystemRow} testID={`diagnostics-${subsystem.key}`}>
-            <View style={{ flex: 1 }}>
-              <Text style={[typography.body, styles.title]}>{subsystem.label}</Text>
-              {subsystem.rows.map((row) => (
-                <Text key={`${subsystem.key}-${row.label}`} style={[typography.caption, styles.muted]}>
-                  {row.label}: {row.value}
-                </Text>
-              ))}
+        {subsystems.map((subsystem, index) => {
+          const isLast = index === subsystems.length - 1;
+          return (
+            <View
+              key={subsystem.key}
+              style={[styles.subsystemRow, isLast ? styles.subsystemRowLast : null]}
+              testID={`diagnostics-${subsystem.key}`}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={[typography.body, styles.title]}>{subsystem.label}</Text>
+                {subsystem.rows.map((row) => (
+                  <Text key={`${subsystem.key}-${row.label}`} style={[typography.caption, styles.muted]}>
+                    {row.label}: {row.value}
+                  </Text>
+                ))}
+              </View>
+              <StatusPill label={subsystem.status.label} tone={subsystem.status.tone} />
             </View>
-            <StatusPill label={subsystem.status.label} tone={subsystem.status.tone} />
-          </View>
-        ))}
+          );
+        })}
       </Card>
 
       <Card style={styles.block}>
@@ -540,6 +550,17 @@ const createStyles = (theme: AppTheme) =>
       borderColor: theme.colors.success,
       marginBottom: theme.spacing.md,
     },
+    healthCard: {
+      borderWidth: 1,
+    },
+    healthCardSuccess: {
+      backgroundColor: theme.colors.successSoft,
+      borderColor: theme.colors.success,
+    },
+    healthCardWarning: {
+      backgroundColor: theme.colors.warningSoft,
+      borderColor: theme.colors.warning,
+    },
     blockDescription: {
       marginBottom: theme.spacing.md,
     },
@@ -550,6 +571,9 @@ const createStyles = (theme: AppTheme) =>
       paddingVertical: theme.spacing.sm,
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.borderSubtle,
+    },
+    subsystemRowLast: {
+      borderBottomWidth: 0,
     },
     successNotice: {
       padding: theme.spacing.sm,
