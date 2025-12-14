@@ -16,6 +16,8 @@ import { useTheme } from "@/theme/ThemeProvider";
 import { AUTH_2FA_ENFORCE_ROLES } from "@/config/env";
 import { sanitizeReturnTo, DEFAULT_RETURN_TO } from "@/lib/returnTo";
 
+type LoginRedirectReason = SessionExpireReason | "api_unreachable" | null;
+
 const pathTitleMap: Record<string, string> = {
   "/app": "Fleet overview",
   "/app/alerts": "Alerts",
@@ -65,10 +67,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     [pathname],
   );
   const buildLoginPath = useCallback(
-    (reason?: SessionExpireReason | null) => {
+    (reason?: LoginRedirectReason) => {
       const safeReturnTo = sanitizeReturnTo(currentLocationPath(), DEFAULT_RETURN_TO);
       const params = new URLSearchParams({ returnTo: safeReturnTo });
-      if (reason) {
+      if (reason === "api_unreachable") {
+        params.set("reason", reason);
+      } else if (reason) {
         params.set("expired", reason);
       }
       return appendEmbedParam(`/login?${params.toString()}`);
@@ -110,29 +114,39 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
+    const redirectToLogin = (reason: LoginRedirectReason = null) => {
+      const loginPath = buildLoginPath(reason);
+      router.replace(loginPath);
+      logoutAll({ redirectTo: loginPath, hardReload: false, onCleared: () => clearOrgState() });
+      setIsReady(false);
+    };
+
     const bootstrap = async () => {
       await loadFromStorage();
-      const state = useAuthStore.getState();
-      if (!state.accessToken) {
-        router.replace(buildLoginPath());
-        return;
-      }
-      let orgId = state.user?.organisation_id ?? null;
-      if (!state.user) {
-        try {
-          const profile = await me();
-          if (active) {
-            setUser(profile);
-          }
-          orgId = profile.organisation_id ?? null;
-        } catch {
-          logoutAll({ redirectTo: buildLoginPath(), hardReload: false, onCleared: () => clearOrgState() });
-          return;
+      const hydratedState = useAuthStore.getState();
+
+      try {
+        if (!hydratedState.accessToken && hydratedState.refreshToken) {
+          await hydratedState.refresh();
         }
-      }
-      if (active) {
-        await loadOrgs(orgId);
+
+        const profile = await me();
+
+        if (!active) return;
+
+        const latestState = useAuthStore.getState();
+        if (!latestState.user) {
+          setUser(profile);
+        }
+
+        await loadOrgs(profile.organisation_id ?? null);
+        recordActivity();
         setIsReady(true);
+      } catch (error: unknown) {
+        if (!active) return;
+        const status = (error as { response?: { status?: number } })?.response?.status ?? 0;
+        const reason: LoginRedirectReason = status ? null : "api_unreachable";
+        redirectToLogin(reason);
       }
     };
 
@@ -140,7 +154,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [buildLoginPath, clearOrgState, loadFromStorage, loadOrgs, logoutAll, router, setUser]);
+  }, [buildLoginPath, clearOrgState, loadFromStorage, loadOrgs, logoutAll, recordActivity, router, setUser]);
 
   useEffect(() => {
     if (!embedMode || embedFromQuery) return;
