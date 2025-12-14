@@ -296,84 +296,81 @@ export const DashboardScreen: React.FC = () => {
           <ListSkeleton rows={4} testID="dashboard-skeleton" />
         </>
       ) : (
-        <>
-          {listHeader}
-          <FlatList
-            data={sites}
-            keyExtractor={(item) => item.id}
-            numColumns={2}
-            columnWrapperStyle={styles.gridRow}
-            initialNumToRender={8}
-            maxToRenderPerBatch={10}
-            windowSize={5}
-            ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
-            ListHeaderComponent={null}
-            ListEmptyComponent={
-              <EmptyState
-                message={isOffline ? 'Offline - no cached sites available yet.' : 'No sites available yet.'}
-                testID="dashboard-empty"
-              />
-            }
-            contentContainerStyle={{ paddingBottom: tabBarSafetyPadding }}
-            scrollIndicatorInsets={{ bottom: spacing.xxl + insets.bottom }}
-            ListFooterComponent={<View style={{ height: tabBarSafetyPadding }} />}
-            testID="dashboard-site-list"
-            renderItem={({ item }) => {
-              const healthPill = healthDisplay((item.health as HealthStatus) || item.status);
-              const connectivityPill = connectivityDisplay(item.status);
-              return (
-                <Card
-                  style={styles.siteCard}
-                  testID="site-card"
-                  onPress={
-                    allowSiteNavigation ? () => navigation.navigate('SiteOverview', { siteId: item.id }) : undefined
-                  }
-                >
-                  <View style={styles.siteHeader}>
-                    <View style={styles.iconBadge}>
-                      <Ionicons name="home-outline" size={18} color={colors.brandGreen} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[typography.subtitle, styles.title]} numberOfLines={1}>
-                        {item.name}
-                      </Text>
-                      <Text style={[typography.caption, styles.muted]} numberOfLines={1}>
-                        {item.city || 'Unknown city'}
-                      </Text>
-                    </View>
-                    <View style={styles.pillRow}>
-                      <StatusPill label={healthPill.label} tone={healthPill.tone} />
-                      <StatusPill
-                        label={connectivityPill.label}
-                        tone={connectivityPill.tone}
-                        style={{ marginLeft: spacing.xs }}
-                        testID="site-connectivity-pill"
-                      />
-                    </View>
+        <FlatList
+          data={sites}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          columnWrapperStyle={styles.gridRow}
+          initialNumToRender={8}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+          ListHeaderComponent={listHeader}
+          ListEmptyComponent={
+            <EmptyState
+              message={isOffline ? 'Offline - no cached sites available yet.' : 'No sites available yet.'}
+              testID="dashboard-empty"
+            />
+          }
+          contentContainerStyle={{ paddingBottom: tabBarSafetyPadding }}
+          scrollIndicatorInsets={{ bottom: spacing.xxl + insets.bottom }}
+          ListFooterComponent={<View style={{ height: tabBarSafetyPadding }} />}
+          testID="dashboard-site-list"
+          renderItem={({ item }) => {
+            const healthPill = healthDisplay((item.health as HealthStatus) || item.status);
+            const connectivityPill = connectivityDisplay(item.status);
+            return (
+              <Card
+                style={styles.siteCard}
+                testID="site-card"
+                onPress={
+                  allowSiteNavigation ? () => navigation.navigate('SiteOverview', { siteId: item.id }) : undefined
+                }
+              >
+                <View style={styles.siteHeader}>
+                  <View style={styles.iconBadge}>
+                    <Ionicons name="home-outline" size={18} color={colors.brandGreen} />
                   </View>
-                  <View style={styles.siteMeta}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[typography.caption, styles.muted]}>Last seen</Text>
-                      <Text style={[typography.body, styles.title]}>
-                        {item.last_seen?.at
-                          ? new Date(item.last_seen.at).toLocaleString()
-                          : item.last_seen_at
-                          ? new Date(item.last_seen_at).toLocaleString()
-                          : 'Unknown'}
-                      </Text>
-                    </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={[typography.caption, styles.muted]}>Status</Text>
-                      <Text style={[typography.body, { color: colors.textSecondary }]}>
-                        {(item.health || item.status || 'Unknown').toString()}
-                      </Text>
-                    </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[typography.subtitle, styles.title]} numberOfLines={1}>
+                      {item.name}
+                    </Text>
+                    <Text style={[typography.caption, styles.muted]} numberOfLines={1}>
+                      {item.city || 'Unknown city'}
+                    </Text>
                   </View>
-                </Card>
-              );
-            }}
-          />
-        </>
+                  <View style={styles.pillRow}>
+                    <StatusPill label={healthPill.label} tone={healthPill.tone} />
+                    <StatusPill
+                      label={connectivityPill.label}
+                      tone={connectivityPill.tone}
+                      style={{ marginLeft: spacing.xs }}
+                      testID="site-connectivity-pill"
+                    />
+                  </View>
+                </View>
+                <View style={styles.siteMeta}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[typography.caption, styles.muted]}>Last seen</Text>
+                    <Text style={[typography.body, styles.title]}>
+                      {item.last_seen?.at
+                        ? new Date(item.last_seen.at).toLocaleString()
+                        : item.last_seen_at
+                        ? new Date(item.last_seen_at).toLocaleString()
+                        : 'Unknown'}
+                    </Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={[typography.caption, styles.muted]}>Status</Text>
+                    <Text style={[typography.body, { color: colors.textSecondary }]}>
+                      {(item.health || item.status || 'Unknown').toString()}
+                    </Text>
+                  </View>
+                </View>
+              </Card>
+            );
+          }}
+        />
       )}
     </Screen>
   );
