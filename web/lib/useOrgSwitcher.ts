@@ -2,15 +2,14 @@
 
 import { useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { shallow } from "zustand/shallow";
 import { useOrgStore } from "@/lib/orgStore";
 
 export function useOrgSwitcher() {
   const queryClient = useQueryClient();
-  const { currentOrgId, orgs, setOrg } = useOrgStore((state) => ({
-    currentOrgId: state.currentOrgId,
-    orgs: state.orgs,
-    setOrg: state.setOrg,
-  }));
+  const currentOrgId = useOrgStore((state) => state.currentOrgId);
+  const orgs = useOrgStore((state) => state.orgs, shallow);
+  const setOrg = useOrgStore((state) => state.setOrg);
 
   const resetOrgQueries = useCallback(() => {
     queryClient.cancelQueries();
