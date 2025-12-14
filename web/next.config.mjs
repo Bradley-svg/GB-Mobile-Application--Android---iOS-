@@ -1,3 +1,10 @@
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const tokensPath = path.resolve(__dirname, "../packages/ui-tokens/src");
+
 /** @type {import("next").NextConfig} */
 const nextConfig = (() => {
   const isProdBuild = process.env.NODE_ENV === "production";
@@ -67,10 +74,13 @@ const nextConfig = (() => {
 
   return {
     reactStrictMode: true,
-    swcMinify: true,
     poweredByHeader: false,
     experimental: {
       externalDir: true,
+    },
+    webpack: (config) => {
+      config.resolve.alias["@greenbro/ui-tokens"] = tokensPath;
+      return config;
     },
     async headers() {
       return [

@@ -14,7 +14,7 @@ if (-not (Test-Path $logsDir)) {
   try {
     New-Item -ItemType Directory -Path $logsDir -Force | Out-Null
   } catch {
-    Write-Warning "Could not create logs directory at $logsDir: $($_.Exception.Message)"
+    Write-Warning "Could not create logs directory at ${logsDir}: $($_.Exception.Message)"
   }
 }
 
@@ -77,7 +77,7 @@ function Show-FailureDetails {
         }
       }
     } catch {
-      Write-Warning "Could not read readiness output at $readyJsonPath: $($_.Exception.Message)"
+      Write-Warning "Could not read readiness output at ${readyJsonPath}: $($_.Exception.Message)"
     }
   } else {
     Write-Host "Readiness output not found at $readyJsonPath"

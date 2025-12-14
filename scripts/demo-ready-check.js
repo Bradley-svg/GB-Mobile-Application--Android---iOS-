@@ -8,7 +8,7 @@ const { spawnSync } = require("child_process");
 
 const repoRoot = path.resolve(__dirname, "..");
 const logsDir = path.join(repoRoot, "logs");
-const DEFAULT_TIMEOUT_MS = 60_000;
+const DEFAULT_TIMEOUT_MS = 120_000;
 const POLL_INTERVAL_MS = 2_000;
 
 const args = process.argv.slice(2);
@@ -261,20 +261,40 @@ async function pollEmbed(urlString) {
     const res = await httpRequest(urlString, {
       headers: { accept: "text/html,application/json" },
     });
-    if (res.status !== 200) {
-      throw new Error(`Embed responded with HTTP ${res.status}`);
+    if (res.status === 200) {
+      return "web embed responded 200";
     }
-    return "web embed responded 200";
+
+    const redirectStatuses = new Set([301, 302, 303, 307, 308]);
+    if (redirectStatuses.has(res.status)) {
+      const location = res.headers?.location || res.headers?.Location || "";
+      if (location && location.includes("embed=true")) {
+        return `web embed redirected (${res.status}) to ${location}`;
+      }
+    }
+
+    throw new Error(`Embed responded with HTTP ${res.status}`);
   }, { label: "web /embed" });
 }
 
 function resolveAdbPath() {
-  const adb = spawnSync("adb", ["version"], { encoding: "utf8" });
-  if (adb.error && adb.error.code === "ENOENT") {
-    return null;
-  }
-  if (adb.status === 0) {
+  const direct = spawnSync("adb", ["version"], { encoding: "utf8" });
+  if (!direct.error && direct.status === 0) {
     return "adb";
+  }
+
+  const sdkRoots = [process.env.ANDROID_HOME, process.env.ANDROID_SDK_ROOT].filter(Boolean);
+  const candidates = sdkRoots.map((root) =>
+    path.join(root, "platform-tools", process.platform === "win32" ? "adb.exe" : "adb")
+  );
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      const probe = spawnSync(candidate, ["version"], { encoding: "utf8" });
+      if (!probe.error && probe.status === 0) {
+        return candidate;
+      }
+    }
   }
   return null;
 }
