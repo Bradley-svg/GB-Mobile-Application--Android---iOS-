@@ -50,6 +50,7 @@
     "ci:mobile": "npm --prefix mobile ci",
     "ci:web": "npm --prefix web ci",
     "ci": "npm run ci:backend && npm run ci:mobile && npm run ci:web",
-    "demo:start": "powershell -ExecutionPolicy Bypass -File ./scripts/demo-start.ps1"
+    "demo:start": "powershell -ExecutionPolicy Bypass -File ./scripts/demo-start.ps1",
+    "demo:check": "node scripts/demo-ready-check.js"
   }
 }

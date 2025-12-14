@@ -20,6 +20,12 @@
 - Web embed preview: open http://localhost:3000/embed once `web:dev` is running.
 - WordPress embedding: see docs/wp-embed.md for the iframe snippet and checklist.
 
+## DEMO READY / FAIL
+- Use `npm run demo:start` for the full boot; rerun readiness only with `npm run demo:check` (or `node scripts/demo-ready-check.js --check health-plus` for a single probe).
+- Readiness polls `http://localhost:4000/health-plus` (ok:true), `/demo/status`, `http://localhost:3000/embed`, ports 4000/3000 (8081 optional), and ensures `com.greenbro.mobile` is running on the emulator via `adb`.
+- Failures trigger `scripts/capture-logs.ps1`, which copies any `backend-dev.*`, `mobile-expo.*`, and `web-dev.*` logs plus an `adb logcat` tail into `logs/`.
+- Common blockers: missing `backend/.env`/`DATABASE_URL`, ports 4000/3000 held by another process, or `adb` not installed/on PATH so the emulator/app cannot be verified.
+
 Requirements:
 - Postgres service or Docker compose configured as per `scripts/dev-all.ps1`.
 - adb and Android SDK (Pixel_7_API_34) installed and on PATH.
