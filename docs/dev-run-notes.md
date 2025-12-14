@@ -8,9 +8,17 @@
 - Navigation/data error guards added and covered by new tests.
 - Error-surface theming unified and exercised by ErrorCard theme snapshots.
 
+## Local env setup
+- Copy `backend/.env.example` to `backend/.env` (untracked). `npm run migrate:dev` now reads it automatically when `DATABASE_URL`/`TEST_DATABASE_URL` are not exported.
+
 ## One-command dev environment
 - `npm run dev:all` - checks ports 4000/8081 and bails if they are held by non-Node/Expo processes, honors GREENBRO_PG_SERVICE (logs if missing), kills stale Node/Expo/Metro on 4000/8081/8082, starts backend (install + migrate + optional seed + dev), starts Metro on 8081, wires adb reverse, reuses attached devices/running emulators before launching Pixel_7_API_34, and launches the app (`com.greenbro.mobile/.MainActivity`).
 - `npm run stop:all` - stops Node/Expo/Metro and attempts to shut down any running Android emulator (safe if nothing is running).
+
+## Demo runbook
+- `npm run demo:start` - runs `stop:all`, `dev:all`, then boots the web dashboard (`web:dev`) on http://localhost:3000 (backend on http://localhost:4000). Emulator/dev client opens with demo seed applied.
+- Web embed preview: open http://localhost:3000/embed once `web:dev` is running.
+- WordPress embedding: see docs/wp-embed.md for the iframe snippet and checklist.
 
 Requirements:
 - Postgres service or Docker compose configured as per `scripts/dev-all.ps1`.
@@ -18,7 +26,7 @@ Requirements:
 
 ## Web dashboard (Next.js)
 - Bring up the API first via `npm run dev:all` (or `npm run dev:backend` if you only need the backend) so `http://localhost:4000` is live with seed data.
-- In a second terminal run `npm run web:dev` (Next dev server on `http://localhost:3000`, respects `NEXT_PUBLIC_API_URL` in `web/.env.local`). This can run alongside the mobile dev client.
+- In a second terminal run `npm run web:dev` (Next dev server on `http://localhost:3000`, respects `NEXT_PUBLIC_API_URL` in `web/.env.local`). The script will install `web` dependencies automatically if `web/node_modules` is missing. This can run alongside the mobile dev client.
 
 ## Web performance checklist
 - Chrome DevTools: record a Performance trace on `/app` and `/app/devices/:id` (navigation back/forth) and look for main-thread slices under ~200ms after initial load; watch for large layout shifts when cards hydrate.

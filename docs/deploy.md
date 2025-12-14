@@ -21,7 +21,7 @@
 ### Staging
 1) Provision Postgres 16 and an MQTT broker (or stub MQTT if not testing ingest).
 2) Set env vars above (DATABASE_URL, JWT_SECRET, CORS_ALLOWED_ORIGINS, MQTT/control/heatPump/push as needed).
-3) `npm ci`, then `npm run migrate` (DATABASE_URL must be set), then start the backend (`npm run build && npm start` or your process manager).
+3) `cd backend && npm ci`, then `npm run migrate` (DATABASE_URL must be set), then start the backend (`npm run build && npm start` or your process manager).
 4) Seed demo data if desired: `node scripts/init-local-db.js` (expects migrations already applied).
 5) Verify `curl /health-plus` shows `ok:true`, `mqtt.configured`/`control.configured` flags match your config, and `alertsWorker.healthy:true`.
 6) Build/install a staging mobile app with an EAS profile that sets `EXPO_PUBLIC_API_URL` to the staging backend.
@@ -29,7 +29,7 @@
 ### Production
 1) Provision Postgres 16 (with backups) and MQTT broker.
 2) Set env vars with production secrets (`JWT_SECRET`, `HEATPUMP_HISTORY_API_KEY`, control/MQTT creds, CORS_ALLOWED_ORIGINS, LOG_LEVEL).
-3) Run migrations as part of deployment (e.g., pre-deploy job: `npm ci && npm run migrate`).
+3) Run migrations as part of deployment (e.g., pre-deploy job: `cd backend && npm ci && npm run migrate`).
 4) Start backend via your supervisor (pm2/systemd/container). Do **not** run the demo seed script in production.
 5) Point the production EAS build at the production API (`EXPO_PUBLIC_API_URL`).
 6) Verify `/health-plus` shows `ok:true`, `mqtt.configured:true`/`control.configured:true` when wired, recent `alertsWorker.lastHeartbeatAt`, and heatPumpHistory config/health aligned with upstream.
@@ -80,7 +80,7 @@ Install the artifact on a device and follow the smoke path in `docs/mobile-ux-no
    - `FILE_SIGNING_SECRET` to a long, unique value (not the JWT secret).
    - `AV_SCANNER_ENABLED=true` plus either `AV_SCANNER_CMD` or `AV_SCANNER_HOST`/`AV_SCANNER_PORT` (or explicitly leave AV disabled for the first deploy and note it).
    - `FILE_STORAGE_ROOT` pointing at a writable path; optionally `FILE_STORAGE_BASE_URL` if a proxy/CDN fronts `/files`.
-2) Deploy the backend (`npm ci && npm run migrate:dev && npm run build && npm start` via your supervisor).
+2) Deploy the backend (`cd backend && npm ci && npm run migrate:dev && npm run build && npm start` via your supervisor).
 3) Health check:
 ```
 curl https://staging.api.greenbro.co.za/health-plus

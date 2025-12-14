@@ -27,7 +27,7 @@
     "release:check:ci": "node scripts/release-check.js --ci",
     "release:e2e:android": "node scripts/release-e2e-android.js",
     "release:tag": "node scripts/create-release-tag.js",
-    "web:dev": "cd web && next dev",
+    "web:dev": "node scripts/web-dev.js",
     "web:build": "cd web && next build",
     "web:start": "cd web && next start",
     "web:build:prod": "cd web && NEXT_PUBLIC_API_URL=https://staging.api.greenbro.co.za NEXT_PUBLIC_EMBEDDED=true next build",
@@ -41,6 +41,15 @@
     "backend:health:staging": "cd backend && npm run health:staging",
     "web:e2e:staging": "cd web && npm run e2e",
     "staging:smoke:local": "node scripts/staging-smoke-local.js",
-    "staging:smoke": "node scripts/staging-smoke.js"
+    "staging:smoke": "node scripts/staging-smoke.js",
+    "audit:backend": "npm --prefix backend audit",
+    "audit:mobile": "npm --prefix mobile audit",
+    "audit:web": "npm --prefix web audit",
+    "audit": "npm run audit:backend && npm run audit:mobile && npm run audit:web",
+    "ci:backend": "npm --prefix backend ci",
+    "ci:mobile": "npm --prefix mobile ci",
+    "ci:web": "npm --prefix web ci",
+    "ci": "npm run ci:backend && npm run ci:mobile && npm run ci:web",
+    "demo:start": "powershell -ExecutionPolicy Bypass -File ./scripts/demo-start.ps1"
   }
 }

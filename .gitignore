@@ -38,6 +38,7 @@ backend/storage/
 .env.local
 .env.staging-smoke
 .env.*.local
+backend/.env
 
 # Backups
 node_modules_old*/

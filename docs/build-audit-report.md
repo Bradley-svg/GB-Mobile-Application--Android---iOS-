@@ -1,11 +1,27 @@
 # Greenbro Build Audit (Windows/PowerShell)
 
 ## Executive summary
-- Builds/tests now pass for backend, web, and mobile after per-package installs; `npm run release:check` is green (e2e stages skipped by design).
-- Root developer ergonomics need polish: `npm ci`/`npm audit` at repo root fail (no lockfile) and backend migrations do not read `.env` automatically.
-- Backend health is mostly green but heat-pump history reports unhealthy and secrets are committed in `backend/.env`.
-- Mobile/web dev runtimes not exercised (no emulator/dev server spins); staging smoke scripts abort for missing env.
-- Security posture is reasonable (rate limits/2FA flags present, CSP enforced) but audited vulnerabilities remain until dependency bumps.
+- P0 demo-readiness fixes applied: backend migrations now auto-load `.env`, backend/.env stays untracked with template guidance, `npm run web:dev` installs deps when missing, and `npm run demo:start` chains stop->dev->web for a clean local bring-up.
+- Root remains per-package (no top-level lockfile) with explicit helpers (`npm run ci:{backend|mobile|web}`, `npm run audit:{...}`, `npm run ci`/`npm run audit`) to avoid root `npm ci`/`npm audit` confusion.
+- Outstanding risks: heatPumpHistory health still stale locally, staging smoke env missing, audits continue to flag advisories, and adb/psql tooling gaps mean emulator/web bring-up was not re-run here.
+
+## P0 Fix Pack applied
+- What changed:
+  - `backend/.env` kept untracked via `.gitignore`; README/dev-run-notes call out copying `.env.example` -> `.env`.
+  - `backend/scripts/run-migrations.js` loads `.env` when DB envs are absent and fails loudly if still missing.
+  - `npm run web:dev` now runs `scripts/web-dev.js`, which installs `web` deps on-demand before starting Next.js.
+  - New `scripts/demo-start.ps1` + `npm run demo:start` orchestrate `stop:all` -> `dev:all` -> `web:dev`, launching web on port 3000 in a separate window.
+  - Root install/audit policy is explicit: per-package `ci`/`audit` scripts plus combined `npm run ci` / `npm run audit`; no root lockfile.
+- Verification commands (latest run):
+  - `npm run lint` PASS; `npm run typecheck` PASS; `npm test` PASS.
+  - `npm run release:check` PASS (web e2e + staging smoke skipped by env guard).
+  - Backend: `npm run migrate:dev` PASS (auto-loaded backend/.env); `npm run seed:e2e` PASS.
+  - Web: `npm run test:coverage` PASS (via release:check).
+  - `curl http://localhost:4000/health-plus` FAIL (backend not running; start `npm run dev:backend` first).
+- Remaining P1/P2 items:
+  - heatPumpHistory health stale locally; staging smoke env not populated.
+  - Audit advisories still present (backend/node-pg-migrate+vite/esbuild/vitest; mobile Expo CLI/send; web Next 16.0.8).
+  - Tooling gaps (adb not on PATH, no `psql` CLI); emulator/dev-all/web bring-up still best-effort only.
 
 ## Environment and prerequisites
 - OS: Windows 11 Pro 25H2 (10.0.26200); PowerShell 5.1.26100.7462.
@@ -13,28 +29,16 @@
 - Android SDK at `C:\Users\bradl.CRABNEBULA\AppData\Local\Android\Sdk`; `adb` not on PATH. No `psql` CLI available.
 
 ## Build matrix (root commands)
-| Area    | Install          | Lint | Typecheck | Tests | Coverage | Release check |
-|---------|------------------|------|-----------|-------|----------|----------------|
-| Root    | 🔴 `npm ci` (no lockfile) | ✅ | ✅ | ✅ | ✅ (per pkg) | ✅ (e2e skipped) |
-| Backend | ✅ `npm ci` | ✅ | ✅ | ✅ `npm run test:coverage` | 82% | – |
-| Mobile  | ✅ `npm ci` | ✅ | ✅ | ✅ `npm test --runInBand` | n/a | – |
-| Web     | ✅ `npm ci` | ✅ | ✅ | ✅ `npm run test:coverage` | 45% overall | – |
+| Area    | Install                                       | Lint                      | Typecheck                 | Tests                                   | Coverage             | Release check                         |
+|---------|-----------------------------------------------|---------------------------|---------------------------|-----------------------------------------|----------------------|---------------------------------------|
+| Root    | Per-package only (`npm run ci` aggregates)    | Aggregates `lint:*`       | Aggregates `typecheck:*`  | Aggregates `test:*`                     | Per-package coverage | `npm run release:check` (e2e skipped) |
+| Backend | `npm ci`                                      | `npm run lint`            | `npm run typecheck`       | `npm run test` / `npm run test:coverage`| 82%                  | -                                     |
+| Mobile  | `npm ci`                                      | `npm run lint`            | `npm run typecheck`       | `npm test -- --runInBand`               | n/a                  | -                                     |
+| Web     | `npm ci`                                      | `npm run lint`            | `npm run typecheck`       | `npm run test` / `npm run test:coverage`| 45% overall          | -                                     |
 
 ## Findings
 
 ### P1
-- Symptom: `npm ci` fails at repo root with EUSAGE/ENOLOCK (`package-lock.json` missing).  
-  Root cause: monorepo relies on per-package lockfiles only.  
-  Files: `package.json` (root).  
-  Fix steps: add a generated root lock (`npm install --package-lock-only`) or document that installs must be run per package before calling root scripts.  
-  Verification: `npm ci` (root) should succeed.
-
-- Symptom: `npm run migrate:dev` prints `Database URL not provided...` even with `backend/.env` present.  
-  Root cause: `backend/scripts/run-migrations.js` never loads `.env`, so DATABASE_URL is unset unless exported manually.  
-  Files: `backend/scripts/run-migrations.js`, `backend/.env`.  
-  Fix steps: load dotenv in the script or wrap `npm run migrate:dev` with `cross-env DATABASE_URL=...`; update docs to call out the requirement.  
-  Verification: `cd backend; npm run migrate:dev` should apply migrations without extra env exports.
-
 - Symptom: `/health-plus` shows `heatPumpHistory.healthy:false` with stale `lastSuccessAt` (2025-12-13) despite HEATPUMP_HISTORY configured.  
   Root cause: vendor history fetches are not running regularly in local/dev; health check treats the stale heartbeat as unhealthy.  
   Files: `backend/.env`, `backend/src/services/heatPumpHistoryService.ts` (health wiring).  
@@ -48,12 +52,6 @@
   Verification: `node scripts/staging-smoke.js` should run through checks or cleanly skip when vars are set.
 
 ### P2
-- Symptom: Secrets (JWT secret, heat-pump API key) live in tracked `backend/.env`.  
-  Root cause: `.env` (not just `.env.example`) is committed.  
-  Files: `backend/.env`.  
-  Fix steps: rotate the values, remove `.env` from git, keep only sanitized `.env.example`, and rely on local-only untracked `.env`.  
-  Verification: `git status` shows `.env` untracked; secret rotations confirmed in the secret store.
-
 - Symptom: Toolchain gaps for mobile/backend ops.  
   Root cause: `adb` not on PATH and no `psql` CLI installed.  
   Files: environment.  
@@ -72,34 +70,35 @@
 - Symptom: Dev orchestration unverified (web `npm run dev`, root `npm run dev:all`, mobile `npm run android:qa`).  
   Root cause: not executed to avoid spawning long-lived servers/emulators without AVD setup.  
   Files: `scripts/dev-all.ps1`, `web/package.json`, `mobile/package.json`.  
-  Fix steps: once AVD `Pixel_7_API_34` exists and PATH is fixed, run `npm run dev:all` and `npm run web:dev` with env (`NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_EMBEDDED`, `FRAME_ANCESTORS`) to validate dashboards and Metro/emulator wiring; capture any failures.  
+  Fix steps: once AVD `Pixel_7_API_34` exists and PATH is fixed, run `npm run dev:all` and `npm run web:dev` (auto-installs) with env (`NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_EMBEDDED`, `FRAME_ANCESTORS`) to validate dashboards and Metro/emulator wiring; capture any failures.  
   Verification: backends + Metro + emulator start cleanly; http://localhost:3000/embed responds.
 
-- Symptom: Web coverage is low (≈45%, app directory mostly untested).  
+- Symptom: Web coverage is low (~45%, app directory mostly untested).  
   Root cause: integration tests focus on fixtures, not app route handlers.  
   Files: `web/app/*`.  
   Fix steps: add minimal tests around page-level server components (login/alerts/work-orders) or mark uncovered files as intentionally excluded.  
   Verification: `cd web; npm run test:coverage` shows improved coverage or documented exclusions.
 
 ## Demo-readiness checklist
-- Backend: `npm ci`, lint/typecheck, coverage tests all green; `/health-plus` responds 200 but heatPumpHistory flagged unhealthy; migrations require exported DATABASE_URL. DB reachable locally (seeds/tests succeeded).
+- Backend: `npm ci`, lint/typecheck, coverage tests remain green; migrations now load `backend/.env` automatically, `/health-plus` still reports heatPumpHistory unhealthy.
 - Mobile: `npm ci` (long), lint/typecheck/tests pass. Dev client/emulator flow and `npm run android:qa` not exercised; ensure adb/AVD ready before demo.
-- Web: `npm ci` and lint/typecheck/tests/coverage green. Dev server not started; set `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_EMBEDDED`, `FRAME_ANCESTORS` before running `npm run dev`. CSP/frame-ancestors enforced in `web/next.config.mjs`.
-- Scripts: `scripts/dev-all.ps1`/`stop-all.ps1` inspected but not run; staging smoke scripts require `.env.staging-smoke`.
+- Web: `npm ci` and lint/typecheck/tests/coverage green. `npm run web:dev` auto-installs if `web/node_modules` is missing; set `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_EMBEDDED`, `FRAME_ANCESTORS` before running. CSP/frame-ancestors enforced in `web/next.config.mjs`.
+- Scripts: `npm run demo:start` chains `stop:all` -> `dev:all` -> `web:dev` (web launches in a new window). Staging smoke scripts still require `.env.staging-smoke`.
 
 ## Recommended follow-ups
-- 1) Decide whether to add a root lockfile or adjust docs/scripts to skip root `npm ci`.  
-- 2) Patch `backend/scripts/run-migrations.js` to read `.env` automatically and clean committed secrets.  
-- 3) Address audit advisories (node-pg-migrate/esbuild/vite, Expo/`send`, Next 16.0.10).  
-- 4) Validate `dev:all` + web dev server once adb/AVD and DB CLI are set up.  
+- 1) Improve heatPumpHistory health handling for dev (refresh or relax health window) and rerun `/health-plus`.
+- 2) Populate `.env.staging-smoke` and rerun `npm run staging:smoke:local` / `node scripts/staging-smoke.js`.
+- 3) Address audit advisories (node-pg-migrate/esbuild/vite, Expo/`send`, Next 16.0.10).
+- 4) Validate `dev:all` / `demo:start` once adb/AVD and DB CLI are set up; confirm `http://localhost:3000/embed` renders.
 - 5) Improve/annotate web coverage for app routes.
 
 ## Appendix (key command outputs)
-- Root install: `npm ci` → `The npm ci command can only install with an existing package-lock.json...` (root).  
-- Backend migrate: `cd backend; npm run migrate:dev` → `Database URL not provided. Set DATABASE_URL or TEST_DATABASE_URL...` (`backend/scripts/run-migrations.js`).  
-- Backend health: `curl http://localhost:4000/health-plus` → `"heatPumpHistory":{"configured":true,"disabled":false,"lastSuccessAt":"2025-12-13T19:14:19.074Z","healthy":false,...}` (`backend` runtime).  
-- Staging smoke: `node scripts/staging-smoke.js` → `Missing required env vars: STAGING_HEALTH_URL, WEB_E2E_BASE_URL, WEB_E2E_EMAIL, WEB_E2E_PASSWORD` (`scripts/staging-smoke.js`).  
-- Audit highlights:  
-  - Backend `npm audit` → 8 vulns (glob CVE via node-pg-migrate; esbuild/vite/vitest).  
-  - Mobile `npm audit` → 3 low (send <0.19.0 via @expo/cli/expo).  
-  - Web `npm audit` → 1 high (Next 16.0.8 server actions exposure).
+- `npm run release:check` -> passed; web e2e + staging smoke skipped (env guard), Detox skipped.
+- Backend migrate: `cd backend && npm run migrate:dev` -> loaded backend/.env automatically; migrations applied.
+- Backend seed: `cd backend && npm run seed:e2e` -> demo seed reset.
+- Health probe: `curl http://localhost:4000/health-plus` -> connection failed (backend not running; start `npm run dev:backend`).
+- Web coverage: `cd web && npm run test:coverage` -> passed (coverage ~45% overall, server components largely uncovered).
+- Audit highlights (unchanged; rerun when ready):
+  - Backend `npm audit` -> 8 vulns (glob CVE via node-pg-migrate; esbuild/vite/vitest).
+  - Mobile `npm audit` -> 3 low (send <0.19.0 via @expo/cli/expo).
+  - Web `npm audit` -> 1 high (Next 16.0.8 server actions exposure).
