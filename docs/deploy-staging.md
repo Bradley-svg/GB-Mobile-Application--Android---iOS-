@@ -21,8 +21,9 @@ git clone <repo-url> greenbro && cd greenbro
   - Long `JWT_SECRET`, `AUTH_2FA_ENABLED=true`, `AUTH_2FA_ENFORCE_ROLES=owner,admin`, demo creds (`DEMO_EMAIL`/`DEMO_PASSWORD`/`DEMO_USER_PASSWORD`), `DEMO_ORG_ID`, and `DEMO_DEVICE_MAC` aligned with `npm run demo:seed`.
   - Storage/signing: `FILE_STORAGE_ROOT=/var/lib/greenbro/storage`, `FILE_STORAGE_BASE_URL=https://staging.api.greenbro.co.za/files`, `FILE_SIGNING_SECRET=<unique>`
   - AV: `AV_SCANNER_ENABLED=true` with `AV_SCANNER_CMD` or `AV_SCANNER_HOST`/`AV_SCANNER_PORT`
-  - Integrations: `MQTT_URL`, `CONTROL_API_URL`/`CONTROL_API_KEY`, `HEATPUMP_HISTORY_URL`/`HEATPUMP_HISTORY_API_KEY`; keep the safe defaults for staging (`MQTT_DISABLED=true`, `CONTROL_API_DISABLED=true`, `PUSH_NOTIFICATIONS_DISABLED=true`, `HEATPUMP_HISTORY_DISABLED=false`).
-  - Push: `EXPO_ACCESS_TOKEN=<staging token>`, `PUSH_NOTIFICATIONS_ENABLED_ROLES=owner,admin,facilities`
+- Integrations: `MQTT_URL`, `CONTROL_API_URL`/`CONTROL_API_KEY`, `HEATPUMP_HISTORY_URL`/`HEATPUMP_HISTORY_API_KEY`; keep the safe defaults for staging (`MQTT_DISABLED=true`, `CONTROL_API_DISABLED=true`, `PUSH_NOTIFICATIONS_DISABLED=true`, `HEATPUMP_HISTORY_DISABLED=false`).
+- Push: `EXPO_ACCESS_TOKEN=<staging token>`, `PUSH_NOTIFICATIONS_ENABLED_ROLES=owner,admin,facilities`
+ - Run `cd backend && npm run devices:missing-macs` against the staging DB (`DATABASE_URL` set) to ensure every device has a MAC before enabling live history.
 3) Install backend deps and bootstrap the database (migrations + demo seed)
 ```
 cd backend
