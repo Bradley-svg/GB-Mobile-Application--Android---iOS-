@@ -8,6 +8,7 @@ const tokensPath = path.resolve(__dirname, "../packages/ui-tokens/src");
 /** @type {import("next").NextConfig} */
 const nextConfig = (() => {
   const isProdBuild = process.env.NODE_ENV === "production";
+  const isDev = !isProdBuild;
 
   const resolvedApiUrl =
     process.env.NEXT_PUBLIC_API_URL || (!isProdBuild ? "http://localhost:4000" : undefined);
@@ -46,6 +47,9 @@ const nextConfig = (() => {
   const scriptSources = new Set(["'self'"]);
   if (!isProdBuild) {
     scriptSources.add("'unsafe-eval'");
+  }
+  if (isDev) {
+    scriptSources.add("'unsafe-inline'");
   }
   const styleSources = new Set(["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"]);
   const fontSources = new Set(["'self'", "data:", "https://fonts.gstatic.com"]);

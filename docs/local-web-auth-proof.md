@@ -3,51 +3,50 @@
 Environment snapshot:
 - Node v22.20.0, npm 11.6.2
 - web/.env.local -> NEXT_PUBLIC_API_URL=http://localhost:4000, NEXT_PUBLIC_EMBEDDED=false
-- Backend health: `curl -I http://localhost:4000/health-plus` -> connection refused (curl exit 7)
+- Backend health: `curl -I http://localhost:4000/health-plus` -> 200 OK
 
 Step 1 command results:
 
 | Command | Status | Notes |
 | --- | --- | --- |
-| npm run lint | ✅ | Completed in web/ (eslint --max-warnings=0) |
-| npm run typecheck | ✅ | Completed in web/ (tsc --noEmit) |
-| npm test | ✅ | Completed in web/ (vitest; 15 files, 35 tests) |
+| npm run lint | Pass | Completed in web/ (eslint --max-warnings=0) |
+| npm run typecheck | Pass | Completed in web/ (tsc --noEmit) |
+| npm test | Pass | Completed in web/ (vitest; 15 files, 35 tests) |
 
 Playwright auth redirect e2e:
-- Command: `npx playwright test auth-redirect.spec.ts --timeout=60000`
-- Status: ❌ timeout waiting for `/login`; `page.waitForURL("**/login**")` exceeded 60s
-- /auth/me calls: none observed (route handler never triggered)
-- Trace artifacts: web/test-results/auth-redirect-unauthentica-65e93-h-me-and-redirects-to-login/trace.zip (retry trace also available)
+- Command: `npx playwright test auth-redirect.spec.ts`
+- Status: Fail (timeout) because client error overlay appears: "The result of getServerSnapshot should be cached to avoid an infinite loop" followed by "Maximum update depth exceeded"
+- /auth/me: requested once, 401 from backend
+- Trace: web/test-results/auth-redirect-unauthentica-65e93-h-me-and-redirects-to-login/trace.zip
 
 Manual auth proof (unauthenticated):
-- Dev server: `npm run dev` -> Next.js 16.0.8 ready on http://localhost:3000 (see web/devserver.log)
+- Dev server: `npm run dev` -> Next.js 16.0.8 ready on http://localhost:3000
 - Request: GET http://localhost:3000/app (curl -I -> 200 OK)
 - Final URL: http://localhost:3000/app (no redirect)
-- /auth/me presence: none (no network request fired)
-- Page state: stuck on "Loading your workspace..."; console shows CSP blocks for inline scripts and page error `Invariant: Expected a request ID to be defined for the document via self.__next_r`
-- Expected returnTo/reason params: not present (no navigation to /login)
+- /auth/me: requested and returned 401 from backend
+- Page state: client error overlay with "The result of getServerSnapshot should be cached to avoid an infinite loop" and "Maximum update depth exceeded" (stack points at lib/useOrgSwitcher.ts), so router.replace to /login never completes
 
 Embed route sanity (unauthenticated):
-- GET http://localhost:3000/embed -> 307 to /app?embed=true (curl -I)
+- GET http://localhost:3000/embed -> 307 to /app?embed=true
 - Final URL after load: http://localhost:3000/app?embed=true
-- Behavior: identical to /app (no /auth/me call, loading screen only, CSP inline script blocks), embed chrome not verifiable because auth guard never runs
+- Behavior: /auth/me 401 observed, but same client error overlay prevents redirect/login view; embed chrome not verified
 
-## ✅Passed
+## Passed
 - npm run lint (web)
 - npm run typecheck (web)
 - npm test (web)
 
-## ❌Failed
-- Backend unreachable at http://localhost:4000/health-plus (connection refused)
-- Playwright auth redirect spec: timed out waiting for /login, /auth/me never called (trace in web/test-results/.../trace.zip)
-- Manual /app check: remained on /app with loading screen; no /auth/me; CSP blocked inline scripts and threw `self.__next_r` invariant
-- Manual /embed check: redirected to /app?embed=true then stalled with same CSP/hydration failure; no login shown
+## Failed
+- Playwright auth redirect spec: timed out waiting for /login because of client runtime error; /auth/me 401 did fire
+- Manual /app check: stayed on /app with error overlay; /auth/me 401 fired; no login redirect
+- Manual /embed check: redirected to /app?embed=true then hit the same error overlay; no login view
 
-## 🔧Fixes
-- Relax dev CSP so Next.js inline bootstrap scripts can run (e.g., in web/next.config.mjs add a dev-only allowance such as `'unsafe-inline'` or include the Next-provided nonce/strict-dynamic token in script-src). Current script-src is `'self' 'unsafe-eval'`, which blocks inline scripts and prevents hydration, so auth guard never executes.
-- Start or stub the backend at http://localhost:4000; once CSP is fixed, a down backend should drive `/login?returnTo=%2Fapp&reason=api_unreachable` after /auth/me fails.
+## Fixes
+- Dev-only CSP relaxation applied: web/next.config.mjs now adds `'unsafe-inline'` to script-src when NODE_ENV is not production, allowing Next dev bootstrap scripts.
+- Backend is running and reachable at http://localhost:4000.
+- Remaining blocker: client runtime loop in lib/useOrgSwitcher.ts triggers the getServerSnapshot/infinite loop error, preventing the auth guard redirect despite /auth/me returning 401.
 
-## 📌Next Steps
-- Apply the dev CSP tweak above and restart `npm run dev`, then rerun `npx playwright test auth-redirect.spec.ts`.
+## Next Steps
+- Investigate lib/useOrgSwitcher.ts (and the associated zustand store) to eliminate the getServerSnapshot/infinite loop error in dev; once fixed, rerun `npx playwright test auth-redirect.spec.ts`.
 - Re-test unauthenticated /app and /embed (incognito/headless) verifying: /auth/me 401 occurs, redirect lands on /login with returnTo preserved and embed param retained.
-- If backend stays offline, confirm /login carries `reason=api_unreachable`; once backend is up, repeat to ensure normal 401 -> login redirect flow.
+- If the backend becomes unreachable, expect redirect to include `reason=api_unreachable`.
